@@ -1,0 +1,340 @@
+﻿<UserControl
+    x:Class="NewSchool.Controls.MonthPicker"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:NewSchool.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <!-- 색상 정의 -->
+            <SolidColorBrush x:Key="AccentColor" Color="#0078D4"/>
+            <SolidColorBrush x:Key="HoverColor" Color="#F0F9FF"/>
+            <SolidColorBrush x:Key="SelectedColor" Color="#E6F4FF"/>
+            <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+            <!-- 월 선택 박스 스타일 -->
+            <Style x:Key="MonthBoxStyle" TargetType="Border">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0.5"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Margin" Value="3"/>
+            </Style>
+
+            <!-- 월 텍스트 스타일 -->
+            <Style x:Key="MonthTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <!-- 네비게이션 버튼 스타일 -->
+            <Style x:Key="NavigationButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Width" Value="32"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="CornerRadius" Value="6"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid>
+                                <Border x:Name="BackgroundBorder" 
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="{TemplateBinding CornerRadius}"/>
+                                <ContentPresenter HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center"/>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
+                                                                               Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource HoverColor}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
+                                                                               Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SelectedColor}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- 메인 버튼 스타일 -->
+            <Style x:Key="MainButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid>
+                                <Border x:Name="BackgroundBorder"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="{TemplateBinding CornerRadius}">
+                                    <Grid Margin="{TemplateBinding Padding}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ContentPresenter Grid.Column="0" 
+                                                          HorizontalAlignment="Left" 
+                                                          VerticalAlignment="Center"/>
+                                        <FontIcon Grid.Column="1" 
+                                                  Glyph="&#xE70D;" 
+                                                  FontSize="12" 
+                                                  Margin="8,0,0,0"
+                                                  VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
+                                                                               Storyboard.TargetProperty="BorderBrush">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource AccentColor}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
+                                                                               Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource HoverColor}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
+                                                                               Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SelectedColor}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Button x:Name="BtnMonth" 
+                Style="{StaticResource MainButtonStyle}"
+                HorizontalAlignment="Left"
+                Click="BtnMonth_Click">
+            <Button.Flyout>
+                <Flyout x:Name="PopMonth" 
+                        Placement="Bottom"
+                        ShouldConstrainToRootBounds="False">
+                    <Flyout.FlyoutPresenterStyle>
+                        <Style TargetType="FlyoutPresenter">
+                            <Setter Property="CornerRadius" Value="12"/>
+                            <Setter Property="BorderThickness" Value="0.5"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                            <Setter Property="Padding" Value="0"/>
+                        </Style>
+                    </Flyout.FlyoutPresenterStyle>
+
+                    <Grid x:Name="GridMonth" 
+                          Width="200"
+                          Background="White"
+                          CornerRadius="12"
+                          Padding="8"
+                          KeyDown="GridMonth_KeyDown">
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="2"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 헤더 (년도 네비게이션) -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0"
+                                    x:Name="BtnPrevious"
+                                    Style="{StaticResource NavigationButtonStyle}"
+                                    Click="BtnPrevious_Click">
+                                <FontIcon Glyph="&#xE76B;" FontSize="16"/>
+                            </Button>
+
+                            <TextBlock Grid.Column="1"
+                                       x:Name="LbYear" 
+                                       HorizontalAlignment="Center" 
+                                       VerticalAlignment="Center"
+                                       FontSize="14"
+                                       FontWeight="Bold"/>
+
+                            <Button Grid.Column="2"
+                                    x:Name="BtnNext"
+                                    Style="{StaticResource NavigationButtonStyle}"
+                                    Click="BtnNext_Click">
+                                <FontIcon Glyph="&#xE76C;" FontSize="16"/>
+                            </Button>
+                        </Grid>
+
+                        <!-- 월 그리드 -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/>
+                                <ColumnDefinition/>
+                                <ColumnDefinition/>
+                                <ColumnDefinition/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+
+                            <!-- 1-4월 -->
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="0" Grid.Column="0" 
+                                    x:Name="Month1" Tag="1"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="1월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="0" Grid.Column="1" 
+                                    x:Name="Month2" Tag="2"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="2월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="0" Grid.Column="2" 
+                                    x:Name="Month3" Tag="3"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="3월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="0" Grid.Column="3" 
+                                    x:Name="Month4" Tag="4"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="4월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <!-- 5-8월 -->
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="1" Grid.Column="0" 
+                                    x:Name="Month5" Tag="5"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="5월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="1" Grid.Column="1" 
+                                    x:Name="Month6" Tag="6"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="6월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="1" Grid.Column="2" 
+                                    x:Name="Month7" Tag="7"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="7월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="1" Grid.Column="3" 
+                                    x:Name="Month8" Tag="8"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="8월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <!-- 9-12월 -->
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="2" Grid.Column="0" 
+                                    x:Name="Month9" Tag="9"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="9월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="2" Grid.Column="1" 
+                                    x:Name="Month10" Tag="10"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="10월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="2" Grid.Column="2" 
+                                    x:Name="Month11" Tag="11"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="11월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+
+                            <Border Style="{StaticResource MonthBoxStyle}" 
+                                    Grid.Row="2" Grid.Column="3" 
+                                    x:Name="Month12" Tag="12"
+                                    PointerPressed="Month_PointerPressed"
+                                    PointerEntered="Month_PointerEntered"
+                                    PointerExited="Month_PointerExited">
+                                <TextBlock Text="12월" Style="{StaticResource MonthTextStyle}"/>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Flyout>
+            </Button.Flyout>
+        </Button>
+    </Grid>
+</UserControl>

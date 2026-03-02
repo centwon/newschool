@@ -1,0 +1,35 @@
+# Build results
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+packages/
+*.nupkg
+
+# Data files
+Data/
+*.db
+*.db-shm
+*.db-wal
+
+# Claude Code temp files
+tmpclaude-*
+
+# Secrets
+google_oauth.json
+
+# OS files
+Thumbs.db
+.DS_Store
+/nul

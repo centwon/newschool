@@ -1,0 +1,294 @@
+﻿<Page
+    x:Class="NewSchool.Pages.PageSchoolWork"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:NewSchool.Models"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+    Loaded="Page_Loaded">
+
+    <Grid Padding="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="16"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ======================== -->
+        <!-- 좌측: 캘린더 + 할 일 목록 -->
+        <!-- ======================== -->
+        <Grid RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 캘린더 -->
+            <CalendarView x:Name="CalView"
+                          HorizontalAlignment="Stretch"
+                          SelectedDatesChanged="CalView_SelectedDatesChanged"
+                          FirstDayOfWeek="Monday"
+                          IsGroupLabelVisible="True"/>
+
+            <!-- 할 일 목록 -->
+            <Border Grid.Row="1"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8"
+                    Padding="12">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- 헤더 -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE73A;" FontSize="18"/>
+                        <TextBlock Text="할 일" FontWeight="SemiBold" FontSize="16"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Click="BtnAddTodo_Click"
+                            ToolTipService.ToolTip="할 일 추가"
+                            Padding="6,4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                            <TextBlock Text="추가" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- 필터 -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                    <ToggleSwitch x:Name="TglShowCompleted"
+                                  OnContent="완료 포함" OffContent="미완료만"
+                                  IsOn="False" Toggled="TglShowCompleted_Toggled"
+                                  MinWidth="0"/>
+                </StackPanel>
+
+                <!-- 할 일 목록 -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <ItemsRepeater x:Name="TodoList">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="2"/>
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="models:TodoItem">
+                                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                        CornerRadius="4" Padding="8,6"
+                                        DoubleTapped="TodoItem_DoubleTapped">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox IsChecked="{x:Bind IsCompleted, Mode=OneWay}"
+                                                  Click="TodoCheckBox_Click"
+                                                  VerticalAlignment="Center" Padding="0"
+                                                  MinWidth="20" MinHeight="20"/>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind Title}" FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Opacity="{x:Bind IsCompleted, Converter={StaticResource BoolToOpacityConverter}}"/>
+                                            <TextBlock Text="{x:Bind DueStatusDisplay}" FontSize="10"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
+                                        <Border Grid.Column="2" Width="8" Height="8" CornerRadius="4"
+                                                Background="{x:Bind PriorityColor}"
+                                                VerticalAlignment="Center"
+                                                ToolTipService.ToolTip="{x:Bind PriorityDisplay}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </ScrollViewer>
+
+                <!-- 하단 버튼 -->
+                <Button Grid.Row="3" Content="완료 항목 정리"
+                        HorizontalAlignment="Right"
+                        Click="BtnClearCompleted_Click"
+                        FontSize="11" Padding="8,4"/>
+            </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ================== -->
+        <!-- 우측: 업무 일지    -->
+        <!-- ================== -->
+        <Grid Grid.Column="2" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 헤더 + 액션 버튼 -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE70F;" FontSize="20"/>
+                        <TextBlock Text="업무 일지" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                    </StackPanel>
+                    <CalendarDatePicker x:Name="WorkLogDatePicker"
+                                        DateChanged="WorkLogDatePicker_DateChanged"
+                                        PlaceholderText="날짜 선택"/>
+                    <AutoSuggestBox x:Name="SearchBox"
+                                    PlaceholderText="검색..."
+                                    QueryIcon="Find"
+                                    Width="200"
+                                    QuerySubmitted="SearchBox_QuerySubmitted"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                    <Button Click="BtnAddWorkLog_Click" ToolTipService.ToolTip="추가">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE710;" FontSize="16"/>
+                            <TextBlock Text="추가"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Click="BtnSaveWorkLog_Click" ToolTipService.ToolTip="저장"
+                            Style="{ThemeResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE74E;" FontSize="16"/>
+                            <TextBlock Text="저장"/>
+                        </StackPanel>
+                    </Button>
+                    <AppBarSeparator Margin="4,0"/>
+                    <Button Click="BtnDeleteWorkLog_Click" ToolTipService.ToolTip="삭제">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE74D;" FontSize="16"/>
+                            <TextBlock Text="삭제"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- 업무 일지 목록 + 편집 영역 -->
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="Auto" MinHeight="250"/>
+                </Grid.RowDefinitions>
+
+                <!-- 업무 일지 목록 -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 목록 헤더 -->
+                        <Grid Padding="12,8"
+                              Background="{ThemeResource LayerFillColorDefaultBrush}"
+                              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                              BorderThickness="0,0,0,1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="24"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="날짜" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Grid.Column="1" Text="분류" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Grid.Column="2" Text="제목" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Grid.Column="3" Text="⭐" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- 목록 -->
+                        <ListView x:Name="WorkLogListView" Grid.Row="1"
+                                  SelectionChanged="WorkLogListView_SelectionChanged"
+                                  SelectionMode="Single">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:WorkLog">
+                                    <Grid Padding="4,6" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="20"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind DateDisplay}" FontSize="11"
+                                                   VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1" CornerRadius="3" Padding="4,2"
+                                                Background="{ThemeResource LayerFillColorAltBrush}"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind CategoryDisplay}" FontSize="10"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind Title}" FontSize="12"
+                                                   FontWeight="SemiBold" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="3" 
+                                                   Text="{x:Bind IsImportant, Converter={StaticResource BoolToStarConverter}}" 
+                                                   FontSize="12" VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Border>
+
+                <!-- 편집 영역 -->
+                <Border Grid.Row="2"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8"
+                        Padding="16">
+                    <Grid RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 제목 + 카테고리 -->
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtWorkLogTitle" PlaceholderText="제목"
+                                     FontSize="14" FontWeight="SemiBold"/>
+                            <ComboBox x:Name="CBoxWorkLogCategory" Grid.Column="1"
+                                      HorizontalAlignment="Stretch"/>
+                            <CheckBox x:Name="ChkWorkLogImportant" Grid.Column="2"
+                                      Content="⭐" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- 태그 -->
+                        <TextBox x:Name="TxtWorkLogTag" Grid.Row="1"
+                                 PlaceholderText="태그 (쉼표 구분: 예: 공문, 마감, 3월)"
+                                 FontSize="12"/>
+
+                        <!-- 내용 -->
+                        <TextBox x:Name="TxtWorkLogContent" Grid.Row="2"
+                                 PlaceholderText="업무 내용을 입력하세요"
+                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                 MinHeight="120"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

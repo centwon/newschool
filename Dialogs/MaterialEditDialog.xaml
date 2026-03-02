@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="NewSchool.Dialogs.MaterialEditDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:NewSchool.Dialogs"
+    mc:Ignorable="d"
+    Title="수업 자료"
+    PrimaryButtonText="저장"
+    CloseButtonText="취소"
+    DefaultButton="Primary"
+    PrimaryButtonClick="OnPrimaryButtonClick">
+
+    <Grid Width="450">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- 에러 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 제목 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 내용 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 첨부파일 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 삭제 버튼 -->
+        </Grid.RowDefinitions>
+
+        <!-- 에러 메시지 -->
+        <InfoBar x:Name="ErrorInfoBar"
+                 Grid.Row="0"
+                 Severity="Error"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Margin="0,0,0,12"/>
+
+        <!-- 제목 -->
+        <TextBox x:Name="TxtTitle"
+                 Grid.Row="1"
+                 Header="제목 *"
+                 PlaceholderText="자료 제목을 입력하세요"
+                 MaxLength="200"
+                 Margin="0,0,0,12"/>
+
+        <!-- 내용 -->
+        <TextBox x:Name="TxtContent"
+                 Grid.Row="2"
+                 Header="설명"
+                 PlaceholderText="자료에 대한 설명을 입력하세요"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 Height="100"
+                 MaxLength="2000"
+                 Margin="0,0,0,12"/>
+
+        <!-- 첨부파일 -->
+        <StackPanel Grid.Row="3" Margin="0,0,0,12">
+            <TextBlock Text="첨부파일"
+                       Style="{StaticResource BaseTextBlockStyle}"
+                       Margin="0,0,0,8"/>
+
+            <!-- 기존 파일 목록 -->
+            <ListView x:Name="FileListView"
+                      MaxHeight="120"
+                      SelectionMode="None"
+                      Visibility="Collapsed">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:PostFileViewModel">
+                        <Grid Padding="8,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <FontIcon Grid.Column="0" 
+                                      Glyph="&#xE8A5;" 
+                                      FontSize="14"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+
+                            <TextBlock Grid.Column="1" 
+                                       Text="{x:Bind FileName}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="8,0,0,0"/>
+
+                            <TextBlock Grid.Column="2"
+                                       Text="{x:Bind FileSizeDisplay}"
+                                       FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0"/>
+
+                            <Button Grid.Column="3"
+                                    Tag="{x:Bind No}"
+                                    Click="BtnRemoveFile_Click"
+                                    ToolTipService.ToolTip="삭제"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="4">
+                                <FontIcon Glyph="&#xE711;" FontSize="12"/>
+                            </Button>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <!-- 파일 추가 버튼 -->
+            <Button x:Name="BtnAddFile"
+                    Click="BtnAddFile_Click"
+                    HorizontalAlignment="Left"
+                    Margin="0,8,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <FontIcon Glyph="&#xE8E5;" FontSize="14"/>
+                    <TextBlock Text="파일 추가" Margin="8,0,0,0"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
+        <!-- 삭제 버튼 (수정 모드만) -->
+        <Button x:Name="BtnDelete"
+                Grid.Row="4"
+                Content="이 자료 삭제"
+                Click="BtnDelete_Click"
+                Visibility="Collapsed"
+                Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+    </Grid>
+</ContentDialog>

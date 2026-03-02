@@ -1,0 +1,212 @@
+﻿<Page
+    x:Class="NewSchool.Pages.StudentInfoExportPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:NewSchool.Controls"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 학년도/학년/학급 선택 -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Grid.Row="0">
+            <ComboBox x:Name="CBoxYear" 
+                      PlaceholderText="학년도"
+                      MinWidth="120"
+                      SelectionChanged="CBoxYear_SelectionChanged">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock>
+                            <Run Text="{Binding}"/>
+                            <Run Text="학년도"/>
+                        </TextBlock>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <ComboBox x:Name="CBoxGrades" 
+                      PlaceholderText="학년"
+                      MinWidth="100"
+                      SelectionChanged="CBoxGrades_SelectionChanged">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock>
+                            <Run Text="{Binding}"/>
+                            <Run Text="학년"/>
+                        </TextBlock>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <ComboBox x:Name="CBoxClasses" 
+                      PlaceholderText="학급"
+                      MinWidth="100"
+                      SelectionChanged="CBoxClasses_SelectionChanged"/>
+        </StackPanel>
+
+        <!-- 제목 및 옵션 -->
+        <StackPanel Orientation="Horizontal" Spacing="16" Grid.Row="1" Margin="0,12,0,0">
+            <TextBlock Text="제목:" VerticalAlignment="Center"/>
+            <TextBox x:Name="TboxTitle" 
+                     Width="200" 
+                     PlaceholderText="학생 정보"/>
+            <CheckBox x:Name="ChkShowNo" 
+                      Content="연번 표시"/>
+            <CheckBox x:Name="ChkShowClass" 
+                      Content="학급 표시"/>
+            <CheckBox x:Name="ChkShowEtc" 
+                      Content="비고 표시" 
+                      IsChecked="True"/>
+        </StackPanel>
+
+        <!-- 출력항목 선택 -->
+        <Expander Header="출력항목 선택" 
+                  Grid.Row="2" 
+                  Margin="0,12,0,0" 
+                  IsExpanded="True"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Stretch">
+            <StackPanel x:Name="PanItem" Padding="16,8" Spacing="8">
+                <!-- 1행 -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <CheckBox x:Name="ChkSex" Content="성별" Tag="Sex" MinWidth="90"/>
+                    <CheckBox x:Name="ChkBirth" Content="생일" Tag="Birth" MinWidth="90"/>
+                    <CheckBox x:Name="ChkEmail" Content="E-Mail" Tag="Email" MinWidth="90"/>
+                    <CheckBox x:Name="ChkPhone" Content="전화" Tag="Phone" MinWidth="90"/>
+                    <CheckBox x:Name="ChkAddress" Content="주소" Tag="Address" MinWidth="90"/>
+                </StackPanel>
+
+                <!-- 2행 -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <CheckBox x:Name="ChkFatherName" Content="아버지 이름" Tag="FatherName" MinWidth="90"/>
+                    <CheckBox x:Name="ChkFatherPhone" Content="아버지 전화" Tag="FatherPhone" MinWidth="90"/>
+                    <CheckBox x:Name="ChkMotherName" Content="어머니 이름" Tag="MotherName" MinWidth="90"/>
+                    <CheckBox x:Name="ChkMotherPhone" Content="어머니 전화" Tag="MotherPhone" MinWidth="90"/>
+                </StackPanel>
+
+                <!-- 3행 -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <CheckBox x:Name="ChkFamily" Content="가족 관계" Tag="Family" MinWidth="90"/>
+                    <CheckBox x:Name="ChkFriends" Content="교우관계" Tag="Friends" MinWidth="90"/>
+                    <CheckBox x:Name="ChkInterest" Content="흥미 특기" Tag="Interest" MinWidth="90"/>
+                    <CheckBox x:Name="ChkCareerHope" Content="진로 희망" Tag="CareerHope" MinWidth="90"/>
+                    <CheckBox x:Name="ChkRemark" Content="참고 사항" Tag="Remark" MinWidth="90"/>
+                </StackPanel>
+            </StackPanel>
+        </Expander>
+
+        <!-- 사용자 정의 항목 -->
+        <Expander x:Name="ExpanderUserItem" 
+                  Header="사용자 정의 항목" 
+                  Grid.Row="3" 
+                  Margin="0,8,0,0"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Stretch">
+            <Grid x:Name="GridUserItem" Padding="16,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 왼쪽 열 -->
+                <TextBlock Text="항목 1" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser1" Grid.Column="1" Margin="4"/>
+
+                <TextBlock Text="항목 2" Grid.Row="1" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser2" Grid.Row="1" Grid.Column="1" Margin="4"/>
+
+                <TextBlock Text="항목 3" Grid.Row="2" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser3" Grid.Row="2" Grid.Column="1" Margin="4"/>
+
+                <TextBlock Text="항목 4" Grid.Row="3" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser4" Grid.Row="3" Grid.Column="1" Margin="4"/>
+
+                <TextBlock Text="항목 5" Grid.Row="4" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser5" Grid.Row="4" Grid.Column="1" Margin="4"/>
+
+                <!-- 오른쪽 열 -->
+                <TextBlock Text="항목 6" Grid.Column="2" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser6" Grid.Column="3" Margin="4"/>
+
+                <TextBlock Text="항목 7" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser7" Grid.Row="1" Grid.Column="3" Margin="4"/>
+
+                <TextBlock Text="항목 8" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser8" Grid.Row="2" Grid.Column="3" Margin="4"/>
+
+                <TextBlock Text="항목 9" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser9" Grid.Row="3" Grid.Column="3" Margin="4"/>
+
+                <TextBlock Text="항목 10" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Margin="0,4"/>
+                <TextBox x:Name="TBoxUser10" Grid.Row="4" Grid.Column="3" Margin="4"/>
+            </Grid>
+        </Expander>
+
+        <!-- 출력 버튼 -->
+        <Grid Grid.Row="4" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 왼쪽: 출력 대상 선택 -->
+            <StackPanel Orientation="Horizontal" 
+                        Spacing="16" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                <TextBlock Text="출력 대상:" VerticalAlignment="Center"/>
+                <RadioButton x:Name="RbToPrinter" 
+                             Content="프린터" 
+                             GroupName="ExportType"/>
+                <RadioButton x:Name="RbToExcel" 
+                             Content="CSV/Excel 파일" 
+                             GroupName="ExportType"
+                             IsChecked="True"/>
+            </StackPanel>
+
+            <!-- 오른쪽: 버튼들 -->
+            <StackPanel Orientation="Horizontal" 
+                        Spacing="8" 
+                        Grid.Column="1"
+                        HorizontalAlignment="Right">
+                <Button x:Name="BtnPreview" 
+                        Content="미리보기" 
+                        Click="BtnPreview_Click"
+                        MinWidth="100"/>
+                <Button x:Name="BtnExport" 
+                        Content="출력" 
+                        Click="BtnExport_Click"
+                        Style="{StaticResource AccentButtonStyle}"
+                        MinWidth="100"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- 미리보기 영역 -->
+        <Border Grid.Row="5" 
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                BorderThickness="1" 
+                CornerRadius="8"
+                Margin="0,12,0,0"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+            <controls:JoditEditor 
+                x:Name="PreviewEditor"
+                Mode="ReadOnly"/>
+        </Border>
+    </Grid>
+</Page>

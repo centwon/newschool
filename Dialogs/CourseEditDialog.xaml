@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="NewSchool.Dialogs.CourseEditDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="수업 정보"
+    PrimaryButtonText="저장"
+    CloseButtonText="취소"
+    DefaultButton="Primary"
+    PrimaryButtonClick="OnPrimaryButtonClick">
+
+    <ScrollViewer MaxHeight="600">
+        <StackPanel Spacing="16" Padding="4">
+            <!-- 에러 메시지 컨테이너 -->
+            <StackPanel x:Name="ErrorContainer"/>
+
+            <!-- 과목명 -->
+            <TextBox 
+                x:Name="TxtSubject"
+                Header="과목명 *"
+                PlaceholderText="예: 국어, 수학, 과학"
+                MaxLength="50"/>
+
+            <!-- 학년 -->
+            <ComboBox 
+                x:Name="CBoxGrade"
+                SelectionChanged="CBoxGrade_SelectionChanged"
+                Header="대상 학년 *"
+                PlaceholderText="학년 선택"
+                HorizontalAlignment="Stretch">
+                <ComboBoxItem Content="1학년" Tag="1"/>
+                <ComboBoxItem Content="2학년" Tag="2"/>
+                <ComboBoxItem Content="3학년" Tag="3"/>
+            </ComboBox>
+
+            <!-- 주당 시수 -->
+            <NumberBox 
+                x:Name="NumUnit"
+                Header="주당 시수"
+                PlaceholderText="0"
+                Minimum="0"
+                Maximum="20"
+                SpinButtonPlacementMode="Inline"
+                Value="0"/>
+
+            <!-- 수업 유형 -->
+            <ComboBox 
+                x:Name="CBoxType"
+                SelectionChanged="CBoxType_SelectionChanged"
+                Header="수업 유형"
+                HorizontalAlignment="Stretch"
+                SelectedIndex="0">
+                <ComboBoxItem Content="학급 공통" Tag="Class"/>
+                <ComboBoxItem Content="선택 과목" Tag="Selective"/>
+                <ComboBoxItem Content="동아리" Tag="Club"/>
+            </ComboBox>
+
+            <!-- 강의실 -->
+            <StackPanel Spacing="8">
+                <TextBlock 
+                    Text="강의실 *" 
+                    Style="{StaticResource BaseTextBlockStyle}"/>
+                <TextBox 
+                    x:Name="TxtRooms"
+                    PlaceholderText="예: 1반-5반, 1반,3반,5반, A,B,C, 미술실, 음악실, 과학실"
+                    MaxLength="200"
+                    TextChanged="OnRoomsTextChanged"/>
+                <TextBlock 
+                    x:Name="TxtRoomsPreview"
+                    Text=""
+                    Foreground="{ThemeResource SystemColorGrayTextColor}"
+                    FontSize="12"
+                    TextWrapping="Wrap"
+                    Visibility="Collapsed"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button
+                        x:Name="BtnWholeRooms"                        
+                        Content="1반-5반"
+                        Click="BtnWholeRooms_Click"
+                        Tag="1,2,3,4,5"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Height="32"
+                        Padding="12,4"/>
+                    <Button
+                        x:Name="BtnSelectedRooms"
+                        Content="1반,3반,5반,7반"
+                        Click="BtnSelectedRooms_Click"
+                        Tag="1,3,5,7"
+                        Height="32"
+                        Padding="12,4"/>
+                    <Button
+                        x:Name="BtnABC"
+                        Content="A반,B반,C반"
+                        Click="BtnABC_Click"
+                        Tag="A,B,C"
+                        Height="32"
+                        Padding="12,4"/>
+                    <Button
+                        x:Name="BtnSpecialRooms"
+                        Content="특별실"
+                        Click="BtnSpecialRooms_Click" 
+                        Tag="음악실,미술실, 과학실"
+                        Height="32"
+                        Padding="12,4"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- 비고 -->
+            <TextBox 
+                x:Name="TxtRemark"
+                Header="비고"
+                PlaceholderText="메모를 입력하세요"
+                TextWrapping="Wrap"
+                AcceptsReturn="True"
+                Height="80"
+                MaxLength="500"/>
+
+            <!-- 안내 메시지 -->
+            <InfoBar
+                IsOpen="True"
+                Severity="Informational"
+                IsClosable="False"
+                Message="수업을 저장한 후 '시간표 배치' 버튼으로 시간표를 설정할 수 있습니다."/>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

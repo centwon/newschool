@@ -1,0 +1,195 @@
+﻿<Page
+    x:Class="NewSchool.Pages.PageStudentLog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:NewSchool.Controls"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="120"/>
+            <ColumnDefinition Width="16"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 필터 패널 및 액션 버튼 -->
+        <Grid Grid.ColumnSpan="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 필터 패널 -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <!-- 학년도/학기/학년/반 필터 -->
+                <controls:SchoolFilterPicker 
+                    x:Name="FilterPicker"
+                    ShowSemester="True"
+                    IncludeAllGrade="False"
+                    IncludeAllClass="False"
+                    SelectionChanged="FilterPicker_SelectionChanged"/>
+
+                <ComboBox x:Name="CBoxCat" 
+                          MinWidth="120"
+                          VerticalAlignment="Center"
+                          SelectionChanged="CBoxCat_SelectionChanged"/>
+            </StackPanel>
+
+            <!-- 액션 버튼 패널 -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                <CheckBox x:Name="ChkShowSpec" 
+                          Content="학생부 기록 보기" 
+                          VerticalAlignment="Center"
+                          FontWeight="SemiBold"
+                          IsChecked="False" 
+                          Click="ChkShowSpec_Click"
+                          Visibility="Collapsed"/>
+
+                <AppBarSeparator Margin="8,0"/>
+
+                <Button x:Name="BtnNewActLog" 
+                        Click="BtnNewActLog_Click" 
+                        ToolTipService.ToolTip="추가">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE710;" FontSize="16"/>
+                        <TextBlock Text="추가" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="BtnEditLog" 
+                        Click="BtnEditLog_Click" 
+                        ToolTipService.ToolTip="선택된 기록 전체 편집">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE70F;" FontSize="16"/>
+                        <TextBlock Text="편집" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="BtnSaveActLog" 
+                        Click="BtnSaveActLog_Click" 
+                        ToolTipService.ToolTip="저장"
+                        Style="{ThemeResource AccentButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE74E;" FontSize="16"/>
+                        <TextBlock Text="저장" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <AppBarSeparator/>
+
+                <Button x:Name="BtnPrint" 
+                        Click="BtnPrint_Click" 
+                        ToolTipService.ToolTip="인쇄">
+                    <FontIcon Glyph="&#xE749;" FontSize="16"/>
+                </Button>
+
+                <Button x:Name="BtnFontResize" 
+                        Click="BtnFontResize_Click" 
+                        ToolTipService.ToolTip="글자 크기 변경">
+                    <FontIcon Glyph="&#xE8E9;" FontSize="16"/>
+                    <Button.Flyout>
+                        <Flyout x:Name="FontResizeFlyout" Placement="Bottom">
+                            <Grid Width="200" Height="150">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock x:Name="TbMax" 
+                                           Grid.Row="0" 
+                                           Grid.Column="0" 
+                                           VerticalAlignment="Top" 
+                                           FontSize="9" 
+                                           HorizontalAlignment="Right"
+                                           Margin="0,0,8,0"/>
+
+                                <TextBlock x:Name="TbSize" 
+                                           Grid.Row="1" 
+                                           Grid.Column="0" 
+                                           VerticalAlignment="Center"
+                                           FontWeight="Bold"
+                                           Margin="0,0,8,0"/>
+
+                                <TextBlock x:Name="TbMin" 
+                                           Grid.Row="2" 
+                                           Grid.Column="0" 
+                                           VerticalAlignment="Bottom" 
+                                           FontSize="10" 
+                                           HorizontalAlignment="Right"
+                                           Margin="0,0,8,0"/>
+
+                                <Slider x:Name="SldFontSize" 
+                                        Grid.Row="0" 
+                                        Grid.Column="1" 
+                                        Grid.RowSpan="3"
+                                        Orientation="Vertical" 
+                                        Minimum="6" 
+                                        Maximum="30" 
+                                        Value="12"
+                                        TickPlacement="Outside" 
+                                        TickFrequency="2"
+                                        ValueChanged="SldFontSize_ValueChanged"
+                                        PointerWheelChanged="SldFontSize_PointerWheelChanged"/>
+                            </Grid>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+
+                <AppBarSeparator/>
+
+                <Button x:Name="BtnAddLogAll" 
+                        Content="일괄입력" 
+                        Click="BtnAddLogAll_Click"/>
+
+                <AppBarSeparator/>
+
+                <Button x:Name="BtnDelActLog" 
+                        Click="BtnDelActLog_Click" 
+                        ToolTipService.ToolTip="삭제">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE74D;" FontSize="16"/>
+                        <TextBlock Text="삭제" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- 학생 목록 -->
+        <controls:ListStudent x:Name="StudentList" 
+                              Grid.Row="2"
+                              Grid.Column="0"/>
+
+        <!-- 로그 목록 뷰어 -->
+        <Grid Grid.Row="2" Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <controls:LogListViewer x:Name="LogList" 
+                                    Grid.Row="0"
+                                    StudentInfoMode="HideAll"
+                                    Unloaded="LogList_Unloaded"/>
+
+            <!-- 학생부 기록 (StudentSpecBox) -->
+            <controls:StudentSpecBox x:Name="SpecBox" 
+                                     Grid.Row="1"
+                                     Height="200" 
+                                     Visibility="Collapsed"
+                                     Margin="0,16,0,0"/>
+        </Grid>
+    </Grid>
+</Page>

@@ -1,0 +1,233 @@
+﻿<ContentDialog
+    x:Class="NewSchool.Dialogs.InitialSetupDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="프로그램 초기 설정"
+    PrimaryButtonText="완료"
+    CloseButtonText="취소"
+    DefaultButton="Primary"
+    IsPrimaryButtonEnabled="{x:Bind IsSetupComplete, Mode=OneWay}"
+    PrimaryButtonClick="OnPrimaryButtonClick"
+    Style="{StaticResource DefaultContentDialogStyle}">
+
+    <ScrollViewer MaxHeight="600" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="24" Padding="0,0,0,16">
+
+            <!-- 안내 메시지 -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="환영합니다!" 
+                               FontSize="18" 
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="MySchool 프로그램을 사용하기 위해 먼저 기본 정보를 설정해주세요."
+                               TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 1단계: 학교 검색 -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="1단계: 학교 정보" 
+                           FontSize="16" 
+                           FontWeight="SemiBold"/>
+
+                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBox x:Name="SchoolNameTextBox"
+                                     Header="학교명"
+                                     PlaceholderText="학교 이름을 입력하세요"
+                                     Width="300"
+                                     IsReadOnly="True"/>
+
+                            <Button x:Name="SearchSchoolButton"
+                                    Content="학교 찾기"
+                                    Click="OnSearchSchoolClick"
+                                    VerticalAlignment="Bottom"
+                                    Style="{StaticResource AccentButtonStyle}"/>
+                        </StackPanel>
+
+                        <TextBox x:Name="SchoolCodeTextBox"
+                                 Header="학교 코드"
+                                 IsReadOnly="True"
+                                 PlaceholderText="학교 검색 후 자동 입력됩니다"/>
+
+                        <TextBox x:Name="SchoolAddressTextBox"
+                                 Header="주소"
+                                 IsReadOnly="True"
+                                 PlaceholderText="학교 검색 후 자동 입력됩니다"/>
+
+                        <InfoBar x:Name="SchoolInfoBar"
+                                 Severity="Success"
+                                 IsOpen="False"
+                                 IsClosable="False"
+                                 Message="학교가 선택되었습니다."/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 2단계: 사용자 정보 -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="2단계: 사용자 정보" 
+                           FontSize="16" 
+                           FontWeight="SemiBold"/>
+
+                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <TextBox x:Name="UserNameTextBox"
+                                 Header="이름 *"
+                                 PlaceholderText="이름을 입력하세요"
+                                 TextChanged="OnUserNameChanged"
+                                 MaxLength="50"/>
+
+                        <TextBox x:Name="UserPhoneTextBox"
+                                 Header="연락처 (선택)"
+                                 PlaceholderText="예: 010-1234-5678"
+                                 MaxLength="20"/>
+
+                        <TextBox x:Name="UserEmailTextBox"
+                                 Header="이메일 (선택)"
+                                 PlaceholderText="예: teacher@school.kr"
+                                 MaxLength="100"/>
+
+                        <ComboBox x:Name="UserSubjectComboBox"
+                                  Header="담당 교과 (선택)"
+                                  PlaceholderText="담당 교과를 선택하세요"
+                                  Width="300"
+                                  HorizontalAlignment="Left">
+                            <ComboBoxItem Content="국어"/>
+                            <ComboBoxItem Content="영어"/>
+                            <ComboBoxItem Content="수학"/>
+                            <ComboBoxItem Content="과학"/>
+                            <ComboBoxItem Content="사회"/>
+                            <ComboBoxItem Content="역사"/>
+                            <ComboBoxItem Content="도덕"/>
+                            <ComboBoxItem Content="체육"/>
+                            <ComboBoxItem Content="음악"/>
+                            <ComboBoxItem Content="미술"/>
+                            <ComboBoxItem Content="기술가정"/>
+                            <ComboBoxItem Content="정보"/>
+                            <ComboBoxItem Content="한문"/>
+                            <ComboBoxItem Content="제2외국어"/>
+                            <ComboBoxItem Content="기타"/>
+                        </ComboBox>
+
+                        <InfoBar x:Name="UserInfoBar"
+                                 Severity="Informational"
+                                 IsOpen="True"
+                                 IsClosable="False"
+                                 Message="사용자 ID는 자동으로 생성됩니다."/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 3단계: 학년도/학기 설정 -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="3단계: 학년도/학기 설정" 
+                           FontSize="16" 
+                           FontWeight="SemiBold"/>
+
+                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <NumberBox x:Name="WorkYearNumberBox"
+                                   Header="학년도 *"
+                                   PlaceholderText="예: 2024"
+                                   Minimum="2020"
+                                   Maximum="2100"
+                                   SpinButtonPlacementMode="Inline"
+                                   ValueChanged="OnWorkYearChanged"
+                                   Width="200"
+                                   HorizontalAlignment="Left"/>
+
+                        <ComboBox x:Name="WorkSemesterComboBox"
+                                  Header="학기 *"
+                                  PlaceholderText="학기를 선택하세요"
+                                  SelectedIndex="0"
+                                  SelectionChanged="OnWorkSemesterChanged"
+                                  Width="200"
+                                  HorizontalAlignment="Left">
+                            <ComboBoxItem Content="1학기" Tag="1"/>
+                            <ComboBoxItem Content="2학기" Tag="2"/>
+                        </ComboBox>
+
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <NumberBox x:Name="HomeGradeNumberBox"
+                                       Header="담임 학년 (선택)"
+                                       PlaceholderText="1-3"
+                                       Minimum="1"
+                                       Maximum="3"
+                                       SpinButtonPlacementMode="Inline"
+                                       Width="150"/>
+
+                            <NumberBox x:Name="HomeRoomNumberBox"
+                                       Header="담임 반 (선택)"
+                                       PlaceholderText="1-20"
+                                       Minimum="1"
+                                       Maximum="20"
+                                       SpinButtonPlacementMode="Inline"
+                                       Width="150"/>
+                        </StackPanel>
+
+                        <InfoBar Severity="Informational"
+                                 IsOpen="True"
+                                 IsClosable="False"
+                                 Message="담임 학년/반은 나중에 설정에서 변경할 수 있습니다."/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 진행 상태 -->
+            <Border Background="{ThemeResource AccentFillColorDefaultBrush}"
+                    BorderThickness="0"
+                    CornerRadius="4"
+                    Padding="12"
+                    Opacity="0.8">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="설정 진행 상황" 
+                               FontWeight="SemiBold"
+                               Foreground="White"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock x:Name="Step1Status" 
+                                       Text="□ 학교 선택" 
+                                       Foreground="White"
+                                       FontFamily="Consolas"/>
+                            <TextBlock x:Name="Step2Status" 
+                                       Text="□ 사용자 정보" 
+                                       Foreground="White"
+                                       FontFamily="Consolas"/>
+                            <TextBlock x:Name="Step3Status" 
+                                       Text="□ 학년도/학기" 
+                                       Foreground="White"
+                                       FontFamily="Consolas"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

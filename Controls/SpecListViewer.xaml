@@ -1,0 +1,196 @@
+<UserControl
+    x:Class="NewSchool.Controls.SpecListViewer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:NewSchool.ViewModels"
+    mc:Ignorable="d">
+
+    <Border 
+        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        CornerRadius="8">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- 헤더 -->
+                <RowDefinition Height="*"/>
+                <!-- 목록 -->
+            </Grid.RowDefinitions>
+
+            <!-- 헤더 -->
+            <Grid x:Name="HeaderGrid"
+                  Grid.Row="0"
+                  Padding="8,10"
+                  Background="{ThemeResource LayerFillColorDefaultBrush}"
+                  BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                  BorderThickness="0,0,0,1">
+                
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40"/>
+                    <!-- 체크박스 -->
+                    <ColumnDefinition x:Name="ColYearHeader" Width="60"/>
+                    <!-- 학년도 -->
+                    <ColumnDefinition x:Name="ColTypeHeader" Width="100"/>
+                    <!-- 유형 -->
+                    <ColumnDefinition x:Name="ColSubjectHeader" Width="100"/>
+                    <!-- 과목 -->
+                    <ColumnDefinition x:Name="ColGradeHeader" Width="40"/>
+                    <!-- 학년 -->
+                    <ColumnDefinition x:Name="ColClassHeader" Width="40"/>
+                    <!-- 반 -->
+                    <ColumnDefinition x:Name="ColNumberHeader" Width="40"/>
+                    <!-- 번호 -->
+                    <ColumnDefinition x:Name="ColNameHeader" Width="60"/>
+                    <!-- 이름 -->
+                    <ColumnDefinition Width="*" MinWidth="200"/>
+                    <!-- 기록 내용 -->
+                    <ColumnDefinition Width="120"/>
+                    <!-- 바이트 정보 -->
+                </Grid.ColumnDefinitions>
+
+                <CheckBox x:Name="ChkSelectAll"
+                          Grid.Column="0"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Checked="OnSelectAllChecked"
+                          Unchecked="OnSelectAllUnchecked"/>
+
+                <TextBlock Grid.Column="1" x:Name="TxtYearHeader" Text="학년도" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="2" x:Name="TxtTypeHeader" Text="유형" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="3" x:Name="TxtSubjectHeader" Text="과목" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="4" x:Name="TxtGradeHeader" Text="학년" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="5" x:Name="TxtClassHeader" Text="반" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="6" x:Name="TxtNumberHeader" Text="번호" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="7" x:Name="TxtNameHeader" Text="이름" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="8" Text="기록 내용" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="12,0,0,0"/>
+                <TextBlock Grid.Column="9" Text="Byte/글자수" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,0,12,0"/>
+            </Grid>
+
+            <!-- 목록 -->
+            <ScrollViewer Grid.Row="1" 
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                
+                <ItemsRepeater x:Name="SpecItemsRepeater"
+                               Margin="0">
+                    
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="0"/>
+                    </ItemsRepeater.Layout>
+
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="vm:StudentSpecialViewModel">
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="8,8">
+
+                                <Grid Loaded="OnDataRowGridLoaded">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="40"/>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="40"/>
+                                        <ColumnDefinition Width="40"/>
+                                        <ColumnDefinition Width="40"/>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="*" MinWidth="200"/>
+                                        <ColumnDefinition Width="120"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 체크박스 -->
+                                    <CheckBox Grid.Column="0"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Top"
+                                              Margin="0,4,0,0"
+                                              IsChecked="{x:Bind IsSelected, Mode=TwoWay}"/>
+
+                                    <!-- 학년도 -->
+                                    <TextBlock Grid.Column="1" 
+                                               Text="{x:Bind Year}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"/>
+
+                                    <!-- 유형 -->
+                                    <TextBlock Grid.Column="2" 
+                                               Text="{x:Bind Type}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"
+                                               TextWrapping="NoWrap"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <!-- 과목 -->
+                                    <TextBlock Grid.Column="3" 
+                                               Text="{x:Bind SubjectName}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"
+                                               TextWrapping="NoWrap"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <!-- 학년 -->
+                                    <TextBlock Grid.Column="4"
+                                               Text="{x:Bind Grade}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"/>
+
+                                    <!-- 반 -->
+                                    <TextBlock Grid.Column="5"
+                                               Text="{x:Bind ClassNum}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"/>
+
+                                    <!-- 번호 -->
+                                    <TextBlock Grid.Column="6"
+                                               Text="{x:Bind Number}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"/>
+
+                                    <!-- 이름 -->
+                                    <TextBlock Grid.Column="7"
+                                               Text="{x:Bind StudentName}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"/>
+
+                                    <!-- 기록 내용 -->
+                                    <TextBox Grid.Column="8"
+                                             Text="{x:Bind Content, Mode=TwoWay}"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             MinHeight="60"
+                                             MaxHeight="200"
+                                             FontSize="12"
+                                             PlaceholderText="기록 내용 입력"
+                                             TextChanged="OnContentChanged"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+
+                                    <!-- 바이트 정보 -->
+                                    <TextBlock Grid.Column="9"
+                                               Text="{x:Bind ByteInfo, Mode=OneWay}"
+                                               FontSize="10"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Top"
+                                               Margin="0,4,4,0"
+                                               TextAlignment="Right"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>

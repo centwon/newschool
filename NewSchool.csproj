@@ -1,0 +1,255 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>NewSchool</RootNamespace>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Board\FileItemBox.xaml.cs" />
+    <Compile Remove="Board\ListViewer.xaml.cs" />
+    <Compile Remove="Board\PostBox.xaml.cs" />
+    <Compile Remove="Board\PostFileListBox.xaml.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Board\CommentBox.xaml" />
+    <None Remove="Board\Controls\FileItemBox.xaml" />
+    <None Remove="Board\Controls\PostFileListBox.xaml" />
+    <None Remove="Board\FileItemBox.xaml" />
+    <None Remove="Board\ListViewer.xaml" />
+    <None Remove="Board\Pages\PostDetailPage.xaml" />
+    <None Remove="Board\Pages\PostEditPage.xaml" />
+    <None Remove="Board\Pages\PostListPage.xaml" />
+    <None Remove="Board\PostBox.xaml" />
+    <None Remove="Board\PostFileListBox.xaml" />
+    <None Remove="Controls\JoditEditor.xaml" />
+    <None Remove="Controls\MonthPicker.xaml" />
+    <None Remove="Controls\SchoolMealBox.xaml" />
+    <None Remove="Controls\StudentCard.xaml" />
+    <None Remove="Dialogs\InitialSetupDialog.xaml" />
+    <None Remove="Dialogs\SchoolSearchDialog.xaml" />
+    <None Remove="Pages\AddStudentsPage.xaml" />
+    <None Remove="Pages\StudentInfoExportPage.xaml" />
+    <None Remove="Pages\StudentManagementPage.xaml" />
+    <None Remove="Pages\TodayPage.xaml" />
+    <None Remove="Scheduler\DayCell.xaml" />
+    <None Remove="Scheduler\Kcalendar.xaml" />
+    <None Remove="SettingsPage.xaml" />
+    <None Remove="Pages\InitialSetupWindow.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Remove="Board\FileItemBox.xaml" />
+    <Page Remove="Board\ListViewer.xaml" />
+    <Page Remove="Board\PostBox.xaml" />
+    <Page Remove="Board\PostFileListBox.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\SplashScreen.scale-200.png" />
+    <Content Include="Assets\LockScreenLogo.scale-200.png" />
+    <Content Include="Assets\Square150x150Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
+    <Content Include="Assets\StoreLogo.png" />
+    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+  </ItemGroup>
+
+  <!-- Jodit Editor - Virtual Host Mapping용 Content 파일 -->
+  <ItemGroup>
+    <Content Include="Assets\Jodit\editor.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Jodit\jodit.fat.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Jodit\jodit.fat.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="newschool.ico" />
+    <Content Include="google_oauth.json" Condition="Exists('google_oauth.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <!--
+    Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging
+    Tools extension to be activated for this project even if the Windows App SDK Nuget
+    package has not yet been restored.
+  -->
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\Downloads\newschool.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
+    <PackageReference Include="MiniExcel" Version="1.42.0" />
+    <PackageReference Include="QuestPDF" Version="2026.2.2" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
+    <PackageReference Include="SQLitePCLRaw.core" Version="3.0.2" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="MainWindow.xaml">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Update="App.xaml">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ApplicationDefinition>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Board\Controls\PostFileListBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Board\Controls\FileItemBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Board\Pages\PostEditPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Board\Pages\PostDetailPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Board\Pages\PostListPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Board\CommentBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Scheduler\UnifiedItemDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Scheduler\DayCell.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Scheduler\Kcalendar.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Controls\JoditEditor.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Controls\MonthPicker.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+
+  <!--
+    Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
+    Explorer "Package and Publish" context menu entry to be enabled for this project even if
+    the Windows App SDK Nuget package has not yet been restored.
+  -->
+  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
+  </PropertyGroup>
+
+  <!-- Publish Properties -->
+  <PropertyGroup>
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">True</PublishTrimmed>
+    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <PublishAot>True</PublishAot>
+    <WindowsPackageType>None</WindowsPackageType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest></ApplicationManifest>
+    <ApplicationIcon>newschool.ico</ApplicationIcon>
+    <PackageIcon>newschool.png</PackageIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Page Update="Dialogs\SchoolSearchDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="SettingsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Pages\StudentManagementPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Pages\InitialSetupWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Dialogs\InitialSetupDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Pages\AddStudentsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Pages\TodayPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Pages\StudentInfoExportPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Scheduler\KAgendaControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Controls\SchoolMealBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Controls\StudentCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Pages\ProgressMatrixPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+</Project>

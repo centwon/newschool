@@ -1,0 +1,190 @@
+﻿<Window
+    x:Class="NewSchool.Controls.ClassDiaryListWin"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:NewSchool.ViewModels"
+    mc:Ignorable="d"
+    Title="학급일지 목록">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- 필터 -->
+            <RowDefinition Height="*"/>
+            <!-- 목록 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 버튼 -->
+        </Grid.RowDefinitions>
+
+        <!-- 필터 영역 -->
+        <Border Grid.Row="0"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 기간 선택 -->
+                <StackPanel Grid.Column="0" Grid.ColumnSpan="2"
+                            Orientation="Horizontal"
+                            Spacing="12">
+                    <CalendarDatePicker x:Name="DatePickerStart"
+                                Header="시작일"
+                                Width="150"/>
+                    <TextBlock Text="~"
+                               VerticalAlignment="Center"
+                               Margin="0,24,0,0"/>
+                    <CalendarDatePicker x:Name="DatePickerEnd"
+                                Header="종료일"
+                                Width="150"/>
+                    <Button x:Name="BtnSearch"
+                            Click="BtnSearch_Click"
+                            VerticalAlignment="Bottom"
+                            Style="{ThemeResource AccentButtonStyle}"
+                            MinWidth="100">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE721;" FontSize="14"/>
+                            <TextBlock Text="조회"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 일지 목록 -->
+        <ScrollViewer Grid.Row="1" 
+                      VerticalScrollBarVisibility="Auto"
+                      Padding="24,16">
+            <ItemsRepeater x:Name="DiaryItemsRepeater">
+                <ItemsRepeater.Layout>
+                    <StackLayout Spacing="8"/>
+                </ItemsRepeater.Layout>
+
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ClassDiaryViewModel">
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16"
+                                PointerPressed="DiaryItem_PointerPressed"
+                                PointerEntered="DiaryItem_PointerEntered"
+                                PointerExited="DiaryItem_PointerExited">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <!-- 날짜 -->
+                                    <ColumnDefinition Width="*"/>
+                                    <!-- 내용 -->
+                                    <ColumnDefinition Width="40"/>
+                                    <!-- 아이콘 -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- 날짜 -->
+                                <StackPanel Grid.Column="0" VerticalAlignment="Top">
+                                    <TextBlock Text="{x:Bind DateDisplay}"
+                                               FontWeight="SemiBold"
+                                               FontSize="14"/>
+                                    <TextBlock Text="{x:Bind DayOfWeekKorean}"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <!-- 내용 -->
+                                <StackPanel Grid.Column="1"
+                                            Spacing="8"
+                                            Margin="16,0">
+                                    <!-- 출결 -->
+                                    <StackPanel Visibility="{x:Bind HasAttendanceIssues}" Spacing="4">
+                                        <TextBlock Text="📋 출결"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"/>
+                                        <TextBlock Text="{x:Bind AttendanceSummary}"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+
+                                    <!-- 메모 -->
+                                    <StackPanel Visibility="{x:Bind HasMemo}" Spacing="4">
+                                        <TextBlock Text="📝 메모"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"/>
+                                        <TextBlock Text="{x:Bind Memo}"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"
+                                                   MaxLines="3"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- 알림장 -->
+                                    <StackPanel Visibility="{x:Bind HasNotice}" Spacing="4">
+                                        <TextBlock Text="📢 알림장"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"/>
+                                        <TextBlock Text="{x:Bind Notice}"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"
+                                                   MaxLines="3"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- 생활 기록 -->
+                                    <StackPanel Visibility="{x:Bind HasLifeRecord}" Spacing="4">
+                                        <TextBlock Text="👥 생활 기록"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"/>
+                                        <TextBlock Text="{x:Bind Life}"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap"
+                                                   MaxLines="2"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- 이동 아이콘 -->
+                                <FontIcon Grid.Column="2"
+                                          Glyph="&#xE76C;"
+                                          FontSize="16"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
+        </ScrollViewer>
+
+        <!-- 버튼 영역 -->
+        <Border Grid.Row="2"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="24,16">
+            <Button x:Name="BtnClose"
+                    Click="BtnClose_Click"
+                    HorizontalAlignment="Right"
+                    MinWidth="100">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE711;" FontSize="14"/>
+                    <TextBlock Text="닫기"/>
+                </StackPanel>
+            </Button>
+        </Border>
+    </Grid>
+</Window>

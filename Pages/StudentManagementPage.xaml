@@ -1,0 +1,240 @@
+﻿<Page
+    x:Class="NewSchool.Pages.StudentManagementPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:NewSchool.Pages"
+    xmlns:controls="using:NewSchool.Controls"
+    mc:Ignorable="d">
+
+    <Grid Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 헤더 -->
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
+            <TextBlock 
+                Text="학생 관리" 
+                Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock 
+                Text="학생 목록을 조회, 수정, 삭제할 수 있습니다."
+                Style="{StaticResource BodyTextBlockStyle}"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <!-- 필터 및 버튼 영역 -->
+        <Grid Grid.Row="1" 
+              Padding="16"
+              Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="1"
+              CornerRadius="8"
+              Margin="0,0,0,16">
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 첫 번째 행: 필터 -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <controls:SchoolFilterPicker 
+                    x:Name="FilterPicker"
+                    ShowSemester="False"
+                    IncludeAllGrade="True"
+                    IncludeAllClass="True"/>
+
+                <Button x:Name="BtnLookUp" 
+                        Content="조회" 
+                        Padding="20,6"
+                        Click="OnLookUpClick"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource AccentButtonStyle}"/>
+            </StackPanel>
+
+            <!-- 두 번째 행: 액션 버튼 -->
+            <StackPanel Grid.Row="1" 
+                        Orientation="Horizontal" 
+                        Spacing="8" 
+                        Margin="0,12,0,0">
+                <Button x:Name="BtnSave" 
+                        Content="저장" 
+                        Padding="20,6"
+                        Click="OnSaveClick">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                    </Button.KeyboardAccelerators>
+                </Button>
+
+                <Button x:Name="BtnDelete" 
+                        Content="삭제" 
+                        Padding="20,6"
+                        Click="OnDeleteClick"/>
+
+                <Button x:Name="BtnAddStudent" 
+                        Content="학생 추가" 
+                        Padding="20,6"
+                        Click="OnAddStudentClick"
+                        Style="{StaticResource AccentButtonStyle}"/>
+
+                <TextBlock x:Name="TxtStudentCount"
+                           Text="총 0명"
+                           VerticalAlignment="Center"
+                           Margin="16,0,0,0"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- 학생 목록 영역 -->
+        <Border Grid.Row="2"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="1">
+
+            <Grid>
+                <!-- 빈 상태 메시지 -->
+                <StackPanel x:Name="EmptyState"
+                            Visibility="Collapsed"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12">
+                    <FontIcon Glyph="&#xE716;" 
+                              FontSize="48"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="조회된 학생이 없습니다."
+                               Style="{StaticResource SubtitleTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="학년도, 학년, 반을 선택하고 조회 버튼을 눌러주세요."
+                               Style="{StaticResource BodyTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                </StackPanel>
+
+                <!-- 학생 목록 -->
+                <ScrollViewer x:Name="StudentListContainer" 
+                              Visibility="Visible" VerticalScrollMode="Enabled" 
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- 헤더 -->
+                        <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                              Padding="12,8"
+                              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                              BorderThickness="0,0,0,1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="50"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox x:Name="ChkSelectAll" 
+                                      Grid.Column="0"
+                                      IsThreeState="True"
+                                      Click="OnSelectAllClick"
+                                      HorizontalAlignment="Left"
+                                      VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="학생ID" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="학년도" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="학년" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" Text="반" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="5" Text="번호" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="6" Text="이름" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="7" Text="상태" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="8" Text="비고" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- 학생 목록 ItemsRepeater -->
+                        <ItemsRepeater x:Name="StudentList" Margin="0">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Spacing="0"/>
+                            </ItemsRepeater.Layout>
+
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="local:StudentManagementViewModel">
+                                    <Border Background="Transparent"
+                                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                            BorderThickness="0,0,0,1">
+                                        <Grid Padding="12,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="50"/>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="60"/>
+                                                <ColumnDefinition Width="60"/>
+                                                <ColumnDefinition Width="60"/>
+                                                <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <CheckBox Grid.Column="0" 
+                                                      IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                                                      Click="OnStudentCheckBoxClick"
+                                                      HorizontalAlignment="Left"
+                                                      VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="{x:Bind StudentID}" 
+                                                       VerticalAlignment="Center"
+                                                       FontFamily="Consolas"
+                                                       FontSize="12"/>
+
+                                            <TextBox Grid.Column="2" 
+                                                     Text="{x:Bind Year, Mode=TwoWay}"
+                                                     VerticalAlignment="Center"
+                                                     TextChanged="OnStudentDataChanged"
+                                                     InputScope="Number"/>
+
+                                            <TextBox Grid.Column="3" 
+                                                     Text="{x:Bind Grade, Mode=TwoWay}"
+                                                     VerticalAlignment="Center"
+                                                     TextChanged="OnStudentDataChanged"
+                                                     InputScope="Number"/>
+
+                                            <TextBox Grid.Column="4" 
+                                                     Text="{x:Bind Class, Mode=TwoWay}"
+                                                     VerticalAlignment="Center"
+                                                     TextChanged="OnStudentDataChanged"
+                                                     InputScope="Number"/>
+
+                                            <TextBox Grid.Column="5" 
+                                                     Text="{x:Bind Number, Mode=TwoWay}"
+                                                     VerticalAlignment="Center"
+                                                     TextChanged="OnStudentDataChanged"
+                                                     InputScope="Number"/>
+
+                                            <TextBox Grid.Column="6" 
+                                                     Text="{x:Bind Name, Mode=TwoWay}"
+                                                     VerticalAlignment="Center"
+                                                     TextChanged="OnStudentDataChanged"/>
+
+                                            <TextBlock Grid.Column="7" 
+                                                       Text="{x:Bind Status}" 
+                                                       VerticalAlignment="Center"/>
+
+                                            <TextBox Grid.Column="8" 
+                                                     Text="{x:Bind Memo, Mode=TwoWay}"
+                                                     VerticalAlignment="Center"
+                                                     TextChanged="OnStudentDataChanged"
+                                                     PlaceholderText="비고"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

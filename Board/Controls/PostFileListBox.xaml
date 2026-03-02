@@ -1,0 +1,108 @@
+﻿<UserControl
+    x:Class="NewSchool.Board.Controls.PostFileListBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:NewSchool.Board.Controls">
+
+    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="0">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 헤더 -->
+            <Border Grid.Row="0"
+                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="6,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <FontIcon Grid.Column="0"
+                              Glyph="&#xE723;"
+                              FontSize="16"
+                              Margin="0,0,8,0"/>
+
+                    <TextBlock Grid.Column="1"
+                               x:Name="HeaderTextBlock"
+                               Text="파일을 끌어 놓거나 '+' 버튼을 눌러 추가하세요"
+                               VerticalAlignment="Center"/>
+
+                    <!-- 폴더 열기 -->
+                    <Button Grid.Column="2"
+                            x:Name="OpenFolderButton"
+                            ToolTipService.ToolTip="폴더 열기"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8"
+                            Margin="4,0"
+                            Click="OpenFolderButton_Click">
+                        <FontIcon Glyph="&#xE8DA;" FontSize="16"/>
+                    </Button>
+
+                    <!-- 파일 추가 -->
+                    <Button Grid.Column="3"
+                            x:Name="AddFileButton"
+                            ToolTipService.ToolTip="파일 추가"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8"
+                            Margin="4,0"
+                            Click="AddFileButton_Click">
+                        <FontIcon Glyph="&#xE710;" FontSize="16"/>
+                    </Button>
+
+                    <!-- 파일 삭제 -->
+                    <Button Grid.Column="4"
+                            x:Name="RemoveFileButton"
+                            ToolTipService.ToolTip="선택 파일 삭제"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8"
+                            Margin="4,0"
+                            Click="RemoveFileButton_Click">
+                        <FontIcon Glyph="&#xE738;" FontSize="16"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- 파일 목록 -->
+            <Border Grid.Row="1"
+                    x:Name="FileDropArea"
+                    AllowDrop="True"
+                    Drop="FileDropArea_Drop"
+                    DragOver="FileDropArea_DragOver"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    MinHeight="40"
+                    Padding="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="FileItemsControl">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" 
+                                             MaximumRowsOrColumns="3"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <controls:FileItemBox Margin="4"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

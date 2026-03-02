@@ -1,0 +1,410 @@
+﻿<!-- PostListPage.xaml - Post 목록 페이지 (개선 버전) -->
+<Page
+    x:Class="NewSchool.Board.Pages.PostListPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:NewSchool.Board.Pages"
+    xmlns:board="using:NewSchool.Board"
+    xmlns:viewmodels="using:NewSchool.Board.ViewModels"
+    xmlns:converters="using:NewSchool.Converters"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <converters:DateTimeToStringConverter x:Key="DateTimeConverter"/>
+    </Page.Resources>
+
+    <Grid Padding="20" x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="TitleRow" Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 제목 -->
+        <TextBlock x:Name="TitleText"
+                   Grid.Row="0" 
+                   Text="게시판" 
+                   Margin="0,0,0,12"/>
+        <!-- 상단: 카테고리 + Subject 필터 + 액션 버튼 -->
+        <Grid x:Name="FilterRow" Grid.Row="1" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 카테고리 선택 -->
+            <ComboBox x:Name="CategoryComboBox"
+                          Grid.Column="0"
+                          Width="150"
+                          PlaceholderText="카테고리"
+                          SelectionChanged="CategoryComboBox_SelectionChanged"
+                          Margin="0,0,8,0"/>
+
+            <!-- Subject 필터 (ShowSubjectFilter=true일 때만 표시) -->
+            <ComboBox x:Name="SubjectFilterComboBox"
+                          Grid.Column="1"
+                          Width="150"
+                          PlaceholderText="주제"
+                          SelectionChanged="SubjectFilterComboBox_SelectionChanged"
+                          Visibility="Collapsed"
+                          Margin="0,0,8,0"/>
+
+            <!-- ViewMode 전환 버튼 -->
+            <Button x:Name="ViewModeToggleButton"
+                        Grid.Column="3"
+                        Click="ViewModeToggleButton_Click"
+                        ToolTipService.ToolTip="보기 모드 전환"
+                        Margin="4,0,0,0"
+                        Visibility="Collapsed">
+                <FontIcon x:Name="ViewModeIcon" Glyph="&#xE8F2;" FontSize="16"/>
+            </Button>
+
+            <!-- 새로고침 -->
+            <Button Grid.Column="4"
+                        Content="새로고침"
+                        Click="RefreshButton_Click"
+                        Margin="4,0,0,0">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="F5"/>
+                </Button.KeyboardAccelerators>
+            </Button>
+
+            <!-- 새 글 작성 -->
+            <Button Grid.Column="5"
+                        Content="새 글 쓰기"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Margin="4,0,0,0"
+                        Click="NewPostButton_Click"/>
+        </Grid>
+
+        <!-- 필터 및 검색 영역 -->
+        <!--<StackPanel x:Name="FilterPanel" Grid.Row="1" Spacing="8" Margin="0,0,0,12">
+
+
+        </StackPanel>-->
+
+        <!-- Post 목록 -->
+        <Grid Grid.Row="2">
+            <!-- 로딩 표시 (수동 제어) -->
+            <ProgressRing x:Name="LoadingRing"
+                          Width="60"
+                          Height="60"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Visibility="Collapsed"/>
+
+            <!-- 빈 목록 메시지 (수동 제어) -->
+            <TextBlock x:Name="EmptyMessage"
+                       Text="게시글이 없습니다."
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Style="{StaticResource SubtitleTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                       Visibility="Collapsed"/>
+
+            <!-- Table View (기본) -->
+            <ScrollViewer x:Name="TableViewContainer" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- 헤더 -->
+                    <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                          Padding="12,8"
+                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                          BorderThickness="1"
+                          CornerRadius="4,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="번호" FontWeight="Bold" HorizontalTextAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="제목" FontWeight="Bold" HorizontalTextAlignment="Left" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="작성자" FontWeight="Bold" HorizontalTextAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="날짜" FontWeight="Bold" HorizontalTextAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="조회" FontWeight="Bold" HorizontalTextAlignment="Center"/>
+                    </Grid>
+
+                    <!-- ItemsRepeater -->
+                    <ItemsRepeater x:Name="PostsRepeater">
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:PostItemViewModel">
+                                <Button Click="PostItem_Click"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Padding="0"
+                                        Background="Transparent"
+                                        BorderThickness="1,0,1,1"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        CornerRadius="0"
+                                        Tag="{x:Bind}">
+                                    <Button.Resources>
+                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFF3F9FF"/>
+                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FFD9ECFF"/>
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                                    </Button.Resources>
+
+                                    <Grid Padding="12,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="80"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- 번호 -->
+                                        <TextBlock Grid.Column="0" 
+                                                   HorizontalTextAlignment="Center"
+                                                   Text="{x:Bind No}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="13"/>
+
+                                        <!-- 제목 + 아이콘 -->
+                                        <StackPanel Grid.Column="1" 
+                                                    Orientation="Horizontal"
+                                                    Margin="8,0,0,0">
+                                            <TextBlock Text="{x:Bind Title}" 
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       FontSize="14"/>
+
+                                            <FontIcon Glyph="&#xE8BD;" 
+                                                      FontSize="12"
+                                                      Margin="8,0,0,0"
+                                                      Foreground="{ThemeResource SystemAccentColor}"
+                                                      Visibility="{x:Bind CommentIconVisibility}"/>
+
+                                            <FontIcon Glyph="&#xE723;" 
+                                                      FontSize="12"
+                                                      Margin="4,0,0,0"
+                                                      Visibility="{x:Bind FileIconVisibility}"/>
+                                        </StackPanel>
+
+                                        <!-- 작성자 -->
+                                        <TextBlock Grid.Column="2"
+                                                   HorizontalTextAlignment="Center"
+                                                   Text="{x:Bind User}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="13"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                                        <!-- 날짜 -->
+                                        <TextBlock Grid.Column="3" 
+                                                   HorizontalTextAlignment="Center"
+                                                   Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="13"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                                        <!-- 조회수 -->
+                                        <TextBlock Grid.Column="4" 
+                                                   HorizontalTextAlignment="Center"
+                                                   Text="{x:Bind ReadCount}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="13"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+
+                        <ItemsRepeater.Layout>
+                            <StackLayout Orientation="Vertical" Spacing="0"/>
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Card View -->
+            <ScrollViewer x:Name="CardViewContainer" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <ItemsRepeater x:Name="CardViewRepeater">
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:PostItemViewModel">
+                            <Button Click="PostItem_Click"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Stretch"
+                                    Padding="0"
+                                    Margin="0,0,0,12"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    CornerRadius="8"
+                                    Tag="{x:Bind}">
+                                <Grid Padding="16">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- 제목 -->
+                                    <TextBlock Grid.Row="0"
+                                               Text="{x:Bind Title}"
+                                               FontSize="16"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,8"/>
+
+                                    <!-- 내용 미리보기 -->
+                                    <TextBlock Grid.Row="1"
+                                               Text="{x:Bind Content}"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxLines="3"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,12"/>
+
+                                    <!-- 메타 정보 -->
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <FontIcon Glyph="&#xE77B;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="{x:Bind User}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <FontIcon Glyph="&#xE787;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
+                                        <FontIcon Glyph="&#xE8BD;" FontSize="12" Foreground="{ThemeResource SystemAccentColor}" Visibility="{x:Bind CommentIconVisibility}"/>
+                                        <FontIcon Glyph="&#xE723;" FontSize="12" Visibility="{x:Bind FileIconVisibility}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                    <ItemsRepeater.Layout>
+                        <StackLayout Orientation="Vertical" Spacing="0"/>
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
+            </ScrollViewer>
+
+            <!-- Gallery View -->
+            <ScrollViewer x:Name="GalleryViewContainer" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <ItemsRepeater x:Name="GalleryViewRepeater">
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:PostItemViewModel">
+                            <Button Click="PostItem_Click"
+                                    Width="220"
+                                    Height="280"
+                                    Padding="0"
+                                    Margin="8"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    CornerRadius="8"
+                                    Tag="{x:Bind}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="160"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- 썸네일 영역 (이미지가 있으면 표시, 없으면 아이콘) -->
+                                    <Border Grid.Row="0"
+                                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                            CornerRadius="8,8,0,0">
+                                        <FontIcon Glyph="&#xE8A5;"
+                                                  FontSize="48"
+                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- 정보 영역 -->
+                                    <Grid Grid.Row="1" Padding="12">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- 제목 -->
+                                        <TextBlock Grid.Row="0"
+                                                   Text="{x:Bind Title}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxLines="2"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,4"/>
+
+                                        <!-- 메타 정보 -->
+                                        <StackPanel Grid.Row="2" Orientation="Vertical" Spacing="4">
+                                            <TextBlock Text="{x:Bind User}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                    <ItemsRepeater.Layout>
+                        <UniformGridLayout MinItemWidth="220"
+                                           MinItemHeight="280"
+                                           MinColumnSpacing="0"
+                                           MinRowSpacing="0"/>
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- 페이징 -->
+        <Grid Grid.Row="3" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="PreviousButton"
+                    Grid.Column="0"
+                    Content="이전"
+                    Click="PreviousButton_Click"
+                    IsEnabled="False"/>
+
+            <TextBlock x:Name="PageInfoText"
+                       Grid.Column="1"
+                       Text="1 / 1 페이지 (전체 0개)"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Style="{StaticResource BodyTextBlockStyle}"/>
+
+            <Button x:Name="NextButton"
+                    Grid.Column="2"
+                    Content="다음"
+                    Click="NextButton_Click"
+                    IsEnabled="False"/>
+        </Grid>
+        <!-- 검색 영역 -->
+        <Grid x:Name="SearchRow" Grid.Row="4" Margin="0,10,0,0">
+            <StackPanel Orientation="Horizontal">
+                <TextBox x:Name="SearchTextBox"
+                             Width="300"
+                             PlaceholderText="검색어 입력"
+                             Text="{x:Bind ViewModel.SearchText, Mode=TwoWay}"
+                             Margin="0,0,8,0"/>
+
+                <CheckBox Content="제목"
+                              IsChecked="{x:Bind ViewModel.SearchInTitle, Mode=TwoWay}"
+                              Margin="0,0,8,0"/>
+
+                <CheckBox Content="내용"
+                              IsChecked="{x:Bind ViewModel.SearchInContent, Mode=TwoWay}"
+                              Margin="0,0,8,0"/>
+
+                <Button Content="검색"
+                            Click="SearchButton_Click"
+                            Style="{StaticResource AccentButtonStyle}"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>
