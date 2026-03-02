@@ -1,0 +1,97 @@
+﻿<Page
+    x:Class="NewSchool.Board.Pages.PostEditPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:NewSchool.Board.Pages"
+    xmlns:controls="using:NewSchool.Board.Controls"
+    xmlns:appcontrols="using:NewSchool.Controls"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 헤더 -->
+        <TextBlock Grid.Row="0"
+                   x:Name="PageTitle"
+                   Text="새 글 쓰기"
+                   Style="{StaticResource TitleTextBlockStyle}"
+                   Margin="0,0,0,20"/>
+
+        <!-- 입력 폼 -->
+        <ScrollViewer Grid.Row="1" >
+            <StackPanel Spacing="16" HorizontalAlignment="Stretch">
+                <!-- 카테고리 -->
+                <StackPanel x:Name="CategoryStack" Spacing="8">
+                    <TextBlock Text="카테고리" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="CategoryComboBox"
+                              PlaceholderText="카테고리 선택"
+                              HorizontalAlignment="Stretch"
+                              SelectionChanged="CategoryComboBox_SelectionChanged">
+                        <ComboBoxItem Content="업무" Tag="업무"/>
+                        <ComboBoxItem Content="수업" Tag="수업"/>
+                        <ComboBoxItem Content="학급" Tag="학급"/>
+                        <ComboBoxItem Content="동아리" Tag="동아리"/>
+                        <ComboBoxItem Content="개인" Tag="개인"/>
+                        <ComboBoxItem Content="기타" Tag="기타"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- 주제 -->
+                <StackPanel x:Name="SubjectStack" Spacing="8">
+                    <TextBlock Text="주제" FontWeight="SemiBold"/>
+                    <TextBox x:Name="SubjectTextBox"
+                             PlaceholderText="주제를 입력하세요 (선택사항)"
+                             MaxLength="100"/>
+                </StackPanel>
+
+                <!-- 제목 -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="제목" FontWeight="SemiBold"/>
+                    <TextBox x:Name="TitleTextBox"
+                             PlaceholderText="제목을 입력하세요"
+                             MaxLength="200"/>
+                </StackPanel>
+
+                <!-- 내용 (Jodit HTML 에디터) -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="내용" FontWeight="SemiBold"/>
+                    <appcontrols:JoditEditor x:Name="ContentEditor"
+                                             Mode="Full"
+                                             MinHeight="400"/>
+                </StackPanel>
+
+                <!-- 첨부파일 -->
+                <!-- 첨부파일 - PostFileListBox 사용 -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="첨부파일" FontWeight="SemiBold"/>
+                    <controls:PostFileListBox x:Name="FileListBox"/>
+                </StackPanel>            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 버튼 -->
+        <Grid Grid.Row="2" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="1"
+                    Content="취소"
+                    Click="CancelButton_Click"
+                    Margin="0,0,10,0"
+                    MinWidth="100"/>
+
+            <Button Grid.Column="2"
+                    x:Name="SaveButton"
+                    Content="저장"
+                    Click="SaveButton_Click"
+                    Style="{StaticResource AccentButtonStyle}"
+                    MinWidth="100"/>
+        </Grid>
+    </Grid>
+</Page>

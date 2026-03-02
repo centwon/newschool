@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="NewSchool.Pages.TeacherTimetablePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:NewSchool.Controls"
+    mc:Ignorable="d">
+
+    <Grid Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 필터 영역 -->
+        <StackPanel Grid.Row="0" Spacing="12" Margin="0,0,0,16">
+            <TextBlock 
+                Text="교사 시간표" 
+                FontSize="24" 
+                FontWeight="Bold"/>
+
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 학년도 -->
+                <ComboBox 
+                    Grid.Column="0"
+                    x:Name="CBoxYear"
+                    Header="학년도"
+                    PlaceholderText="학년도 선택"
+                    HorizontalAlignment="Stretch"
+                    SelectionChanged="OnFilterChanged"/>
+
+                <!-- 학기 -->
+                <ComboBox 
+                    Grid.Column="1"
+                    x:Name="CBoxSemester"
+                    Header="학기"
+                    PlaceholderText="학기 선택"
+                    HorizontalAlignment="Stretch"
+                    SelectionChanged="OnFilterChanged">
+                    <ComboBoxItem Content="1학기">
+                        <ComboBoxItem.Tag>
+                            <x:Int32>1</x:Int32>
+                        </ComboBoxItem.Tag>
+                    </ComboBoxItem>
+                    <ComboBoxItem Content="2학기">
+                        <ComboBoxItem.Tag>
+                            <x:Int32>2</x:Int32>
+                        </ComboBoxItem.Tag>
+                    </ComboBoxItem>
+                </ComboBox>
+
+                <!-- 조회 버튼 -->
+                <Button 
+                    Grid.Column="2"
+                    x:Name="BtnLoad"
+                    Content="조회"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Click="OnLoadClick"
+                    VerticalAlignment="Bottom"
+                    MinWidth="100"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- 시간표 영역 -->
+        <Grid Grid.Row="1">
+            <!-- 로딩 상태 -->
+            <StackPanel 
+                x:Name="LoadingPanel"
+                Visibility="Collapsed"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="12">
+                <ProgressRing IsActive="True" Width="48" Height="48"/>
+                <TextBlock Text="시간표를 불러오는 중..." FontSize="14"/>
+            </StackPanel>
+
+            <!-- 빈 상태 -->
+            <StackPanel 
+                x:Name="EmptyPanel"
+                Visibility="Collapsed"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="12">
+                <FontIcon 
+                    Glyph="&#xE8F4;" 
+                    FontSize="48"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock 
+                    Text="조회 조건을 선택하고 [조회] 버튼을 눌러주세요" 
+                    FontSize="14"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
+            <!-- 시간표 컨트롤 -->
+            <ScrollViewer 
+                x:Name="TimetableScrollViewer"
+                Visibility="Collapsed">
+                <controls:TimetableControl x:Name="TimetableControl"/>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

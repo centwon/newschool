@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="NewSchool.Controls.SchoolFilterPicker"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <StackPanel Orientation="Horizontal" Spacing="8">
+        <!-- 학년도 -->
+        <ComboBox 
+            x:Name="CBoxYear"
+            MinWidth="120"
+            PlaceholderText="학년도"
+            SelectionChanged="CBoxYear_SelectionChanged"/>
+
+        <!-- 학기 -->
+        <ComboBox 
+            x:Name="CBoxSemester"
+            MinWidth="80"
+            PlaceholderText="학기"
+            SelectionChanged="CBoxSemester_SelectionChanged"/>
+
+        <!-- 학년 -->
+        <ComboBox 
+            x:Name="CBoxGrade"
+            MinWidth="80"
+            PlaceholderText="학년"
+            SelectionChanged="CBoxGrade_SelectionChanged"/>
+
+        <!-- 반 -->
+        <ComboBox 
+            x:Name="CBoxClass"
+            MinWidth="80"
+            PlaceholderText="반"
+            SelectionChanged="CBoxClass_SelectionChanged"/>
+    </StackPanel>
+</UserControl>

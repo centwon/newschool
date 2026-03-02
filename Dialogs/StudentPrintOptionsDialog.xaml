@@ -1,0 +1,65 @@
+﻿<ContentDialog
+    x:Class="NewSchool.Dialogs.StudentPrintOptionsDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="인쇄 옵션 선택"
+    PrimaryButtonText="인쇄"
+    CloseButtonText="취소"
+    DefaultButton="Primary">
+
+    <StackPanel Spacing="16" MinWidth="350">
+        <TextBlock Text="출력할 내용을 선택하세요."
+                   FontSize="14"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+        <!-- 기본 정보 (항상 포함) -->
+        <CheckBox x:Name="ChkBasicInfo"
+                  Content="기본 정보 (이름, 생년월일, 연락처 등)"
+                  IsChecked="True"
+                  IsEnabled="False"/>
+
+        <!-- 세부 정보 옵션 -->
+        <CheckBox x:Name="ChkDetailInfo"
+                  Content="세부 정보 (보호자, 가족, 진로, 건강 정보 등)"
+                  IsChecked="True"/>
+
+        <!-- 학생 생활 기록 옵션 -->
+        <CheckBox x:Name="ChkStudentLogs"
+                  Content="학생 생활 기록 (누가기록)"
+                  IsChecked="False"/>
+
+        <!-- 생활 기록 추가 옵션 -->
+        <StackPanel x:Name="LogOptionsPanel"
+                    Margin="32,0,0,0"
+                    Spacing="8"
+                    Visibility="{x:Bind ChkStudentLogs.IsChecked, Mode=OneWay}">
+            <TextBlock Text="생활 기록 출력 범위:"
+                       FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+            <RadioButton x:Name="RbAllLogs"
+                         Content="전체 기록"
+                         IsChecked="True"
+                         GroupName="LogRange"/>
+
+            <RadioButton x:Name="RbSelectedLogs"
+                         Content="선택한 기록만"
+                         GroupName="LogRange"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                <TextBlock Text="최대 출력 개수:"
+                           VerticalAlignment="Center"
+                           FontSize="12"/>
+                <NumberBox x:Name="MaxLogCount"
+                           Value="50"
+                           Minimum="1"
+                           Maximum="500"
+                           SpinButtonPlacementMode="Inline"
+                           Width="120"/>
+            </StackPanel>
+        </StackPanel>
+    </StackPanel>
+</ContentDialog>

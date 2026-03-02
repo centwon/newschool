@@ -1,0 +1,121 @@
+﻿<Page
+    x:Class="NewSchool.Pages.LessonHomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:NewSchool.Controls"
+    xmlns:models="using:NewSchool.Models"
+    xmlns:scheduler="using:NewSchool.Scheduler"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- 필터바 -->
+            <RowDefinition Height="*"/>     <!-- 메인 -->
+        </Grid.RowDefinitions>
+
+        <!-- 상단: 필터바 -->
+        <StackPanel Grid.Row="0"
+                    Orientation="Horizontal"
+                    Spacing="12"
+                    Margin="8,0,0,12">
+            <TextBlock Text="과목" VerticalAlignment="Center"/>
+            <ComboBox x:Name="CBoxSubject"
+                      MinWidth="140"
+                      VerticalAlignment="Center"
+                      SelectionChanged="CBoxSubject_SelectionChanged">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:Course">
+                        <TextBlock Text="{x:Bind Subject}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="학급" VerticalAlignment="Center"/>
+            <ComboBox x:Name="CBoxRoom"
+                      MinWidth="100"
+                      VerticalAlignment="Center"
+                      SelectionChanged="CBoxRoom_SelectionChanged"/>
+            <TextBlock x:Name="TxtStudentCount"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <!-- 메인: 시간표(좌) + Pivot(우) -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280"/>  <!-- 시간표 -->
+                <ColumnDefinition Width="*"/>    <!-- Pivot -->
+            </Grid.ColumnDefinitions>
+
+            <!-- 좌측: 시간표 + 할일 -->
+            <Grid Grid.Column="0" Margin="0,0,8,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- 시간표 -->
+                    <RowDefinition Height="*"/>     <!-- 할일 -->
+                </Grid.RowDefinitions>
+
+                <!-- 시간표 -->
+                <Border Grid.Row="0"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        Padding="8"
+                        Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" 
+                                    Orientation="Horizontal" 
+                                    Margin="0,0,0,8">
+                            <FontIcon Glyph="&#xE787;" FontSize="14"/>
+                            <TextBlock Text="내 시간표"
+                                       FontWeight="SemiBold"
+                                       FontSize="13"
+                                       Margin="8,0,0,0"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <controls:TimetableControl x:Name="Timetable"
+                                                   Grid.Row="1"
+                                                   HorizontalAlignment="Stretch"
+                                                   VerticalAlignment="Top"/>
+                    </Grid>
+                </Border>
+
+                <!-- 할일 목록 -->
+                <scheduler:KAgendaControl Grid.Row="1"
+                                          x:Name="LessonTaskList"
+                                          Background="Transparent"/>
+            </Grid>
+
+            <!-- 우측: Pivot (수업 기록 / 수업 자료) -->
+            <Border Grid.Column="1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                <Pivot>
+                    <!-- 탭1: 수업 기록 -->
+                    <PivotItem Header="수업 기록">
+                        <controls:LessonLogList x:Name="LessonLogList"
+                                                LessonSelected="LessonLogList_LessonSelected"
+                                                AddRequested="LessonLogList_AddRequested"
+                                                Margin="0,8,0,0"/>
+                    </PivotItem>
+
+                    <!-- 탭2: 수업 자료 -->
+                    <PivotItem Header="수업 자료">
+                        <Frame x:Name="MaterialFrame" Margin="0,8,0,0"/>
+                    </PivotItem>
+                </Pivot>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

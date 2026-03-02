@@ -1,0 +1,164 @@
+<UserControl
+    x:Class="NewSchool.Controls.LessonLogList"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:NewSchool.Controls"
+    xmlns:models="using:NewSchool.Models"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <local:DateToShortConverter x:Key="DateToShortConverter"/>
+        <local:PeriodToStringConverter x:Key="PeriodToStringConverter"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- 헤더/버튼 -->
+            <RowDefinition Height="*"/>
+            <!-- 목록 -->
+        </Grid.RowDefinitions>
+
+        <!-- 헤더 영역 -->
+        <Grid Grid.Row="0" 
+              Padding="12,8"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="0,0,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <FontIcon Glyph="&#xE70F;" FontSize="14" 
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="수업 기록" 
+                           FontWeight="SemiBold"
+                           FontSize="13"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtCount"
+                           FontSize="12"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" 
+                        Orientation="Horizontal" 
+                        Spacing="4">
+                <Button x:Name="BtnAdd" 
+                        Click="BtnAdd_Click"
+                        ToolTipService.ToolTip="추가"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="8,4">
+                    <FontIcon Glyph="&#xE710;" FontSize="14"/>
+                </Button>
+                <Button x:Name="BtnRefresh" 
+                        Click="BtnRefresh_Click"
+                        ToolTipService.ToolTip="새로고침"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="8,4">
+                    <FontIcon Glyph="&#xE72C;" FontSize="14"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- 목록 영역 -->
+        <ListView x:Name="LvLessonLogs"
+                  Grid.Row="1"
+                  SelectionMode="Single"
+                  IsItemClickEnabled="True"
+                  ItemClick="LvLessonLogs_ItemClick">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="models:LessonLog">
+                    <Grid Padding="8,6" ColumnSpacing="6">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <!-- 날짜 -->
+                            <ColumnDefinition Width="42"/>
+                            <!-- 교시 -->
+                            <ColumnDefinition Width="40"/>
+                            <!-- 학급 -->
+                            <ColumnDefinition Width="*"/>
+                            <!-- 주제 -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 1행: 날짜 | 교시 | 학급 | 주제 -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" 
+                                   Text="{x:Bind Date, Converter={StaticResource DateToShortConverter}}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                        <TextBlock Grid.Row="0" Grid.Column="1" 
+                                   Text="{x:Bind PeriodDisplay}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Row="0" Grid.Column="2" 
+                                   Text="{x:Bind ClassDisplay}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                        <TextBlock Grid.Row="0" Grid.Column="3" 
+                                   Text="{x:Bind Topic}"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="1"/>
+
+                        <!-- 2행: 단원 (있을 때만) -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
+                                   Text="{x:Bind SectionName}"
+                                   FontSize="11"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                   Margin="0,2,0,0"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="1"
+                                   Visibility="{x:Bind local:LessonLogListHelpers.HasSectionVisibility(SectionName)}"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="MinHeight" Value="36"/>
+                </Style>
+            </ListView.ItemContainerStyle>
+        </ListView>
+
+        <!-- 빈 목록 메시지 -->
+        <TextBlock x:Name="TxtEmpty"
+                   Grid.Row="1"
+                   Text="수업 기록이 없습니다."
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   FontSize="13"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="Collapsed"/>
+
+        <!-- 로딩 -->
+        <ProgressRing x:Name="LoadingRing"
+                      Grid.Row="1"
+                      Width="40"
+                      Height="40"
+                      IsActive="False"
+                      Visibility="Collapsed"/>
+    </Grid>
+</UserControl>

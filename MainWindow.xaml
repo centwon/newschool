@@ -1,0 +1,235 @@
+﻿<Window
+    x:Class="NewSchool.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:NewSchool">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="Base"/>
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <NavigationView 
+            x:Name="NavView"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="False"
+            PaneDisplayMode="Top"
+            ItemInvoked="NavView_ItemInvoked"
+            Background="Transparent">
+
+            <!-- 메뉴 아이템 -->
+            <NavigationView.MenuItems>
+                <!-- 홈 -->
+                <NavigationViewItem 
+                    Tag="Home"
+                    Content="홈">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE80F;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- 달력 -->
+                <NavigationViewItem 
+                    Tag="Calendar"
+                    Content="달력">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE787;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- 학급 -->
+                <NavigationViewItem 
+                    Content="학급">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE716;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem
+                            Tag="ClassDiary"
+                            Content="학급 일지">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE70F;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem 
+                            Tag="StudentInfo"
+                            Content="학생 정보">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE77B;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem
+                            Tag="StudentLog"
+                            Content="학생 기록">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE762;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem
+                            Tag="StudentSpec"
+                            Content="학생부 관리">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8F1;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem
+                            Tag="Seats"
+                            Content="자리 배정">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8C8;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Tag="StudentInfoExport" Content="출력">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE749;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem
+                           Tag="Timetable_ClassManagement"
+                           Content="학급 시간표 관리">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8D3;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+
+                <!-- 수업 관리 (신규 추가) -->
+                <NavigationViewItem 
+                    Content="수업 관리">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8F4;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem Tag="LessonHome" Content="수업홈">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE80F;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Tag="AnnualLessonPlan" Content="연간 수업 계획">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE787;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Tag="ProgressMatrix" Content="진도 관리">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE9D5;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Tag="LessonActivity" Content="누가 기록">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE70F;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem
+                            Tag="Timetable_Teacher"
+                            Content="수업 시간표">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8D3;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+
+                <!-- 동아리 -->
+                <NavigationViewItem 
+                    Content="동아리">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE902;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem 
+                            Tag="ClubHome"
+                            Content="동아리 홈">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE80F;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem 
+                            Tag="ClubActivity"
+                            Content="활동 기록">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE70F;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem 
+                            Tag="ClubManagement"
+                            Content="동아리 관리">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE713;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+
+                <!-- 업무 -->
+                <NavigationViewItem
+                    Tag="SchoolWork"
+                    Content="업무">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE821;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <!-- archive -->
+                <NavigationViewItem
+                    Tag="Archive"
+                    Content="아카이브">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE838;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <!-- 설정 (하위 메뉴 포함) -->
+                <NavigationViewItem 
+                    Content="설정">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;"/>
+                    </NavigationViewItem.Icon>
+
+                    <!-- 하위 메뉴 -->
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem 
+                            Tag="Settings_General"
+                            Content="일반">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE115;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+
+                        <NavigationViewItem
+                            Tag="Settings_Student"
+                            Content="학생 관리">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE716;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+
+                        <NavigationViewItem 
+                            Content="학사일정 관리" 
+                            Tag="Settings_SchoolSchedule"                            >
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE787;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Tag="CourseManagement" Content="수업 관리">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8F4;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <!-- 콘텐츠 영역 -->
+            <Frame x:Name="WorkFrame" NavigationFailed="WorkFrame_NavigationFailed"/>
+
+            <!--<ScrollViewer 
+                Margin="4,8,4,4"
+                ZoomMode="Disabled"
+                HorizontalScrollMode="Disabled"
+                VerticalScrollMode="Auto"
+                VerticalScrollBarVisibility="Auto">
+            </ScrollViewer>-->
+        </NavigationView>
+    </Grid>
+</Window>

@@ -1,0 +1,238 @@
+﻿<UserControl
+    x:Class="NewSchool.Controls.ClassDiaryBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewmodels="using:NewSchool.ViewModels"
+    xmlns:controls="using:NewSchool.Controls"
+    xmlns:helpers="using:NewSchool.Helpers"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- 텍스트박스 스타일 -->
+        <Style x:Key="MultiLineTextBoxStyle" TargetType="TextBox">
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="280"/>
+        </Grid.ColumnDefinitions>
+        <!-- ========================== -->
+        <!-- 시간표 (우측) -->
+        <!-- ========================== -->
+        <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Padding="8"
+                Margin="4,4,8,6">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" 
+                           Text="학급 시간표" 
+                           FontWeight="Bold" 
+                           FontSize="12"
+                           Margin="0,0,0,2"/>
+
+                <controls:TimetableControl x:Name="ClassTimeTable"  
+                                           Grid.Row="1"
+                                           HorizontalAlignment="Stretch"
+                                           VerticalAlignment="Stretch"/>
+            </Grid>
+        </Border>
+
+        <!-- ========================== -->
+        <!-- 출결 영역 -->
+        <!-- ========================== -->
+        <Border Grid.Row="0"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Padding="8"
+                Margin="0,0,0,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <!-- 헤더 -->
+                <TextBlock Grid.Column="0"
+                           Text="출결" 
+                           FontWeight="Bold" 
+                           FontSize="12"
+                           Margin="0,0,8,0"/>
+
+                <!-- 출결 입력 -->
+                <Grid Grid.Column="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 결석 -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" 
+                               Text="결석" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,8,0"
+                               MinWidth="40"/>
+                    <TextBox x:Name="TBoxAbsent"
+                             Grid.Row="0" Grid.Column="1"
+                             Text="{x:Bind ViewModel.Absent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource MultiLineTextBoxStyle}"
+                             PlaceholderText="결석 학생 이름 입력 (쉼표로 구분)"
+                             Margin="0,4"
+                             TextChanged="OnAttendanceTextChanged"
+                             helpers:TextBoxDropHelper.EnableTextDrop="True"/>
+
+                    <!-- 지각 -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" 
+                               Text="지각" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,8,0"
+                               MinWidth="40"/>
+                    <TextBox x:Name="TBoxLate"
+                             Grid.Row="1" Grid.Column="1"
+                             Text="{x:Bind ViewModel.Late, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource MultiLineTextBoxStyle}"
+                             PlaceholderText="지각 학생 이름 입력 (쉼표로 구분)"
+                             Margin="0,4"
+                             TextChanged="OnAttendanceTextChanged"
+                             helpers:TextBoxDropHelper.EnableTextDrop="True"/>
+
+                    <!-- 조퇴 -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" 
+                               Text="조퇴" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,8,0"
+                               MinWidth="40"/>
+                    <TextBox x:Name="TBoxLeaveEarly"
+                             Grid.Row="2" Grid.Column="1"
+                             Text="{x:Bind ViewModel.LeaveEarly, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource MultiLineTextBoxStyle}"
+                             PlaceholderText="조퇴 학생 이름 입력 (쉼표로 구분)"
+                             Margin="0,4"
+                             TextChanged="OnAttendanceTextChanged"
+                             helpers:TextBoxDropHelper.EnableTextDrop="True"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- ========================== -->
+        <!-- 메모 영역 -->
+        <!-- ========================== -->
+        <Border Grid.Row="1"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Padding="8"
+                Margin="0,0,0,6">
+            <Grid>
+
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="메모" 
+                           FontWeight="Bold" 
+                           FontSize="12"
+                           Margin="0,0,12,0"/>
+                
+                <TextBox x:Name="TBoxMemo"
+                         Grid.Column="1"
+                         Text="{x:Bind ViewModel.Memo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource MultiLineTextBoxStyle}"
+                         MinHeight="60"
+                         MaxHeight="100"
+                         PlaceholderText="메모 입력..."
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         TextChanged="OnMemoTextChanged"
+                         helpers:TextBoxDropHelper.EnableTextDrop="True"/>
+            </Grid>
+        </Border>
+
+        <!-- ========================== -->
+        <!-- 알림장 영역 (Expander) -->
+        <!-- ========================== -->
+        <Expander x:Name="NoticeExpander"
+                  Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Stretch"
+                  IsExpanded="False"
+                  Padding="0">
+            <Expander.Header>
+                <Grid Margin="0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8F2;" FontSize="16"/>
+                        <TextBlock Text="알림장"
+                                   FontWeight="SemiBold"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtNoticePreview"
+                                   Text=""
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   MaxWidth="500"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <Button x:Name="BtnNoticeEdit"
+                            Grid.Column="1"
+                            Click="BtnNoticeEdit_Click"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8,4"
+                            Margin="0,0,8,0"
+                            ToolTipService.ToolTip="알림장 편집">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE70F;" FontSize="14"/>
+                            <TextBlock Text="편집" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Expander.Header>
+
+            <Expander.Content>
+                <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        BorderThickness="0,1,0,0"
+                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                        MinHeight="150"
+                        MaxHeight="300">
+                    <controls:JoditEditor x:Name="NoticeBox"
+                                          Mode="ReadOnly"/>
+                </Border>
+            </Expander.Content>
+        </Expander>
+    </Grid>
+</UserControl>
