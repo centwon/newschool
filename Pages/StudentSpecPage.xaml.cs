@@ -359,5 +359,12 @@ public sealed partial class StudentSpecPage : Page
     /// <summary>
     /// 메시지 표시
     /// </summary>
+
+    private void Page_Unloaded(object sender, RoutedEventArgs e)
+    {
+        _specialService?.Dispose();
+        _enrollservice?.Dispose();
+    }
+
     #endregion
 }

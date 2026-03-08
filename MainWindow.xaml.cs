@@ -127,6 +127,16 @@ private void SetAppIcon()
                 case "Seats":
                     WorkFrame.Navigate(typeof(PageSeats));
                     break;
+                case "ClassBoard":
+                    // 학급 게시판
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Category = "학급",
+                        Title = "학급 게시판",
+                        AllowCategoryChange = false,
+                        ShowSubjectFilter = true
+                    });
+                    break;
                 case "StudentInfoExport":
                     WorkFrame.Navigate(typeof(StudentInfoExportPage));
                     break;
@@ -163,37 +173,63 @@ private void SetAppIcon()
                     WorkFrame.Navigate(typeof(ClassTimetableManagementPage));
                     break;
 
-                    // 동아리
-                case "ClubHome":
-                    // 동아리 홈
-                    WorkFrame.Navigate(typeof(ClubHomePage));
-                    break;
-
                 case "ClubActivity":
                     // 동아리 활동 기록
                     WorkFrame.Navigate(typeof(ClubActivityPage));
                     break;
 
+                case "LessonBoard":
+                    // 수업 게시판
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Category = "수업",
+                        Title = "수업 게시판",
+                        AllowCategoryChange = false,
+                        ShowSubjectFilter = true
+                    });
+                    break;
                 case "ClubManagement":
                     // 동아리 관리
                     WorkFrame.Navigate(typeof(ClubManagementPage));
                     break;
+                case "WorkBoard":
+                    // 업무 게시판
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Category = "업무",
+                        Title = "업무 게시판",
+                        AllowCategoryChange = false,
+                        ShowSubjectFilter = true
+                    });
+                    break;
                     //archive
                 case "Archive":
-                    WorkFrame.Navigate(typeof(PostListPage));
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Title = "아카이브",
+                        AllowCategoryChange = true,
+                        ShowSubjectFilter = true
+                    });
                     break;
-                case "Settings_General":
-                    // 일반 설정
+                case "Settings_School":
+                    // 학교 설정
                     WorkFrame.Navigate(typeof(SettingsPage));
                     break;
-
+                case "Settings_SchoolSchedule":
+                    // 학사일정 관리
+                    WorkFrame.Navigate(typeof(SchoolScheduleManagementPage));
+                    break;
                 case "Settings_Student":
-                    // 학생 관리 페이지
+                    // 학생 관리
                     WorkFrame.Navigate(typeof(StudentManagementPage));
                     break;
-                case "Settings_SchoolSchedule":
-                    // 학상일정 관리 페이지
-                    WorkFrame.Navigate(typeof(SchoolScheduleManagementPage));
+                case "Settings_App":
+                    // 앱 설정
+                    WorkFrame.Navigate(typeof(AppSettingsPage));
+                    break;
+                case "Settings_Homeroom":
+                    // 담임반 설정
+                    WorkFrame.Navigate(typeof(HomeroomSettingsPage));
                     break;
                 case "LessonHome":
                     WorkFrame.Navigate(typeof(LessonHomePage));

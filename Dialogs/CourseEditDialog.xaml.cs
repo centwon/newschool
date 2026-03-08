@@ -144,18 +144,18 @@ public sealed partial class CourseEditDialog : ContentDialog
         string template = string.Empty;
         switch (type)
         {
-            case "Class":
+            case CourseTypes.Class:
                 var grade = (CBoxGrade.SelectedItem as ComboBoxItem)?.Tag;
                 if (grade != null && int.TryParse(grade.ToString(), out int gradeInt))
                 {
                     template = await GetClassListFromEnrollmentAsync(gradeInt);
                 }
                 break;
-            case "Club":
-                
+            case CourseTypes.Club:
+
                 break;
-            case "Selective":
-                
+            case CourseTypes.Selective:
+
                 break;
             default:
                 break;
@@ -182,17 +182,17 @@ public sealed partial class CourseEditDialog : ContentDialog
         string template = string.Empty;
         switch (type)
         {
-            case "Class":
+            case CourseTypes.Class:
                 var grade = (CBoxGrade.SelectedItem as ComboBoxItem)?.Tag;
                 if (grade != null && int.TryParse(grade.ToString(), out int gradeInt))
                 {
                     template = await GetClassListFromEnrollmentAsync(gradeInt);
                 }
                 break;
-            case "Club":
+            case CourseTypes.Club:
 
                 break;
-            case "Selective":
+            case CourseTypes.Selective:
 
                 break;
             default:

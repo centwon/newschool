@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using NewSchool.Models;
 
 namespace NewSchool.Scheduler
 {
@@ -187,7 +188,7 @@ namespace NewSchool.Scheduler
             if (count > 0) return;
 
             // (title, order, syncMode)
-            var defaults = new[] { ("수업", 1, "None"), ("담임", 2, "None"), ("업무", 3, "None"), ("개인", 4, "TwoWay") };
+            var defaults = new[] { (CategoryNames.Lesson, 1, "None"), (CategoryNames.Homeroom, 2, "None"), (CategoryNames.Work, 3, "None"), (CategoryNames.Personal, 4, "TwoWay") };
             foreach (var (title, order, sync) in defaults)
             {
                 cmd.CommandText = @"
@@ -210,10 +211,10 @@ namespace NewSchool.Scheduler
                 // (title, order, color, syncMode)
                 var calendars = new[]
                 {
-                    ("수업", 1, "#4285F4", "None"),   // 파란색
-                    ("담임", 2, "#0F9D58", "None"),   // 초록색
-                    ("업무", 3, "#DB4437", "None"),   // 빨간색
-                    ("개인", 4, "#F4B400", "TwoWay")  // 노란색
+                    (CategoryNames.Lesson, 1, "#4285F4", "None"),   // 파란색
+                    (CategoryNames.Homeroom, 2, "#0F9D58", "None"),   // 초록색
+                    (CategoryNames.Work, 3, "#DB4437", "None"),   // 빨간색
+                    (CategoryNames.Personal, 4, "#F4B400", "TwoWay")  // 노란색
                 };
                 foreach (var (title, order, color, sync) in calendars)
                 {

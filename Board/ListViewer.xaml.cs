@@ -144,6 +144,15 @@ public sealed partial class ListViewer : Page
         Debug.WriteLine($"  Posts.Count: {ViewModel.Posts.Count}");
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+
+        // 이벤트 구독 해제 (메모리 누수 방지)
+        if (ViewModel != null)
+            ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+    }
+
     #region 카테고리 및 주제 초기화
 
     private void InitCategory()

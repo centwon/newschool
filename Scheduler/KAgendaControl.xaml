@@ -176,7 +176,8 @@
                       SelectionMode="Single"
                       IsItemClickEnabled="True"
                       ItemClick="AgendaListView_ItemClick"
-                      Background="Transparent">
+                      Background="Transparent"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto">
 
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">

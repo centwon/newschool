@@ -97,7 +97,7 @@
 
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:Enrollment">
-                        <Grid Padding="0,4" Loaded="OnItemGridLoaded">
+                        <Grid Padding="0,4" Loaded="OnItemGridLoaded" RightTapped="OnItemRightTapped">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="0"/>
                                 <ColumnDefinition Width="0"/>

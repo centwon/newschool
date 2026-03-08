@@ -1,9 +1,12 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using System.Collections.ObjectModel;
 using System.Linq;
 using NewSchool.Models;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Foundation;
 using System.Diagnostics;
 using System;
 
@@ -52,6 +55,11 @@ namespace NewSchool.Controls
             get => _showCheck;
             set { _showCheck = value; ApplyCheckBoxVisibility(); }
         }
+
+        /// <summary>
+        /// 아이템 우클릭 시 표시할 컨텍스트 메뉴 (사용처에서 주입)
+        /// </summary>
+        public FlyoutBase? ItemContextFlyout { get; set; }
 
         #endregion
 
@@ -212,6 +220,30 @@ namespace NewSchool.Controls
 
         #endregion
 
+        #region Context Menu
+
+        private void OnItemRightTapped(object sender, RightTappedRoutedEventArgs e)
+        {
+            if (sender is not Grid grid) return;
+            if (grid.DataContext is not Enrollment enrollment) return;
+
+            // 우클릭한 항목을 선택 상태로 변경
+            StudentListView.SelectedItem = enrollment;
+
+            // 주입된 컨텍스트 메뉴가 있으면 표시
+            if (ItemContextFlyout is MenuFlyout menuFlyout)
+            {
+                menuFlyout.ShowAt(grid, e.GetPosition(grid));
+            }
+            else if (ItemContextFlyout != null)
+            {
+                FlyoutBase.SetAttachedFlyout(grid, ItemContextFlyout);
+                FlyoutBase.ShowAttachedFlyout(grid);
+            }
+        }
+
+        #endregion
+
         #region Drag and Drop
 
         private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
@@ -231,8 +263,11 @@ namespace NewSchool.Controls
 
         public void LoadStudents(System.Collections.Generic.IEnumerable<Enrollment> students)
         {
+            // 벌크 로딩: ItemsSource 해제 → 데이터 변경 → 재연결 (N번 레이아웃 방지)
+            StudentListView.ItemsSource = null;
             Students.Clear();
             foreach (var s in students) Students.Add(s);
+            StudentListView.ItemsSource = Students;
 
             if (_showCheck) UpdateSelectionInfo();
         }

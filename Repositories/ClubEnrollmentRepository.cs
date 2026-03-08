@@ -365,7 +365,7 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@No", enrollment.No);
             cmd.Parameters.AddWithValue("@StudentID", enrollment.StudentID ?? string.Empty);
             cmd.Parameters.AddWithValue("@ClubNo", enrollment.ClubNo);
-            cmd.Parameters.AddWithValue("@Status", enrollment.Status ?? "활동중");
+            cmd.Parameters.AddWithValue("@Status", enrollment.Status ?? ClubEnrollmentStatus.Active);
             cmd.Parameters.AddWithValue("@Remark", enrollment.Remark ?? string.Empty);
             cmd.Parameters.AddWithValue("@CreatedAt", enrollment.CreatedAt);
             cmd.Parameters.AddWithValue("@UpdatedAt", enrollment.UpdatedAt);

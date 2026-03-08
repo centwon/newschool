@@ -501,30 +501,37 @@ public sealed partial class SchoolScheduleManagementPage : Page
             LoadingRing.IsActive = true;
             TxtStatus.Text = "Excel 내보내기 중...";
 
-            // 내보내기용 데이터 변환
-            var exportData = _schedules.Select(s => new
+            // 내보내기용 데이터 변환 (Native AOT 호환: Dictionary + 문자열 값)
+            var exportData = _schedules.Select(s => new Dictionary<string, object>
             {
-                학년도 = s.AY,
-                날짜 = s.DisplayDate,
-                요일 = s.DisplayDayOfWeek,
-                행사명 = s.EVENT_NM,
-                행사내용 = s.EVENT_CNTNT,
-                수업공제일 = s.SBTR_DD_SC_NM,
-                대상학년 = s.GradeTargetText,
-                구분 = s.IsManual ? "수동입력" : "NEIS"
+                ["학년도"] = s.AY.ToString(),
+                ["날짜"] = s.DisplayDate,
+                ["요일"] = s.DisplayDayOfWeek,
+                ["행사명"] = s.EVENT_NM,
+                ["행사내용"] = s.EVENT_CNTNT,
+                ["수업공제일"] = s.SBTR_DD_SC_NM,
+                ["대상학년"] = s.GradeTargetText,
+                ["구분"] = s.IsManual ? "수동입력" : "NEIS"
             }).ToList();
 
-            // MiniExcel로 저장 (기존 파일이 있으면 먼저 삭제)
-            await Task.Run(() =>
+            // 임시 파일에 MiniExcel로 저장 후 StorageFile로 복사
+            string tempPath = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"schedule_export_{Guid.NewGuid():N}.xlsx");
+            try
             {
-                if (System.IO.File.Exists(file.Path))
-                {
-                    System.IO.File.Delete(file.Path);
-                }
-                MiniExcel.SaveAs(file.Path, exportData);
-            });
+                await Task.Run(() => MiniExcel.SaveAs(tempPath, exportData));
 
-            await MessageBox.ShowAsync($"Excel 파일로 내보내기 완료!\n{file.Path}", "알림");
+                var tempFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(tempPath);
+                await tempFile.CopyAndReplaceAsync(file);
+
+                await MessageBox.ShowAsync($"Excel 파일로 내보내기 완료!\n{file.Path}", "알림");
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempPath))
+                    System.IO.File.Delete(tempPath);
+            }
         }
         catch (Exception ex)
         {

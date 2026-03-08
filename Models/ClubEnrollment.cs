@@ -13,7 +13,7 @@ namespace NewSchool.Models
         private int _no = -1;
         private string _studentId = string.Empty;
         private int _clubNo = -1;
-        private string _status = "활동중";
+        private string _status = ClubEnrollmentStatus.Active;
         private string _remark = string.Empty;
         private DateTime _createdAt = DateTime.Now;
         private DateTime _updatedAt = DateTime.Now;

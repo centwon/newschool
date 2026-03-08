@@ -346,13 +346,13 @@ namespace NewSchool.Models
             var statuses = new List<string>();
 
             if (Absent?.Contains(studentName) == true)
-                statuses.Add("결석");
+                statuses.Add(AttendanceStatus.Absent);
 
             if (Late?.Contains(studentName) == true)
-                statuses.Add("지각");
+                statuses.Add(AttendanceStatus.Tardy);
 
             if (LeaveEarly?.Contains(studentName) == true)
-                statuses.Add("조퇴");
+                statuses.Add(AttendanceStatus.EarlyLeave);
 
             return statuses.Count > 0 ? string.Join(", ", statuses) : "정상";
         }

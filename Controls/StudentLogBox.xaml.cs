@@ -103,9 +103,15 @@ namespace NewSchool.Controls
             TxtStrengthShown.Text = log.StrengthShown ?? string.Empty;
             TxtResultOrOutcome.Text = log.ResultOrOutcome ?? string.Empty;
 
-            // 기존 방식
+            // 기록 내용
             TxtLog.Text = log.Log ?? string.Empty;
             TxtTag.Text = log.Tag ?? string.Empty;
+
+            // 구조화된 데이터가 있으면 Expander 자동 펼침
+            if (log.HasStructuredData())
+            {
+                ExpanderStructured.IsExpanded = true;
+            }
 
             // 학생 정보 표시
             TxtStudentInfo.Text = $"학생 ID: {log.StudentID}";
@@ -193,6 +199,9 @@ namespace NewSchool.Controls
             TxtSubjectName.Text = string.Empty;
             ChkIsImportant.IsChecked = false;
 
+            // 활동 상세 항목 Expander 닫기
+            ExpanderStructured.IsExpanded = false;
+
             TxtActivityName.Text = string.Empty;
             TxtTopic.Text = string.Empty;
             TxtDescription.Text = string.Empty;
@@ -258,7 +267,7 @@ namespace NewSchool.Controls
             }
             else
             {
-                ShowMessage("구조화된 데이터가 없습니다", "활동명, 주제, 활동 내용 중 하나 이상을 입력해주세요.");
+                ShowMessage("활동 상세 항목 필요", "활동명, 주제, 활동 내용 중 하나 이상을 입력해주세요.");
             }
         }
 
@@ -275,7 +284,7 @@ namespace NewSchool.Controls
             }
             else
             {
-                ShowMessage("구조화된 데이터가 없습니다", "활동명, 주제, 활동 내용 중 하나 이상을 입력해주세요.");
+                ShowMessage("활동 상세 항목 필요", "활동명, 주제, 활동 내용 중 하나 이상을 입력해주세요.");
             }
         }
 
@@ -317,7 +326,7 @@ namespace NewSchool.Controls
 
             if (!hasLog && !hasStructured)
             {
-                ShowMessage("유효성 검사 실패", "기록 내용 또는 구조화된 활동 기록 중 하나는 입력해야 합니다.");
+                ShowMessage("유효성 검사 실패", "기록 내용 또는 활동 상세 항목 중 하나는 입력해야 합니다.");
                 return;
             }
 

@@ -45,7 +45,10 @@ public class GoogleAuthService : IDisposable
                 ClientSecret = doc.RootElement.GetProperty("client_secret").GetString() ?? "";
                 return;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GoogleAuthService] OAuth 설정 파일 읽기 실패: {ex.Message}");
+            }
         }
         ClientId = "";
         ClientSecret = "";

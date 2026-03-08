@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Controls;
+using NewSchool.Dialogs;
 using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Services;
@@ -321,9 +322,9 @@ public sealed partial class Kcalendar : Page
                         if (schedules.Count > 0)
                             Debug.WriteLine($"[UpdateCells] {cellDate:yyyy-MM-dd} 스케줄: {schedules.Count}개");
 
-                        // KEvent를 task와 event로 분리
+                        // KEvent를 task와 event로 분리 (다중일 이벤트: Start~End 범위에 해당 날짜 포함)
                         var dayEvents = KEvents?
-                            .Where(x => x.Start.Date == cellDate.Date)
+                            .Where(x => cellDate.Date >= x.Start.Date && cellDate.Date <= x.End.Date)
                             .ToList() ?? new List<KEvent>();
 
                         var tasks = dayEvents.Where(e => e.ItemType == "task").ToList();
@@ -487,10 +488,16 @@ public sealed partial class Kcalendar : Page
     /// <summary>
     /// 설정 버튼 클릭
     /// </summary>
-    private void BtnSetup_Click(object sender, RoutedEventArgs e)
+    private async void BtnSetup_Click(object sender, RoutedEventArgs e)
     {
-        // 설정 창 표시 로직
-        Debug.WriteLine("[Kcalendar] 설정 버튼 클릭");
+        var dialog = new CalendarSettingsDialog
+        {
+            XamlRoot = this.XamlRoot
+        };
+        await dialog.ShowAsync();
+
+        // 다이얼로그 닫힌 후 달력 새로고침
+        await RefreshCalendarAsync();
     }
 
     /// <summary>

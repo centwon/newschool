@@ -38,8 +38,14 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             _post = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SubjectVisibility));
         }
     }
+
+    public Visibility SubjectVisibility =>
+        Post != null && !string.IsNullOrEmpty(Post.Subject)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
     public ObservableCollection<Comment> Comments
     {
@@ -80,6 +86,20 @@ public class PostDetailViewModel : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    private Comment? _editingComment;
+    public Comment? EditingComment
+    {
+        get => _editingComment;
+        private set
+        {
+            _editingComment = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsEditing));
+        }
+    }
+
+    public bool IsEditing => EditingComment != null;
 
     #endregion
 
@@ -225,6 +245,46 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             Debug.WriteLine($"댓글 삭제 실패: {ex.Message}");
         }
+    }
+
+    public void StartEdit(Comment comment)
+    {
+        EditingComment = comment;
+        NewCommentContent = comment.Content;
+    }
+
+    public async Task UpdateCommentAsync()
+    {
+        if (EditingComment == null || string.IsNullOrWhiteSpace(NewCommentContent))
+            return;
+
+        try
+        {
+            EditingComment.Content = NewCommentContent;
+            bool success = await _service.UpdateCommentAsync(EditingComment);
+
+            if (success)
+            {
+                Debug.WriteLine($"댓글 수정 완료: No={EditingComment.No}");
+                // ObservableCollection 내의 객체를 직접 수정했으므로 UI 갱신을 위해 목록 다시 로드
+                if (Post != null)
+                    await LoadCommentsAsync(Post.No);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"댓글 수정 실패: {ex.Message}");
+        }
+        finally
+        {
+            CancelEdit();
+        }
+    }
+
+    public void CancelEdit()
+    {
+        EditingComment = null;
+        NewCommentContent = "";
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

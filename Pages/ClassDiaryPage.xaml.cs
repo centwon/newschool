@@ -1,11 +1,13 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using NewSchool.Board.Pages;
-using NewSchool.Board.Models;
 using NewSchool.Services;
 using NewSchool.Controls;
+using NewSchool.Models;
+using NewSchool.ViewModels;
 
 namespace NewSchool.Pages;
 
@@ -15,7 +17,6 @@ public sealed partial class ClassDiaryPage : Page
     private int _currentYear;
     private int _currentGrade;
     private int _currentClass;
-    private PostListPage? _postListPage;
 
     public ClassDiaryPage()
     {
@@ -30,33 +31,50 @@ public sealed partial class ClassDiaryPage : Page
     {
         // 날짜 초기화
         DatePicker.Date = DateTime.Today;
-    }
 
-    #region Board 초기화
+        // 당일 기록 뷰어: 번호+이름 모드, 전체 카테고리
+        DailyLogList.StudentInfoMode = StudentInfoMode.NumName;
+        DailyLogList.Category = LogCategory.전체;
+
+        // 학생 목록 컨텍스트 메뉴
+        SetupStudentContextMenu();
+    }
 
     /// <summary>
-    /// PostListPage 초기화
+    /// 학생 목록 우클릭 컨텍스트 메뉴 설정
     /// </summary>
-    private void InitializeBoardFrame()
+    private void SetupStudentContextMenu()
     {
-        if (_currentGrade == 0 || _currentClass == 0)
-            return;
+        var menu = new MenuFlyout();
 
-        BoardFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+        var miAddLog = new MenuFlyoutItem
         {
-            Category = "학급",
-            ViewMode = BoardViewMode.Table,
-            AllowCategoryChange = false,
-            AllowViewModeChange = true,
-            ShowSubjectFilter = true,
-            IsEmbedded = false,
-            Title = "학급 게시판"
-        });
+            Text = "누가기록 작성",
+            Icon = new FontIcon { Glyph = "\uE70F" }  // Edit
+        };
+        miAddLog.Click += ContextMenu_AddLog_Click;
 
-        _postListPage = BoardFrame.Content as PostListPage;
+        var miViewLogs = new MenuFlyoutItem
+        {
+            Text = "오늘의 기록 보기",
+            Icon = new FontIcon { Glyph = "\uE8FD" }  // List
+        };
+        miViewLogs.Click += ContextMenu_ViewTodayLogs_Click;
+
+        var miViewInfo = new MenuFlyoutItem
+        {
+            Text = "학생 정보 보기",
+            Icon = new FontIcon { Glyph = "\uE77B" }  // Contact
+        };
+        miViewInfo.Click += ContextMenu_ViewStudentInfo_Click;
+
+        menu.Items.Add(miAddLog);
+        menu.Items.Add(miViewLogs);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(miViewInfo);
+
+        StudentList.ItemContextFlyout = menu;
     }
-
-    #endregion
 
     #region 데이터 로드
 
@@ -92,11 +110,54 @@ public sealed partial class ClassDiaryPage : Page
     }
 
     /// <summary>
+    /// 당일 학생 기록 로드
+    /// </summary>
+    private async Task LoadDailyLogsAsync()
+    {
+        if (_currentYear == 0 || _currentGrade == 0 || _currentClass == 0)
+        {
+            DailyLogList.Clear();
+            TxtDailyLogCount.Text = "";
+            return;
+        }
+
+        try
+        {
+            var logs = await StudentLogService.GetByClassAsync(
+                Settings.SchoolCode.Value,
+                _currentYear,
+                _currentGrade,
+                _currentClass,
+                _currentDate);
+
+            var viewModels = new List<StudentLogViewModel>();
+            foreach (var log in logs)
+            {
+                var vm = await StudentLogViewModel.CreateAsync(log);
+                viewModels.Add(vm);
+            }
+
+            DailyLogList.LoadLogs(viewModels);
+
+            // 제목/건수 업데이트
+            TxtDailyLogTitle.Text = $"{_currentDate:M월 d일} 학생 기록";
+            TxtDailyLogCount.Text = logs.Count > 0 ? $"{logs.Count}건" : "기록 없음";
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ClassDiaryPage] 당일 기록 로드 오류: {ex.Message}");
+            DailyLogList.Clear();
+            TxtDailyLogCount.Text = "로드 실패";
+        }
+    }
+
+    /// <summary>
     /// 모든 데이터 새로고침
     /// </summary>
     private async Task RefreshAllDataAsync()
     {
         await LoadDiaryAsync();
+        await LoadDailyLogsAsync();
     }
 
     #endregion
@@ -115,7 +176,6 @@ public sealed partial class ClassDiaryPage : Page
         if (_currentYear > 0 && _currentGrade > 0 && _currentClass > 0)
         {
             await LoadStudentsAsync();
-            InitializeBoardFrame();
             await RefreshAllDataAsync();
         }
     }
@@ -153,6 +213,125 @@ public sealed partial class ClassDiaryPage : Page
     {
         if (DatePicker.Date == null) return;
         DatePicker.Date = DatePicker.Date.Value.AddDays(1);
+    }
+
+    /// <summary>
+    /// 학생 기록 추가 (학급별 일괄 입력 다이얼로그)
+    /// </summary>
+    private async void BtnAddDailyLog_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentYear == 0 || _currentGrade == 0 || _currentClass == 0)
+        {
+            await MessageBox.ShowAsync("학년도/학년/반을 먼저 선택해주세요.", "알림");
+            return;
+        }
+
+        var logDialog = new Dialogs.StudentLogDialog(
+            SchoolDatabase.DbPath,
+            LogCategory.기타,
+            _currentYear,
+            Settings.WorkSemester.Value,
+            _currentGrade,
+            _currentClass);
+        logDialog.Closed += async (s, args) =>
+        {
+            await LoadDailyLogsAsync();
+        };
+        logDialog.Activate();
+    }
+
+    /// <summary>
+    /// 당일 기록 새로고침
+    /// </summary>
+    private async void BtnRefreshLogs_Click(object sender, RoutedEventArgs e)
+    {
+        await LoadDailyLogsAsync();
+    }
+
+    /// <summary>
+    /// 컨텍스트 메뉴: 누가기록 작성
+    /// </summary>
+    private async void ContextMenu_AddLog_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null) return;
+
+        if (_currentYear == 0)
+        {
+            await MessageBox.ShowAsync("학년도를 먼저 선택해주세요.", "알림");
+            return;
+        }
+
+        var logDialog = new Dialogs.StudentLogDialog(
+            student,
+            _currentYear,
+            Settings.WorkSemester.Value);
+        logDialog.Closed += async (s, args) =>
+        {
+            await LoadDailyLogsAsync();
+        };
+        logDialog.Activate();
+    }
+
+    /// <summary>
+    /// 컨텍스트 메뉴: 오늘의 기록 보기 (해당 학생 기록만 필터)
+    /// </summary>
+    private async void ContextMenu_ViewTodayLogs_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null) return;
+
+        try
+        {
+            var logs = await StudentLogService.GetByClassAsync(
+                Settings.SchoolCode.Value,
+                _currentYear,
+                _currentGrade,
+                _currentClass,
+                _currentDate);
+
+            var filtered = logs.Where(l => l.StudentID == student.StudentID).ToList();
+
+            var viewModels = new List<StudentLogViewModel>();
+            foreach (var log in filtered)
+            {
+                var vm = await StudentLogViewModel.CreateAsync(log);
+                viewModels.Add(vm);
+            }
+
+            DailyLogList.LoadLogs(viewModels);
+
+            TxtDailyLogTitle.Text = $"{_currentDate:M월 d일} {student.Name} 기록";
+            TxtDailyLogCount.Text = filtered.Count > 0 ? $"{filtered.Count}건" : "기록 없음";
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ClassDiaryPage] 학생 기록 필터 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 컨텍스트 메뉴: 학생 정보 보기
+    /// </summary>
+    private async void ContextMenu_ViewStudentInfo_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null) return;
+
+        var card = new StudentCard();
+        await card.LoadStudentAsync(student.StudentID);
+
+        var dialog = new ContentDialog
+        {
+            Title = $"{student.Name} — 학생 정보",
+            Content = card,
+            CloseButtonText = "닫기",
+            XamlRoot = this.XamlRoot,
+            MinWidth = 700,
+            MaxHeight = 600
+        };
+
+        await dialog.ShowAsync();
     }
 
     /// <summary>

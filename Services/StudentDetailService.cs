@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NewSchool.Models;
 using NewSchool.Repositories;
@@ -93,6 +94,17 @@ namespace NewSchool.Services
             }
 
             return await _detailRepo.GetByStudentIdAsync(studentId);
+        }
+
+        /// <summary>
+        /// 여러 StudentID로 상세 정보 일괄 조회
+        /// </summary>
+        public async Task<List<StudentDetail>> GetByStudentIdsAsync(List<string> studentIds)
+        {
+            if (studentIds == null || studentIds.Count == 0)
+                return [];
+
+            return await _detailRepo.GetByStudentIdsAsync(studentIds);
         }
 
         /// <summary>

@@ -10,6 +10,7 @@ using System.Xml.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Controls;
+using NewSchool.Logging;
 using NewSchool.Models;
 using NewSchool.Repositories;
 
@@ -57,7 +58,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 학사일정 생성 실패: {ex.Message}");
+            Log.Error("SchoolScheduleService", "학사일정 생성 실패", ex);
             return (false, $"학사일정 생성 중 오류가 발생했습니다: {ex.Message}", -1);
         }
     }
@@ -79,7 +80,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 학사일정 생성 실패: {ex.Message}");
+            Log.Error("SchoolScheduleService", "학사일정 생성 실패", ex);
             return (false, $"학사일정 생성 중 오류가 발생했습니다: {ex.Message}", -1);
         }
     }
@@ -98,7 +99,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 학사일정 수정 실패: {ex.Message}");
+            Log.Error("SchoolScheduleService", "학사일정 수정 실패", ex);
             return (false, $"학사일정 수정 중 오류가 발생했습니다: {ex.Message}");
         }
     }
@@ -117,7 +118,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 학사일정 삭제 실패: {ex.Message}");
+            Log.Error("SchoolScheduleService", "학사일정 삭제 실패", ex);
             return (false, $"학사일정 삭제 중 오류가 발생했습니다: {ex.Message}");
         }
     }
@@ -144,7 +145,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 학사일정 삭제 실패: {ex.Message}");
+            Log.Error("SchoolScheduleService", "학사일정 삭제 실패", ex);
             return (false, $"학사일정 삭제 중 오류가 발생했습니다: {ex.Message}",-1);
         }
     }
@@ -159,7 +160,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 학사일정 조회 실패: {ex.Message}");
+            Log.Error("SchoolScheduleService", "학사일정 조회 실패", ex);
             return null;
         }
     }
@@ -175,7 +176,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 학년도별 학사일정 조회 실패: {ex.Message}");
+            Log.Error("SchoolScheduleService", "학년도별 학사일정 조회 실패", ex);
             return new List<SchoolSchedule>();
         }
     }
@@ -204,7 +205,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] DB 조회 오류: {ex.Message}");
+            Log.Error("SchoolScheduleService", "DB 조회 오류", ex);
             return (false, $"DB 조회 오류: {ex.Message}", new List<SchoolSchedule>());
         }
     }
@@ -231,7 +232,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] DB 조회 오류: {ex.Message}");
+            Log.Error("SchoolScheduleService", "DB 조회 오류", ex);
             return (false, $"DB 조회 오류: {ex.Message}", new List<SchoolSchedule>());
         }
     }
@@ -282,7 +283,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 다운로드 오류: {ex.Message}");
+            Log.Error("SchoolScheduleService", "다운로드 오류", ex);
             return (false, $"다운로드 오류: {ex.Message}", 0);
         }
     }
@@ -386,22 +387,22 @@ public class SchoolScheduleService : IDisposable
         catch (TaskCanceledException ex) when (ex.CancellationToken == default)
         {
             // Timeout
-            Debug.WriteLine($"[SchoolScheduleService] NEIS API 타임아웃: {ex.Message}");
+            Log.Error("SchoolScheduleService", "NEIS API 타임아웃", ex);
             return (false, "NEIS API 요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.", schedules);
         }
         catch (HttpRequestException ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 네트워크 오류: {ex.Message}");
+            Log.Error("SchoolScheduleService", "네트워크 오류", ex);
             return (false, $"네트워크 오류: {ex.Message}", schedules);
         }
         catch (System.Xml.XmlException ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] XML 파싱 오류: {ex.Message}");
+            Log.Error("SchoolScheduleService", "XML 파싱 오류", ex);
             return (false, "NEIS API 응답을 파싱할 수 없습니다.", schedules);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] 예기치 않은 오류: {ex.Message}");
+            Log.Error("SchoolScheduleService", "예기치 않은 오류", ex);
             return (false, $"학사일정 로드 중 오류: {ex.Message}", schedules);
         }
     }
@@ -496,7 +497,7 @@ public class SchoolScheduleService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleService] XML 파싱 실패: {ex.Message}");
+            Log.Error("SchoolScheduleService", "XML 파싱 실패", ex);
             return null;
         }
     }

@@ -290,10 +290,10 @@ namespace NewSchool.Models
         /// <summary>
         /// 상태 확인 메서드들
         /// </summary>
-        public bool IsCurrentlyEnrolled() => Status == "재학";
-        public bool IsOnLeave() => Status == "휴학";
-        public bool IsGraduated() => Status == "졸업";
-        public bool IsTransferred() => Status.Contains("전학");
+        public bool IsCurrentlyEnrolled() => Status == EnrollmentStatus.Enrolled;
+        public bool IsOnLeave() => Status == EnrollmentStatus.OnLeave;
+        public bool IsGraduated() => Status == EnrollmentStatus.Graduated;
+        public bool IsTransferred() => Status.Contains(EnrollmentStatus.Transferred);
 
         /// <summary>
         /// 재학 기간 계산
