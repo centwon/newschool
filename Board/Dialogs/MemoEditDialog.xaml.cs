@@ -181,7 +181,7 @@ public sealed partial class MemoEditDialog : ContentDialog
         {
             return tag;
         }
-        return "업무";
+        return "수업";
     }
 
     /// <summary>

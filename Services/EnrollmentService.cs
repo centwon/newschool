@@ -100,7 +100,7 @@ public class EnrollmentService : IDisposable
     public async Task<int> PromoteStudentsAsync(string schoolCode, int fromYear, int fromGrade)
     {
         // 진급 대상 학생 조회 (2학기 재학생)
-        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, fromYear, fromGrade);
+        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, fromYear, 2, fromGrade);
         var activeStudents = students.Where(e => e.Status == "재학").ToList();
 
         if (activeStudents.Count == 0)
@@ -216,7 +216,7 @@ public class EnrollmentService : IDisposable
     public async Task<int> GraduateAsync(string schoolCode, int year, int grade)
     {
         // 졸업 대상 학생 조회 (2학기 재학생)
-        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, year, grade);
+        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, year, 2, grade);
         var activeStudents = students.Where(e => e.Status == "재학").ToList();
 
         if (activeStudents.Count == 0)

@@ -355,14 +355,14 @@ namespace NewSchool.Repositories
         /// <summary>
             /// 특정 학년의 모든 학생 조회
         /// </summary>
-        public async Task<List<Enrollment>> GetByGradeAsync(string schoolCode, int year, int grade=0)
+        public async Task<List<Enrollment>> GetByGradeAsync(string schoolCode, int year, int semester, int grade=0)
         {
             var gradeCondition = grade > 0 ? "AND Grade = @Grade" : "";
             string query = $@"
-                SELECT * FROM Enrollment 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester 
+                SELECT * FROM Enrollment
+                WHERE SchoolCode = @SchoolCode
+                  AND Year = @Year
+                  AND Semester = @Semester
                   {gradeCondition}
                   AND IsDeleted = 0
                 ORDER BY Class, Number";
@@ -374,6 +374,7 @@ namespace NewSchool.Repositories
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
                 cmd.Parameters.AddWithValue("@Year", year);
+                cmd.Parameters.AddWithValue("@Semester", semester);
                 cmd.Parameters.AddWithValue("@Grade", grade);
 
                 using var reader = await cmd.ExecuteReaderAsync();

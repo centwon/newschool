@@ -104,7 +104,7 @@
         height: '100%',
         language: 'ko',
         toolbarButtonSize: 'small',
-        buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,font,fontsize,brush,paragraph,|,image,table,link,|,align,undo,redo,|,hr,eraser,fullsize',
+        buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,font,fontsize,brush,paragraph,|,image,table,link,|,align,undo,redo,|,hr,eraser,fullsize,|,print',
         uploader: {
             insertImageAsBase64URI: true,
             imagesExtensions: ['jpg', 'png', 'jpeg', 'gif', 'svg', 'webp']
@@ -117,7 +117,7 @@
         showXPathInStatusbar: false,
         beautifyHTML: false,
         sourceEditor: 'area',
-        disablePlugins: 'file,video,speech-recognize,print,preview,about'
+        disablePlugins: 'file,video,speech-recognize,preview,about'
     };
 
     const editor = new Jodit('#editor', config);

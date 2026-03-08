@@ -316,7 +316,7 @@ public sealed partial class StudentManagementPage : Page
         string schoolCode, int year, int semester, int grade)
     {
         using var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
-        var enrollments = await enrollmentRepo.GetByGradeAsync(schoolCode, year, grade);
+        var enrollments = await enrollmentRepo.GetByGradeAsync(schoolCode, year, semester, grade);
 
         // Enrollment를 StudentManagementViewModel로 변환
         return enrollments.Select(e => new StudentManagementViewModel

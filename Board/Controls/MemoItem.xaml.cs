@@ -161,10 +161,10 @@ public sealed partial class MemoItem : UserControl
         // 카테고리별 색상 (선택사항)
         var color = Post?.Subject switch
         {
-            "업무" => Microsoft.UI.Colors.RoyalBlue,
-            "수업" => Microsoft.UI.Colors.ForestGreen,
-            "학급" => Microsoft.UI.Colors.Orange,
-            "개인" => Microsoft.UI.Colors.MediumPurple,
+            "수업" => Windows.UI.Color.FromArgb(0xFF, 0x42, 0x85, 0xF4),  // #4285F4 파란색
+            "담임" => Windows.UI.Color.FromArgb(0xFF, 0x0F, 0x9D, 0x58),  // #0F9D58 초록색
+            "업무" => Windows.UI.Color.FromArgb(0xFF, 0xDB, 0x44, 0x37),  // #DB4437 빨간색
+            "개인" => Windows.UI.Color.FromArgb(0xFF, 0xF4, 0xB4, 0x00),  // #F4B400 노란색
             _ => Microsoft.UI.Colors.Gray
         };
 

@@ -202,7 +202,7 @@ public sealed partial class MemoBoard : UserControl
             var memos = await service.GetMemosAsync(
                 category: categoryFilter,
                 subject: "메모",
-                includeCompleted: true);
+                includeCompleted: false);
 
             _memos.Clear();
             foreach (var memo in memos.OrderByDescending(m => m.DateTime))
@@ -234,7 +234,7 @@ public sealed partial class MemoBoard : UserControl
             string newCategory = GetSelectedCategoryFilter();
             if (string.IsNullOrEmpty(newCategory))
             {
-                newCategory = "업무";
+                newCategory = "수업";
             }
 
             var post = new Post
@@ -349,12 +349,10 @@ public sealed partial class MemoBoard : UserControl
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         };
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "업무", Tag = "업무" });
         _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "수업", Tag = "수업" });
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "학급", Tag = "학급" });
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "동아리", Tag = "동아리" });
+        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "담임", Tag = "담임" });
+        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "업무", Tag = "업무" });
         _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "개인", Tag = "개인" });
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "기타", Tag = "기타" });
         SelectComboBoxByTag(_currentCBoxCategory, memo.Category);
         _currentCBoxCategory.SelectionChanged += CBoxCategory_SelectionChanged;
         Grid.SetColumn(_currentCBoxCategory, 1);
@@ -601,11 +599,10 @@ public sealed partial class MemoBoard : UserControl
     {
         var color = category switch
         {
-            "업무" => Microsoft.UI.Colors.RoyalBlue,
-            "수업" => Microsoft.UI.Colors.ForestGreen,
-            "학급" => Microsoft.UI.Colors.Orange,
-            "동아리" => Microsoft.UI.Colors.DeepPink,
-            "개인" => Microsoft.UI.Colors.MediumPurple,
+            "수업" => Windows.UI.Color.FromArgb(0xFF, 0x42, 0x85, 0xF4),  // #4285F4 파란색
+            "담임" => Windows.UI.Color.FromArgb(0xFF, 0x0F, 0x9D, 0x58),  // #0F9D58 초록색
+            "업무" => Windows.UI.Color.FromArgb(0xFF, 0xDB, 0x44, 0x37),  // #DB4437 빨간색
+            "개인" => Windows.UI.Color.FromArgb(0xFF, 0xF4, 0xB4, 0x00),  // #F4B400 노란색
             _ => Microsoft.UI.Colors.Gray
         };
         return new SolidColorBrush(color);
@@ -636,25 +633,39 @@ public sealed partial class MemoBoard : UserControl
         {
             return tag;
         }
-        return "업무";
+        return "수업";
     }
 
     /// <summary>
-    /// HTML 태그를 제거하고 내용의 첫 15자를 제목으로 추출
+    /// HTML 태그를 제거하고 내용의 첫 줄을 제목으로 추출 (최대 15자)
     /// </summary>
     private static string ExtractTitleFromContent(string? content)
     {
         if (string.IsNullOrWhiteSpace(content))
             return "새 메모";
 
-        var text = System.Text.RegularExpressions.Regex.Replace(content, "<[^>]+>", "");
+        // 블록 태그(<p>, <div>, <br> 등)를 줄바꿈으로 치환
+        var text = System.Text.RegularExpressions.Regex.Replace(
+            content, @"<\s*(br|p|div|li|tr|h[1-6])\b[^>]*/?\s*>", "\n",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // 닫는 블록 태그도 줄바꿈
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text, @"</\s*(p|div|li|tr|h[1-6])\s*>", "\n",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // 나머지 태그 제거
+        text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "");
         text = System.Net.WebUtility.HtmlDecode(text);
-        text = text.Trim();
 
-        if (string.IsNullOrWhiteSpace(text))
+        // 첫 번째 비어있지 않은 줄 추출
+        var firstLine = text
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .FirstOrDefault(l => l.Length > 0);
+
+        if (string.IsNullOrWhiteSpace(firstLine))
             return "새 메모";
 
-        return text.Length <= 15 ? text : text[..15] + "…";
+        return firstLine.Length <= 15 ? firstLine : firstLine[..15] + "…";
     }
 
     private void SaveCurrentMemo()
@@ -705,6 +716,16 @@ public sealed partial class MemoBoard : UserControl
         {
             using var service = Board.CreateService();
             await service.UpdatePostIsCompletedAsync(post.No, post.IsCompleted);
+
+            // 완료된 메모는 목록에서 제거
+            if (post.IsCompleted)
+            {
+                _memos.Remove(post);
+                RebuildList();
+                PanelEmpty.Visibility = _memos.Count == 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
         }
         catch (Exception ex)
         {
@@ -726,6 +747,25 @@ public sealed partial class MemoBoard : UserControl
         {
             using var service = Board.CreateService();
             await service.UpdatePostIsCompletedAsync(_selectedPost.No, _selectedPost.IsCompleted);
+
+            // 완료된 메모는 목록에서 제거
+            if (_selectedPost.IsCompleted)
+            {
+                var completed = _selectedPost;
+                DetachEditor();
+                _memos.Remove(completed);
+                _selectedPost = null;
+
+                if (_memos.Count > 0)
+                {
+                    SelectedPost = _memos[0];
+                }
+                else
+                {
+                    RebuildList();
+                    PanelEmpty.Visibility = Visibility.Visible;
+                }
+            }
         }
         catch (Exception ex)
         {

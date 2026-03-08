@@ -131,13 +131,16 @@ namespace NewSchool.Controls
                 for (int period = 1; period <= 7; period++) // 1~7교시
                 {
                     var item = viewModel.GetItem(day, period);
-                    if (item != null)
-                    {
-                        var cell = CreateCell(item);
-                        Grid.SetRow(cell, period); // period (1~7)
-                        Grid.SetColumn(cell, day); // day (1~5)
-                        TimetableGrid.Children.Add(cell);
-                    }
+                    var cell = item != null
+                        ? CreateCell(item)
+                        : new Border
+                        {
+                            Padding = new Thickness(2),
+                            Background = (SolidColorBrush)Application.Current.Resources["SubtleFillColorSecondaryBrush"]
+                        };
+                    Grid.SetRow(cell, period); // period (1~7)
+                    Grid.SetColumn(cell, day); // day (1~5)
+                    TimetableGrid.Children.Add(cell);
                 }
             }
         }
@@ -149,26 +152,8 @@ namespace NewSchool.Controls
         {
             var border = new Border
             {
-                BorderBrush = (SolidColorBrush)Application.Current.Resources["DividerStrokeColorDefaultBrush"],
-                BorderThickness = new Thickness(0, 0, 1, 1),
                 Padding = new Thickness(2)
             };
-
-            // 마지막 열은 오른쪽 테두리 제거
-            if (item.DayOfWeek == 5)
-            {
-                border.BorderThickness = new Thickness(0, 0, 0, 1);
-            }
-
-            // 마지막 행은 아래쪽 테두리 제거
-            if (item.Period == 7)
-            {
-                border.BorderThickness = new Thickness(0, 0, 1, 0);
-                if (item.DayOfWeek == 5)
-                {
-                    border.BorderThickness = new Thickness(0);
-                }
-            }
 
             if (item.IsEmpty)
             {

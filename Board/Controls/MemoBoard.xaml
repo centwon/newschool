@@ -42,13 +42,11 @@
                               Margin="8,0,0,0"
                               VerticalAlignment="Center"
                               SelectionChanged="CBoxCategoryFilter_SelectionChanged">
-                        <ComboBoxItem Content="&#xC804;&#xCCB4;" Tag=""/>
-                        <ComboBoxItem Content="&#xC5C5;&#xBB34;" Tag="&#xC5C5;&#xBB34;"/>
-                        <ComboBoxItem Content="&#xC218;&#xC5C5;" Tag="&#xC218;&#xC5C5;"/>
-                        <ComboBoxItem Content="&#xD559;&#xAE09;" Tag="&#xD559;&#xAE09;"/>
-                        <ComboBoxItem Content="&#xB3D9;&#xC544;&#xB9AC;" Tag="&#xB3D9;&#xC544;&#xB9AC;"/>
-                        <ComboBoxItem Content="&#xAC1C;&#xC778;" Tag="&#xAC1C;&#xC778;"/>
-                        <ComboBoxItem Content="&#xAE30;&#xD0C0;" Tag="&#xAE30;&#xD0C0;"/>
+                        <ComboBoxItem Content="전체" Tag=""/>
+                        <ComboBoxItem Content="수업" Tag="수업"/>
+                        <ComboBoxItem Content="담임" Tag="담임"/>
+                        <ComboBoxItem Content="업무" Tag="업무"/>
+                        <ComboBoxItem Content="개인" Tag="개인"/>
                     </ComboBox>
 
                     <Button x:Name="BtnAddMemo"

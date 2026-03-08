@@ -182,6 +182,11 @@ public sealed partial class PageStudentLog : Page
             CourseNo = 0
         };
         var logDialog = new StudentLogDialog(newLog);
+        logDialog.Closed += async (s, args) =>
+        {
+            if (_selectedStudent != null)
+                await LoadLogsAsync();
+        };
         logDialog.Activate();
     }
 

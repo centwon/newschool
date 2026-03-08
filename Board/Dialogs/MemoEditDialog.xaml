@@ -48,12 +48,10 @@
                       MinWidth="100"
                       VerticalAlignment="Center"
                       Margin="0,0,8,0">
-                <ComboBoxItem Content="업무" Tag="업무"/>
                 <ComboBoxItem Content="수업" Tag="수업"/>
-                <ComboBoxItem Content="학급" Tag="학급"/>
-                <ComboBoxItem Content="동아리" Tag="동아리"/>
+                <ComboBoxItem Content="담임" Tag="담임"/>
+                <ComboBoxItem Content="업무" Tag="업무"/>
                 <ComboBoxItem Content="개인" Tag="개인"/>
-                <ComboBoxItem Content="기타" Tag="기타"/>
             </ComboBox>
 
             <!-- 제목 -->
