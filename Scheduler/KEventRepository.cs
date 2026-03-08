@@ -62,7 +62,7 @@ public class KEventRepository : BaseRepository
         }
     }
 
-    /// <summary>날짜 범위로 이벤트 조회 (Start 기준)</summary>
+    /// <summary>날짜 범위로 이벤트 조회 (다중일 이벤트 포함: Start~End 범위가 조회 기간과 겹치는 모든 이벤트)</summary>
     public async Task<List<KEvent>> GetByDateRangeAsync(DateTime startDate, int days = 1)
     {
         var list = new List<KEvent>();
@@ -73,7 +73,7 @@ public class KEventRepository : BaseRepository
 
             const string query = @"
                 SELECT * FROM KEvent
-                WHERE Start >= @From AND Start < @To
+                WHERE Start < @To AND End >= @From
                   AND Status <> 'cancelled'
                 ORDER BY Start ASC, Title ASC";
 
@@ -107,7 +107,7 @@ public class KEventRepository : BaseRepository
             const string query = @"
                 SELECT * FROM KEvent
                 WHERE CalendarId = @CalendarId
-                  AND Start >= @From AND Start < @To
+                  AND Start < @To AND End >= @From
                   AND Status <> 'cancelled'
                 ORDER BY Start ASC";
 
@@ -199,15 +199,24 @@ public class KEventRepository : BaseRepository
 
     private static void AddParameters(SqliteCommand cmd, KEvent ev)
     {
-        var startU = DateTime.SpecifyKind(ev.Start, DateTimeKind.Unspecified);
-        var endU   = DateTime.SpecifyKind(ev.End,   DateTimeKind.Unspecified);
-
         cmd.Parameters.AddWithValue("@GoogleId",   ev.GoogleId   ?? string.Empty);
         cmd.Parameters.AddWithValue("@CalendarId", ev.CalendarId);
         cmd.Parameters.AddWithValue("@Title",      ev.Title      ?? string.Empty);
         cmd.Parameters.AddWithValue("@Notes",      ev.Notes      ?? string.Empty);
-        cmd.Parameters.AddWithValue("@Start",      DateTimeHelper.ToStandardString(startU));
-        cmd.Parameters.AddWithValue("@End",        DateTimeHelper.ToStandardString(endU));
+
+        if (ev.IsAllday)
+        {
+            // 종일 이벤트: 날짜만 저장 (UTC 변환하면 시간대에 따라 날짜가 밀릴 수 있음)
+            cmd.Parameters.AddWithValue("@Start", ev.Start.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@End",   ev.End.ToString("yyyy-MM-dd"));
+        }
+        else
+        {
+            var startU = DateTime.SpecifyKind(ev.Start, DateTimeKind.Unspecified);
+            var endU   = DateTime.SpecifyKind(ev.End,   DateTimeKind.Unspecified);
+            cmd.Parameters.AddWithValue("@Start", DateTimeHelper.ToStandardString(startU));
+            cmd.Parameters.AddWithValue("@End",   DateTimeHelper.ToStandardString(endU));
+        }
         cmd.Parameters.AddWithValue("@IsAllday",   ev.IsAllday ? 1 : 0);
         cmd.Parameters.AddWithValue("@Location",   ev.Location   ?? string.Empty);
         cmd.Parameters.AddWithValue("@Status",     ev.Status     ?? "confirmed");
@@ -222,6 +231,24 @@ public class KEventRepository : BaseRepository
 
     private static KEvent Map(SqliteDataReader r)
     {
+        var isAllday = r.GetInt32(r.GetOrdinal("IsAllday")) == 1;
+        var startStr = r.GetString(r.GetOrdinal("Start"));
+        var endStr   = r.GetString(r.GetOrdinal("End"));
+
+        // 종일 이벤트: 날짜 전용 문자열("yyyy-MM-dd")로 저장되므로 시간대 변환 없이 파싱
+        // 시간 이벤트: UTC 문자열로 저장되므로 Local 변환 포함 파싱
+        DateTime start, end;
+        if (isAllday)
+        {
+            start = DateTimeHelper.FromDateString(startStr);
+            end   = DateTimeHelper.FromDateString(endStr);
+        }
+        else
+        {
+            start = DateTimeHelper.FromString(startStr);
+            end   = DateTimeHelper.FromString(endStr);
+        }
+
         var ev = new KEvent
         {
             No          = r.GetInt32(r.GetOrdinal("No")),
@@ -229,9 +256,9 @@ public class KEventRepository : BaseRepository
             CalendarId  = r.GetInt32(r.GetOrdinal("CalendarId")),
             Title       = r.GetString(r.GetOrdinal("Title")),
             Notes       = r.GetString(r.GetOrdinal("Notes")),
-            Start       = DateTimeHelper.FromString(r.GetString(r.GetOrdinal("Start"))),
-            End         = DateTimeHelper.FromString(r.GetString(r.GetOrdinal("End"))),
-            IsAllday    = r.GetInt32(r.GetOrdinal("IsAllday")) == 1,
+            Start       = start,
+            End         = end,
+            IsAllday    = isAllday,
             Location    = r.GetString(r.GetOrdinal("Location")),
             Status      = r.GetString(r.GetOrdinal("Status")),
             ColorId     = r.GetString(r.GetOrdinal("ColorId")),
@@ -369,7 +396,7 @@ public class KEventRepository : BaseRepository
             string query = @"
                 SELECT * FROM KEvent
                 WHERE ItemType = 'task'
-                  AND Start >= @From AND Start < @To
+                  AND Start < @To AND End >= @From
                   AND Status <> 'cancelled'";
             if (!showCompleted)
                 query += " AND IsDone = 0";

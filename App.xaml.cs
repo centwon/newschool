@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using SQLitePCL;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using NewSchool.Logging;
 using NewSchool.Pages;
 using NewSchool.Controls;
 using NewSchool.Google;
@@ -32,6 +33,9 @@ public partial class App : Application
                 Debug.WriteLine($"[App] ★ InnerException: {e.Exception.InnerException.Message}");
                 Debug.WriteLine($"[App] ★ InnerStackTrace: {e.Exception.InnerException.StackTrace}");
             }
+
+            // 파일 로그에 기록
+            FileLogger.Instance.Critical($"[App] UnhandledException: {e.Exception.GetType().Name}", e.Exception);
         };
     }
 
@@ -40,6 +44,18 @@ public partial class App : Application
         // 1. Settings 초기화
         Settings.Initialize();
         Debug.WriteLine("[App] Settings 초기화 완료");
+
+        // 1-1. 저장된 로그 레벨 적용
+        var logLevel = Settings.LogLevel.Value switch
+        {
+            "Debug" => Logging.LogLevel.Debug,
+            "Info" => Logging.LogLevel.Info,
+            "Warning" => Logging.LogLevel.Warning,
+            "Error" => Logging.LogLevel.Error,
+            _ => Logging.LogLevel.Info
+        };
+        FileLogger.Instance.SetMinimumLevel(logLevel);
+        Debug.WriteLine($"[App] 로그 레벨: {logLevel}");
 
         // 2. DB 초기화
         if (!Settings.Board_Inited.Value)

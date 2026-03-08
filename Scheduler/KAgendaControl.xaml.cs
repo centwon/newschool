@@ -33,6 +33,9 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
     public string Title    => SourceEvent?.Title ?? string.Empty;
     public DateTime SortKey => SourceEvent?.Start ?? DateTime.MinValue;
 
+    /// <summary>리스트 그룹핑용 표시 날짜 (다일 일정은 날짜별로 복제)</summary>
+    public DateTime DisplayDate { get; init; }
+
     public string TimeLabel
     {
         get
@@ -83,16 +86,17 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
     // ── 정적 팩토리 ──────────────────────────────
 
     /// <summary>KEvent(ItemType="task")에서 AgendaItem 생성</summary>
-    public static AgendaItem FromTask(KEvent taskEvent, string categoryName, string badgeColor) => new()
+    public static AgendaItem FromTask(KEvent taskEvent, string categoryName, string badgeColor, DateTime? displayDate = null) => new()
     {
-        SourceEvent   = taskEvent,
-        CategoryName  = categoryName,
+        SourceEvent     = taskEvent,
+        CategoryName    = categoryName,
         BadgeBackground = badgeColor,
-        _isTaskDone   = taskEvent.IsDone
+        DisplayDate     = displayDate ?? taskEvent.Start.Date,
+        _isTaskDone     = taskEvent.IsDone
     };
 
     /// <summary>KEvent(ItemType="event")에서 AgendaItem 생성</summary>
-    public static AgendaItem FromEvent(KEvent ev, string calendarName, string calendarColor)
+    public static AgendaItem FromEvent(KEvent ev, string calendarName, string calendarColor, DateTime? displayDate = null)
     {
         string hex = !string.IsNullOrEmpty(ev.ColorId)
             ? KEvent.ColorIdToHex(ev.ColorId)
@@ -101,10 +105,11 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
 
         return new AgendaItem
         {
-            SourceEvent   = ev,
-            CategoryName  = calendarName,
+            SourceEvent     = ev,
+            CategoryName    = calendarName,
             BadgeBackground = hex,
-            _accentHex    = hex
+            DisplayDate     = displayDate ?? ev.Start.Date,
+            _accentHex      = hex
         };
     }
 
@@ -181,6 +186,12 @@ public sealed partial class KAgendaControl : UserControl
 
     /// <summary>새 항목 추가 시 기본 CalendarId</summary>
     public int DefaultCalendarId { get; set; }
+
+    /// <summary>필터 UI(캘린더 ComboBox, 할일/일정 토글) 표시 여부</summary>
+    public bool ShowFilter { get; set; } = true;
+
+    /// <summary>캘린더(카테고리) 이름 고정 (설정 시 해당 캘린더만 표시, 필터 자동 숨김)</summary>
+    public string? FixedCalendarName { get; set; }
 
     public KAgendaControl()
     {
@@ -285,6 +296,27 @@ public sealed partial class KAgendaControl : UserControl
             TbTask.IsChecked  = true;
             TbEvent.IsChecked = true;
             _filterInitialized = true;
+
+            // FixedCalendarName이 설정되면 해당 캘린더로 고정
+            if (!string.IsNullOrEmpty(FixedCalendarName))
+            {
+                var fixedCal = _calendars.FirstOrDefault(c => c.Title == FixedCalendarName);
+                if (fixedCal != null)
+                {
+                    _selectedCalendarId = fixedCal.No;
+                    DefaultCalendarId   = fixedCal.No;
+                }
+                // 고정 시 필터 자동 숨김
+                CBoxFilter.Visibility = Visibility.Collapsed;
+                TbTask.Visibility     = Visibility.Collapsed;
+                TbEvent.Visibility    = Visibility.Collapsed;
+            }
+            else if (!ShowFilter)
+            {
+                CBoxFilter.Visibility = Visibility.Collapsed;
+                TbTask.Visibility     = Visibility.Collapsed;
+                TbEvent.Visibility    = Visibility.Collapsed;
+            }
         }
         catch (Exception ex)
         {
@@ -306,9 +338,21 @@ public sealed partial class KAgendaControl : UserControl
             string color = cal?.Color ?? "#4285F4";
 
             if (ev.ItemType == "task")
+            {
                 _allItems.Add(AgendaItem.FromTask(ev, name, color));
+            }
             else
-                _allItems.Add(AgendaItem.FromEvent(ev, name, color));
+            {
+                // 다일 일정: 각 날짜별로 AgendaItem 생성
+                int days = (ev.End.Date - ev.Start.Date).Days;
+                if (days <= 0) days = 0; // 같은 날 또는 종료<시작 방지
+
+                for (int d = 0; d <= days; d++)
+                {
+                    _allItems.Add(AgendaItem.FromEvent(ev, name, color,
+                        displayDate: ev.Start.Date.AddDays(d)));
+                }
+            }
         }
     }
 
@@ -331,7 +375,7 @@ public sealed partial class KAgendaControl : UserControl
 
         // 평탄 리스트: 날짜 헤더 + 항목 교차 배치 (Native AOT 안전)
         var flatList = new List<object>();
-        foreach (var g in filtered.OrderBy(i => i.SortKey).GroupBy(i => i.SortKey.Date))
+        foreach (var g in filtered.OrderBy(i => i.DisplayDate).ThenBy(i => i.SortKey).GroupBy(i => i.DisplayDate))
         {
             var items = g.ToList();
             var (header, _) = AgendaHeader.Create(g.Key, items);
@@ -377,9 +421,17 @@ public sealed partial class KAgendaControl : UserControl
                 string color = cal?.Color ?? "#4285F4";
 
                 if (ev.ItemType == "task")
+                {
                     _allItems.Add(AgendaItem.FromTask(ev, name, color));
+                }
                 else
-                    _allItems.Add(AgendaItem.FromEvent(ev, name, color));
+                {
+                    int days = (ev.End.Date - ev.Start.Date).Days;
+                    if (days <= 0) days = 0;
+                    for (int d = 0; d <= days; d++)
+                        _allItems.Add(AgendaItem.FromEvent(ev, name, color,
+                            displayDate: ev.Start.Date.AddDays(d)));
+                }
 
                 ApplyFilter();
             }
@@ -400,24 +452,32 @@ public sealed partial class KAgendaControl : UserControl
 
             if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
             {
-                int idx = _allItems.IndexOf(item);
-                if (idx >= 0)
-                {
-                    var ev  = dialog.ResultEvent;
-                    var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
-                    string name  = cal?.Title ?? string.Empty;
-                    string color = cal?.Color ?? "#4285F4";
+                var ev  = dialog.ResultEvent;
+                var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
+                string name  = cal?.Title ?? string.Empty;
+                string color = cal?.Color ?? "#4285F4";
 
-                    if (ev.ItemType == "task")
-                        _allItems[idx] = AgendaItem.FromTask(ev, name, color);
-                    else
-                        _allItems[idx] = AgendaItem.FromEvent(ev, name, color);
+                // 같은 SourceEvent를 참조하는 항목 모두 제거 (다일 일정 복제본 포함)
+                _allItems.RemoveAll(a => a.SourceEvent == item.SourceEvent);
+
+                if (ev.ItemType == "task")
+                {
+                    _allItems.Add(AgendaItem.FromTask(ev, name, color));
+                }
+                else
+                {
+                    int days = (ev.End.Date - ev.Start.Date).Days;
+                    if (days <= 0) days = 0;
+                    for (int d = 0; d <= days; d++)
+                        _allItems.Add(AgendaItem.FromEvent(ev, name, color,
+                            displayDate: ev.Start.Date.AddDays(d)));
                 }
                 ApplyFilter();
             }
             else if (result == ContentDialogResult.Secondary)
             {
-                _allItems.Remove(item);
+                // 삭제: 같은 SourceEvent를 참조하는 항목 모두 제거
+                _allItems.RemoveAll(a => a.SourceEvent == item.SourceEvent);
                 ApplyFilter();
             }
         }

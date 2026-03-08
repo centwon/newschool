@@ -483,6 +483,34 @@ public sealed partial class AddStudentsPage : Page
         }
     }
 
+    /// <summary>
+    /// 전체 선택
+    /// </summary>
+    private void ChkSelectAll_Checked(object sender, RoutedEventArgs e)
+    {
+        foreach (var s in NewStudents) s.IsSelected = true;
+    }
+
+    /// <summary>
+    /// 전체 선택 해제
+    /// </summary>
+    private void ChkSelectAll_Unchecked(object sender, RoutedEventArgs e)
+    {
+        foreach (var s in NewStudents) s.IsSelected = false;
+    }
+
+    /// <summary>
+    /// 선택 항목 삭제
+    /// </summary>
+    private void BtnRemoveSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = NewStudents.Where(s => s.IsSelected).ToList();
+        foreach (var s in selected)
+        {
+            NewStudents.Remove(s);
+        }
+    }
+
     #endregion
 
     #region DB 저장
@@ -936,4 +964,11 @@ public class StudentAddViewModel : NotifyPropertyChangedBase
     }
 
     public string ClassInfo => $"{Year}학년도 {Grade}학년 {Class}반 {Number}번";
+
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
 }

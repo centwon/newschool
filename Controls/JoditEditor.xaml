@@ -7,6 +7,6 @@
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d">
 
-    <controls:WebView2 x:Name="_webView"  AllowDrop="True"/>
+    <controls:WebView2 x:Name="_webView" AllowDrop="True"/>
 
 </UserControl>

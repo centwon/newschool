@@ -337,7 +337,9 @@ public class GoogleSyncService : IDisposable
         if (isAllday)
         {
             start = DateTime.Parse(ge.Start!.Date!);
-            end = DateTime.Parse(ge.End!.Date!);
+            // Google Calendar의 종일 이벤트 End는 exclusive(배타적)이므로
+            // inclusive(포함)로 변환: 1일 빼기
+            end = DateTime.Parse(ge.End!.Date!).AddDays(-1);
         }
         else
         {
@@ -382,7 +384,10 @@ public class GoogleSyncService : IDisposable
         if (ke.IsAllday)
         {
             ge.Start = new GoogleEventDateTime { Date = ke.Start.ToString("yyyy-MM-dd") };
-            ge.End = new GoogleEventDateTime { Date = ke.End.ToString("yyyy-MM-dd") };
+            // 로컬에서는 inclusive end로 저장하므로, Google에 보낼 때는
+            // exclusive로 변환: 1일 더하기
+            // 예: 로컬 "3/25~4/1(inclusive)" → Google "3/25~4/2(exclusive)"
+            ge.End = new GoogleEventDateTime { Date = ke.End.AddDays(1).ToString("yyyy-MM-dd") };
         }
         else
         {
@@ -425,7 +430,10 @@ public class GoogleSyncService : IDisposable
         if (isAllday)
         {
             local.Start = DateTime.Parse(google.Start!.Date!);
-            local.End = DateTime.Parse(google.End!.Date!);
+            // Google Calendar의 종일 이벤트 End는 exclusive(배타적)이므로
+            // inclusive(포함)로 변환: 1일 빼기
+            // 예: Google "3/25~4/2(exclusive)" → 로컬 "3/25~4/1(inclusive)"
+            local.End = DateTime.Parse(google.End!.Date!).AddDays(-1);
         }
         else
         {
@@ -521,7 +529,7 @@ public class GoogleSyncService : IDisposable
         // 학교 캘린더(수업/담임/업무가 매핑된 Google 캘린더) 찾기
         using var service = Scheduler.Scheduler.CreateService();
         var schoolCalendar = (await service.GetAllCalendarsAsync())
-            .FirstOrDefault(c => c.Title == "수업" && !string.IsNullOrEmpty(c.GoogleId));
+            .FirstOrDefault(c => c.Title == CategoryNames.Lesson && !string.IsNullOrEmpty(c.GoogleId));
 
         if (schoolCalendar == null)
         {

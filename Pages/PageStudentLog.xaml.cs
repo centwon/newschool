@@ -81,7 +81,9 @@ public sealed partial class PageStudentLog : Page
         {
             StudentList.StudentSelected += OnStudentSelected;
         }
-        
+
+        SetupStudentContextMenu();
+
         // SchoolFilterPicker가 자동으로 초기화함
     }
 
@@ -182,6 +184,11 @@ public sealed partial class PageStudentLog : Page
             CourseNo = 0
         };
         var logDialog = new StudentLogDialog(newLog);
+        logDialog.Closed += async (s, args) =>
+        {
+            if (_selectedStudent != null)
+                await LoadLogsAsync();
+        };
         logDialog.Activate();
     }
 
@@ -382,6 +389,7 @@ public sealed partial class PageStudentLog : Page
     private void LogList_Unloaded(object sender, RoutedEventArgs e)
     {
         _ = CheckUnSavedAsync();
+        _logService?.Dispose();
     }
 
     private void ChkShowSpec_Click(object sender, RoutedEventArgs e)
@@ -555,6 +563,79 @@ public sealed partial class PageStudentLog : Page
         {
             SpecBox.Visibility = showSpec ? Visibility.Visible : Visibility.Collapsed;
         }
+    }
+
+    #endregion
+
+    #region 컨텍스트 메뉴
+
+    /// <summary>학생 목록 우클릭 컨텍스트 메뉴 설정</summary>
+    private void SetupStudentContextMenu()
+    {
+        var menu = new MenuFlyout();
+
+        var miAddLog = new MenuFlyoutItem
+        {
+            Text = "누가기록 작성",
+            Icon = new FontIcon { Glyph = "\uE70F" }
+        };
+        miAddLog.Click += ContextMenu_AddLog_Click;
+
+        var miViewInfo = new MenuFlyoutItem
+        {
+            Text = "학생 정보 보기",
+            Icon = new FontIcon { Glyph = "\uE77B" }
+        };
+        miViewInfo.Click += ContextMenu_ViewStudentInfo_Click;
+
+        menu.Items.Add(miAddLog);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(miViewInfo);
+
+        StudentList.ItemContextFlyout = menu;
+    }
+
+    private async void ContextMenu_AddLog_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null) return;
+
+        if (_year == 0)
+        {
+            await ShowInfoDialogAsync("학년도를 먼저 선택해주세요.", "알림");
+            return;
+        }
+
+        var logDialog = new StudentLogDialog(
+            student,
+            _year,
+            _semester);
+        logDialog.Closed += async (s, args) =>
+        {
+            await LoadLogsAsync();
+        };
+        logDialog.Activate();
+    }
+
+    private async void ContextMenu_ViewStudentInfo_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null) return;
+
+        var card = new StudentCard();
+        await card.LoadStudentAsync(student.StudentID);
+
+        var dialog = new ContentDialog
+        {
+            Title = $"{student.Name} — 학생 정보",
+            Content = card,
+            CloseButtonText = "닫기",
+            XamlRoot = this.XamlRoot,
+            MinWidth = 700,
+            MaxHeight = 600
+        };
+
+        await dialog.ShowAsync();
     }
 
     #endregion

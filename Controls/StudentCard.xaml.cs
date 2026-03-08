@@ -75,6 +75,10 @@ namespace NewSchool.Controls
         {
             // 자동 저장 시도
             _ = SaveChangedAsync();
+
+            // 이벤트 구독 해제 (메모리 누수 방지)
+            if (ViewModel != null)
+                ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         }
 
         private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

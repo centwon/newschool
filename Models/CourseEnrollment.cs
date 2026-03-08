@@ -13,7 +13,7 @@ public partial class CourseEnrollment : NotifyPropertyChangedBase, IEntity
     private int _no = -1;
     private string _studentId = string.Empty;
     private int _courseNo = -1;
-    private string _status = "수강중";
+    private string _status = CourseEnrollmentStatus.Active;
     private string _remark = string.Empty;
     private string _room = string.Empty;
     private DateTime _createdAt = DateTime.Now;

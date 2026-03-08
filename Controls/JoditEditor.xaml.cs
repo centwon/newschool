@@ -57,6 +57,9 @@ public partial class JoditEditor : UserControl, INotifyPropertyChanged, IDisposa
     private readonly SemaphoreSlim _initLock = new(1, 1);
     #endregion
 
+    /// <summary>에디터의 순수 텍스트 (HTML 태그 제거된 innerText)</summary>
+    public string PlainText { get; private set; } = string.Empty;
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
@@ -132,7 +135,13 @@ public partial class JoditEditor : UserControl, INotifyPropertyChanged, IDisposa
             _isInitializing = true;
             Debug.WriteLine("[JoditEditor] 초기화 시작 (Virtual Host Mapping)...");
 
-            await _webView.EnsureCoreWebView2Async();
+            // WebView2 임시파일을 사용자 Temp 폴더에 저장
+            var userDataFolder = Path.Combine(
+                Path.GetTempPath(),
+                "NewSchool", "WebView2");
+            var env = await CoreWebView2Environment.CreateWithOptionsAsync(
+                null, userDataFolder, new CoreWebView2EnvironmentOptions());
+            await _webView.EnsureCoreWebView2Async(env);
 
             _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
@@ -209,11 +218,32 @@ public partial class JoditEditor : UserControl, INotifyPropertyChanged, IDisposa
             {
                 string content = json.GetProperty("content").GetString() ?? string.Empty;
 
+                // plain text (editor.text) 수신
+                if (json.TryGetProperty("plainText", out var pt))
+                    PlainText = pt.GetString() ?? string.Empty;
+
                 _isUpdatingFromEditor = true;
                 SetValue(TextProperty, content);
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Text)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PlainText)));
 
                 TextChanged?.Invoke(this, content);
+            }
+            else if (type == "contentHeight")
+            {
+                // ReadOnly 모드에서 콘텐츠 높이에 맞춰 컨트롤 크기 조정
+                if (Mode == EditorMode.ReadOnly && json.TryGetProperty("height", out var heightProp))
+                {
+                    int height = heightProp.GetInt32();
+                    if (height > 40)
+                    {
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            this.Height = height;
+                            Debug.WriteLine($"[JoditEditor] ReadOnly 높이 조정: {height}px");
+                        });
+                    }
+                }
             }
             else if (type == "ready")
             {

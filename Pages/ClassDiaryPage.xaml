@@ -21,7 +21,7 @@
             <RowDefinition Height="Auto"/>
             <!-- 메인 -->
             <RowDefinition Height="*"/>
-            <!-- 게시판 (PostListPage) -->
+            <!-- 당일 학생 기록 -->
         </Grid.RowDefinitions>
 
         <!-- ========================== -->
@@ -105,15 +105,55 @@
         <controls:ClassDiaryBox x:Name="DiaryBox" Grid.Row="1" Grid.Column="1" Margin="4,4,4,4"/>
 
         <!-- ========================== -->
-        <!-- 학급 게시판 (PostListPage 내장, 하단 전체) -->
+        <!-- 당일 학생 기록 (하단) -->
         <!-- ========================== -->
-        <Border Grid.Row="2" Grid.Column="1"
-                Margin="16"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-            <Frame x:Name="BoardFrame"/>
-        </Border>
+        <Grid Grid.Row="2" Grid.Column="1" Margin="4,0,4,4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 헤더 -->
+            <Grid Grid.Row="0" Padding="8,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <FontIcon Glyph="&#xE762;" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Grid.Column="1" x:Name="TxtDailyLogTitle"
+                           Text="당일 학생 기록"
+                           FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" x:Name="TxtDailyLogCount"
+                           Text=""
+                           FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
+                    <Button x:Name="BtnAddDailyLog"
+                            Click="BtnAddDailyLog_Click"
+                            Style="{ThemeResource AccentButtonStyle}"
+                            Padding="10,4"
+                            ToolTipService.ToolTip="학생 기록 추가">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                            <TextBlock Text="추가" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="BtnRefreshLogs"
+                            Click="BtnRefreshLogs_Click"
+                            Background="Transparent" BorderThickness="0"
+                            ToolTipService.ToolTip="새로고침" Padding="6,4">
+                        <FontIcon Glyph="&#xE72C;" FontSize="12"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- 학생 기록 목록 -->
+            <controls:LogListViewer x:Name="DailyLogList"
+                                    Grid.Row="1"/>
+        </Grid>
     </Grid>
 </Page>

@@ -38,6 +38,7 @@
     <None Remove="Controls\StudentCard.xaml" />
     <None Remove="Dialogs\InitialSetupDialog.xaml" />
     <None Remove="Dialogs\SchoolSearchDialog.xaml" />
+    <None Remove="nul" />
     <None Remove="Pages\AddStudentsPage.xaml" />
     <None Remove="Pages\StudentInfoExportPage.xaml" />
     <None Remove="Pages\StudentManagementPage.xaml" />
@@ -107,14 +108,14 @@
        NuGet 패키지
        ========================================== -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.5" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
-    <PackageReference Include="MiniExcel" Version="1.42.0" />
+    <PackageReference Include="MiniExcel" Version="1.43.0" />
     <PackageReference Include="QuestPDF" Version="2026.2.3" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
     <PackageReference Include="SQLitePCLRaw.core" Version="3.0.2" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.3" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.5" />
   </ItemGroup>
 
   <!-- ==========================================

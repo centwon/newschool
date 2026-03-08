@@ -352,7 +352,7 @@ namespace NewSchool.Dialogs
                     {
                         StudentID = studentId,
                         ClubNo = _club.No,
-                        Status = "활동중"
+                        Status = ClubEnrollmentStatus.Active
                     };
                     await repo.CreateAsync(enrollment);
                 }

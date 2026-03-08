@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 using System.Threading.Tasks;
+using NewSchool.Logging;
 
 namespace NewSchool.Repositories
 {
@@ -309,6 +310,7 @@ namespace NewSchool.Repositories
         protected void LogWarning(string message)
         {
             Debug.WriteLine($"[WARNING] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+            FileLogger.Instance.Warning($"[{GetType().Name}] {message}");
         }
 
         protected void LogError(string message, Exception? ex = null)
@@ -320,6 +322,7 @@ namespace NewSchool.Repositories
                 Debug.WriteLine($"  Message: {ex.Message}");
                 Debug.WriteLine($"  StackTrace: {ex.StackTrace}");
             }
+            FileLogger.Instance.Error($"[{GetType().Name}] {message}", ex);
         }
 
         #endregion

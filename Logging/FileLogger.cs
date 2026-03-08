@@ -27,8 +27,7 @@ namespace NewSchool.Logging
         private FileLogger()
         {
             LogDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "NewSchool",
+                AppContext.BaseDirectory,
                 "Logs");
 
             if (!Directory.Exists(LogDirectory))
@@ -254,7 +253,10 @@ namespace NewSchool.Logging
                 {
                     _writerTask.Wait(TimeSpan.FromSeconds(5));
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[FileLogger] Writer task 종료 대기 실패: {ex.Message}");
+                }
 
                 _cts.Dispose();
                 _signal.Dispose();
@@ -312,6 +314,41 @@ namespace NewSchool.Logging
                 : $"[사용자] {action} - {details}";
 
             logger.Info(message);
+        }
+    }
+
+    /// <summary>
+    /// 서비스/페이지 코드에서 Debug.WriteLine + FileLogger를 함께 사용하기 위한 정적 헬퍼
+    /// 기존 Debug.WriteLine 호출을 대체
+    /// </summary>
+    public static class Log
+    {
+        [System.Diagnostics.Conditional("DEBUG")]
+        public static void Debug(string tag, string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"[{tag}] {message}");
+        }
+
+        public static void Info(string tag, string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"[{tag}] {message}");
+            FileLogger.Instance.Info($"[{tag}] {message}");
+        }
+
+        public static void Warning(string tag, string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"[{tag}] WARNING: {message}");
+            FileLogger.Instance.Warning($"[{tag}] {message}");
+        }
+
+        public static void Error(string tag, string message, Exception? ex = null)
+        {
+            System.Diagnostics.Debug.WriteLine($"[{tag}] ERROR: {message}");
+            if (ex != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"  Exception: {ex.GetType().Name} - {ex.Message}");
+            }
+            FileLogger.Instance.Error($"[{tag}] {message}", ex);
         }
     }
 

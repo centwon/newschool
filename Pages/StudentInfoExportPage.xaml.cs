@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -10,27 +10,19 @@ using NewSchool.Controls;
 using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Helpers;
-using NewSchool.Services; // ExcelHelpers용
+using NewSchool.Services;
 
 namespace NewSchool.Pages;
 
-// 필요한 using 추가
-
 /// <summary>
 /// 학생 정보 출력 페이지 (WinUI3 버전)
+/// SchoolFilterPicker 사용, Student/StudentDetail 모델 기반 출력항목
 /// </summary>
 public sealed partial class StudentInfoExportPage : Page
 {
     #region Fields
 
     private DataTable? _data;
-    private int _selectedYear;
-    private int _selectedGrade;
-    private int _selectedClass;
-
-    private readonly EnrollmentRepository _enrollmentRepo;
-    private readonly StudentRepository _studentRepo;
-    private readonly StudentDetailRepository _detailRepo;
 
     #endregion
 
@@ -39,185 +31,33 @@ public sealed partial class StudentInfoExportPage : Page
     public StudentInfoExportPage()
     {
         InitializeComponent();
-
-        // Repository 초기화
-        string dbPath = System.IO.Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            Settings.SchoolDB.Value
-        );
-
-        _enrollmentRepo = new EnrollmentRepository(dbPath);
-        _studentRepo = new StudentRepository(dbPath);
-        _detailRepo = new StudentDetailRepository(dbPath);
-
-        Loaded += PageExport_Loaded;
-        Unloaded += PageExport_Unloaded;
     }
 
     #endregion
 
-    #region Lifecycle
+    #region SchoolFilterPicker Event
 
-    private async void PageExport_Loaded(object sender, RoutedEventArgs e)
+    private void SchoolFilter_SelectionChanged(object sender, SchoolFilterChangedEventArgs e)
     {
-        await LoadYearsAsync();
-    }
-
-    private void PageExport_Unloaded(object sender, RoutedEventArgs e)
-    {
-        _enrollmentRepo?.Dispose();
-        _studentRepo?.Dispose();
-        _detailRepo?.Dispose();
-    }
-
-    #endregion
-
-    #region UI Initialization
-
-    /// <summary>
-    /// 학년도 목록 로드
-    /// </summary>
-    private async Task LoadYearsAsync()
-    {
-        try
+        // 학급 변경 시 "학급 표시" 체크박스 자동 설정
+        if (e.IsAllClass)
         {
-            using var EnrollmentService = new EnrollmentService();
-            var years = await EnrollmentService.GetYearListAsync(Settings.SchoolCode.Value);
-
-            if (!years.Any())
-            {
-                await MessageBox.ShowAsync("등록된 학년도가 없습니다.");
-                return;
-            }
-
-            CBoxYear.ItemsSource = years;
-
-            // 현재 작업 학년도 선택
-            if (years.Contains(Settings.WorkYear.Value))
-            {
-                CBoxYear.SelectedItem = Settings.WorkYear.Value;
-            }
-            else
-            {
-                CBoxYear.SelectedIndex = 0;
-            }
-        }
-        catch (Exception ex)
-        {
-            await MessageBox.ShowAsync($"학년도 로드 실패: {ex.Message}");
-        }
-    }
-
-    #endregion
-
-    #region ComboBox Events
-
-    private async void CBoxYear_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (CBoxYear.SelectedItem == null) return;
-
-        _selectedYear = (int)CBoxYear.SelectedItem;
-        await LoadGradesAsync();
-    }
-
-    private async void CBoxGrades_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (CBoxGrades.SelectedItem == null) return;
-
-        _selectedGrade = (int)CBoxGrades.SelectedItem;
-        await LoadClassesAsync();
-    }
-
-    private void CBoxClasses_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (CBoxClasses.SelectedItem == null) return;
-
-        if (CBoxClasses.SelectedIndex == 0) // "전체" 선택
-        {
-            _selectedClass = 0;
             ChkShowClass.IsChecked = true;
         }
-        else
-        {
-            _selectedClass = (int)CBoxClasses.SelectedItem;
-        }
     }
 
-    /// <summary>
-    /// 학년 목록 로드
-    /// </summary>
-    private async Task LoadGradesAsync()
+    #endregion
+
+    #region Validation
+
+    private bool ValidateSelection()
     {
-        try
+        if (SchoolFilter.SelectedYear == 0 || SchoolFilter.SelectedGrade == 0)
         {
-            using var EnrollmentService = new EnrollmentService();
-            var grades = await EnrollmentService.GetGradeListByYearAsync(year:_selectedYear, schoolCode:Settings.SchoolCode.Value);
-
-            if (!grades.Any())
-            {
-                await MessageBox.ShowAsync("해당 학년도에 등록된 학년이 없습니다.");
-                return;
-            }
-
-            CBoxGrades.ItemsSource = grades;
-
-            if (_selectedYear == Settings.WorkYear.Value &&
-                grades.Contains(Settings.HomeGrade.Value))
-            {
-                CBoxGrades.SelectedItem = Settings.HomeGrade.Value;
-            }
-            else
-            {
-                CBoxGrades.SelectedIndex = 0;
-            }
+            _ = MessageBox.ShowAsync("학년도와 학년을 선택해주세요.");
+            return false;
         }
-        catch (Exception ex)
-        {
-            await MessageBox.ShowAsync($"학년 로드 실패: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 학급 목록 로드
-    /// </summary>
-    private async Task LoadClassesAsync()
-    {
-        try
-        {
-            using var EnrollmentService = new EnrollmentService();
-            var classlist = await EnrollmentService.GetClassListAsync(
-                schoolCode: Settings.SchoolCode.Value,
-                year: _selectedYear,
-                grade: _selectedGrade
-            );
-
-
-            if (!classlist.Any())
-            {
-                await MessageBox.ShowAsync("해당 학년에 등록된 학급이 없습니다.");
-                return;
-            }
-
-            var classItems = new List<object> { "전체" };
-            classItems.AddRange(classlist.Cast<object>());
-
-            CBoxClasses.ItemsSource = classItems;
-
-            if (_selectedYear == Settings.WorkYear.Value &&
-                _selectedGrade == Settings.HomeGrade.Value &&
-                classlist.Contains(Settings.HomeRoom.Value))
-            {
-                CBoxClasses.SelectedItem = Settings.HomeRoom.Value;
-            }
-            else
-            {
-                CBoxClasses.SelectedIndex = 0;
-            }
-        }
-        catch (Exception ex)
-        {
-            await MessageBox.ShowAsync($"학급 로드 실패: {ex.Message}");
-        }
+        return true;
     }
 
     #endregion
@@ -226,10 +66,7 @@ public sealed partial class StudentInfoExportPage : Page
 
     private async void BtnPreview_Click(object sender, RoutedEventArgs e)
     {
-        if (!ValidateSelection())
-        {
-            return;
-        }
+        if (!ValidateSelection()) return;
 
         try
         {
@@ -262,33 +99,6 @@ public sealed partial class StudentInfoExportPage : Page
         {
             await MessageBox.ShowAsync("출력 대상을 선택해주세요.");
         }
-    }
-
-    #endregion
-
-    #region Validation
-
-    private bool ValidateSelection()
-    {
-        if (CBoxYear.SelectedItem == null)
-        {
-            _ = MessageBox.ShowAsync("학년도를 선택해주세요.");
-            return false;
-        }
-
-        if (CBoxGrades.SelectedItem == null)
-        {
-            _ = MessageBox.ShowAsync("학년을 선택해주세요.");
-            return false;
-        }
-
-        if (CBoxClasses.SelectedItem == null)
-        {
-            _ = MessageBox.ShowAsync("학급을 선택해주세요.");
-            return false;
-        }
-
-        return true;
     }
 
     #endregion
@@ -347,8 +157,7 @@ public sealed partial class StudentInfoExportPage : Page
         {
             var userItems = new[]
             {
-                TBoxUser1, TBoxUser2, TBoxUser3, TBoxUser4, TBoxUser5,
-                TBoxUser6, TBoxUser7, TBoxUser8, TBoxUser9, TBoxUser10
+                TBoxUser1, TBoxUser2, TBoxUser3, TBoxUser4, TBoxUser5
             }
             .Where(tb => !string.IsNullOrWhiteSpace(tb.Text))
             .Select(tb => tb.Text)
@@ -376,34 +185,57 @@ public sealed partial class StudentInfoExportPage : Page
     private async Task LoadStudentDataAsync(List<string> selectedTags)
     {
         if (_data == null)
-            throw new InvalidOperationException("_data가 null입니다. MakeDataAsync에서 초기화되었는지 확인하세요.");
+            throw new InvalidOperationException("_data가 null입니다.");
 
         string schoolCode = Settings.SchoolCode.Value;
+        int year = SchoolFilter.SelectedYear;
+        int grade = SchoolFilter.SelectedGrade;
+        int classNo = SchoolFilter.SelectedClass; // 0이면 전체
 
-        // Enrollment 조회
-        List<Enrollment> enrollments;
-        using var EnrollmentService = new EnrollmentService();
-        enrollments = await EnrollmentService.GetEnrollmentsAsync(schoolCode: schoolCode, year: _selectedYear, classnum: _selectedGrade);
+        // Enrollment 조회 (grade 파라미터 사용)
+        using var enrollmentService = new EnrollmentService();
+        var enrollments = await enrollmentService.GetEnrollmentsAsync(
+            schoolCode: schoolCode,
+            year: year,
+            grade: grade,
+            classnum: classNo);
 
-        // 번호순 정렬
-        enrollments = enrollments.OrderBy(e => e.Number).ToList();
+        // 번호순 정렬 (학급별일 때는 학급→번호 순)
+        enrollments = classNo == 0
+            ? enrollments.OrderBy(e => e.Class).ThenBy(e => e.Number).ToList()
+            : enrollments.OrderBy(e => e.Number).ToList();
+
+        // StudentDetail 필요 여부 확인
+        bool needDetail = selectedTags.Any(tag => IsDetailProperty(tag));
+
+        // 학생 정보 일괄 조회 (N+1 쿼리 방지)
+        var studentIds = enrollments.Select(e => e.StudentID).ToList();
+
+        using var studentService = new StudentService(SchoolDatabase.DbPath);
+        var allStudents = await studentService.GetStudentsByIdsAsync(studentIds);
+        var studentDict = allStudents.ToDictionary(s => s.StudentID, s => s);
+
+        Dictionary<string, StudentDetail> detailDict = [];
+        if (needDetail)
+        {
+            using var detailService = new StudentDetailService(SchoolDatabase.DbPath);
+            var allDetails = await detailService.GetByStudentIdsAsync(studentIds);
+            detailDict = allDetails.ToDictionary(d => d.StudentID, d => d);
+        }
 
         // 각 학생별로 데이터 생성
         for (int i = 0; i < enrollments.Count; i++)
         {
             var enrollment = enrollments[i];
 
-            // Student 정보 조회
-            using var StudentService = new StudentService(SchoolDatabase.DbPath);
-            var student = await StudentService.GetBasicInfoAsync(enrollment.StudentID);
-            if (student == null) continue;
+            // Student 정보 조회 (Dictionary에서 O(1))
+            if (!studentDict.TryGetValue(enrollment.StudentID, out var student)) continue;
 
-            // StudentDetail 정보 조회 (선택적)
+            // StudentDetail 정보 조회 (Dictionary에서 O(1))
             StudentDetail? detail = null;
-            if (selectedTags.Any(tag => IsDetailProperty(tag)))
+            if (needDetail)
             {
-                using var service = new StudentDetailService(SchoolDatabase.DbPath);
-                detail = await service.GetByStudentIdAsync(enrollment.StudentID);
+                detailDict.TryGetValue(enrollment.StudentID, out detail);
             }
 
             // DataRow 생성
@@ -452,21 +284,33 @@ public sealed partial class StudentInfoExportPage : Page
             // Student 속성
             "Sex" => student.Sex,
             "Birth" => student.BirthDate,
-            "Email" => student.Email,
             "Phone" => student.Phone,
+            "Email" => student.Email,
             "Address" => student.Address,
-            "Remark" => student.Memo,
+            "Memo" => student.Memo,
 
-            // StudentDetail 속성
+            // StudentDetail - 보호자
+            "GuardianName" => detail?.GuardianName,
+            "GuardianRelation" => detail?.GuardianRelation,
+            "GuardianPhone" => detail?.GuardianPhone,
             "FatherName" => detail?.FatherName,
             "FatherPhone" => detail?.FatherPhone,
+            "FatherJob" => detail?.FatherJob,
             "MotherName" => detail?.MotherName,
             "MotherPhone" => detail?.MotherPhone,
+            "MotherJob" => detail?.MotherJob,
+
+            // StudentDetail - 학생 특성
+            "Interest" => detail?.Interests,
+            "Talents" => detail?.Talents,
+            "CareerHope" => detail?.CareerGoal,
             "Family" => detail?.FamilyInfo,
             "Friends" => detail?.Friends,
-            "Interest" => detail?.Interests,
-            "CareerHope" => detail?.CareerGoal,
 
+            // StudentDetail - 건강/특이
+            "HealthInfo" => detail?.HealthInfo,
+            "Allergies" => detail?.Allergies,
+            "SpecialNeeds" => detail?.SpecialNeeds,
 
             _ => null
         };
@@ -479,8 +323,12 @@ public sealed partial class StudentInfoExportPage : Page
     {
         return tag switch
         {
-            "FatherName" or "FatherPhone" or "MotherName" or "MotherPhone"
-            or "Family" or "Friends" or "Interest" or "CareerHope" => true,
+            "GuardianName" or "GuardianRelation" or "GuardianPhone"
+            or "FatherName" or "FatherPhone" or "FatherJob"
+            or "MotherName" or "MotherPhone" or "MotherJob"
+            or "Family" or "Friends" or "Interest" or "Talents"
+            or "CareerHope" or "HealthInfo" or "Allergies"
+            or "SpecialNeeds" => true,
             _ => false
         };
     }
@@ -501,11 +349,16 @@ public sealed partial class StudentInfoExportPage : Page
     }
 
     /// <summary>
-    /// HTML 생성
+    /// HTML 생성 (출력 방향 지원)
     /// </summary>
     private string GenerateHtml()
     {
         if (_data == null) return string.Empty;
+
+        bool isLandscape = RbLandscape.IsChecked == true;
+        string pageSize = isLandscape ? "A4 landscape" : "A4";
+        string fontSize = isLandscape ? "9pt" : "10pt";
+        string cellPadding = isLandscape ? "4px 3px" : "6px 4px";
 
         var sb = new StringBuilder();
 
@@ -516,44 +369,48 @@ public sealed partial class StudentInfoExportPage : Page
         sb.Append($"<h1 style='text-align:center; font-size:16pt; margin-bottom:10px;'>{HtmlEncode(title)}</h1>");
 
         // 학급 정보
-        string classInfo = ChkShowClass.IsChecked != true
-            ? $"{_selectedGrade}학년 {_selectedClass}반"
-            : $"{_selectedGrade}학년";
+        int year = SchoolFilter.SelectedYear;
+        int grade = SchoolFilter.SelectedGrade;
+        int classNo = SchoolFilter.SelectedClass;
+
+        string classInfo = classNo == 0
+            ? $"{year}학년도 {grade}학년"
+            : $"{year}학년도 {grade}학년 {classNo}반";
         sb.Append($"<p style='text-align:right; font-size:12pt; margin-bottom:20px;'>{HtmlEncode(classInfo)}</p>");
 
         // 프린트 스타일
-        sb.Append(@"
+        sb.Append($@"
 <style>
-    body { 
+    body {{
         font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif;
         margin: 0;
         padding: 20px;
-    }
-    table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        font-size: 10pt; 
+    }}
+    table {{
+        width: 100%;
+        border-collapse: collapse;
+        font-size: {fontSize};
         margin-top: 10px;
-    }
-    th, td { 
-        border: 1px solid #000; 
-        padding: 6px 4px;
-        text-align: center; 
-    }
-    th { 
-        background-color: #f0f0f0; 
+    }}
+    th, td {{
+        border: 1px solid #000;
+        padding: {cellPadding};
+        text-align: center;
+    }}
+    th {{
+        background-color: #f0f0f0;
         font-weight: bold;
-    }
-    @media print {
-        @page { 
-            size: A4; 
-            margin: 20mm; 
-        }
-        body {
+    }}
+    @media print {{
+        @page {{
+            size: {pageSize};
+            margin: 15mm;
+        }}
+        body {{
             margin: 0;
             padding: 0;
-        }
-    }
+        }}
+    }}
 </style>");
 
         // 테이블 헤더
@@ -620,7 +477,6 @@ public sealed partial class StudentInfoExportPage : Page
                 return;
             }
 
-            // JoditEditor의 Public 메서드를 통한 프린트
             await PreviewEditor.PrintAsync();
         }
         catch (InvalidOperationException ex)
@@ -646,9 +502,13 @@ public sealed partial class StudentInfoExportPage : Page
                 ? "학생정보"
                 : TboxTitle.Text;
 
-            string subtitle = _selectedClass == 0
-                ? $"{_selectedYear}학년도 {_selectedGrade}학년 전체"
-                : $"{_selectedYear}학년도 {_selectedGrade}학년 {_selectedClass}반";
+            int year = SchoolFilter.SelectedYear;
+            int grade = SchoolFilter.SelectedGrade;
+            int classNo = SchoolFilter.SelectedClass;
+
+            string subtitle = classNo == 0
+                ? $"{year}학년도 {grade}학년 전체"
+                : $"{year}학년도 {grade}학년 {classNo}반";
 
             var window = App.MainWindow;
             if (window == null)
@@ -657,7 +517,6 @@ public sealed partial class StudentInfoExportPage : Page
                 return;
             }
 
-            // ExcelHelpers를 사용하여 Excel 저장
             bool success = await ExcelHelpers.SaveDataTableToExcelAsync(
                 window,
                 _data,
@@ -702,10 +561,6 @@ public sealed partial class StudentInfoExportPage : Page
 
         return checkBoxes;
     }
-
-    /// <summary>
-    /// 메시지 다이얼로그 표시
-    /// </summary>
 
     #endregion
 }

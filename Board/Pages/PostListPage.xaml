@@ -120,14 +120,15 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="80"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="120"/>
+                            <!-- 작성자 컬럼: 현재 숨김 (미래 다중 사용자 지원 시 복원) -->
+                            <ColumnDefinition Width="0"/>
                             <ColumnDefinition Width="140"/>
                             <ColumnDefinition Width="80"/>
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Grid.Column="0" Text="번호" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="제목" FontWeight="Bold" HorizontalTextAlignment="Left" Margin="8,0,0,0"/>
-                        <TextBlock Grid.Column="2" Text="작성자" FontWeight="Bold" HorizontalTextAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="작성자" FontWeight="Bold" HorizontalTextAlignment="Center" Visibility="Collapsed"/>
                         <TextBlock Grid.Column="3" Text="날짜" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                         <TextBlock Grid.Column="4" Text="조회" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                     </Grid>
@@ -156,45 +157,47 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="80"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="120"/>
+                                            <!-- 작성자 컬럼: 현재 숨김 -->
+                                            <ColumnDefinition Width="0"/>
                                             <ColumnDefinition Width="140"/>
                                             <ColumnDefinition Width="80"/>
                                         </Grid.ColumnDefinitions>
 
                                         <!-- 번호 -->
-                                        <TextBlock Grid.Column="0" 
+                                        <TextBlock Grid.Column="0"
                                                    HorizontalTextAlignment="Center"
                                                    Text="{x:Bind No}"
                                                    VerticalAlignment="Center"
                                                    FontSize="13"/>
 
                                         <!-- 제목 + 아이콘 -->
-                                        <StackPanel Grid.Column="1" 
+                                        <StackPanel Grid.Column="1"
                                                     Orientation="Horizontal"
                                                     Margin="8,0,0,0">
-                                            <TextBlock Text="{x:Bind Title}" 
+                                            <TextBlock Text="{x:Bind Title}"
                                                        VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"
                                                        FontSize="14"/>
 
-                                            <FontIcon Glyph="&#xE8BD;" 
+                                            <FontIcon Glyph="&#xE8BD;"
                                                       FontSize="12"
                                                       Margin="8,0,0,0"
                                                       Foreground="{ThemeResource SystemAccentColor}"
                                                       Visibility="{x:Bind CommentIconVisibility}"/>
 
-                                            <FontIcon Glyph="&#xE723;" 
+                                            <FontIcon Glyph="&#xE723;"
                                                       FontSize="12"
                                                       Margin="4,0,0,0"
                                                       Visibility="{x:Bind FileIconVisibility}"/>
                                         </StackPanel>
 
-                                        <!-- 작성자 -->
+                                        <!-- 작성자 (숨김) -->
                                         <TextBlock Grid.Column="2"
                                                    HorizontalTextAlignment="Center"
                                                    Text="{x:Bind User}"
                                                    VerticalAlignment="Center"
                                                    FontSize="13"
+                                                   Visibility="Collapsed"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                                         <!-- 날짜 -->
@@ -266,7 +269,8 @@
 
                                     <!-- 메타 정보 -->
                                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16">
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <!-- 작성자 (숨김) -->
+                                        <StackPanel Orientation="Horizontal" Spacing="4" Visibility="Collapsed">
                                             <FontIcon Glyph="&#xE77B;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                             <TextBlock Text="{x:Bind User}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         </StackPanel>
@@ -339,7 +343,8 @@
 
                                         <!-- 메타 정보 -->
                                         <StackPanel Grid.Row="2" Orientation="Vertical" Spacing="4">
-                                            <TextBlock Text="{x:Bind User}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <!-- 작성자 (숨김) -->
+                                            <TextBlock Text="{x:Bind User}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed"/>
                                             <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                         </StackPanel>
                                     </Grid>

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
@@ -217,6 +218,41 @@ namespace NewSchool.Repositories
             }
         }
 
+        /// <summary>
+        /// 여러 No로 수업 일괄 조회
+        /// </summary>
+        public async Task<List<Course>> GetByIdsAsync(List<int> ids)
+        {
+            if (ids == null || ids.Count == 0)
+                return [];
+
+            var placeholders = string.Join(",", ids.Select((_, i) => $"@id{i}"));
+            var query = $"SELECT * FROM Course WHERE No IN ({placeholders})";
+
+            try
+            {
+                using var cmd = CreateCommand(query);
+                for (int i = 0; i < ids.Count; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@id{i}", ids[i]);
+                }
+
+                var courses = new List<Course>();
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    courses.Add(MapCourse(reader));
+                }
+
+                return courses;
+            }
+            catch (Exception ex)
+            {
+                LogError($"수업 일괄 조회 실패: {ids.Count}건", ex);
+                throw;
+            }
+        }
+
         #endregion
 
         #region Update
@@ -309,7 +345,7 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@Grade", course.Grade);
             cmd.Parameters.AddWithValue("@Subject", course.Subject ?? string.Empty);
             cmd.Parameters.AddWithValue("@Unit", course.Unit);
-            cmd.Parameters.AddWithValue("@Type", course.Type ?? "Class");
+            cmd.Parameters.AddWithValue("@Type", course.Type ?? CourseTypes.Class);
             cmd.Parameters.AddWithValue("@Rooms", course.Rooms ?? string.Empty);  // ✅ Rooms 추가
             cmd.Parameters.AddWithValue("@Remark", course.Remark ?? string.Empty);
         }

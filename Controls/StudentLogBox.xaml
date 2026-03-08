@@ -19,11 +19,11 @@
 
                 <!-- 헤더 -->
                 <StackPanel Spacing="8">
-                    <TextBlock 
-                        Text="📝 학생 기록 편집" 
+                    <TextBlock
+                        Text="학생 기록"
                         Style="{StaticResource SubtitleTextBlockStyle}"
                         FontWeight="SemiBold"/>
-                    <TextBlock 
+                    <TextBlock
                         x:Name="TxtStudentInfo"
                         Text="학생 정보"
                         FontSize="12"
@@ -32,8 +32,8 @@
 
                 <!-- 기본 정보 섹션 -->
                 <StackPanel Spacing="16">
-                    <TextBlock 
-                        Text="📌 기본 정보" 
+                    <TextBlock
+                        Text="기본 정보"
                         FontWeight="SemiBold"
                         Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
 
@@ -122,119 +122,12 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- 구조화된 활동 기록 섹션 -->
+                <!-- 기록 내용 섹션 -->
                 <StackPanel Spacing="16">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock 
-                            Text="🎯 구조화된 활동 기록" 
-                            FontWeight="SemiBold"
-                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                        <TextBlock 
-                            Text="(학생부 기록용 - 항목별 입력)"
-                            FontSize="11"
-                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                            VerticalAlignment="Center"/>
-                    </StackPanel>
-
-                    <Grid ColumnSpacing="12" RowSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- 활동명 -->
-                        <TextBlock Grid.Row="0" Grid.Column="0" 
-                                   Text="활동명" 
-                                   VerticalAlignment="Center"/>
-                        <TextBox x:Name="TxtActivityName"
-                                 Grid.Row="0" Grid.Column="1"
-                                 PlaceholderText="예: 수행평가, 프로젝트 학습, 환경보호 캠페인"
-                                 TextChanged="OnStructuredFieldChanged"/>
-
-                        <!-- 주제 -->
-                        <TextBlock Grid.Row="1" Grid.Column="0" 
-                                   Text="주제" 
-                                   VerticalAlignment="Center"/>
-                        <TextBox x:Name="TxtTopic"
-                                 Grid.Row="1" Grid.Column="1"
-                                 PlaceholderText="예: 조선 후기 실학사상, 기후변화 대응"
-                                 TextChanged="OnStructuredFieldChanged"/>
-
-                        <!-- 활동 내용 -->
-                        <TextBlock Grid.Row="2" Grid.Column="0" 
-                                   Text="활동 내용" 
-                                   VerticalAlignment="Top"
-                                   Margin="0,8,0,0"/>
-                        <TextBox x:Name="TxtDescription"
-                                 Grid.Row="2" Grid.Column="1"
-                                 PlaceholderText="구체적인 활동 내용을 입력하세요"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap"
-                                 MinHeight="80"
-                                 MaxHeight="120"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 TextChanged="OnStructuredFieldChanged"/>
-
-                        <!-- 역할 -->
-                        <TextBlock Grid.Row="3" Grid.Column="0" 
-                                   Text="역할" 
-                                   VerticalAlignment="Center"/>
-                        <TextBox x:Name="TxtRole"
-                                 Grid.Row="3" Grid.Column="1"
-                                 PlaceholderText="예: 팀장, 발표 담당, 자료 조사"
-                                 TextChanged="OnStructuredFieldChanged"/>
-
-                        <!-- 기른 능력 -->
-                        <TextBlock Grid.Row="4" Grid.Column="0" 
-                                   Text="기른 능력" 
-                                   VerticalAlignment="Center"/>
-                        <TextBox x:Name="TxtSkillDeveloped"
-                                 Grid.Row="4" Grid.Column="1"
-                                 PlaceholderText="예: 협업 능력, 논리적 사고력, 문제해결력"
-                                 TextChanged="OnStructuredFieldChanged"/>
-
-                        <!-- 드러난 장점 -->
-                        <TextBlock Grid.Row="5" Grid.Column="0" 
-                                   Text="드러난 장점" 
-                                   VerticalAlignment="Center"/>
-                        <TextBox x:Name="TxtStrengthShown"
-                                 Grid.Row="5" Grid.Column="1"
-                                 PlaceholderText="예: 주도성, 성실성, 창의성"
-                                 TextChanged="OnStructuredFieldChanged"/>
-
-                        <!-- 성취 및 결과 -->
-                        <TextBlock Grid.Row="6" Grid.Column="0" 
-                                   Text="성취/결과" 
-                                   VerticalAlignment="Center"/>
-                        <TextBox x:Name="TxtResultOrOutcome"
-                                 Grid.Row="6" Grid.Column="1"
-                                 PlaceholderText="예: 발표 성공, 우수 평가 획득, 1등 수상"
-                                 TextChanged="OnStructuredFieldChanged"/>
-                    </Grid>
-                </StackPanel>
-
-                <!-- 기존 방식 - 단순 기록 섹션 -->
-                <StackPanel Spacing="16">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock 
-                            Text="📄 단순 기록 (기존 방식)" 
-                            FontWeight="SemiBold"
-                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                        <TextBlock 
-                            Text="(구조화 입력 대신 자유 형식 작성)"
-                            FontSize="11"
-                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                            VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock
+                        Text="기록 내용"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
 
                     <Grid>
                         <Grid.RowDefinitions>
@@ -244,7 +137,7 @@
 
                         <TextBox x:Name="TxtLog"
                                  Grid.Row="0"
-                                 PlaceholderText="기록 내용을 자유롭게 입력하세요"
+                                 PlaceholderText="기록 내용을 입력하세요"
                                  AcceptsReturn="True"
                                  TextWrapping="Wrap"
                                  MinHeight="120"
@@ -262,37 +155,142 @@
                     </Grid>
                 </StackPanel>
 
+                <!-- 활동 상세 항목 (접을 수 있는 섹션) -->
+                <Expander x:Name="ExpanderStructured"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          IsExpanded="False">
+                    <Expander.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock
+                                Text="활동 상세 항목"
+                                FontWeight="SemiBold"/>
+                            <TextBlock
+                                Text="(학생부 기록용)"
+                                FontSize="11"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Expander.Header>
+                    <Expander.Content>
+                        <Grid ColumnSpacing="12" RowSpacing="12" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- 활동명 -->
+                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                       Text="활동명"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="TxtActivityName"
+                                     Grid.Row="0" Grid.Column="1"
+                                     PlaceholderText="예: 수행평가, 프로젝트 학습, 환경보호 캠페인"
+                                     TextChanged="OnStructuredFieldChanged"/>
+
+                            <!-- 주제 -->
+                            <TextBlock Grid.Row="1" Grid.Column="0"
+                                       Text="주제"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="TxtTopic"
+                                     Grid.Row="1" Grid.Column="1"
+                                     PlaceholderText="예: 조선 후기 실학사상, 기후변화 대응"
+                                     TextChanged="OnStructuredFieldChanged"/>
+
+                            <!-- 활동 내용 -->
+                            <TextBlock Grid.Row="2" Grid.Column="0"
+                                       Text="활동 내용"
+                                       VerticalAlignment="Top"
+                                       Margin="0,8,0,0"/>
+                            <TextBox x:Name="TxtDescription"
+                                     Grid.Row="2" Grid.Column="1"
+                                     PlaceholderText="구체적인 활동 내용을 입력하세요"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     MinHeight="80"
+                                     MaxHeight="120"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     TextChanged="OnStructuredFieldChanged"/>
+
+                            <!-- 역할 -->
+                            <TextBlock Grid.Row="3" Grid.Column="0"
+                                       Text="역할"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="TxtRole"
+                                     Grid.Row="3" Grid.Column="1"
+                                     PlaceholderText="예: 팀장, 발표 담당, 자료 조사"
+                                     TextChanged="OnStructuredFieldChanged"/>
+
+                            <!-- 기른 능력 -->
+                            <TextBlock Grid.Row="4" Grid.Column="0"
+                                       Text="기른 능력"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="TxtSkillDeveloped"
+                                     Grid.Row="4" Grid.Column="1"
+                                     PlaceholderText="예: 협업 능력, 논리적 사고력, 문제해결력"
+                                     TextChanged="OnStructuredFieldChanged"/>
+
+                            <!-- 드러난 장점 -->
+                            <TextBlock Grid.Row="5" Grid.Column="0"
+                                       Text="드러난 장점"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="TxtStrengthShown"
+                                     Grid.Row="5" Grid.Column="1"
+                                     PlaceholderText="예: 주도성, 성실성, 창의성"
+                                     TextChanged="OnStructuredFieldChanged"/>
+
+                            <!-- 성취 및 결과 -->
+                            <TextBlock Grid.Row="6" Grid.Column="0"
+                                       Text="성취/결과"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="TxtResultOrOutcome"
+                                     Grid.Row="6" Grid.Column="1"
+                                     PlaceholderText="예: 발표 성공, 우수 평가 획득, 1등 수상"
+                                     TextChanged="OnStructuredFieldChanged"/>
+                        </Grid>
+                    </Expander.Content>
+                </Expander>
+
                 <!-- 태그 섹션 -->
                 <StackPanel Spacing="12">
-                    <TextBlock 
-                        Text="🏷️ 태그" 
+                    <TextBlock
+                        Text="태그"
                         FontWeight="SemiBold"
                         Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                    
+
                     <TextBox x:Name="TxtTag"
                              PlaceholderText="쉼표로 구분하여 입력 (예: 협업, 발표, 리더십)"/>
                 </StackPanel>
 
                 <!-- 자동 생성 영역 -->
                 <StackPanel Spacing="16">
-                    <TextBlock 
-                        Text="✨ 자동 생성" 
+                    <TextBlock
+                        Text="자동 생성"
                         FontWeight="SemiBold"
                         Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
 
                     <!-- 생성 버튼 -->
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Button x:Name="BtnGenerateSummary"
-                                Content="🔍 활동 요약 생성"
+                                Content="활동 요약 생성"
                                 Click="OnGenerateSummaryClick"
                                 Style="{StaticResource AccentButtonStyle}"/>
-                        
+
                         <Button x:Name="BtnGenerateDraft"
-                                Content="📝 학생부 초안 생성"
+                                Content="학생부 초안 생성"
                                 Click="OnGenerateDraftClick"/>
 
-                        <TextBlock 
-                            Text="(구조화된 입력이 있을 때만 생성됩니다)"
+                        <TextBlock
+                            Text="(활동 상세 항목 입력 시 생성 가능)"
                             FontSize="11"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                             VerticalAlignment="Center"/>
@@ -318,7 +316,7 @@
 
                     <!-- 복사 버튼 -->
                     <Button x:Name="BtnCopyToClipboard"
-                            Content="📋 클립보드에 복사"
+                            Content="클립보드에 복사"
                             Click="OnCopyToClipboardClick"
                             HorizontalAlignment="Right"
                             IsEnabled="False"/>
@@ -330,13 +328,13 @@
                             HorizontalAlignment="Right"
                             Margin="0,12,0,0">
                     <Button x:Name="BtnSave"
-                            Content="💾 저장"
+                            Content="저장"
                             Click="OnSaveClick"
                             Style="{StaticResource AccentButtonStyle}"
                             MinWidth="100"/>
-                    
+
                     <Button x:Name="BtnCancel"
-                            Content="❌ 취소"
+                            Content="취소"
                             Click="OnCancelClick"
                             MinWidth="100"/>
                 </StackPanel>

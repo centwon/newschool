@@ -113,12 +113,14 @@ public sealed partial class ClassDiaryListWin : Window
                 startDate,
                 endDate);
             
-            // ViewModel으로 변환
+            // 벌크 로딩: ItemsSource 해제 → 데이터 변경 → 재연결 (N번 레이아웃 방지)
+            DiaryItemsRepeater.ItemsSource = null;
             _diaries.Clear();
             foreach (var diary in diaries.OrderByDescending(d => d.Date))
             {
                 _diaries.Add(new ClassDiaryViewModel(diary));
             }
+            DiaryItemsRepeater.ItemsSource = _diaries;
         }
         catch (Exception ex)
         {

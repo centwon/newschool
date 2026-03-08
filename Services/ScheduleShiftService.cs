@@ -509,7 +509,10 @@ public class ScheduleShiftService
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ScheduleShiftService] 휴일 조회 실패: {ex.Message}");
+        }
 
         // 요일별 시간표 그룹화
         var lessonsByDay = roomLessons

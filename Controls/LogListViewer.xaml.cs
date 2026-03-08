@@ -28,6 +28,8 @@ public sealed partial class LogListViewer : UserControl
 
     private StudentInfoMode _studentInfoMode = StudentInfoMode.NameOnly;
     private LogCategory _category = LogCategory.전체;
+    private StudentLogViewModel? _focusedLog;
+    private Border? _focusedBorder;
 
     #endregion
 
@@ -311,19 +313,17 @@ public sealed partial class LogListViewer : UserControl
             for (int i = 0; i < Logs.Count; i++)
             {
                 var element = LogItemsRepeater.TryGetElement(i);
-                if (element is Border border && border.Child is Grid grid)
+                var grid = FindDataRowGrid(element);
+                if (grid != null && grid.ColumnDefinitions.Count >= 9)
                 {
-                    if (grid.ColumnDefinitions.Count >= 9)
-                    {
-                        grid.ColumnDefinitions[1].Width = ColYearHeader.Width;
-                        grid.ColumnDefinitions[2].Width = ColSemesterHeader.Width;
-                        grid.ColumnDefinitions[3].Width = ColCategoryHeader.Width;
-                        grid.ColumnDefinitions[4].Width = ColSubjectHeader.Width;
-                        grid.ColumnDefinitions[5].Width = ColGradeHeader.Width;
-                        grid.ColumnDefinitions[6].Width = ColClassHeader.Width;
-                        grid.ColumnDefinitions[7].Width = ColNumberHeader.Width;
-                        grid.ColumnDefinitions[8].Width = ColNameHeader.Width;
-                    }
+                    grid.ColumnDefinitions[1].Width = ColYearHeader.Width;
+                    grid.ColumnDefinitions[2].Width = ColSemesterHeader.Width;
+                    grid.ColumnDefinitions[3].Width = ColCategoryHeader.Width;
+                    grid.ColumnDefinitions[4].Width = ColSubjectHeader.Width;
+                    grid.ColumnDefinitions[5].Width = ColGradeHeader.Width;
+                    grid.ColumnDefinitions[6].Width = ColClassHeader.Width;
+                    grid.ColumnDefinitions[7].Width = ColNumberHeader.Width;
+                    grid.ColumnDefinitions[8].Width = ColNameHeader.Width;
                 }
             }
         });
@@ -353,28 +353,90 @@ public sealed partial class LogListViewer : UserControl
 
     #endregion
 
+    #region Row Selection
+
+    /// <summary>행 클릭 시 포커스 선택</summary>
+    private void OnRowTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        if (sender is Border border && border.Tag is StudentLogViewModel log)
+        {
+            SetFocusedRow(border, log);
+        }
+    }
+
+    private void SetFocusedRow(Border rowBorder, StudentLogViewModel log)
+    {
+        // 이전 포커스 해제
+        if (_focusedBorder != null)
+        {
+            var prevIndicator = FindSelectionIndicator(_focusedBorder);
+            if (prevIndicator != null)
+                prevIndicator.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        }
+
+        _focusedLog = log;
+        _focusedBorder = rowBorder;
+
+        // 선택 행 하이라이트 (왼쪽 악센트 바)
+        var indicator = FindSelectionIndicator(rowBorder);
+        if (indicator != null)
+            indicator.Background = (Microsoft.UI.Xaml.Media.Brush)
+                Microsoft.UI.Xaml.Application.Current.Resources["AccentFillColorDefaultBrush"];
+    }
+
+    private static Border? FindSelectionIndicator(Border rowBorder)
+    {
+        if (rowBorder.Child is Grid wrapperGrid && wrapperGrid.Children.Count > 0
+            && wrapperGrid.Children[0] is Border indicator && indicator.Name == "SelectionIndicator")
+        {
+            return indicator;
+        }
+        return null;
+    }
+
+    /// <summary>Border → 래퍼Grid → DataRowGrid 탐색</summary>
+    private static Grid? FindDataRowGrid(UIElement? element)
+    {
+        if (element is Border border && border.Child is Grid wrapperGrid
+            && wrapperGrid.Children.Count > 1 && wrapperGrid.Children[1] is Grid dataRowGrid)
+        {
+            return dataRowGrid;
+        }
+        return null;
+    }
+
+    #endregion
+
     #region Edit Button
 
     /// <summary>
-    /// 체크된 로그 1건을 StudentLogDialog로 전체 편집 (외부 호출용)
+    /// 포커스된 행 또는 체크된 로그 1건을 StudentLogDialog로 전체 편집 (외부 호출용)
     /// </summary>
     public async void EditSelectedLog()
     {
-        var selected = Logs.Where(l => l.IsSelected).ToList();
+        // 포커스된 행 우선 사용
+        var vm = _focusedLog;
 
-        if (selected.Count == 0)
+        // 포커스된 행이 없으면 체크된 항목 사용
+        if (vm == null)
         {
-            await MessageBox.ShowAsync("편집할 기록을 체크해주세요.", "선택 필요");
-            return;
+            var selected = Logs.Where(l => l.IsSelected).ToList();
+
+            if (selected.Count == 0)
+            {
+                await MessageBox.ShowAsync("편집할 기록을 선택해주세요.", "선택 필요");
+                return;
+            }
+
+            if (selected.Count > 1)
+            {
+                await MessageBox.ShowAsync("전체 편집은 1건만 선택해주세요.", "단일 선택");
+                return;
+            }
+
+            vm = selected[0];
         }
 
-        if (selected.Count > 1)
-        {
-            await MessageBox.ShowAsync("전체 편집은 1건만 선택해주세요.", "단일 선택");
-            return;
-        }
-
-        var vm = selected[0];
         var log = vm.StudentLog;
         if (log == null) return;
 
@@ -400,7 +462,7 @@ public sealed partial class LogListViewer : UserControl
     /// <summary>주제 변경 시 자동 선택</summary>
     private void OnTopicChanged(object sender, TextChangedEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.DataContext is StudentLogViewModel log)
+        if (sender is TextBox textBox && textBox.Tag is StudentLogViewModel log)
         {
             log.IsSelected = true;
         }
@@ -409,10 +471,9 @@ public sealed partial class LogListViewer : UserControl
     /// <summary>기록 내용 변경 시 자동 선택 + 바이트 계산</summary>
     private void OnLogChanged(object sender, TextChangedEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.DataContext is StudentLogViewModel log)
+        if (sender is TextBox textBox && textBox.Tag is StudentLogViewModel log)
         {
             log.IsSelected = true;
-            // LogByteInfo는 Log 속성 변경 시 자동 업데이트됨 (ViewModel에서 처리)
         }
     }
 

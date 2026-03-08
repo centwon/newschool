@@ -85,7 +85,7 @@ namespace NewSchool.Dialogs
             var grades = _allStudents.Select(s => s.Grade).Distinct().OrderBy(g => g).ToList();
             var gradeItems = new List<ComboBoxItem>();
 
-            if (_course.EffectiveType == "Club" || grades.Count > 1)
+            if (_course.EffectiveType == CourseTypes.Club || grades.Count > 1)
             {
                 gradeItems.Add(new ComboBoxItem { Content = "전체", Tag = 0 });
             }
@@ -98,7 +98,7 @@ namespace NewSchool.Dialogs
             CBoxGradeFilter.ItemsSource = gradeItems;
 
             // 기본 선택: 과목 학년 (Club이면 전체)
-            if (_course.EffectiveType == "Club")
+            if (_course.EffectiveType == CourseTypes.Club)
             {
                 CBoxGradeFilter.SelectedIndex = 0; // 전체
             }
@@ -225,7 +225,7 @@ namespace NewSchool.Dialogs
 
             using var enrollmentService = new EnrollmentService();
 
-            if (_course.EffectiveType == "Club")
+            if (_course.EffectiveType == CourseTypes.Club)
             {
                 for (int grade = 1; grade <= 3; grade++)
                 {
@@ -535,7 +535,7 @@ namespace NewSchool.Dialogs
                     {
                         StudentID = kvp.Key,
                         CourseNo = _course.No,
-                        Status = "수강중",
+                        Status = CourseEnrollmentStatus.Active,
                         Room = kvp.Value
                     };
                     await repo.CreateAsync(enrollment);

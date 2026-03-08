@@ -11,6 +11,7 @@ using Windows.Storage;
 using Windows.UI;
 using NewSchool.Board.Services;
 using NewSchool.Controls;
+using NewSchool.Models;
 
 namespace NewSchool.Board.Controls;
 
@@ -65,14 +66,23 @@ public sealed partial class MemoBoard : UserControl
                 // 에디터를 현재 부모에서 분리
                 DetachEditor();
 
+                var previousPost = _selectedPost;
                 _selectedPost = value;
-                RebuildList();
+
+                // 증분 업데이트: 이전/새 선택 아이템만 교체 (전체 RebuildList 방지)
+                if (previousPost != null || value != null)
+                {
+                    UpdateSelectionInPlace(previousPost, value);
+                }
             }
         }
     }
 
     /// <summary>필터 패널 표시 여부</summary>
     public bool ShowFilter { get; set; } = true;
+
+    /// <summary>카테고리 고정 (설정 시 필터 무시, 해당 카테고리만 표시/생성)</summary>
+    public string? FixedCategory { get; set; }
 
     #endregion
 
@@ -87,6 +97,10 @@ public sealed partial class MemoBoard : UserControl
 
     private string GetSelectedCategoryFilter()
     {
+        // FixedCategory가 설정되면 항상 해당 카테고리 반환
+        if (!string.IsNullOrEmpty(FixedCategory))
+            return FixedCategory;
+
         if (CBoxCategoryFilter?.SelectedItem is ComboBoxItem item && item.Tag is string tag)
         {
             return tag;
@@ -202,7 +216,7 @@ public sealed partial class MemoBoard : UserControl
             var memos = await service.GetMemosAsync(
                 category: categoryFilter,
                 subject: "메모",
-                includeCompleted: true);
+                includeCompleted: false);
 
             _memos.Clear();
             foreach (var memo in memos.OrderByDescending(m => m.DateTime))
@@ -234,12 +248,12 @@ public sealed partial class MemoBoard : UserControl
             string newCategory = GetSelectedCategoryFilter();
             if (string.IsNullOrEmpty(newCategory))
             {
-                newCategory = "업무";
+                newCategory = !string.IsNullOrEmpty(FixedCategory) ? FixedCategory : CategoryNames.Lesson;
             }
 
             var post = new Post
             {
-                User = Settings.User.Value,
+                User = Settings.UserName ?? Settings.User.Value,
                 DateTime = DateTime.Now,
                 Category = newCategory,
                 Subject = "메모",
@@ -297,6 +311,37 @@ public sealed partial class MemoBoard : UserControl
     }
 
     /// <summary>
+    /// 증분 업데이트: 이전 선택 → compact, 새 선택 → expanded (전체 재구성 방지)
+    /// </summary>
+    private void UpdateSelectionInPlace(Post? previousPost, Post? newPost)
+    {
+        DetachFileList();
+        _currentCheckBox = null;
+        _currentCBoxCategory = null;
+        _currentTxtTitle = null;
+
+        // 이전 선택 아이템을 compact으로 교체
+        if (previousPost != null)
+        {
+            int prevIndex = _memos.IndexOf(previousPost);
+            if (prevIndex >= 0 && prevIndex < MemoPanel.Children.Count)
+            {
+                MemoPanel.Children[prevIndex] = CreateCompactItem(previousPost);
+            }
+        }
+
+        // 새 선택 아이템을 expanded로 교체
+        if (newPost != null)
+        {
+            int newIndex = _memos.IndexOf(newPost);
+            if (newIndex >= 0 && newIndex < MemoPanel.Children.Count)
+            {
+                MemoPanel.Children[newIndex] = CreateExpandedItem(newPost);
+            }
+        }
+    }
+
+    /// <summary>
     /// 선택된 메모의 인라인 확장 아이템 생성
     /// JoditEditor 단일 인스턴스를 placeholder에 삽입하여 재사용
     /// </summary>
@@ -349,12 +394,10 @@ public sealed partial class MemoBoard : UserControl
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         };
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "업무", Tag = "업무" });
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "수업", Tag = "수업" });
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "학급", Tag = "학급" });
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "동아리", Tag = "동아리" });
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "개인", Tag = "개인" });
-        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = "기타", Tag = "기타" });
+        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = CategoryNames.Lesson, Tag = CategoryNames.Lesson });
+        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = CategoryNames.Homeroom, Tag = CategoryNames.Homeroom });
+        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = CategoryNames.Work, Tag = CategoryNames.Work });
+        _currentCBoxCategory.Items.Add(new ComboBoxItem { Content = CategoryNames.Personal, Tag = CategoryNames.Personal });
         SelectComboBoxByTag(_currentCBoxCategory, memo.Category);
         _currentCBoxCategory.SelectionChanged += CBoxCategory_SelectionChanged;
         Grid.SetColumn(_currentCBoxCategory, 1);
@@ -601,11 +644,10 @@ public sealed partial class MemoBoard : UserControl
     {
         var color = category switch
         {
-            "업무" => Microsoft.UI.Colors.RoyalBlue,
-            "수업" => Microsoft.UI.Colors.ForestGreen,
-            "학급" => Microsoft.UI.Colors.Orange,
-            "동아리" => Microsoft.UI.Colors.DeepPink,
-            "개인" => Microsoft.UI.Colors.MediumPurple,
+            CategoryNames.Lesson => Windows.UI.Color.FromArgb(0xFF, 0x42, 0x85, 0xF4),  // #4285F4 파란색
+            CategoryNames.Homeroom => Windows.UI.Color.FromArgb(0xFF, 0x0F, 0x9D, 0x58),  // #0F9D58 초록색
+            CategoryNames.Work => Windows.UI.Color.FromArgb(0xFF, 0xDB, 0x44, 0x37),  // #DB4437 빨간색
+            CategoryNames.Personal => Windows.UI.Color.FromArgb(0xFF, 0xF4, 0xB4, 0x00),  // #F4B400 노란색
             _ => Microsoft.UI.Colors.Gray
         };
         return new SolidColorBrush(color);
@@ -636,28 +678,35 @@ public sealed partial class MemoBoard : UserControl
         {
             return tag;
         }
-        return "업무";
+        return CategoryNames.Lesson;
     }
 
     /// <summary>
-    /// HTML 태그를 제거하고 내용의 첫 15자를 제목으로 추출
+    /// HTML 태그를 제거하고 내용의 첫 줄을 제목으로 추출 (최대 15자)
+    /// 웹페이지 붙여넣기 시 style/script/meta 등 비가시 요소도 제거
     /// </summary>
-    private static string ExtractTitleFromContent(string? content)
+    /// <summary>
+    /// 순수 텍스트에서 첫 줄을 제목으로 추출 (최대 15자)
+    /// JoditEditor.PlainText (editor.text)를 사용하여 HTML 파싱 불필요
+    /// </summary>
+    private static string ExtractTitleFromPlainText(string? plainText)
     {
-        if (string.IsNullOrWhiteSpace(content))
+        if (string.IsNullOrWhiteSpace(plainText))
             return "새 메모";
 
-        var text = System.Text.RegularExpressions.Regex.Replace(content, "<[^>]+>", "");
-        text = System.Net.WebUtility.HtmlDecode(text);
-        text = text.Trim();
+        // 첫 번째 비어있지 않은 줄 추출
+        var firstLine = plainText
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .FirstOrDefault(l => l.Length > 0);
 
-        if (string.IsNullOrWhiteSpace(text))
+        if (string.IsNullOrWhiteSpace(firstLine))
             return "새 메모";
 
-        return text.Length <= 15 ? text : text[..15] + "…";
+        return firstLine.Length <= 15 ? firstLine : firstLine[..15] + "…";
     }
 
-    private void SaveCurrentMemo()
+    private async void SaveCurrentMemo()
     {
         if (_selectedPost == null || !_isModified) return;
 
@@ -665,14 +714,14 @@ public sealed partial class MemoBoard : UserControl
         {
             _selectedPost.Category = GetSelectedCategory();
             _selectedPost.Content = _memoEditor?.Text ?? _selectedPost.Content;
-            _selectedPost.Title = ExtractTitleFromContent(_selectedPost.Content);
+            _selectedPost.Title = ExtractTitleFromPlainText(_memoEditor?.PlainText);
             _selectedPost.DateTime = DateTime.Now;
 
             if (_currentTxtTitle != null)
                 _currentTxtTitle.Text = _selectedPost.Title;
 
             using var service = Board.CreateService();
-            _ = service.SavePostAsync(_selectedPost);
+            await service.SavePostAsync(_selectedPost);
 
             _isModified = false;
             Debug.WriteLine($"[MemoBoard] 자동 저장: No={_selectedPost.No}");
@@ -705,6 +754,16 @@ public sealed partial class MemoBoard : UserControl
         {
             using var service = Board.CreateService();
             await service.UpdatePostIsCompletedAsync(post.No, post.IsCompleted);
+
+            // 완료된 메모는 목록에서 제거
+            if (post.IsCompleted)
+            {
+                _memos.Remove(post);
+                RebuildList();
+                PanelEmpty.Visibility = _memos.Count == 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
         }
         catch (Exception ex)
         {
@@ -726,6 +785,25 @@ public sealed partial class MemoBoard : UserControl
         {
             using var service = Board.CreateService();
             await service.UpdatePostIsCompletedAsync(_selectedPost.No, _selectedPost.IsCompleted);
+
+            // 완료된 메모는 목록에서 제거
+            if (_selectedPost.IsCompleted)
+            {
+                var completed = _selectedPost;
+                DetachEditor();
+                _memos.Remove(completed);
+                _selectedPost = null;
+
+                if (_memos.Count > 0)
+                {
+                    SelectedPost = _memos[0];
+                }
+                else
+                {
+                    RebuildList();
+                    PanelEmpty.Visibility = Visibility.Visible;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -766,7 +844,7 @@ public sealed partial class MemoBoard : UserControl
         {
             _selectedPost.Category = GetSelectedCategory();
             _selectedPost.Content = _memoEditor?.Text ?? "";
-            _selectedPost.Title = ExtractTitleFromContent(_selectedPost.Content);
+            _selectedPost.Title = ExtractTitleFromPlainText(_memoEditor?.PlainText);
             _selectedPost.DateTime = DateTime.Now;
 
             if (_currentTxtTitle != null)

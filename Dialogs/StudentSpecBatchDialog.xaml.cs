@@ -451,7 +451,10 @@ public sealed partial class StudentSpecBatchDialog : Window
         {
             await Windows.System.Launcher.LaunchUriAsync(new Uri("https://nara-speller.co.kr/speller"));
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] 맞춤법 검사기 열기 실패: {ex.Message}");
+        }
     }
 
     #endregion

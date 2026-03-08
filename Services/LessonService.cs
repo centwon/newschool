@@ -141,17 +141,10 @@ public class LessonService : IDisposable
         // Lesson 테이블에서 시간표 조회
         var lessons = await _lessonRepository.GetTeacherScheduleAsync(teacherId, year, semester);
 
-        // Course 정보 로드 (과목명)
+        // Course 정보 일괄 로드 (N+1 쿼리 방지)
         var courseIds = lessons.Select(l => l.Course).Distinct().ToList();
-        var courses = new Dictionary<int, Course>();
-        foreach (var courseId in courseIds)
-        {
-            var course = await _courseRepository.GetByIdAsync(courseId);
-            if (course != null)
-            {
-                courses[courseId] = course;
-            }
-        }
+        var courseList = await _courseRepository.GetByIdsAsync(courseIds);
+        var courses = courseList.ToDictionary(c => c.No, c => c);
 
         // ViewModel에 수업 정보 채우기
         foreach (var lesson in lessons)
@@ -202,17 +195,10 @@ public class LessonService : IDisposable
         // Lesson 테이블에서 수업 조회
         var lessons = await _lessonRepository.GetClassScheduleAsync(year, semester, grade, classNum);
 
-        // Course 정보 로드
+        // Course 정보 일괄 로드 (N+1 쿼리 방지)
         var courseIds = lessons.Select(l => l.Course).Distinct().ToList();
-        var courses = new Dictionary<int, Course>();
-        foreach (var courseId in courseIds)
-        {
-            var course = await _courseRepository.GetByIdAsync(courseId);
-            if (course != null)
-            {
-                courses[courseId] = course;
-            }
-        }
+        var courseList = await _courseRepository.GetByIdsAsync(courseIds);
+        var courses = courseList.ToDictionary(c => c.No, c => c);
 
         // ViewModel에 수업 정보 채우기
         foreach (var lesson in lessons)

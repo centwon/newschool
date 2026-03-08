@@ -19,16 +19,46 @@
             editor.setReadOnly(true);
             if (editor.toolbar) editor.toolbar.container.style.display = 'none';
             if (editor.statusbar) editor.statusbar.container.style.display = 'none';
+            // ReadOnly: 내부 스크롤 비활성화, 콘텐츠 높이 보고
+            var area = editor.editor || editor.container;
+            if (area) {
+                area.style.overflow = 'hidden';
+            }
+            document.body.style.overflow = 'hidden';
+            // 여러 타이밍에 높이 측정 (콘텐츠 렌더링 + 이미지 로딩 대기)
+            setTimeout(reportContentHeight, 100);
+            setTimeout(reportContentHeight, 500);
+            setTimeout(reportContentHeight, 1500);
+            // 이미지 로딩 완료 후 높이 재측정
+            var images = area ? area.querySelectorAll('img') : [];
+            images.forEach(function(img) {
+                if (!img.complete) {
+                    img.addEventListener('load', reportContentHeight);
+                }
+            });
         }
         else if (mode === 'Simple') {
             editor.setReadOnly(false);
             if (editor.toolbar) editor.toolbar.container.style.display = 'none';
             if (editor.statusbar) editor.statusbar.container.style.display = 'none';
+            document.body.style.overflow = '';
         }
         else if (mode === 'Full') {
             editor.setReadOnly(false);
             if (editor.toolbar) editor.toolbar.container.style.display = '';
             if (editor.statusbar) editor.statusbar.container.style.display = '';
+            document.body.style.overflow = '';
+        }
+    }
+
+    function reportContentHeight() {
+        var area = editor.editor;
+        if (area && window.chrome && window.chrome.webview) {
+            var h = area.scrollHeight + 20;
+            window.chrome.webview.postMessage(JSON.stringify({
+                type: 'contentHeight',
+                height: h
+            }));
         }
     }
 
@@ -104,20 +134,21 @@
         height: '100%',
         language: 'ko',
         toolbarButtonSize: 'small',
-        buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,font,fontsize,brush,paragraph,|,image,table,link,|,align,undo,redo,|,hr,eraser,fullsize',
+        buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,font,fontsize,brush,paragraph,|,image,table,link,|,align,undo,redo,|,hr,eraser,fullsize,|,print',
         uploader: {
             insertImageAsBase64URI: true,
             imagesExtensions: ['jpg', 'png', 'jpeg', 'gif', 'svg', 'webp']
         },
         askBeforePasteHTML: false,
         askBeforePasteFromWord: false,
-        defaultActionOnPaste: 'insert_clear_html',
+        defaultActionOnPaste: 'insert_only_text',
+        processPasteHTML: false,
         showCharsCounter: false,
         showWordsCounter: false,
         showXPathInStatusbar: false,
         beautifyHTML: false,
         sourceEditor: 'area',
-        disablePlugins: 'file,video,speech-recognize,print,preview,about'
+        disablePlugins: 'file,video,speech-recognize,preview,about'
     };
 
     const editor = new Jodit('#editor', config);
@@ -142,54 +173,26 @@
             const now = Date.now();
 
             if (currentContent !== lastContent && (now - lastSentTime) >= MIN_UPDATE_INTERVAL) {
-                const lengthDiff = Math.abs(currentContent.length - lastContent.length);
+                lastContent = currentContent;
+                lastSentTime = now;
 
-                if (lengthDiff > 10 || lengthDiff === 0) {
-                    lastContent = currentContent;
-                    lastSentTime = now;
-
-                    if (window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage(JSON.stringify({
-                            type: 'contentChanged',
-                            content: currentContent
-                        }));
-                    }
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        type: 'contentChanged',
+                        content: currentContent,
+                        plainText: editor.text
+                    }));
                 }
             }
         }, 150);
     });
 
-    editor.events.on('beforeImageUpload', async function() {
-        return false;
-    });
-
-    editor.events.on('afterPaste', async function(e) {
-        const clipboardData = e.clipboardData || window.clipboardData;
-        const items = clipboardData?.items;
-
-        if (items) {
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
-                    e.preventDefault();
-                    const file = items[i].getAsFile();
-                    try {
-                        const optimizedDataUrl = await optimizeImage(file);
-                        editor.selection.insertImage(optimizedDataUrl);
-                    } catch (err) {
-                        console.error('[image optimize failed]', err);
-                    }
-                    return false;
-                }
-            }
-        }
-    });
-
+    // insertImage 원본 저장 (오버라이드 전)
     const originalInsertImage = editor.selection.insertImage;
     editor.selection.insertImage = async function(url, styles, defaultWidth) {
         if (!url.startsWith('data:image') && !url.startsWith('blob:')) {
             return originalInsertImage.call(this, url, styles, defaultWidth);
         }
-
         try {
             const response = await fetch(url);
             const blob = await response.blob();
@@ -201,6 +204,77 @@
             return originalInsertImage.call(this, url, styles, defaultWidth);
         }
     };
+
+    editor.events.on('beforeImageUpload', async function() {
+        return false;
+    });
+
+    // 붙여넣기 전 가로채기: 엑셀 표 → HTML 테이블, 이미지 → 최적화 후 삽입
+    editor.events.on('beforePaste', async function(e) {
+        const clipboardData = e.clipboardData || window.clipboardData;
+        if (!clipboardData) return;
+
+        const items = clipboardData.items;
+        const htmlData = clipboardData.getData('text/html');
+        const textData = clipboardData.getData('text/plain');
+
+        // 이미지 아이템 확인
+        let hasImage = false;
+        let imageItem = null;
+        if (items) {
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    hasImage = true;
+                    imageItem = items[i];
+                    break;
+                }
+            }
+        }
+
+        // Case 1: HTML이 있는 경우 (엑셀/워드 등) → HTML 테이블로 삽입, 이미지 무시
+        if (htmlData && htmlData.trim().length > 0) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // 엑셀/워드 HTML에서 불필요한 메타/스타일 태그 정리
+            let cleanHtml = htmlData;
+            // <html>, <head>, <body> 등 외부 래퍼 제거
+            const bodyMatch = cleanHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+            if (bodyMatch) {
+                cleanHtml = bodyMatch[1];
+            }
+            // <!--...--> 주석 제거
+            cleanHtml = cleanHtml.replace(/<!--[\s\S]*?-->/g, '');
+            // style 태그 제거 (인라인 style 속성은 유지)
+            cleanHtml = cleanHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+            // meta, link 태그 제거
+            cleanHtml = cleanHtml.replace(/<meta[^>]*>/gi, '');
+            cleanHtml = cleanHtml.replace(/<link[^>]*>/gi, '');
+
+            editor.selection.insertHTML(cleanHtml.trim());
+            return false;
+        }
+
+        // Case 2: 이미지만 있는 경우 (스크린샷, 이미지 복사) → 최적화 후 삽입
+        if (hasImage && imageItem) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const file = imageItem.getAsFile();
+            if (file) {
+                try {
+                    const optimizedDataUrl = await optimizeImage(file);
+                    const origInsert = originalInsertImage || editor.selection.insertImage;
+                    origInsert.call(editor.selection, optimizedDataUrl);
+                } catch (err) {
+                    console.error('[image optimize failed]', err);
+                }
+            }
+            return false;
+        }
+
+        // Case 3: 텍스트만 있는 경우 → Jodit 기본 처리
+    });
 
     editor.events.on('drop', async function(e) {
         const dt = e.dataTransfer;

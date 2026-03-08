@@ -59,6 +59,8 @@ public sealed partial class LessonActivityPage : Page
 
         // LogListViewer 초기 설정 — 교과활동 모드
         LogList.Category = LogCategory.교과활동;
+
+        SetupStudentContextMenu();
     }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
@@ -571,7 +573,79 @@ public sealed partial class LessonActivityPage : Page
 
     #endregion
 
+    #region 컨텍스트 메뉴
+
+    /// <summary>학생 목록 우클릭 컨텍스트 메뉴 설정</summary>
+    private void SetupStudentContextMenu()
+    {
+        var menu = new MenuFlyout();
+
+        var miAddLog = new MenuFlyoutItem
+        {
+            Text = "누가기록 작성",
+            Icon = new FontIcon { Glyph = "\uE70F" }
+        };
+        miAddLog.Click += ContextMenu_AddLog_Click;
+
+        var miViewInfo = new MenuFlyoutItem
+        {
+            Text = "학생 정보 보기",
+            Icon = new FontIcon { Glyph = "\uE77B" }
+        };
+        miViewInfo.Click += ContextMenu_ViewStudentInfo_Click;
+
+        menu.Items.Add(miAddLog);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(miViewInfo);
+
+        StudentList.ItemContextFlyout = menu;
+    }
+
+    private async void ContextMenu_AddLog_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null || _selectedCourse == null) return;
+
+        var logDialog = new StudentLogDialog(
+            student,
+            Settings.WorkYear.Value,
+            Settings.WorkSemester.Value);
+        logDialog.Closed += async (s, args) =>
+        {
+            await LoadLogsAsync();
+        };
+        logDialog.Activate();
+    }
+
+    private async void ContextMenu_ViewStudentInfo_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null) return;
+
+        var card = new StudentCard();
+        await card.LoadStudentAsync(student.StudentID);
+
+        var dialog = new ContentDialog
+        {
+            Title = $"{student.Name} — 학생 정보",
+            Content = card,
+            CloseButtonText = "닫기",
+            XamlRoot = this.XamlRoot,
+            MinWidth = 700,
+            MaxHeight = 600
+        };
+
+        await dialog.ShowAsync();
+    }
+
+    #endregion
+
     #region Helper Methods
+
+    private void Page_Unloaded(object sender, RoutedEventArgs e)
+    {
+        StudentList.StudentSelected -= OnStudentSelected;
+    }
 
     /// <summary>
     /// InfoBar 표시
