@@ -1934,7 +1934,6 @@ public sealed partial class AnnualLessonPlanPage : Page
             // 학기 시작일 기준 주차 계산
             var semesterStart = schedules.First().Date;
             var displayItems = new List<PlacementDisplayItem>();
-            int currentWeek = -1;
 
             // 주차별 그룹화를 위한 임시 수집
             var weekSchedules = new List<(Schedule schedule, List<ScheduleUnitMap> maps)>();

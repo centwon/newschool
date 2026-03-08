@@ -66,7 +66,7 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
         {
             Debug.WriteLine($"[SchoolMealBox] 급식 정보 로드 시작 - 날짜: {date:yyyy-MM-dd}");
             
-            var meals = await Functions.GetSchoolMealsAsync(date);
+            var meals = await Functions.GetSchoolMealsAsync(date, mmealScCode: "");
             
             if (meals != null && meals.Count > 0)
             {

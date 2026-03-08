@@ -13,8 +13,9 @@ namespace NewSchool.Dialogs
 {
     /// <summary>
     /// 수강생 관리 다이얼로그
-    /// Course에 학생을 등록/해제
-    /// ListStudent 컨트롤 사용
+    /// 좌측: 학급별 학생 필터 (실제 학생 데이터 기반)
+    /// 우측: 강의실별 수강생
+    /// 일괄 배치: 학급 공통 → 전체 학생 자동 배정 (Room = "학년-반")
     /// </summary>
     public sealed partial class CourseEnrollmentDialog : ContentDialog
     {
@@ -24,11 +25,16 @@ namespace NewSchool.Dialogs
         private readonly List<Enrollment> _allStudents = new();
         private readonly List<CourseEnrollment> _originalEnrollments = new();
 
-        /// <summary>추가할 학생 목록</summary>
-        private readonly HashSet<string> _toAdd = new();
+        /// <summary>추가할 학생 (StudentID → Room)</summary>
+        private readonly Dictionary<string, string> _toAdd = new();
 
         /// <summary>제거할 학생 목록</summary>
         private readonly HashSet<string> _toRemove = new();
+
+        /// <summary>등록된 학생의 강의실 배정 (StudentID → Room)</summary>
+        private readonly Dictionary<string, string> _enrolledRooms = new();
+
+        private bool _isLoaded = false;
 
         #endregion
 
@@ -49,8 +55,15 @@ namespace NewSchool.Dialogs
         private async void OnLoaded(object sender, RoutedEventArgs e)
         {
             InitializeCourseInfo();
-            InitializeFilters();
             await LoadDataAsync();
+
+            // 데이터 로드 후 필터 초기화 (_allStudents 기반)
+            InitializeLeftFilters();
+            InitializeRightFilters();
+            InitializeBulkAssign();
+
+            _isLoaded = true;
+            RefreshLists();
         }
 
         /// <summary>
@@ -64,23 +77,75 @@ namespace NewSchool.Dialogs
         }
 
         /// <summary>
-        /// 필터 초기화 (Type별 설정)
+        /// 좌측 필터 초기화 — _allStudents 기반으로 실제 학년/반 목록 구성
         /// </summary>
-        private void InitializeFilters()
+        private void InitializeLeftFilters()
         {
-            // 반 필터 초기화
+            // 학년 필터
+            var grades = _allStudents.Select(s => s.Grade).Distinct().OrderBy(g => g).ToList();
+            var gradeItems = new List<ComboBoxItem>();
+
+            if (_course.EffectiveType == "Club" || grades.Count > 1)
+            {
+                gradeItems.Add(new ComboBoxItem { Content = "전체", Tag = 0 });
+            }
+
+            foreach (var g in grades)
+            {
+                gradeItems.Add(new ComboBoxItem { Content = $"{g}학년", Tag = g });
+            }
+
+            CBoxGradeFilter.ItemsSource = gradeItems;
+
+            // 기본 선택: 과목 학년 (Club이면 전체)
+            if (_course.EffectiveType == "Club")
+            {
+                CBoxGradeFilter.SelectedIndex = 0; // 전체
+            }
+            else
+            {
+                // 해당 학년 선택
+                var matchIdx = gradeItems.FindIndex(i => i.Tag is int t && t == _course.Grade);
+                CBoxGradeFilter.SelectedIndex = matchIdx >= 0 ? matchIdx : 0;
+            }
+
+            // 반 필터는 학년 선택 시 갱신됨
+            RefreshClassFilter();
+        }
+
+        /// <summary>
+        /// 반 필터 갱신 — 선택된 학년의 실제 반 목록
+        /// </summary>
+        private void RefreshClassFilter()
+        {
+            int selectedGrade = GetFilterGrade();
+
+            var classes = _allStudents
+                .Where(s => selectedGrade == 0 || s.Grade == selectedGrade)
+                .Select(s => s.Class)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
+
             var classItems = new List<ComboBoxItem>
             {
-                new ComboBoxItem { Content = "전체", Tag = "0" }
+                new ComboBoxItem { Content = "전체", Tag = 0 }
             };
-            for (int i = 1; i <= 15; i++)
+
+            foreach (var c in classes)
             {
-                classItems.Add(new ComboBoxItem { Content = $"{i}반", Tag = i.ToString() });
+                classItems.Add(new ComboBoxItem { Content = $"{c}반", Tag = c });
             }
+
             CBoxClassFilter.ItemsSource = classItems;
             CBoxClassFilter.SelectedIndex = 0;
+        }
 
-            // 강의실 필터 초기화
+        /// <summary>
+        /// 우측 필터 초기화 — 강의실 + 검색
+        /// </summary>
+        private void InitializeRightFilters()
+        {
             var roomItems = new List<ComboBoxItem>
             {
                 new ComboBoxItem { Content = "전체", Tag = "" }
@@ -91,30 +156,49 @@ namespace NewSchool.Dialogs
             }
             CBoxRoomFilter.ItemsSource = roomItems;
             CBoxRoomFilter.SelectedIndex = 0;
-
-            // 강의실이 없으면 콤보박스 숨김
-            CBoxRoomFilter.Visibility = _course.RoomList.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-            // Type에 따른 필터 제한
-            switch (_course.EffectiveType)
-            {
-                case "Class":
-                case "Selective":
-                    // 학년 고정
-                    CBoxGradeFilter.SelectedIndex = _course.Grade; // 1학년=1, 2학년=2, 3학년=3
-                    CBoxGradeFilter.IsEnabled = false;
-                    break;
-
-                case "Club":
-                    // 전 학년 선택 가능
-                    CBoxGradeFilter.SelectedIndex = 0; // 전체
-                    CBoxGradeFilter.IsEnabled = true;
-                    break;
-            }
-
-            // 학급 일괄 등록 버튼 (Class 유형만)
-            BulkEnrollPanel.Visibility = _course.IsClassType ? Visibility.Visible : Visibility.Collapsed;
         }
+
+        /// <summary>
+        /// 일괄 배치 초기화 — 학급 공통일 때만 표시
+        /// </summary>
+        private void InitializeBulkAssign()
+        {
+            if (_course.IsClassType)
+            {
+                BulkAssignPanel.Visibility = Visibility.Visible;
+
+                // 실제 반 목록으로 설명 텍스트 구성
+                var classes = _allStudents
+                    .Where(s => s.Grade == _course.Grade)
+                    .Select(s => s.Class)
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToList();
+
+                if (classes.Count > 0)
+                {
+                    var examples = classes.Take(3)
+                        .Select(c => $"{_course.Grade}-{c}")
+                        .ToList();
+                    string exampleText = string.Join(", ", examples);
+                    if (classes.Count > 3) exampleText += ", ...";
+
+                    TxtBulkDescription.Text = $"{_course.Grade}학년 전체 학생을 학급별 강의실로 배정 (예: {exampleText})";
+                }
+                else
+                {
+                    TxtBulkDescription.Text = "배정할 학생이 없습니다.";
+                }
+            }
+            else
+            {
+                BulkAssignPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        #endregion
+
+        #region Data Loading
 
         /// <summary>
         /// 데이터 로드
@@ -123,14 +207,8 @@ namespace NewSchool.Dialogs
         {
             try
             {
-                // 1. 학교 전체 학생 로드
                 await LoadAllStudentsAsync();
-
-                // 2. 기존 수강 등록 로드
                 await LoadEnrollmentsAsync();
-
-                // 3. 목록 갱신
-                RefreshLists();
             }
             catch (Exception ex)
             {
@@ -139,7 +217,7 @@ namespace NewSchool.Dialogs
         }
 
         /// <summary>
-        /// 학교 전체 학생 로드
+        /// 학생 로드 (학년 단위 조회)
         /// </summary>
         private async Task LoadAllStudentsAsync()
         {
@@ -147,34 +225,20 @@ namespace NewSchool.Dialogs
 
             using var enrollmentService = new EnrollmentService();
 
-            // Type에 따라 로드 범위 결정
-            int gradeStart = 1, gradeEnd = 3;
-            if (_course.EffectiveType != "Club")
+            if (_course.EffectiveType == "Club")
             {
-                gradeStart = _course.Grade;
-                gradeEnd = _course.Grade;
-            }
-
-            for (int grade = gradeStart; grade <= gradeEnd; grade++)
-            {
-                for (int classNum = 1; classNum <= 15; classNum++)
+                for (int grade = 1; grade <= 3; grade++)
                 {
-                    try
-                    {
-                        var roster = await enrollmentService.GetClassRosterAsync(
-                            Settings.SchoolCode.Value,
-                            Settings.WorkYear.Value,
-                            grade,
-                            classNum
-                        );
-
-                        _allStudents.AddRange(roster);
-                    }
-                    catch
-                    {
-                        // 해당 학급에 학생이 없으면 무시
-                    }
+                    var students = await enrollmentService.GetEnrollmentsAsync(
+                        Settings.SchoolCode.Value, Settings.WorkYear.Value, 0, grade);
+                    _allStudents.AddRange(students);
                 }
+            }
+            else
+            {
+                var students = await enrollmentService.GetEnrollmentsAsync(
+                    Settings.SchoolCode.Value, Settings.WorkYear.Value, 0, _course.Grade);
+                _allStudents.AddRange(students);
             }
 
             Debug.WriteLine($"[CourseEnrollmentDialog] 전체 학생 로드: {_allStudents.Count}명");
@@ -186,6 +250,7 @@ namespace NewSchool.Dialogs
         private async Task LoadEnrollmentsAsync()
         {
             _originalEnrollments.Clear();
+            _enrolledRooms.Clear();
 
             using var repo = new CourseEnrollmentRepository(SchoolDatabase.DbPath);
             var enrollments = await repo.GetByCourseAsync(_course.No);
@@ -193,6 +258,7 @@ namespace NewSchool.Dialogs
             foreach (var e in enrollments)
             {
                 _originalEnrollments.Add(e);
+                _enrolledRooms[e.StudentID] = e.Room ?? string.Empty;
             }
 
             Debug.WriteLine($"[CourseEnrollmentDialog] 기존 등록: {_originalEnrollments.Count}명");
@@ -208,18 +274,20 @@ namespace NewSchool.Dialogs
         private void RefreshLists()
         {
             // 등록된 학생 ID 목록 계산
-            var enrolledIds = _originalEnrollments
-                .Select(e => e.StudentID)
-                .Union(_toAdd)
+            var enrolledIds = _enrolledRooms.Keys
+                .Union(_toAdd.Keys)
                 .Except(_toRemove)
                 .ToHashSet();
 
-            // 필터 조건
-            int filterGrade = GetSelectedGrade();
-            int filterClass = GetSelectedClass();
-            string searchText = TxtSearch.Text?.Trim().ToLower() ?? "";
+            // 좌측 필터 조건
+            int filterGrade = GetFilterGrade();
+            int filterClass = GetFilterClass();
 
-            // 등록 가능한 학생 (필터 + 미등록)
+            // 우측 필터 조건
+            string filterRoom = GetSelectedRoom();
+            string searchText = TxtSearch?.Text?.Trim().ToLower() ?? "";
+
+            // 좌측: 등록 가능한 학생 (필터 + 미등록)
             var availableFiltered = _allStudents
                 .Where(s => !enrolledIds.Contains(s.StudentID))
                 .Where(s => filterGrade == 0 || s.Grade == filterGrade)
@@ -231,9 +299,15 @@ namespace NewSchool.Dialogs
 
             ListAvailable.LoadStudents(availableFiltered);
 
-            // 등록된 학생 (검색 필터)
+            // 우측: 등록된 학생 (강의실/검색 필터)
             var enrolledFiltered = _allStudents
                 .Where(s => enrolledIds.Contains(s.StudentID))
+                .Where(s =>
+                {
+                    if (string.IsNullOrEmpty(filterRoom)) return true;
+                    string studentRoom = GetStudentRoom(s.StudentID);
+                    return studentRoom == filterRoom;
+                })
                 .Where(s => string.IsNullOrEmpty(searchText) || s.Name.ToLower().Contains(searchText))
                 .OrderBy(s => s.Grade)
                 .ThenBy(s => s.Class)
@@ -243,43 +317,49 @@ namespace NewSchool.Dialogs
             ListEnrolled.LoadStudents(enrolledFiltered);
 
             // UI 업데이트
-            UpdateCounts();
+            UpdateCounts(enrolledIds.Count);
+        }
+
+        /// <summary>
+        /// 학생의 배정 강의실 조회
+        /// </summary>
+        private string GetStudentRoom(string studentId)
+        {
+            if (_toAdd.TryGetValue(studentId, out var addRoom))
+                return addRoom;
+            if (_enrolledRooms.TryGetValue(studentId, out var room))
+                return room;
+            return string.Empty;
         }
 
         /// <summary>
         /// 카운트 업데이트
         /// </summary>
-        private void UpdateCounts()
+        private void UpdateCounts(int totalEnrolled)
         {
             TxtAvailableCount.Text = $"({ListAvailable.Students.Count}명)";
             TxtRegisteredCount.Text = $"({ListEnrolled.Students.Count}명)";
-            TxtEnrolledCount.Text = $"등록: {ListEnrolled.Students.Count}명";
+            TxtEnrolledCount.Text = $"등록: {totalEnrolled}명";
         }
 
-        private int GetSelectedGrade()
+        private int GetFilterGrade()
         {
-            if (CBoxGradeFilter.SelectedItem is ComboBoxItem item && item.Tag != null)
-            {
-                return int.Parse(item.Tag.ToString()!);
-            }
+            if (CBoxGradeFilter.SelectedItem is ComboBoxItem item && item.Tag is int grade)
+                return grade;
             return 0;
         }
 
-        private int GetSelectedClass()
+        private int GetFilterClass()
         {
-            if (CBoxClassFilter.SelectedItem is ComboBoxItem item && item.Tag != null)
-            {
-                return int.Parse(item.Tag.ToString()!);
-            }
+            if (CBoxClassFilter.SelectedItem is ComboBoxItem item && item.Tag is int classNo)
+                return classNo;
             return 0;
         }
 
         private string GetSelectedRoom()
         {
             if (CBoxRoomFilter.SelectedItem is ComboBoxItem item && item.Tag != null)
-            {
                 return item.Tag.ToString() ?? "";
-            }
             return "";
         }
 
@@ -289,15 +369,15 @@ namespace NewSchool.Dialogs
 
         private void CBoxGradeFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ListAvailable != null) // 초기화 완료 후에만
-            {
-                RefreshLists();
-            }
+            if (!_isLoaded) return;
+
+            RefreshClassFilter();
+            RefreshLists();
         }
 
         private void CBoxClassFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ListAvailable != null)
+            if (_isLoaded)
             {
                 RefreshLists();
             }
@@ -305,13 +385,18 @@ namespace NewSchool.Dialogs
 
         private void CBoxRoomFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // 강의실 필터 변경 시 (현재는 UI용으로만 사용)
-            // 필요시 RefreshLists() 호출
+            if (_isLoaded && ListEnrolled != null)
+            {
+                RefreshLists();
+            }
         }
 
         private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
-            RefreshLists();
+            if (_isLoaded)
+            {
+                RefreshLists();
+            }
         }
 
         #endregion
@@ -319,26 +404,26 @@ namespace NewSchool.Dialogs
         #region Event Handlers - Add/Remove
 
         /// <summary>
-        /// 선택한 학생 등록
+        /// 선택한 학생 등록 (우측 강의실 필터 값으로 배정)
         /// </summary>
         private void BtnAdd_Click(object sender, RoutedEventArgs e)
         {
             var selected = ListAvailable.GetSelectedStudents().ToList();
+            if (selected.Count == 0) return;
 
-            if (selected.Count == 0)
-            {
-                return;
-            }
+            string targetRoom = GetSelectedRoom();
 
             foreach (var student in selected)
             {
-                // 제거 목록에 있으면 제거
                 _toRemove.Remove(student.StudentID);
 
-                // 원래 등록되지 않았으면 추가 목록에
-                if (!_originalEnrollments.Any(e => e.StudentID == student.StudentID))
+                if (_originalEnrollments.Any(oe => oe.StudentID == student.StudentID))
                 {
-                    _toAdd.Add(student.StudentID);
+                    // 원래 등록되어 있던 학생 → 제거 목록에서만 빼면 복원됨
+                }
+                else
+                {
+                    _toAdd[student.StudentID] = targetRoom;
                 }
             }
 
@@ -352,19 +437,13 @@ namespace NewSchool.Dialogs
         private void BtnRemove_Click(object sender, RoutedEventArgs e)
         {
             var selected = ListEnrolled.GetSelectedStudents().ToList();
-
-            if (selected.Count == 0)
-            {
-                return;
-            }
+            if (selected.Count == 0) return;
 
             foreach (var student in selected)
             {
-                // 추가 목록에 있으면 제거
                 _toAdd.Remove(student.StudentID);
 
-                // 원래 등록되어 있었으면 제거 목록에
-                if (_originalEnrollments.Any(e => e.StudentID == student.StudentID))
+                if (_originalEnrollments.Any(oe => oe.StudentID == student.StudentID))
                 {
                     _toRemove.Add(student.StudentID);
                 }
@@ -375,36 +454,53 @@ namespace NewSchool.Dialogs
         }
 
         /// <summary>
-        /// 학급 일괄 등록
+        /// 전체 학생 일괄 배치 (학급 공통 전용)
+        /// 학년의 모든 학생을 등록하고, Room = "{학년}-{반}" 형태로 자동 배정
         /// </summary>
-        private void BtnBulkEnroll_Click(object sender, RoutedEventArgs e)
+        private void BtnBulkAssign_Click(object sender, RoutedEventArgs e)
         {
-            int filterClass = GetSelectedClass();
-            if (filterClass == 0)
+            int targetGrade = _course.Grade;
+
+            // 해당 학년의 모든 학생
+            var gradeStudents = _allStudents
+                .Where(s => s.Grade == targetGrade)
+                .ToList();
+
+            if (gradeStudents.Count == 0)
             {
-                ShowInfo("일괄 등록할 반을 선택해주세요.", InfoBarSeverity.Warning);
+                ShowInfo($"{targetGrade}학년에 학생이 없습니다.", InfoBarSeverity.Warning);
                 return;
             }
 
-            // 현재 필터된 모든 학생 등록
-            int count = 0;
-            foreach (var student in ListAvailable.Students.ToList())
+            int newCount = 0;
+            var classSet = new HashSet<int>();
+
+            foreach (var student in gradeStudents)
             {
+                // Room = "학년-반" (예: 3-1, 3-2)
+                string room = $"{student.Grade}-{student.Class}";
+                classSet.Add(student.Class);
+
                 _toRemove.Remove(student.StudentID);
 
-                if (!_originalEnrollments.Any(e => e.StudentID == student.StudentID))
+                if (_originalEnrollments.Any(oe => oe.StudentID == student.StudentID))
                 {
-                    _toAdd.Add(student.StudentID);
-                    count++;
+                    // 기존 등록 학생 → 강의실만 변경
+                    _enrolledRooms[student.StudentID] = room;
+                }
+                else
+                {
+                    _toAdd[student.StudentID] = room;
+                    newCount++;
                 }
             }
 
             RefreshLists();
 
-            if (count > 0)
-            {
-                ShowInfo($"{count}명이 등록 대기열에 추가되었습니다.", InfoBarSeverity.Success);
-            }
+            var classNums = classSet.OrderBy(c => c).Select(c => $"{targetGrade}-{c}");
+            string roomList = string.Join(", ", classNums);
+
+            ShowInfo($"{targetGrade}학년 전체 {gradeStudents.Count}명 배치 완료 ({roomList}) — 신규: {newCount}명", InfoBarSeverity.Success);
         }
 
         /// <summary>
@@ -432,14 +528,15 @@ namespace NewSchool.Dialogs
             {
                 using var repo = new CourseEnrollmentRepository(SchoolDatabase.DbPath);
 
-                // 1. 새로 등록
-                foreach (var studentId in _toAdd)
+                // 1. 새로 등록 (Room 포함)
+                foreach (var kvp in _toAdd)
                 {
                     var enrollment = new CourseEnrollment
                     {
-                        StudentID = studentId,
+                        StudentID = kvp.Key,
                         CourseNo = _course.No,
-                        Status = "수강중"
+                        Status = "수강중",
+                        Room = kvp.Value
                     };
                     await repo.CreateAsync(enrollment);
                 }
@@ -447,10 +544,26 @@ namespace NewSchool.Dialogs
                 // 2. 등록 해제
                 foreach (var studentId in _toRemove)
                 {
-                    var original = _originalEnrollments.FirstOrDefault(e => e.StudentID == studentId);
+                    var original = _originalEnrollments.FirstOrDefault(oe => oe.StudentID == studentId);
                     if (original != null)
                     {
                         await repo.DeleteAsync(original.No);
+                    }
+                }
+
+                // 3. 강의실 변경 (기존 등록 학생)
+                foreach (var original in _originalEnrollments)
+                {
+                    if (_toRemove.Contains(original.StudentID)) continue;
+
+                    if (_enrolledRooms.TryGetValue(original.StudentID, out var newRoom))
+                    {
+                        if (newRoom != (original.Room ?? string.Empty))
+                        {
+                            original.Room = newRoom;
+                            original.UpdatedAt = DateTime.Now;
+                            await repo.UpdateAsync(original);
+                        }
                     }
                 }
 

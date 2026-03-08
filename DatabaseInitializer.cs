@@ -307,6 +307,7 @@ namespace NewSchool.Database
                     CourseNo INTEGER NOT NULL,
                     Status TEXT DEFAULT '수강중',
                     Remark TEXT,
+                    Room TEXT,
                     CreatedAt TEXT NOT NULL,
                     UpdatedAt TEXT NOT NULL,
                     FOREIGN KEY (StudentID) REFERENCES Student(StudentID) ON DELETE CASCADE,

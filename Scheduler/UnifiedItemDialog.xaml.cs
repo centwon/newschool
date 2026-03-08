@@ -28,7 +28,6 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
     private bool _isTaskMode = true;    // true=할일, false=일정
     private bool _isNew = true;
-    private bool _isChanged = false;
     private bool _isInitialized = false;
 
     private List<KCalendarList> _calendars = [];
@@ -190,7 +189,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized || CBoxTaskList.SelectedIndex < 0) return;
         if (CBoxTaskList.SelectedIndex < _calendars.Count)
             _taskEvent.CalendarId = _calendars[CBoxTaskList.SelectedIndex].No;
-        _isChanged = true;
+
     }
 
     private void TaskDueDatePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
@@ -199,7 +198,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         var newDate = args.NewDate.Value.Date;
         _taskEvent.Start = DateTime.SpecifyKind(newDate + _taskEvent.Start.TimeOfDay, DateTimeKind.Unspecified);
         _taskEvent.End   = DateTime.SpecifyKind(newDate.AddDays(1), DateTimeKind.Unspecified);
-        _isChanged = true;
+
         UpdateRepeatLabels();
     }
 
@@ -208,7 +207,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized) return;
         _taskEvent.Start = DateTime.SpecifyKind(_taskEvent.Start.Date + e.NewTime, DateTimeKind.Unspecified);
         _taskEvent.End   = DateTime.SpecifyKind(_taskEvent.Start.AddHours(1), DateTimeKind.Unspecified);
-        _isChanged = true;
+
         UpdateRepeatLabels();
     }
 
@@ -217,7 +216,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized) return;
         _taskEvent.IsAllday = ChkTaskAllday.IsChecked == true;
         TaskDueTimePicker.Visibility = _taskEvent.IsAllday ? Visibility.Collapsed : Visibility.Visible;
-        _isChanged = true;
+
         UpdateRepeatLabels();
     }
 
@@ -227,7 +226,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         bool showEnd = sender is RadioButton rb && rb != RbNone;
         LbRepeatEnd.Visibility = showEnd ? Visibility.Visible : Visibility.Collapsed;
         PickerEnd.Visibility   = showEnd ? Visibility.Visible : Visibility.Collapsed;
-        _isChanged = true;
+
     }
 
     private void UpdateRepeatLabels()
@@ -255,7 +254,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             if (string.IsNullOrEmpty(_event.ColorId))
                 UpdateColorPreviewHex(cal.Color);
         }
-        _isChanged = true;
+
     }
 
     private void EventStartDatePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
@@ -266,28 +265,28 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         // 종료일이 시작일보다 이르면 맞춤
         if (_event.End.Date < newDate)
             _event.End = DateTime.SpecifyKind(newDate + _event.End.TimeOfDay, DateTimeKind.Unspecified);
-        _isChanged = true;
+
     }
 
     private void EventStartTimePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e)
     {
         if (!_isInitialized) return;
         _event.Start = DateTime.SpecifyKind(_event.Start.Date + e.NewTime, DateTimeKind.Unspecified);
-        _isChanged = true;
+
     }
 
     private void EventEndDatePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
     {
         if (!_isInitialized || !args.NewDate.HasValue) return;
         _event.End = DateTime.SpecifyKind(args.NewDate.Value.Date + _event.End.TimeOfDay, DateTimeKind.Unspecified);
-        _isChanged = true;
+
     }
 
     private void EventEndTimePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e)
     {
         if (!_isInitialized) return;
         _event.End = DateTime.SpecifyKind(_event.End.Date + e.NewTime, DateTimeKind.Unspecified);
-        _isChanged = true;
+
     }
 
     private void ChkEventAllday_Click(object sender, RoutedEventArgs e)
@@ -296,7 +295,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         _event.IsAllday = ChkEventAllday.IsChecked == true;
         EventStartTimePicker.Visibility = _event.IsAllday ? Visibility.Collapsed : Visibility.Visible;
         EventEndTimePicker.Visibility   = _event.IsAllday ? Visibility.Collapsed : Visibility.Visible;
-        _isChanged = true;
+
     }
 
     private void CBoxColor_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -304,7 +303,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized || CBoxColor.SelectedItem is not ComboBoxItem item) return;
         _event.ColorId = item.Tag?.ToString() ?? string.Empty;
         UpdateColorPreview(_event.ColorId);
-        _isChanged = true;
+
     }
 
     #endregion
@@ -314,7 +313,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     private void TextBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (!_isInitialized) return;
-        _isChanged = true;
+
     }
 
     #endregion
