@@ -15,6 +15,7 @@ public partial class CourseEnrollment : NotifyPropertyChangedBase, IEntity
     private int _courseNo = -1;
     private string _status = "수강중";
     private string _remark = string.Empty;
+    private string _room = string.Empty;
     private DateTime _createdAt = DateTime.Now;
     private DateTime _updatedAt = DateTime.Now;
 
@@ -62,6 +63,13 @@ public partial class CourseEnrollment : NotifyPropertyChangedBase, IEntity
     {
         get => _remark;
         set => SetProperty(ref _remark, value);
+    }
+
+    /// <summary>강의실 배정</summary>
+    public string Room
+    {
+        get => _room;
+        set => SetProperty(ref _room, value);
     }
 
     #endregion

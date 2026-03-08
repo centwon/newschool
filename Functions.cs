@@ -221,8 +221,11 @@ namespace NewSchool
             sb.Append(Settings.ProvinceCode);
             sb.Append("&SD_SCHUL_CODE=");
             sb.Append(Settings.SchoolCode);
-            sb.Append("&MMEAL_SC_CODE=");
-            sb.Append(mmealScCode);
+            if (!string.IsNullOrEmpty(mmealScCode))
+            {
+                sb.Append("&MMEAL_SC_CODE=");
+                sb.Append(mmealScCode);
+            }
 
             if (startDate.HasValue)
             {

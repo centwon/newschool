@@ -23,9 +23,9 @@ namespace NewSchool.Repositories
         {
             const string query = @"
                 INSERT INTO CourseEnrollment (
-                    StudentID, CourseNo, Status, Remark, CreatedAt, UpdatedAt
+                    StudentID, CourseNo, Status, Remark, Room, CreatedAt, UpdatedAt
                 ) VALUES (
-                    @StudentID, @CourseNo, @Status, @Remark, @CreatedAt, @UpdatedAt
+                    @StudentID, @CourseNo, @Status, @Remark, @Room, @CreatedAt, @UpdatedAt
                 );
                 SELECT last_insert_rowid();";
 
@@ -247,6 +247,7 @@ namespace NewSchool.Repositories
                     CourseNo = @CourseNo,
                     Status = @Status,
                     Remark = @Remark,
+                    Room = @Room,
                     UpdatedAt = @UpdatedAt
                 WHERE No = @No";
 
@@ -368,13 +369,14 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@CourseNo", enrollment.CourseNo);
             cmd.Parameters.AddWithValue("@Status", enrollment.Status ?? "수강중");
             cmd.Parameters.AddWithValue("@Remark", enrollment.Remark ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Room", enrollment.Room ?? string.Empty);
             cmd.Parameters.AddWithValue("@CreatedAt", enrollment.CreatedAt);
             cmd.Parameters.AddWithValue("@UpdatedAt", enrollment.UpdatedAt);
         }
 
         private CourseEnrollment MapEnrollment(SqliteDataReader reader)
         {
-            return new CourseEnrollment
+            var enrollment = new CourseEnrollment
             {
                 No = reader.GetInt32(reader.GetOrdinal("No")),
                 StudentID = reader.GetString(reader.GetOrdinal("StudentID")),
@@ -384,6 +386,16 @@ namespace NewSchool.Repositories
                 CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
                 UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt")))
             };
+
+            // Room 컬럼 (기존 DB 호환)
+            try
+            {
+                var roomOrdinal = reader.GetOrdinal("Room");
+                enrollment.Room = reader.IsDBNull(roomOrdinal) ? string.Empty : reader.GetString(roomOrdinal);
+            }
+            catch { enrollment.Room = string.Empty; }
+
+            return enrollment;
         }
 
         #endregion
