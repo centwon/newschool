@@ -38,22 +38,13 @@ namespace NewSchool.Repositories
 
             try
             {
-                // ⭐ INSERT 전 파라미터 로깅
-                LogInfo($"학생 기록 생성 시도: StudentID={log.StudentID}, TeacherID={log.TeacherID}, CourseNo={log.CourseNo}");
-                
                 using var cmd = CreateCommand(query);
                 AddLogParameters(cmd, log);
-                
-                // ⭐ 파라미터 값 로깅
-                foreach (SqliteParameter param in cmd.Parameters)
-                {
-                    LogInfo($"  {param.ParameterName} = {param.Value ?? "NULL"}");
-                }
 
                 var result = await cmd.ExecuteScalarAsync();
                 log.No = Convert.ToInt32(result);
 
-                LogInfo($"학생 기록 생성 완료: No={log.No}, StudentID={log.StudentID}");
+                LogInfo($"학생 기록 생성 완료: No={log.No}");
                 return log.No;
             }
             catch (Exception ex)

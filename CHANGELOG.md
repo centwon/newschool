@@ -1,6 +1,15 @@
 # Changelog
 
-## v1.0.2 (2026-03-25)
+## v1.0.2 (2026-03-29)
+
+### 보안
+- SQL Injection 취약 메서드 제거: `Sqlite.cs`의 `CountRecord`, `GetCondition` (미사용 레거시 코드 삭제)
+- XSS 차단: JoditEditor 붙여넣기/드래그앤드롭 시 DOMPurify로 HTML sanitize 적용
+  - `<script>`, `<iframe>`, `<embed>`, `onclick=` 등 위험 요소 차단
+- 주민번호 DPAPI 암호화: `StudentRepository`에서 저장 시 암호화, 읽기 시 복호화
+  - 기존 평문 데이터 호환 (복호화 실패 시 평문으로 간주, 재저장 시 자동 암호화)
+- 로그 민감정보 제거: `StudentLogRepository`, `StudentRepository`, `TeacherRepository`
+  - 파라미터 값 덤프 삭제, 학생/교사 이름·ID 로깅 제거
 
 ### 기능 개선
 - 진도 매트릭스 × 연간계획 연동

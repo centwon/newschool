@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
@@ -43,7 +45,7 @@ namespace NewSchool.Repositories
                 var result = await cmd.ExecuteScalarAsync();
                 student.No = Convert.ToInt32(result);
 
-                LogInfo($"학생 생성: No={student.No}, StudentID={student.StudentID}, Name={student.Name}");
+                LogInfo($"학생 생성: No={student.No}");
                 return student.No;
             }
             catch (Exception ex)
@@ -399,7 +401,7 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@Name", student.Name);
             cmd.Parameters.AddWithValue("@Sex", student.Sex ?? string.Empty);
             cmd.Parameters.AddWithValue("@BirthDate", student.BirthDate?.ToString("yyyy-MM-dd") ?? string.Empty);
-            cmd.Parameters.AddWithValue("@ResidentNumber", student.ResidentNumber ?? string.Empty);
+            cmd.Parameters.AddWithValue("@ResidentNumber", EncryptField(student.ResidentNumber));
             cmd.Parameters.AddWithValue("@Photo", student.Photo ?? string.Empty);
             cmd.Parameters.AddWithValue("@Phone", student.Phone ?? string.Empty);
             cmd.Parameters.AddWithValue("@Email", student.Email ?? string.Empty);
@@ -426,7 +428,7 @@ namespace NewSchool.Repositories
                   : DateTime.TryParse(reader.GetString(reader.GetOrdinal("BirthDate")), out DateTime dt)
                       ? dt
                       : (DateTime?)null,
-                ResidentNumber = reader.IsDBNull(reader.GetOrdinal("ResidentNumber")) ? string.Empty : reader.GetString(reader.GetOrdinal("ResidentNumber")),
+                ResidentNumber = reader.IsDBNull(reader.GetOrdinal("ResidentNumber")) ? string.Empty : DecryptField(reader.GetString(reader.GetOrdinal("ResidentNumber"))),
                 Photo = reader.IsDBNull(reader.GetOrdinal("Photo")) ? string.Empty : reader.GetString(reader.GetOrdinal("Photo")),
                 Phone = reader.IsDBNull(reader.GetOrdinal("Phone")) ? string.Empty : reader.GetString(reader.GetOrdinal("Phone")),
                 Email = reader.IsDBNull(reader.GetOrdinal("Email")) ? string.Empty : reader.GetString(reader.GetOrdinal("Email")),
@@ -470,7 +472,7 @@ namespace NewSchool.Repositories
                   : DateTime.TryParse(reader.GetString(birthDateIdx), out DateTime dt)
                       ? dt
                       : (DateTime?)null,
-                ResidentNumber = reader.IsDBNull(residentNumberIdx) ? string.Empty : reader.GetString(residentNumberIdx),
+                ResidentNumber = reader.IsDBNull(residentNumberIdx) ? string.Empty : DecryptField(reader.GetString(residentNumberIdx)),
                 Photo = reader.IsDBNull(photoIdx) ? string.Empty : reader.GetString(photoIdx),
                 Phone = reader.IsDBNull(phoneIdx) ? string.Empty : reader.GetString(phoneIdx),
                 Email = reader.IsDBNull(emailIdx) ? string.Empty : reader.GetString(emailIdx),
@@ -480,6 +482,47 @@ namespace NewSchool.Repositories
                 UpdatedAt = DateTime.Parse(reader.GetString(updatedAtIdx)),
                 IsDeleted = reader.GetInt32(isDeletedIdx) == 1
             };
+        }
+
+        #endregion
+
+        #region DPAPI 암호화 (주민번호 등 민감 필드)
+
+        /// <summary>
+        /// DPAPI로 필드 암호화 (CurrentUser 범위)
+        /// </summary>
+        private static string EncryptField(string? plainText)
+        {
+            if (string.IsNullOrEmpty(plainText)) return string.Empty;
+            try
+            {
+                byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+                byte[] encryptedBytes = ProtectedData.Protect(plainBytes, null, DataProtectionScope.CurrentUser);
+                return Convert.ToBase64String(encryptedBytes);
+            }
+            catch
+            {
+                return plainText; // 암호화 실패 시 평문 유지
+            }
+        }
+
+        /// <summary>
+        /// DPAPI로 필드 복호화 (기존 평문 데이터 호환)
+        /// </summary>
+        private static string DecryptField(string storedValue)
+        {
+            if (string.IsNullOrEmpty(storedValue)) return string.Empty;
+            try
+            {
+                byte[] encryptedBytes = Convert.FromBase64String(storedValue);
+                byte[] plainBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(plainBytes);
+            }
+            catch
+            {
+                // Base64 디코딩 또는 복호화 실패 → 기존 평문 데이터로 간주
+                return storedValue;
+            }
         }
 
         #endregion

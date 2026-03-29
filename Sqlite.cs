@@ -362,33 +362,6 @@ namespace NewSchool
         #region Utility Methods
 
         /// <summary>
-        /// 레코드 카운트
-        /// </summary>
-        public int CountRecord(string table, string? field = null, string? searchField = null, string? orSearchField = null, string? searchValue = null)
-        {
-            if (string.IsNullOrWhiteSpace(table)) { return -1; }
-
-            string fieldStr = string.IsNullOrEmpty(field) ? "*" : field;
-            string condition = string.Empty;
-
-            if (!string.IsNullOrEmpty(searchValue))
-            {
-                condition = !string.IsNullOrEmpty(searchField) ?
-                    !string.IsNullOrEmpty(orSearchField) ?
-                        $"WHERE {searchField} LIKE '%{searchValue}%' OR {orSearchField} LIKE '%{searchValue}%'" :
-                        $"WHERE {searchField} LIKE '%{searchValue}%'" :
-                    !string.IsNullOrEmpty(orSearchField) ?
-                        $"WHERE {orSearchField} LIKE '%{searchValue}%'" : string.Empty;
-            }
-
-            using var connection = GetConnection();
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"SELECT COUNT({fieldStr}) FROM {table} {condition}";
-            int count = Convert.ToInt32(cmd.ExecuteScalar());
-            return count;
-        }
-
-        /// <summary>
         /// VACUUM (데이터베이스 최적화)
         /// </summary>
         public void Vacuum()
@@ -429,70 +402,6 @@ namespace NewSchool
         public static string ConvertDatetime(DateTimeOffset datetime)
         {
             return DateTimeHelper.ToStandardString(datetime);
-        }
-
-        #endregion
-
-        #region SQL 조건문 생성
-
-        public enum Concat { None, AND, OR }
-        public enum Relations { Equal, NotEqual, Greater, Less, GreaterOrEqual, LessOrEqual, Between, Like }
-        public enum SqliteType { Text, Integer, Real, Blob }
-
-        private static string GetOperator(Relations relation) => relation switch
-        {
-            Relations.NotEqual => "!=",
-            Relations.Greater => ">",
-            Relations.Less => "<",
-            Relations.GreaterOrEqual => ">=",
-            Relations.LessOrEqual => "<=",
-            _ => "="
-        };
-
-        public static string GetCondition(string Key, string Value, SqliteType? Type = null, Relations Relation = Relations.Equal, string? Value2 = null)
-        {
-            return GetCondition(Concat.None, Key, Value, Type, Relation, Value2);
-        }
-
-        public static string GetCondition(Concat Concat, string Key, string Value, SqliteType? Type = null, Relations Relation = Relations.Equal, string? Value2 = null)
-        {
-            if (string.IsNullOrEmpty(Key) || string.IsNullOrEmpty(Value)) { return string.Empty; }
-
-            string concat = Concat == Concat.None ? string.Empty : Concat.ToString();
-
-            switch (Relation)
-            {
-                case Relations.Between:
-                    {
-                        if (string.IsNullOrEmpty(Value2)) { return string.Empty; }
-                        if (Type is SqliteType.Text) { Value = $"'{Value}'"; }
-                        if (Type is SqliteType.Text) { Value2 = $"'{Value2}'"; }
-                        return $"{concat} {Key} BETWEEN {Value} AND {Value2}";
-                    }
-                case Relations.Like:
-                    {
-                        if (Value.Contains('_'))
-                        {
-                            Value = Value.Replace("_", "&_");
-                        }
-                        if (Value.Contains('%'))
-                        {
-                            Value = Value.Replace("%", "&%");
-                        }
-                        return $"{concat} {Key} LIKE '%{Value}%' ESCAPE '&'";
-                    }
-                case Relations.Equal:
-                case Relations.NotEqual:
-                case Relations.Greater:
-                case Relations.Less:
-                case Relations.GreaterOrEqual:
-                case Relations.LessOrEqual:
-                default:
-                    {
-                        if (Type is SqliteType.Text) { Value = $"'{Value}'"; }
-                        return $"{concat} {Key} {GetOperator(Relation)} {Value}";
-                    }
-            }
         }
 
         #endregion

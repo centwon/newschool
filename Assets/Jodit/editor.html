@@ -13,6 +13,7 @@
 <body>
 <textarea id="editor"></textarea>
 <script src="jodit.fat.min.js"></script>
+<script src="purify.min.js"></script>
 <script>
     function setEditorMode(mode) {
         if (mode === 'ReadOnly') {
@@ -252,7 +253,18 @@
             cleanHtml = cleanHtml.replace(/<meta[^>]*>/gi, '');
             cleanHtml = cleanHtml.replace(/<link[^>]*>/gi, '');
 
-            editor.selection.insertHTML(cleanHtml.trim());
+            // XSS 방지: DOMPurify로 sanitize
+            const safeHtml = DOMPurify.sanitize(cleanHtml.trim(), {
+                ALLOWED_TAGS: ['p','br','b','i','u','s','em','strong','span','div',
+                    'table','thead','tbody','tfoot','tr','th','td','caption','colgroup','col',
+                    'ul','ol','li','a','img','h1','h2','h3','h4','h5','h6',
+                    'blockquote','pre','code','hr','sub','sup','font'],
+                ALLOWED_ATTR: ['style','class','href','src','alt','width','height',
+                    'colspan','rowspan','border','cellpadding','cellspacing',
+                    'align','valign','color','size','face','target','data-*'],
+                ALLOW_DATA_ATTR: true
+            });
+            editor.selection.insertHTML(safeHtml);
             return false;
         }
 
@@ -303,7 +315,18 @@
         if (html || text) {
             e.preventDefault();
             e.stopPropagation();
-            editor.selection.insertHTML(html || text);
+            // XSS 방지: DOMPurify로 sanitize
+            const safeContent = DOMPurify.sanitize(html || text, {
+                ALLOWED_TAGS: ['p','br','b','i','u','s','em','strong','span','div',
+                    'table','thead','tbody','tfoot','tr','th','td','caption','colgroup','col',
+                    'ul','ol','li','a','img','h1','h2','h3','h4','h5','h6',
+                    'blockquote','pre','code','hr','sub','sup','font'],
+                ALLOWED_ATTR: ['style','class','href','src','alt','width','height',
+                    'colspan','rowspan','border','cellpadding','cellspacing',
+                    'align','valign','color','size','face','target','data-*'],
+                ALLOW_DATA_ATTR: true
+            });
+            editor.selection.insertHTML(safeContent);
             return false;
         }
     });
