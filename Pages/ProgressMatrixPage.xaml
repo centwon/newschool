@@ -93,11 +93,16 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 격차 정보 -->
+            <!-- 통계 정보 -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="24">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="전체 단원:" Opacity="0.7"/>
                     <TextBlock x:Name="TxtTotalSections" Text="0" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <StackPanel x:Name="PnlPlanProgress" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                    <TextBlock Text="계획 진도:" Opacity="0.7"/>
+                    <TextBlock x:Name="TxtPlanProgress" Text="-" FontWeight="SemiBold" Foreground="#2196F3"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -109,29 +114,41 @@
                     <TextBlock Text="최대 격차:" Opacity="0.7"/>
                     <TextBlock x:Name="TxtMaxGap" Text="0" FontWeight="SemiBold"/>
                 </StackPanel>
+
+                <StackPanel x:Name="PnlCurrentWeek" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                    <TextBlock Text="현재:" Opacity="0.7"/>
+                    <TextBlock x:Name="TxtCurrentWeek" Text="-" FontWeight="SemiBold" Foreground="#FF5722"/>
+                </StackPanel>
             </StackPanel>
 
             <!-- 범례 -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Background="#4CAF50" Width="16" Height="16" CornerRadius="2"/>
-                    <TextBlock Text="완료" FontSize="12"/>
+                    <Border Background="#4CAF50" Width="14" Height="14" CornerRadius="2"/>
+                    <TextBlock Text="완료" FontSize="11"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Background="#2196F3" Width="16" Height="16" CornerRadius="2"/>
-                    <TextBlock Text="보강" FontSize="12"/>
+                    <Border Background="#2196F3" Width="14" Height="14" CornerRadius="2"/>
+                    <TextBlock Text="보강" FontSize="11"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Background="#9C27B0" Width="16" Height="16" CornerRadius="2"/>
-                    <TextBlock Text="병합" FontSize="12"/>
+                    <Border Background="#9C27B0" Width="14" Height="14" CornerRadius="2"/>
+                    <TextBlock Text="병합" FontSize="11"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Background="#FF9800" Width="16" Height="16" CornerRadius="2"/>
-                    <TextBlock Text="건너뜀" FontSize="12"/>
+                    <Border Background="#FF9800" Width="14" Height="14" CornerRadius="2"/>
+                    <TextBlock Text="건너뜀" FontSize="11"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Background="#F44336" Width="16" Height="16" CornerRadius="2"/>
-                    <TextBlock Text="결강" FontSize="12"/>
+                    <Border Background="#F44336" Width="14" Height="14" CornerRadius="2"/>
+                    <TextBlock Text="결강" FontSize="11"/>
+                </StackPanel>
+                <StackPanel x:Name="PnlDelayLegend" Orientation="Horizontal" Spacing="4" Visibility="Collapsed">
+                    <Border BorderBrush="#F44336" BorderThickness="1" Width="14" Height="14" CornerRadius="2">
+                        <TextBlock Text="!" FontSize="9" Foreground="#F44336"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                    </Border>
+                    <TextBlock Text="지연" FontSize="11" Foreground="#F44336"/>
                 </StackPanel>
             </StackPanel>
         </Grid>

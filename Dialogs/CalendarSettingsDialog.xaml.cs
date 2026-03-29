@@ -189,7 +189,7 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
             if (schoolGoogleCal == null)
             {
                 GoogleAuthStatusText.Text = $"Google에 '{schoolName}' 캘린더 생성 중...";
-                var created = await apiClient.InsertCalendarAsync(schoolName, "학사 일정 · 수업 · 담임 · 업무");
+                var created = await apiClient.InsertCalendarAsync(schoolName, "학사 일정 · 수업 · 학급 · 업무");
                 if (created != null)
                 {
                     schoolGoogleCal = new GoogleCalendarListEntry

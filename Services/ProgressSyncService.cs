@@ -254,7 +254,8 @@ public class ProgressSyncService
             // 뒤처진 학급에 대한 제안
             foreach (var room in analysis.BehindRooms)
             {
-                var gap = analysis.Gaps.First(g => g.Room == room);
+                var gap = analysis.Gaps.FirstOrDefault(g => g.Room == room);
+                if (gap == null) continue;
 
                 if (gap.GapFromMax >= 5)
                 {
@@ -443,16 +444,18 @@ public class ProgressSyncService
             matrixData.Sections = await _sectionRepo.GetByCourseAsync(courseId);
             matrixData.Rooms = rooms;
 
-            // 전체 진도 조회
+            // 전체 진도 조회 + 딕셔너리로 인덱싱 (O(1) 조회)
             var allProgress = await _progressRepo.GetByCourseAsync(courseId);
+            var progressLookup = allProgress.ToDictionary(
+                p => (p.CourseSectionId, p.Room),
+                p => p);
 
             // 매트릭스 셀 생성
             foreach (var section in matrixData.Sections)
             {
                 foreach (var room in rooms)
                 {
-                    var progress = allProgress.FirstOrDefault(p =>
-                        p.CourseSectionId == section.No && p.Room == room);
+                    progressLookup.TryGetValue((section.No, room), out var progress);
 
                     matrixData.Cells.Add(new ProgressMatrixCell
                     {

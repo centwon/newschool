@@ -21,6 +21,13 @@
                         <StackPanel Spacing="12" Padding="16">
 
                             <ToggleSwitch
+                                x:Name="StartWithWindowsToggle"
+                                Header="Windows 시작 시 자동 실행"
+                                OnContent="활성화"
+                                OffContent="비활성화"
+                                Toggled="OnStartWithWindowsToggled"/>
+
+                            <ToggleSwitch
                                 x:Name="TopMostToggle"
                                 Header="항상 위에 표시"
                                 OnContent="활성화"
@@ -106,8 +113,13 @@
                                 Maximum="100"
                                 ValueChanged="OnBackupRetentionCountChanged"/>
 
-                            <Grid ColumnSpacing="12">
+                            <TextBlock x:Name="LastBackupTimeText"
+                                       Text="마지막 백업: 없음"
+                                       FontSize="12" Opacity="0.7"/>
+
+                            <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
@@ -123,6 +135,12 @@
                                     Content="복원..."
                                     Click="OnRestoreClick"
                                     HorizontalAlignment="Stretch"/>
+
+                                <Button
+                                    Grid.Column="2"
+                                    Content="폴더 열기"
+                                    Click="OnOpenBackupFolderClick"
+                                    HorizontalAlignment="Stretch"/>
                             </Grid>
                         </StackPanel>
                     </Expander.Content>
@@ -132,6 +150,15 @@
                 <Expander Header="고급" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,0,0,8">
                     <Expander.Content>
                         <StackPanel Spacing="12" Padding="16">
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="데이터 저장 위치" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="DataPathText" IsTextSelectionEnabled="True"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock x:Name="DataModeText" FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                            </StackPanel>
 
                             <ComboBox
                                 x:Name="LogLevelComboBox"
@@ -145,8 +172,9 @@
                                 <ComboBoxItem Content="Error" Tag="Error"/>
                             </ComboBox>
 
-                            <Grid ColumnSpacing="12">
+                            <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
@@ -159,10 +187,49 @@
 
                                 <Button
                                     Grid.Column="1"
-                                    Content="설정 정보 출력"
-                                    Click="OnPrintSettingsClick"
+                                    Content="로그 폴더 열기"
+                                    Click="OnOpenLogFolderClick"
+                                    HorizontalAlignment="Stretch"/>
+
+                                <Button
+                                    Grid.Column="2"
+                                    Content="데이터 폴더 열기"
+                                    Click="OnOpenDataFolderClick"
                                     HorizontalAlignment="Stretch"/>
                             </Grid>
+                        </StackPanel>
+                    </Expander.Content>
+                </Expander>
+
+                <!-- 업데이트 -->
+                <Expander Header="업데이트" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,0,0,8">
+                    <Expander.Content>
+                        <StackPanel Spacing="12" Padding="16">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="현재 버전:" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="CurrentVersionText" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button x:Name="CheckUpdateButton"
+                                        Content="업데이트 확인"
+                                        Click="OnCheckUpdateClick"/>
+                                <ProgressRing x:Name="UpdateProgressRing"
+                                              IsActive="False"
+                                              Width="20" Height="20"
+                                              VerticalAlignment="Center"
+                                              Visibility="Collapsed"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="UpdateStatusText"
+                                       TextWrapping="Wrap"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       Visibility="Collapsed"/>
+
+                            <HyperlinkButton x:Name="DownloadLink"
+                                             Content="다운로드 페이지 열기"
+                                             Visibility="Collapsed"
+                                             Click="OnDownloadLinkClick"/>
                         </StackPanel>
                     </Expander.Content>
                 </Expander>

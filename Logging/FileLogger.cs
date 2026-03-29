@@ -26,9 +26,8 @@ namespace NewSchool.Logging
 
         private FileLogger()
         {
-            LogDirectory = Path.Combine(
-                AppContext.BaseDirectory,
-                "Logs");
+            // 사용자 데이터 폴더에 로그 저장
+            LogDirectory = Path.Combine(Settings.UserDataPath, "Logs");
 
             if (!Directory.Exists(LogDirectory))
             {

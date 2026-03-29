@@ -106,8 +106,9 @@ public class CourseSectionRepository : BaseRepository
         {
             try
             {
-                string checkSql = $"SELECT COUNT(*) FROM pragma_table_info('CourseSection') WHERE name='{columnName}'";
+                string checkSql = "SELECT COUNT(*) FROM pragma_table_info('CourseSection') WHERE name=@ColName";
                 using var checkCmd = CreateCommand(checkSql);
+                checkCmd.Parameters.AddWithValue("@ColName", columnName);
                 var exists = Convert.ToInt32(checkCmd.ExecuteScalar()) > 0;
 
                 if (!exists)

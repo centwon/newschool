@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Microsoft.UI.Xaml;
 using SQLitePCL;
 using System.Diagnostics;
@@ -41,6 +42,9 @@ public partial class App : Application
 
     protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        // 0. 최초 실행 여부 확인 (Settings.db가 없으면 최초 실행)
+        bool isFirstRun = !File.Exists(Path.Combine(Settings.UserDataPath, "Settings.db"));
+
         // 1. Settings 초기화
         Settings.Initialize();
         Debug.WriteLine("[App] Settings 초기화 완료");
@@ -58,20 +62,19 @@ public partial class App : Application
         Debug.WriteLine($"[App] 로그 레벨: {logLevel}");
 
         // 2. DB 초기화
-        if (!Settings.Board_Inited.Value)
-        {
-            await NewSchool.Board.Board.InitAsync();
-            Debug.WriteLine("[App] Board 데이터베이스 초기화 완료");
-        }
+        await NewSchool.Board.Board.InitAsync();
+        Debug.WriteLine("[App] Board 데이터베이스 초기화 완료");
         // 3. scheduler 초기화 — 항상 실행 (신규 테이블 자동 반영)
         await NewSchool.Scheduler.Scheduler.InitAsync();
         Debug.WriteLine("[App] Scheduler 데이터베이스 초기화 완료");
 
-        if (!Settings.School_Inited.Value)
-        {
-            await NewSchool.SchoolDatabase.InitAsync();
-            Debug.WriteLine("[App] School 데이터베이스 초기화 완료");
-        }
+        await NewSchool.SchoolDatabase.InitAsync();
+        Debug.WriteLine("[App] School 데이터베이스 초기화 완료");
+
+        // 3-1. 자동 백업 (필요 시)
+        var backupResult = Settings.RunAutoBackupIfNeeded();
+        if (backupResult != null)
+            Debug.WriteLine($"[App] 자동 백업 완료: {backupResult}");
 
         // 4. 초기 설정 확인
         if (string.IsNullOrEmpty(Settings.SchoolCode.Value))
@@ -176,8 +179,12 @@ public partial class App : Application
     {
         Debug.WriteLine("========================================");
         Debug.WriteLine("[App] 현재 설정 정보:");
+        Debug.WriteLine($"  - 데이터 경로: {Settings.UserDataPath}");
+        Debug.WriteLine($"  - 포터블 모드: {Settings.IsPortableMode}");
+        Debug.WriteLine($"  - School DB: {SchoolDatabase.DbPath}");
+        Debug.WriteLine($"  - School DB 존재: {File.Exists(SchoolDatabase.DbPath)}");
         Debug.WriteLine($"  - 학교명: {Settings.SchoolName.Value}");
-        Debug.WriteLine($"  - 학교코드: {Settings.SchoolCode.Value}");
+        Debug.WriteLine($"  - 학교코드: '{Settings.SchoolCode.Value}'");
         Debug.WriteLine($"  - 사용자: {Settings.UserName.Value} ({Settings.User.Value})");
         Debug.WriteLine($"  - 학년도/학기: {Settings.WorkYear.Value}년 {Settings.WorkSemester.Value}학기");
         Debug.WriteLine($"  - 담임반: {Settings.HomeGrade.Value}학년 {Settings.HomeRoom.Value}반");

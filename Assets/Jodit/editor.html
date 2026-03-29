@@ -210,7 +210,8 @@
     });
 
     // 붙여넣기 전 가로채기: 엑셀 표 → HTML 테이블, 이미지 → 최적화 후 삽입
-    editor.events.on('beforePaste', async function(e) {
+    // ※ 반드시 동기 함수여야 return false로 Jodit 기본 처리를 차단할 수 있음
+    editor.events.on('beforePaste', function(e) {
         const clipboardData = e.clipboardData || window.clipboardData;
         if (!clipboardData) return;
 
@@ -255,20 +256,20 @@
             return false;
         }
 
-        // Case 2: 이미지만 있는 경우 (스크린샷, 이미지 복사) → 최적화 후 삽입
+        // Case 2: 이미지만 있는 경우 (스크린샷, 이미지 복사) → 비동기 처리
+        // return false로 즉시 차단 후, 비동기로 이미지 삽입
         if (hasImage && imageItem) {
             e.preventDefault();
             e.stopPropagation();
 
             const file = imageItem.getAsFile();
             if (file) {
-                try {
-                    const optimizedDataUrl = await optimizeImage(file);
+                optimizeImage(file).then(function(optimizedDataUrl) {
                     const origInsert = originalInsertImage || editor.selection.insertImage;
                     origInsert.call(editor.selection, optimizedDataUrl);
-                } catch (err) {
+                }).catch(function(err) {
                     console.error('[image optimize failed]', err);
-                }
+                });
             }
             return false;
         }

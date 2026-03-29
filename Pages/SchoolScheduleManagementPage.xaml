@@ -182,11 +182,11 @@
                                 <ColumnDefinition Width="60"/>   <!-- 수동입력 -->
                             </Grid.ColumnDefinitions>
 
-                            <CheckBox x:Name="ChkSelectAll" 
+                            <CheckBox x:Name="ChkSelectAll"
                                       Grid.Column="0"
                                       Content=""
                                       Click="OnSelectAllClick"
-                                      HorizontalAlignment="Center"/>
+                                      HorizontalAlignment="Left"/>
                             <TextBlock Grid.Column="1" Text="날짜" FontWeight="SemiBold"/>
                             <TextBlock Grid.Column="2" Text="행사명 / 내용" FontWeight="SemiBold"/>
                             <TextBlock Grid.Column="3" Text="수업공제일" FontWeight="SemiBold"/>
@@ -219,7 +219,7 @@
                                             <!-- 체크박스 -->
                                             <CheckBox Grid.Column="0"
                                                       IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
-                                                      HorizontalAlignment="Center"
+                                                      HorizontalAlignment="Left"
                                                       VerticalAlignment="Center"/>
 
                                             <!-- 날짜 -->

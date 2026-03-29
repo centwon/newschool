@@ -12,6 +12,8 @@
         <x:Double x:Key="ContentDialogMaxHeight">720</x:Double>
     </ContentDialog.Resources>
 
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  MaxHeight="600">
     <StackPanel Spacing="6" Padding="0,8,0,0">
 
         <!-- 1. 일정 표시 -->
@@ -198,4 +200,5 @@
         </Expander>
 
     </StackPanel>
+    </ScrollViewer>
 </ContentDialog>

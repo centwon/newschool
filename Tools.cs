@@ -474,29 +474,7 @@ public partial class NeisByteConverter : IValueConverter
     }
 }
 
-/// <summary>
-/// DateTime을 DateTimeOffset으로 변환
-/// </summary>
-public partial class DateTimeToDateTimeOffsetConverter : IValueConverter
-{
-    public object? Convert(object value, Type targetType, object parameter, string language)
-    {
-        if (value is DateTime dateTime)
-        {
-            return (DateTimeOffset)dateTime;
-        }
-        return null;
-    }
-
-    public object? ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        if (value is DateTimeOffset dateTimeOffset)
-        {
-            return dateTimeOffset.DateTime;
-        }
-        return null;
-    }
-}
+// DateTimeToDateTimeOffsetConverter는 CommonConverters.cs에서 정의
 
 /// <summary>
 /// bool 반전 변환

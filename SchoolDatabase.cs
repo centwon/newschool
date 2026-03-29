@@ -20,13 +20,12 @@ namespace NewSchool
         {
             get
             {
-                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                string dataDir = Settings.UserDataPath;
 
-                // Data 폴더 자동 생성
                 if (!Directory.Exists(dataDir))
                 {
                     Directory.CreateDirectory(dataDir);
-                    Debug.WriteLine($"[SchoolDatabase] Data 폴더 생성: {dataDir}");
+                    Debug.WriteLine($"[SchoolDatabase] 데이터 폴더 생성: {dataDir}");
                 }
 
                 return Path.Combine(dataDir, Settings.SchoolDB.Value);
@@ -34,11 +33,9 @@ namespace NewSchool
         }
 
         /// <summary>
-        /// Data 폴더 경로
+        /// 데이터 폴더 경로
         /// </summary>
-        public static string DataDirectory => Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "Data");
+        public static string DataDirectory => Settings.UserDataPath;
 
         #region Initialization
 
@@ -51,7 +48,7 @@ namespace NewSchool
             try
             {
                 // 데이터 디렉토리 생성
-                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                string dataDir = Settings.DataDirectory;
                 if (!Directory.Exists(dataDir))
                 {
                     Directory.CreateDirectory(dataDir);
@@ -62,25 +59,18 @@ namespace NewSchool
                 Debug.WriteLine($"[SchoolDatabase] DB 존재: {File.Exists(DbPath)}");
                 Debug.WriteLine($"[SchoolDatabase] 초기화 상태: {Settings.School_Inited.Value}");
 
-                // 데이터베이스 초기화
-                if (!Settings.School_Inited.Value)
-                {
-                    Debug.WriteLine("[SchoolDatabase] 데이터베이스 초기화 시작");
-                    bool success = await InitDatabaseAsync();
+                // 데이터베이스 초기화 (CREATE TABLE IF NOT EXISTS → 항상 안전)
+                Debug.WriteLine("[SchoolDatabase] 데이터베이스 초기화 시작");
+                bool success = await InitDatabaseAsync();
 
-                    if (success)
-                    {
-                        Settings.School_Inited.Set(true);
-                        Debug.WriteLine("[SchoolDatabase] 초기화 완료 플래그 설정됨");
-                    }
-                    else
-                    {
-                        Debug.WriteLine("[SchoolDatabase] 데이터베이스 초기화 실패");
-                    }
+                if (success)
+                {
+                    Settings.School_Inited.Set(true);
+                    Debug.WriteLine("[SchoolDatabase] 초기화 완료");
                 }
                 else
                 {
-                    Debug.WriteLine("[SchoolDatabase] 이미 초기화되어 있음");
+                    Debug.WriteLine("[SchoolDatabase] 데이터베이스 초기화 실패");
                 }
             }
             catch (Exception ex)
@@ -124,11 +114,7 @@ namespace NewSchool
                     return false;
                 }
 
-                string backupDir = Path.Combine(
-                    AppDomain.CurrentDomain.BaseDirectory,
-                    "Data",
-                    "Backup"
-                );
+                string backupDir = Path.Combine(Settings.UserDataPath, "Backup");
 
                 if (!Directory.Exists(backupDir))
                 {

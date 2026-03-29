@@ -70,52 +70,6 @@ namespace NewSchool.Scheduler
 
             using var cmd = _connection.CreateCommand();
 
-            // Ktask 테이블만 생성 (SchoolSchedule은 school.db에서 관리)
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS Ktask (
-                    No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    User TEXT NOT NULL DEFAULT '',
-                    Completed TEXT NOT NULL DEFAULT '',
-                    Deleted INTEGER NOT NULL DEFAULT 0,
-                    Due TEXT NOT NULL,
-                    ETag TEXT NOT NULL DEFAULT '',
-                    Hidden INTEGER NOT NULL DEFAULT 0,
-                    Id TEXT NOT NULL DEFAULT '',
-                    Kind TEXT NOT NULL DEFAULT 'tasks#task',
-                    Notes TEXT NOT NULL DEFAULT '',
-                    Parent TEXT NOT NULL DEFAULT '',
-                    Position TEXT NOT NULL DEFAULT '',
-                    SelfLink TEXT NOT NULL DEFAULT '',
-                    IsDone INTEGER NOT NULL DEFAULT 0,
-                    IsAllday INTEGER NOT NULL DEFAULT 0,
-                    Title TEXT NOT NULL DEFAULT '',
-                    Updated TEXT NOT NULL DEFAULT ''
-                );
-            ";
-
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[SchedulerDB] Ktask 테이블 생성 완료");
-
-            // KtaskList 테이블 (Google TaskList 대응)
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS KtaskList (
-                    No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    GoogleId TEXT NOT NULL DEFAULT '',
-                    Title TEXT NOT NULL DEFAULT '',
-                    SortOrder INTEGER NOT NULL DEFAULT 0,
-                    IsDefault INTEGER NOT NULL DEFAULT 0,
-                    Updated TEXT NOT NULL DEFAULT '',
-                    SyncMode TEXT NOT NULL DEFAULT 'None'
-                );
-            ";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[SchedulerDB] KtaskList 테이블 생성 완료");
-
-            // 기존 DB 호환: 컬럼 자동 추가
-            await AddColumnIfNotExistsAsync(cmd, "Ktask", "ListId", "INTEGER NOT NULL DEFAULT 0");
-            await AddColumnIfNotExistsAsync(cmd, "Ktask", "GoogleId", "TEXT NOT NULL DEFAULT ''");
-            await AddColumnIfNotExistsAsync(cmd, "KtaskList", "SyncMode", "TEXT NOT NULL DEFAULT 'None'");
-
             // KCalendarList 테이블
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS KCalendarList (
@@ -133,7 +87,7 @@ namespace NewSchool.Scheduler
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[SchedulerDB] KCalendarList 테이블 생성 완료");
 
-            // KEvent 테이블
+            // KEvent 테이블 (일정 + 할일 통합)
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS KEvent (
                     No         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,13 +103,16 @@ namespace NewSchool.Scheduler
                     ColorId    TEXT NOT NULL DEFAULT '',
                     Recurrence TEXT NOT NULL DEFAULT '',
                     Updated    TEXT NOT NULL DEFAULT '',
-                    User       TEXT NOT NULL DEFAULT ''
+                    User       TEXT NOT NULL DEFAULT '',
+                    ItemType   TEXT NOT NULL DEFAULT 'event',
+                    IsDone     INTEGER NOT NULL DEFAULT 0,
+                    Completed  TEXT NOT NULL DEFAULT ''
                 );
             ";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[SchedulerDB] KEvent 테이블 생성 완료");
 
-            // KEvent 테이블에 Ktask 통합 컬럼 추가 (기존 DB 호환)
+            // 기존 DB 호환: 누락 컬럼 추가
             await AddColumnIfNotExistsAsync(cmd, "KEvent", "ItemType", "TEXT NOT NULL DEFAULT 'event'");
             await AddColumnIfNotExistsAsync(cmd, "KEvent", "IsDone", "INTEGER NOT NULL DEFAULT 0");
             await AddColumnIfNotExistsAsync(cmd, "KEvent", "Completed", "TEXT NOT NULL DEFAULT ''");
@@ -201,7 +158,7 @@ namespace NewSchool.Scheduler
                 cmd.Parameters.AddWithValue("@SyncMode", sync);
                 await cmd.ExecuteNonQueryAsync();
             }
-            Debug.WriteLine("[SchedulerDB] 기본 목록 4개 생성 완료 (수업/담임/업무/개인)");
+            Debug.WriteLine("[SchedulerDB] 기본 목록 4개 생성 완료 (수업/학급/업무/개인)");
 
             // KCalendarList 기본 캘린더 생성 (없는 경우만)
             cmd.CommandText = "SELECT COUNT(*) FROM KCalendarList";
@@ -229,7 +186,7 @@ namespace NewSchool.Scheduler
                     cmd.Parameters.AddWithValue("@SyncMode", sync);
                     await cmd.ExecuteNonQueryAsync();
                 }
-                Debug.WriteLine("[SchedulerDB] 기본 캘린더 4개 생성 완료 (수업/담임/업무/개인)");
+                Debug.WriteLine("[SchedulerDB] 기본 캘린더 4개 생성 완료 (수업/학급/업무/개인)");
             }
         }
 
@@ -240,11 +197,6 @@ namespace NewSchool.Scheduler
             using var cmd = _connection.CreateCommand();
 
             cmd.CommandText = @"
-                CREATE INDEX IF NOT EXISTS idx_ktask_due ON Ktask(Due);
-                CREATE INDEX IF NOT EXISTS idx_ktask_user ON Ktask(User);
-                CREATE INDEX IF NOT EXISTS idx_ktask_done ON Ktask(IsDone);
-                CREATE INDEX IF NOT EXISTS idx_ktask_listid ON Ktask(ListId);
-                CREATE INDEX IF NOT EXISTS idx_ktasklist_title ON KtaskList(Title);
                 CREATE INDEX IF NOT EXISTS idx_kevent_start ON KEvent(Start);
                 CREATE INDEX IF NOT EXISTS idx_kevent_calendarid ON KEvent(CalendarId);
                 CREATE INDEX IF NOT EXISTS idx_kevent_status ON KEvent(Status);

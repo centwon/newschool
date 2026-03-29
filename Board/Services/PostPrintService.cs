@@ -22,16 +22,12 @@ public class PostPrintService
         QuestPDF.Settings.License = LicenseType.Community;
 
         var fileName = $"게시글_{SanitizeFileName(post.Title)}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "NewSchool",
-            "Prints",
-            fileName);
+        var printsDir = Path.Combine(Settings.UserDataPath, "Prints");
+        if (!Directory.Exists(printsDir))
+            Directory.CreateDirectory(printsDir);
+        var filePath = Path.Combine(printsDir, fileName);
 
-        var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
-            Directory.CreateDirectory(directory);
         }
 
         Document.Create(container =>

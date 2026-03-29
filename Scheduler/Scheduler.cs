@@ -24,11 +24,7 @@ public static class Scheduler
     public static UnitOfWork CreateUnitOfWork() => new(DbPath);
 
     // ✅ 전체 DB 경로
-    private static string DbPath => Path.Combine(
-        AppDomain.CurrentDomain.BaseDirectory,
-        "Data",
-        Settings.SchedulerDB
-    );
+    private static string DbPath => Path.Combine(Settings.UserDataPath, Settings.SchedulerDB);
 
     #region Initialization
 
@@ -37,7 +33,7 @@ public static class Scheduler
         try
         {
             // 데이터 디렉토리 생성
-            string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+            string dataDir = Settings.UserDataPath;
             if (!Directory.Exists(dataDir))
             {
                 Directory.CreateDirectory(dataDir);

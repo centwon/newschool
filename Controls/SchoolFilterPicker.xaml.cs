@@ -199,6 +199,14 @@ public sealed partial class SchoolFilterPicker : UserControl
         {
             _isUpdating = true;
 
+            // SchoolCode 미설정 시 빈 상태로 초기화
+            if (string.IsNullOrEmpty(Settings.SchoolCode.Value))
+            {
+                Debug.WriteLine("[SchoolFilterPicker] SchoolCode 미설정 - 필터 초기화 건너뜀");
+                _isInitialized = true;
+                return;
+            }
+
             // 표시 여부 적용
             ApplyVisibility();
 
@@ -387,20 +395,36 @@ public sealed partial class SchoolFilterPicker : UserControl
 
         // 3. 학년 콤보 초기화 (학년도가 설정된 후)
         await InitializeGradeComboBoxAsync();
-        
+
         // 4. 학년 기본값 설정
-        int defaultGrade = SelectedGrade > 0 ? SelectedGrade : 
+        int defaultGrade = SelectedGrade > 0 ? SelectedGrade :
             (IncludeAllGrade ? 0 : Settings.HomeGrade.Value);
-        SelectComboBoxByTag(CBoxGrade, defaultGrade);
+        if (defaultGrade > 0)
+            SelectComboBoxByTag(CBoxGrade, defaultGrade);
+        // HomeGrade 미설정(0)이고 IncludeAllGrade=False면 첫 번째 항목 선택
+        if (defaultGrade == 0 && !IncludeAllGrade && CBoxGrade.Items.Count > 0)
+        {
+            CBoxGrade.SelectedIndex = 0;
+            if (CBoxGrade.SelectedItem is ComboBoxItem gi && gi.Tag is int g)
+                defaultGrade = g;
+        }
         SelectedGrade = defaultGrade;
 
         // 5. 반 콤보 초기화 (학년이 설정된 후)
         await InitializeClassComboBoxAsync();
-        
+
         // 6. 반 기본값 설정
         int defaultClass = SelectedClass > 0 ? SelectedClass :
             (IncludeAllClass ? 0 : Settings.HomeRoom.Value);
-        SelectComboBoxByTag(CBoxClass, defaultClass);
+        if (defaultClass > 0)
+            SelectComboBoxByTag(CBoxClass, defaultClass);
+        // HomeRoom 미설정(0)이고 IncludeAllClass=False면 첫 번째 항목 선택
+        if (defaultClass == 0 && !IncludeAllClass && CBoxClass.Items.Count > 0)
+        {
+            CBoxClass.SelectedIndex = 0;
+            if (CBoxClass.SelectedItem is ComboBoxItem ci && ci.Tag is int c)
+                defaultClass = c;
+        }
         SelectedClass = defaultClass;
     }
 

@@ -375,7 +375,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
                 cmd.Parameters.AddWithValue("@Year", year);
                 cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
+                if (grade > 0) cmd.Parameters.AddWithValue("@Grade", grade);
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -396,19 +396,17 @@ namespace NewSchool.Repositories
         /// 학생 목록 조회 (필터: 학교코드, 학년, 반)
         /// /// 
         /// </summary>
-        public async Task<List<Enrollment>> GetEnrollmentsAsync(string schoolCode, int year=0, int grade=0, int classNum=0)
+        public async Task<List<Enrollment>> GetEnrollmentsAsync(string? schoolCode, int year=0, int grade=0, int classNum=0)
         {
-            var yearCondition = year > 0 ? "AND Year = @Year" : "";
-            //var semeCondition = semester == 0 || semester > 2 ? string.Empty : "AND Semester = @Semester";
-            var gradeCondition = grade > 0 ? "AND Grade = @Grade" : "";
-            var classCondition = classNum > 0 ? "AND Class = @Class" : "";
+            var conditions = new List<string> { "IsDeleted = 0" };
+            if (!string.IsNullOrWhiteSpace(schoolCode))
+                conditions.Add("SchoolCode = @SchoolCode");
+            if (year > 0) conditions.Add("Year = @Year");
+            if (grade > 0) conditions.Add("Grade = @Grade");
+            if (classNum > 0) conditions.Add("Class = @Class");
 
-
-            string query = @$" SELECT * FROM Enrollment
-                WHERE SchoolCode = @SchoolCode
-                {yearCondition}
-                {gradeCondition} {classCondition} 
-                AND IsDeleted = 0
+            string query = $@"SELECT * FROM Enrollment
+                WHERE {string.Join(" AND ", conditions)}
                 ORDER BY Year, Grade, Class, Number";
 
             var enrollments = new List<Enrollment>();
@@ -416,11 +414,11 @@ namespace NewSchool.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                if (year>0) cmd.Parameters.AddWithValue("@Year", year);
-                //if (semester==1 || semester ==2) cmd.Parameters.AddWithValue("@Semester", semester);
-                if (grade>0) cmd.Parameters.AddWithValue("@Grade", grade);
-                if (classNum>0) cmd.Parameters.AddWithValue("@Class", classNum);
+                if (!string.IsNullOrWhiteSpace(schoolCode))
+                    cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
+                if (year > 0) cmd.Parameters.AddWithValue("@Year", year);
+                if (grade > 0) cmd.Parameters.AddWithValue("@Grade", grade);
+                if (classNum > 0) cmd.Parameters.AddWithValue("@Class", classNum);
                 Debug.WriteLine("Parameters: " + string.Join(", ", cmd.Parameters.Cast<SqliteParameter>().Select(p => $"{p.ParameterName}={p.Value}")));
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -512,15 +510,20 @@ namespace NewSchool.Repositories
         /// <param name="grade">학년 (1, 2, 3)</param>
         /// <returns>학급 번호 목록 (정렬됨)</returns>
         public async Task<List<int>> GetClassListByGradeAsync(
-            string schoolCode, int year, int grade)
+            string? schoolCode, int year, int grade)
         {
-            const string query = @"
-                SELECT DISTINCT Class 
-                FROM Enrollment 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Grade = @Grade 
-                  AND IsDeleted = 0
+            var whereConditions = new List<string> { "IsDeleted = 0" };
+            if (!string.IsNullOrWhiteSpace(schoolCode))
+                whereConditions.Add("SchoolCode = @SchoolCode");
+            if (year > 0)
+                whereConditions.Add("Year = @Year");
+            if (grade > 0)
+                whereConditions.Add("Grade = @Grade");
+
+            string query = $@"
+                SELECT DISTINCT Class
+                FROM Enrollment
+                WHERE {string.Join(" AND ", whereConditions)}
                 ORDER BY Class";
 
             var classList = new List<int>();
@@ -528,9 +531,12 @@ namespace NewSchool.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Grade", grade);
+                if (!string.IsNullOrWhiteSpace(schoolCode))
+                    cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
+                if (year > 0)
+                    cmd.Parameters.AddWithValue("@Year", year);
+                if (grade > 0)
+                    cmd.Parameters.AddWithValue("@Grade", grade);
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())

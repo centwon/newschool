@@ -336,15 +336,17 @@ public class GoogleSyncService : IDisposable
         DateTime start, end;
         if (isAllday)
         {
-            start = DateTime.Parse(ge.Start!.Date!);
+            start = DateTime.Parse(ge.Start!.Date!, null, System.Globalization.DateTimeStyles.RoundtripKind);
             // Google Calendar의 종일 이벤트 End는 exclusive(배타적)이므로
             // inclusive(포함)로 변환: 1일 빼기
-            end = DateTime.Parse(ge.End!.Date!).AddDays(-1);
+            end = DateTime.Parse(ge.End!.Date!, null, System.Globalization.DateTimeStyles.RoundtripKind).AddDays(-1);
         }
         else
         {
-            start = DateTime.Parse(ge.Start?.DateTime ?? DateTime.Now.ToString("o"));
-            end = DateTime.Parse(ge.End?.DateTime ?? DateTime.Now.AddHours(1).ToString("o"));
+            start = DateTime.Parse(ge.Start?.DateTime ?? DateTime.UtcNow.ToString("o"),
+                null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime();
+            end = DateTime.Parse(ge.End?.DateTime ?? DateTime.UtcNow.AddHours(1).ToString("o"),
+                null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime();
         }
 
         var ev = new KEvent
@@ -369,6 +371,9 @@ public class GoogleSyncService : IDisposable
 
         return ev;
     }
+
+    /// <summary>KEvent → GoogleEvent 변환 (외부에서도 즉시 Push에 사용)</summary>
+    public static GoogleEvent ConvertToGoogleEvent(KEvent ke) => LocalToGoogleEvent(ke);
 
     private static GoogleEvent LocalToGoogleEvent(KEvent ke)
     {
@@ -429,16 +434,17 @@ public class GoogleSyncService : IDisposable
 
         if (isAllday)
         {
-            local.Start = DateTime.Parse(google.Start!.Date!);
+            local.Start = DateTime.Parse(google.Start!.Date!, null, System.Globalization.DateTimeStyles.RoundtripKind);
             // Google Calendar의 종일 이벤트 End는 exclusive(배타적)이므로
             // inclusive(포함)로 변환: 1일 빼기
-            // 예: Google "3/25~4/2(exclusive)" → 로컬 "3/25~4/1(inclusive)"
-            local.End = DateTime.Parse(google.End!.Date!).AddDays(-1);
+            local.End = DateTime.Parse(google.End!.Date!, null, System.Globalization.DateTimeStyles.RoundtripKind).AddDays(-1);
         }
         else
         {
-            local.Start = DateTime.Parse(google.Start?.DateTime ?? local.Start.ToString("o"));
-            local.End = DateTime.Parse(google.End?.DateTime ?? local.End.ToString("o"));
+            local.Start = DateTime.Parse(google.Start?.DateTime ?? local.Start.ToString("o"),
+                null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime();
+            local.End = DateTime.Parse(google.End?.DateTime ?? local.End.ToString("o"),
+                null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime();
         }
 
         // extendedProperties에서 Ktask 통합 데이터 업데이트
@@ -526,7 +532,7 @@ public class GoogleSyncService : IDisposable
             return result;
         }
 
-        // 학교 캘린더(수업/담임/업무가 매핑된 Google 캘린더) 찾기
+        // 학교 캘린더(수업/학급/업무가 매핑된 Google 캘린더) 찾기
         using var service = Scheduler.Scheduler.CreateService();
         var schoolCalendar = (await service.GetAllCalendarsAsync())
             .FirstOrDefault(c => c.Title == CategoryNames.Lesson && !string.IsNullOrEmpty(c.GoogleId));

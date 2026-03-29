@@ -322,7 +322,7 @@ public sealed partial class Kcalendar : Page
                         if (schedules.Count > 0)
                             Debug.WriteLine($"[UpdateCells] {cellDate:yyyy-MM-dd} 스케줄: {schedules.Count}개");
 
-                        // KEvent를 task와 event로 분리 (다중일 이벤트: Start~End 범위에 해당 날짜 포함)
+                        // KEvent를 task와 event로 분리 (다중일 이벤트: Start~End 범위, End는 inclusive)
                         var dayEvents = KEvents?
                             .Where(x => cellDate.Date >= x.Start.Date && cellDate.Date <= x.End.Date)
                             .ToList() ?? new List<KEvent>();

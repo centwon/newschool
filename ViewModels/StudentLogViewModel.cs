@@ -243,12 +243,13 @@ namespace NewSchool.ViewModels
         /// <summary>작성일</summary>
         public DateTimeOffset Date
         {
-            get => _studentlog.Date.ToUniversalTime();
+            get => new DateTimeOffset(_studentlog.Date);
             set
             {
-                if (_studentlog.Date != value)
+                var localDate = value.LocalDateTime;
+                if (_studentlog.Date != localDate)
                 {
-                    _studentlog.Date = value.LocalDateTime;
+                    _studentlog.Date = localDate;
                     OnPropertyChanged(nameof(Date));
                     OnPropertyChanged(nameof(DateString));
                 }

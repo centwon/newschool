@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -38,12 +39,8 @@ public sealed partial class StudentSpecPage : Page
 
     #region Initialization
 
-    /// <summary>
-    /// 필터 초기화
-    /// </summary>
     private void InitializeFilters()
     {
-        // 카테고리 초기화
         var categories = new List<LogCategory>
         {
             LogCategory.전체,
@@ -57,17 +54,12 @@ public sealed partial class StudentSpecPage : Page
         };
         CBoxCategory.ItemsSource = categories;
         CBoxCategory.SelectedIndex = 0;
-        
-        // SchoolFilterPicker가 자동으로 초기화함
     }
 
     #endregion
 
     #region Event Handlers - Filters
 
-    /// <summary>
-    /// 카테고리 변경
-    /// </summary>
     private void OnCategoryChanged(object sender, SelectionChangedEventArgs e)
     {
         if (CBoxCategory.SelectedItem is LogCategory category)
@@ -82,21 +74,15 @@ public sealed partial class StudentSpecPage : Page
 
     #region Event Handlers - Buttons
 
-    /// <summary>
-    /// 조회 버튼
-    /// </summary>
     private async void OnQueryClick(object sender, RoutedEventArgs e)
     {
         await LoadSpecsAsync();
     }
 
-    /// <summary>
-    /// 저장 버튼
-    /// </summary>
     private async void OnSaveClick(object sender, RoutedEventArgs e)
     {
         var selectedSpecs = SpecListViewer.SelectedSpecs.ToList();
-        
+
         if (!selectedSpecs.Any())
         {
             await MessageBox.ShowAsync("저장할 항목이 없습니다", "알림");
@@ -134,40 +120,42 @@ public sealed partial class StudentSpecPage : Page
     }
 
     /// <summary>
-    /// 삭제 버튼
+    /// 삭제 — DB에서 실제 삭제
     /// </summary>
     private async void OnDeleteClick(object sender, RoutedEventArgs e)
     {
         var selectedSpecs = SpecListViewer.SelectedSpecs.ToList();
-        
+
         if (!selectedSpecs.Any())
         {
             await MessageBox.ShowAsync("삭제할 항목이 없습니다", "알림");
             return;
         }
 
+        // DB에 저장된 항목만 카운트
+        var savedSpecs = selectedSpecs.Where(s => s.Special.No > 0).ToList();
+        var unsavedSpecs = selectedSpecs.Where(s => s.Special.No == 0).ToList();
+
+        string msg = savedSpecs.Count > 0
+            ? $"{savedSpecs.Count}개 항목을 DB에서 삭제하시겠습니까?\n(복구할 수 없습니다)"
+            : $"{unsavedSpecs.Count}개 미저장 항목을 목록에서 제거하시겠습니까?";
+
         try
         {
-            var confirmed = await MessageBox.ShowConfirmAsync(
-                $"{selectedSpecs.Count}개 항목을 삭제하시겠습니까?\n(내용이 초기화됩니다)",
-                "삭제 확인", "삭제", "취소");
+            var confirmed = await MessageBox.ShowConfirmAsync(msg, "삭제 확인", "삭제", "취소");
 
             if (confirmed)
             {
-                foreach (var spec in selectedSpecs)
+                int deletedCount = 0;
+                foreach (var spec in savedSpecs)
                 {
-                    if (spec.Special.No > 0)
-                    {
-                        // 내용 초기화
-                        spec.Special.Content = string.Empty;
-                        await _specialService.UpdateAsync(spec.Special);
-                        spec.IsSelected = false;
-                    }
+                    await _specialService.DeleteAsync(spec.Special.No);
+                    deletedCount++;
                 }
 
                 // 새로고침
                 await LoadSpecsAsync();
-                await MessageBox.ShowAsync("삭제되었습니다", "완료");
+                await MessageBox.ShowAsync($"{deletedCount + unsavedSpecs.Count}개 항목이 삭제되었습니다", "완료");
             }
         }
         catch (Exception ex)
@@ -177,38 +165,137 @@ public sealed partial class StudentSpecPage : Page
     }
 
     /// <summary>
-    /// 인쇄 버튼
+    /// 일괄 입력 — BatchDialog 열기
     /// </summary>
-    private async void OnPrintClick(object sender, RoutedEventArgs e)
+    private void OnBatchInputClick(object sender, RoutedEventArgs e)
     {
-        var selectedSpecs = SpecListViewer.SelectedSpecs.ToList();
-        
-        if (!selectedSpecs.Any())
+        int year = FilterPicker.SelectedYear;
+        int grade = FilterPicker.SelectedGrade;
+        int classNo = FilterPicker.SelectedClass;
+
+        if (year == 0 || grade == 0 || classNo == 0)
         {
-            await MessageBox.ShowAsync("인쇄할 항목이 없습니다", "알림");
+            _ = MessageBox.ShowAsync("학년도, 학년, 반을 모두 선택해주세요", "알림");
             return;
         }
 
-        // TODO: 인쇄 기능 구현
-        await MessageBox.ShowAsync("인쇄 기능은 개발 중입니다", "알림");
+        string? defaultType = _selectedCategory != LogCategory.전체
+            ? _selectedCategory.ToString()
+            : null;
+
+        var dialog = new Dialogs.StudentSpecBatchDialog(year, 0, grade, classNo, defaultType);
+        dialog.Activate();
     }
 
     /// <summary>
-    /// 폰트 크기 버튼
+    /// 일괄 출력 — 필터 다이얼로그 → PDF/엑셀
     /// </summary>
+    private async void OnBatchExportClick(object sender, RoutedEventArgs e)
+    {
+        int year = FilterPicker.SelectedYear;
+        int grade = FilterPicker.SelectedGrade;
+        int classNo = FilterPicker.SelectedClass;
+
+        if (year == 0 || grade == 0 || classNo == 0)
+        {
+            await MessageBox.ShowAsync("학년도, 학년, 반을 모두 선택해주세요", "알림");
+            return;
+        }
+
+        var filterDialog = new Dialogs.SpecExportFilterDialog { XamlRoot = this.XamlRoot };
+        var result = await filterDialog.ShowAsync();
+        if (result != ContentDialogResult.Primary) return;
+
+        var filterType = filterDialog.SelectedType;
+        var statusFilter = filterDialog.StatusFilter;
+        bool excludeEmpty = filterDialog.ExcludeEmpty;
+        bool isPdf = filterDialog.IsPdf;
+
+        try
+        {
+            string schoolCode = Settings.SchoolCode.Value;
+
+            using var enrollmentService = new EnrollmentService();
+            var enrollments = await enrollmentService.GetClassRosterAsync(schoolCode, year, grade, classNo);
+
+            if (enrollments.Count == 0)
+            {
+                await MessageBox.ShowAsync("해당 학급에 학생이 없습니다.", "알림");
+                return;
+            }
+
+            using var specService = new StudentSpecialService();
+            var studentSpecsList = new List<(int Number, string Name, List<StudentSpecial> Specs)>();
+            int totalSpecs = 0;
+
+            foreach (var enrollment in enrollments.OrderBy(e2 => e2.Number))
+            {
+                List<StudentSpecial> specs;
+
+                if (!string.IsNullOrEmpty(filterType))
+                {
+                    specs = await specService.GetByTypeAsync(enrollment.StudentID, year, filterType);
+                }
+                else
+                {
+                    specs = await specService.GetByStudentAsync(enrollment.StudentID, year);
+                }
+
+                // 상태 필터
+                if (statusFilter == "draft")
+                    specs = specs.Where(s => !s.IsFinalized).ToList();
+                else if (statusFilter == "finalized")
+                    specs = specs.Where(s => s.IsFinalized).ToList();
+
+                // 빈 항목 제외
+                if (excludeEmpty)
+                    specs = specs.Where(s => !string.IsNullOrWhiteSpace(s.Content)).ToList();
+
+                if (specs.Count == 0) continue;
+
+                studentSpecsList.Add((enrollment.Number, enrollment.Name, specs));
+                totalSpecs += specs.Count;
+            }
+
+            if (studentSpecsList.Count == 0)
+            {
+                await MessageBox.ShowAsync("조건에 맞는 기록이 없습니다.", "알림");
+                return;
+            }
+
+            string filePath;
+            if (isPdf)
+            {
+                var printService = new StudentSpecPrintService();
+                filePath = printService.GenerateClassSpecPdf(year, grade, classNo, studentSpecsList);
+            }
+            else
+            {
+                var exportService = new StudentSpecExportService();
+                filePath = exportService.ExportClassSpecsToExcel(year, grade, classNo, studentSpecsList);
+            }
+
+            Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+
+            await MessageBox.ShowAsync(
+                $"{studentSpecsList.Count}명, 총 {totalSpecs}건의 특기사항을 출력했습니다.\n저장 위치: {filePath}",
+                "일괄 출력 완료");
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync($"일괄 출력 중 오류가 발생했습니다: {ex.Message}", "오류");
+        }
+    }
+
     private void OnFontSizeClick(object sender, RoutedEventArgs e)
     {
-        // AttachedFlyout 열기
         if (sender is Button button)
         {
             FlyoutBase.ShowAttachedFlyout(button);
         }
     }
 
-    /// <summary>
-    /// 폰트 크기 변경
-    /// </summary>
-    private void OnFontSizeChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    private void OnFontSizeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         if (SpecListViewer != null)
         {
@@ -221,28 +308,20 @@ public sealed partial class StudentSpecPage : Page
 
     #region Data Loading
 
-    // LoadClassesAsync 제거 - SchoolFilterPicker가 자동으로 처리
-
-    /// <summary>
-    /// 학생부 기록 로드
-    /// </summary>
     private async Task LoadSpecsAsync()
     {
         try
         {
-            // FilterPicker에서 값 가져오기
             int selectedYear = FilterPicker.SelectedYear;
             int selectedGrade = FilterPicker.SelectedGrade;
             int selectedClass = FilterPicker.SelectedClass;
-            
-            // 필터 검증
+
             if (selectedYear == 0 || selectedGrade == 0 || selectedClass == 0)
             {
                 await MessageBox.ShowAsync("학년도, 학년, 반을 모두 선택해주세요", "알림");
                 return;
             }
 
-            // 학생 목록 가져오기
             var students = await _enrollservice.GetClassRosterAsync(Settings.SchoolCode, selectedYear, selectedGrade, selectedClass);
 
             if (!students.Any())
@@ -252,13 +331,11 @@ public sealed partial class StudentSpecPage : Page
                 return;
             }
 
-            // 학생 정보 Dictionary 생성 (StudentID -> 학생 정보 매핑)
             var studentInfoLookup = students.ToDictionary(
                 s => s.StudentID,
                 s => (Grade: s.Grade, ClassNum: s.Class, Number: s.Number, Name: s.Name)
             );
 
-            // 각 학생의 특기사항 가져오기
             var allSpecs = new List<StudentSpecial>();
 
             foreach (var student in students)
@@ -267,12 +344,10 @@ public sealed partial class StudentSpecPage : Page
 
                 if (_selectedCategory == LogCategory.전체)
                 {
-                    // 전체 조회
                     specs = await _specialService.GetByStudentAsync(student.StudentID, selectedYear);
                 }
                 else
                 {
-                    // 카테고리별 조회
                     specs = await _specialService.GetByTypeAsync(
                         student.StudentID,
                         selectedYear,
@@ -286,7 +361,6 @@ public sealed partial class StudentSpecPage : Page
                 }
                 else
                 {
-                    // 데이터가 없으면 빈 항목 추가 (자율/진로/종합의견 등)
                     if (IsAutoCreateCategory(_selectedCategory))
                     {
                         allSpecs.Add(CreateEmptySpec(student.StudentID));
@@ -294,10 +368,7 @@ public sealed partial class StudentSpecPage : Page
                 }
             }
 
-            // SpecListViewer에 로드 (학생 정보 포함)
             SpecListViewer.LoadSpecs(allSpecs, studentInfoLookup);
-
-            // 학생 정보 표시 모드 설정
             SpecListViewer.StudentInfoMode = StudentInfoMode.NumName;
         }
         catch (Exception ex)
@@ -310,18 +381,11 @@ public sealed partial class StudentSpecPage : Page
 
     #region Helper Methods
 
-    /// <summary>
-    /// 카테고리에 따른 UI 조정
-    /// </summary>
     private void UpdateUIByCategory()
     {
         // SchoolFilterPicker로 변경되어 개별 콤보박스 숨김 불필요
-        // 교과/동아리 카테고리는 조회 시 별도 로직으로 처리
     }
 
-    /// <summary>
-    /// 자동 생성 카테고리 여부
-    /// </summary>
     private bool IsAutoCreateCategory(LogCategory category)
     {
         return category switch
@@ -334,9 +398,6 @@ public sealed partial class StudentSpecPage : Page
         };
     }
 
-    /// <summary>
-    /// 빈 StudentSpecial 생성
-    /// </summary>
     private StudentSpecial CreateEmptySpec(string studentId)
     {
         return new StudentSpecial
@@ -355,10 +416,6 @@ public sealed partial class StudentSpecPage : Page
             Tag = string.Empty
         };
     }
-
-    /// <summary>
-    /// 메시지 표시
-    /// </summary>
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {

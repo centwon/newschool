@@ -645,7 +645,7 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@TeacherID", string.IsNullOrEmpty(log.TeacherID) ? DBNull.Value : log.TeacherID);
             cmd.Parameters.AddWithValue("@Year", log.Year);
             cmd.Parameters.AddWithValue("@Semester", log.Semester);
-            cmd.Parameters.AddWithValue("@Date", log.Date);
+            cmd.Parameters.AddWithValue("@Date", log.Date.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@Category", (int)log.Category); // ⭐ enum을 int로 변환
             // ⭐ CourseNo가 0이면 NULL로 저장 (외래키 제약 회피)
             cmd.Parameters.AddWithValue("@CourseNo", log.CourseNo == 0 ? (object)DBNull.Value : log.CourseNo);

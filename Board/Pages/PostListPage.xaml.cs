@@ -336,9 +336,9 @@ public sealed partial class PostListPage : Page
     // 카테고리별 기본 제안 토픽
     private static readonly Dictionary<string, List<string>> _defaultTopics = new()
     {
-        ["학급"] = new() { "자료 취합", "학급 자료", "학생 자료", "학급 안내" },
-        ["수업"] = new() { "자료 취합", "수업 자료", "과제" },
-        ["동아리"] = new() { "자료 취합", "동아리 자료", "활동 안내" },
+        ["학급"] = new() { "통계", "학급 자료", "학생 자료", "학급 안내" },
+        ["수업"] = new() { "통계", "수업 자료", "과제" },
+        ["동아리"] = new() { "통계", "동아리 자료", "활동 안내" },
     };
 
     private async void InitializeSubjectFilter()

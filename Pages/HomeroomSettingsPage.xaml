@@ -11,11 +11,11 @@
             <StackPanel Spacing="4" Padding="40,40,40,40" MaxWidth="1000" HorizontalAlignment="Center">
 
                 <TextBlock
-                    Text="담임반 설정"
+                    Text="사용자 정보"
                     Style="{StaticResource TitleTextBlockStyle}"
                     Margin="0,0,0,20"/>
 
-                <Expander Header="담임반 정보" IsExpanded="True" HorizontalAlignment="Stretch" Margin="0,0,0,8">
+                <Expander Header="사용자 / 담임반 정보" IsExpanded="True" HorizontalAlignment="Stretch" Margin="0,0,0,8">
                     <Expander.Content>
                         <StackPanel Spacing="12" Padding="16">
 

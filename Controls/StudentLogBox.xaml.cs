@@ -91,6 +91,10 @@ namespace NewSchool.Controls
 
 
             CBoxCategory.SelectedIndex = (int)log.Category;
+            // 교과활동/개인별세특이면 과목 필드 표시
+            bool showSubject = log.Category == LogCategory.교과활동 || log.Category == LogCategory.개인별세특;
+            var vis = showSubject ? Visibility.Visible : Visibility.Collapsed;
+            TxtSubjectName.Visibility = vis;
             TxtSubjectName.Text = log.SubjectName ?? string.Empty;
             ChkIsImportant.IsChecked = log.IsImportant;
 
@@ -170,6 +174,7 @@ namespace NewSchool.Controls
         /// </summary>
         public void SetSubjectName(string subjectName, bool locked = false)
         {
+            TxtSubjectName.Visibility = Visibility.Visible;
             TxtSubjectName.Text = subjectName;
             TxtSubjectName.IsReadOnly = locked;
         }
@@ -225,10 +230,10 @@ namespace NewSchool.Controls
         /// <summary>카테고리 변경 시</summary>
         private void OnCategoryChanged(object sender, SelectionChangedEventArgs e)
         {
-            // 교과활동/개인별세특이 아니면 과목명 비활성화
             var selectedIndex = CBoxCategory.SelectedIndex;
             bool showSubject = selectedIndex == 1 || selectedIndex == 2; // 교과활동, 개인별세특
-            TxtSubjectName.IsEnabled = showSubject;
+            var vis = showSubject ? Visibility.Visible : Visibility.Collapsed;
+            TxtSubjectName.Visibility = vis;
 
             if (!showSubject)
             {
@@ -351,7 +356,7 @@ namespace NewSchool.Controls
             {
                 Year = (int)NumYear.Value,
                 Semester = CBoxSemester.SelectedIndex + 1,
-                Date = DatePickerLog.Date.LocalDateTime,
+                Date = (DatePickerLog.Date ?? DateTimeOffset.Now).LocalDateTime,
                 Category = (LogCategory)CBoxCategory.SelectedIndex,
                 SubjectName = TxtSubjectName.Text,
                 ActivityName = TxtActivityName.Text,
@@ -374,7 +379,7 @@ namespace NewSchool.Controls
 
             _currentLog.Year = (int)NumYear.Value;
             _currentLog.Semester = CBoxSemester.SelectedIndex + 1;
-            _currentLog.Date = DatePickerLog.Date.LocalDateTime;
+            _currentLog.Date = (DatePickerLog.Date ?? DateTimeOffset.Now).LocalDateTime;
             _currentLog.Category = (LogCategory)CBoxCategory.SelectedIndex;
             _currentLog.SubjectName = TxtSubjectName.Text;
             _currentLog.IsImportant = ChkIsImportant.IsChecked ?? false;

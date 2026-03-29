@@ -33,9 +33,9 @@ public sealed partial class PostEditPage : Page
     // 카테고리별 기본 제안 토픽
     private static readonly Dictionary<string, List<string>> _defaultTopics = new()
     {
-        ["학급"] = new() { "자료 취합", "학급 자료", "학생 자료", "학급 안내" },
-        ["수업"] = new() { "자료 취합", "수업 자료", "과제" },
-        ["동아리"] = new() { "자료 취합", "동아리 자료", "활동 안내" },
+        ["학급"] = new() { "통계", "학급 자료", "학생 자료", "학급 안내" },
+        ["수업"] = new() { "통계", "수업 자료", "과제" },
+        ["동아리"] = new() { "통계", "동아리 자료", "활동 안내" },
     };
 
     public PostEditPage()
@@ -155,7 +155,6 @@ public sealed partial class PostEditPage : Page
         }
 
         PageTitle.Text = _isEditMode ? "게시글 수정" : "새 글 쓰기";
-        UpdateRosterButtonVisibility();
     }
 
     private async Task LoadCategoriesAsync()
@@ -257,7 +256,6 @@ public sealed partial class PostEditPage : Page
         {
             _post.Subject = selected;
         }
-        UpdateRosterButtonVisibility();
     }
 
     private void SubjectComboBox_TextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
@@ -283,14 +281,6 @@ public sealed partial class PostEditPage : Page
             sender.SelectedIndex = _allSubjects.Count - 1;
         }
         // _post.Subject는 SelectionChanged에서 자동 반영됨
-    }
-
-    private void UpdateRosterButtonVisibility()
-    {
-        var subject = SubjectComboBox.Text.Trim();
-        InsertRosterButton.Visibility = subject == "자료 취합"
-            ? Visibility.Visible
-            : Visibility.Collapsed;
     }
 
     private async void InsertRosterButton_Click(object sender, RoutedEventArgs e)

@@ -39,6 +39,10 @@ public sealed partial class SettingsPage : Page
             ProvinceNameTextBox.Text = Settings.ProvinceName.Value;
             SchoolAddressTextBox.Text = Settings.SchoolAddress.Value;
 
+            UserNameTextBox.Text = Settings.UserName.Value;
+            HomeGradeNumberBox.Value = Settings.HomeGrade.Value;
+            HomeRoomNumberBox.Value = Settings.HomeRoom.Value;
+
             WorkYearNumberBox.Value = Settings.WorkYear.Value;
             WorkSemesterComboBox.SelectedIndex = Settings.WorkSemester.Value - 1;
 
@@ -55,6 +59,30 @@ public sealed partial class SettingsPage : Page
             Debug.WriteLine($"[SettingsPage] 설정 로드 오류: {ex.Message}");
         }
     }
+
+    #region 사용자 / 담임반
+
+    private void OnUserNameChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_isInitialized) return;
+        Settings.UserName.Set(UserNameTextBox.Text);
+    }
+
+    private void OnHomeGradeChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (!_isInitialized) return;
+        if (!double.IsNaN(args.NewValue))
+            Settings.HomeGrade.Set((int)args.NewValue);
+    }
+
+    private void OnHomeRoomChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (!_isInitialized) return;
+        if (!double.IsNaN(args.NewValue))
+            Settings.HomeRoom.Set((int)args.NewValue);
+    }
+
+    #endregion
 
     #region 학교 정보 이벤트 핸들러
 

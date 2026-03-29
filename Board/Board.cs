@@ -19,24 +19,15 @@ namespace NewSchool.Board
     public static class Board
     {
         public static string Data_Dir { get; set; } =
-    $@"{AppDomain.CurrentDomain.BaseDirectory}\Data\Files";
+    Path.Combine(Settings.UserDataPath, "Files");
 
-        // ❌ 제거
-        // private static BoardService? _service;
-        // public static BoardService Service => _service ??= new BoardService(Settings.Board_DB);
-
-        // ✅ 추가: 매번 새로 생성하는 헬퍼
+        // ✅ 매번 새로 생성하는 헬퍼
         public static BoardService CreateService() => new BoardService(DbPath);
 
         public static CachedBoardService CreateCachedService() => new CachedBoardService(DbPath);
 
-
-        // ✅ 전체 DB 경로를 반환하는 속성 추가
-        private static string DbPath => Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "Data",
-            Settings.Board_DB.Value
-        );
+        // ✅ 전체 DB 경로
+        private static string DbPath => Path.Combine(Settings.UserDataPath, Settings.Board_DB.Value);
 
 
 
@@ -56,7 +47,7 @@ namespace NewSchool.Board
             try
             {
                 // 데이터 디렉토리 생성
-                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                string dataDir = Settings.DataDirectory;
                 if (!Directory.Exists(dataDir))
                 {
                     Directory.CreateDirectory(dataDir);

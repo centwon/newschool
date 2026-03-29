@@ -20,7 +20,7 @@ public class AttachmentService : IDisposable
 
     /// <summary>첨부파일 루트 디렉토리</summary>
     private static string AttachmentsRoot =>
-        Path.Combine(AppContext.BaseDirectory, "Data", "Attachments");
+        Path.Combine(Settings.UserDataPath, "Attachments");
 
     public AttachmentService()
     {
