@@ -17,6 +17,47 @@
                     Style="{StaticResource TitleTextBlockStyle}"
                     Margin="0,0,0,20"/>
 
+                <!-- 사용자 / 담임반 -->
+                <Expander Header="사용자 / 담임반" IsExpanded="True" HorizontalAlignment="Stretch" Margin="0,0,0,8">
+                    <Expander.Content>
+                        <StackPanel Spacing="12" Padding="16">
+
+                            <TextBox
+                                x:Name="UserNameTextBox"
+                                Header="사용자 이름"
+                                PlaceholderText="교사 이름"
+                                LostFocus="OnUserNameChanged"/>
+
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <NumberBox
+                                    x:Name="HomeGradeNumberBox"
+                                    Grid.Column="0"
+                                    Header="담임 학년"
+                                    PlaceholderText="학년"
+                                    SpinButtonPlacementMode="Inline"
+                                    Minimum="0"
+                                    Maximum="6"
+                                    ValueChanged="OnHomeGradeChanged"/>
+
+                                <NumberBox
+                                    x:Name="HomeRoomNumberBox"
+                                    Grid.Column="1"
+                                    Header="담임 반"
+                                    PlaceholderText="반"
+                                    SpinButtonPlacementMode="Inline"
+                                    Minimum="0"
+                                    Maximum="30"
+                                    ValueChanged="OnHomeRoomChanged"/>
+                            </Grid>
+                        </StackPanel>
+                    </Expander.Content>
+                </Expander>
+
                 <!-- 학교 정보 -->
                 <Expander Header="학교 정보" IsExpanded="True" HorizontalAlignment="Stretch" Margin="0,0,0,8">
                     <Expander.Content>

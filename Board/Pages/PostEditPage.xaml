@@ -52,7 +52,6 @@
             <Button x:Name="InsertRosterButton"
                     Grid.Column="3"
                     Click="InsertRosterButton_Click"
-                    Visibility="Collapsed"
                     VerticalAlignment="Center"
                     Padding="8,6">
                 <StackPanel Orientation="Horizontal" Spacing="6">

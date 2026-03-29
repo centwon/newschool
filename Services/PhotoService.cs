@@ -24,7 +24,7 @@ namespace NewSchool.Services
 
         public PhotoService()
         {
-            _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            _baseDirectory = Settings.UserDataPath;
         }
 
         public PhotoService(string baseDirectory)

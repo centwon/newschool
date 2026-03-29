@@ -99,6 +99,9 @@ private void SetAppIcon()
         {
             string tag = item.Tag?.ToString() ?? "";
 
+            // 메뉴 네비게이션 시 BackStack 정리 (메모리 절약)
+            WorkFrame.BackStack.Clear();
+
             // 태그에 따라 페이지 네비게이션
             switch (tag)
             {
@@ -227,15 +230,14 @@ private void SetAppIcon()
                     // 앱 설정
                     WorkFrame.Navigate(typeof(AppSettingsPage));
                     break;
-                case "Settings_Homeroom":
-                    // 담임반 설정
-                    WorkFrame.Navigate(typeof(HomeroomSettingsPage));
-                    break;
                 case "LessonHome":
                     WorkFrame.Navigate(typeof(LessonHomePage));
                     break;
                 case "SchoolWork":
                     WorkFrame.Navigate(typeof(PageSchoolWork));
+                    break;
+                case "Help":
+                    WorkFrame.Navigate(typeof(HelpPage));
                     break;
                 default:
                     break;

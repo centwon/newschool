@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using NewSchool.Controls;
+using NewSchool.Google;
 using Windows.UI;
 
 namespace NewSchool.Scheduler;
@@ -31,6 +32,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     private bool _isInitialized = false;
 
     private List<KCalendarList> _calendars = [];
+    private List<string> _titles = [];
 
     #endregion
 
@@ -95,9 +97,17 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
             // 신규가 아니면 삭제 버튼 표시
             SecondaryButtonText = _isNew ? string.Empty : "삭제";
-            Title = _isNew ? "새 항목" : (_isTaskMode ? "할 일 수정" : "일정 수정");
+            Title = _isNew
+                ? (_isTaskMode ? "새 할 일" : "새 일정")
+                : (_isTaskMode ? "할 일 수정" : "일정 수정");
+
+            // 구글 캘린더 동기화 체크박스 표시 여부
+            UpdateGoogleSyncCheckboxVisibility();
 
             _isInitialized = true;
+
+            // _isInitialized 후 반복 라벨 갱신 (선택 날짜 반영)
+            if (_isTaskMode) UpdateRepeatLabels();
         }
         catch (Exception ex)
         {
@@ -112,13 +122,15 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             using var service = Scheduler.CreateService();
             _calendars = await service.GetAllCalendarsAsync();
 
-            // 할 일 캘린더 (동일한 캘린더 리스트 사용)
-            CBoxTaskList.ItemsSource = _calendars.Select(c => c.Title).ToList();
+            _titles = _calendars.Select(c => c.Title).ToList();
+
+            // 할 일 캘린더
+            CBoxTaskList.ItemsSource = _titles;
             var taskIdx = _calendars.FindIndex(c => c.No == _taskEvent.CalendarId);
             CBoxTaskList.SelectedIndex = taskIdx >= 0 ? taskIdx : 0;
 
             // 캘린더 목록
-            CBoxCalendar.ItemsSource = _calendars.Select(c => c.Title).ToList();
+            CBoxCalendar.ItemsSource = _titles;
             var calIdx = _calendars.FindIndex(c => c.No == _event.CalendarId);
             CBoxCalendar.SelectedIndex = calIdx >= 0 ? calIdx : 0;
         }
@@ -171,7 +183,9 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized) return;
         _isTaskMode = RbTypeTask.IsChecked == true;
         UpdatePanelVisibility();
-        Title = _isNew ? "새 항목" : (_isTaskMode ? "할 일 수정" : "일정 수정");
+        Title = _isNew
+            ? (_isTaskMode ? "새 할 일" : "새 일정")
+            : (_isTaskMode ? "할 일 수정" : "일정 수정");
     }
 
     private void UpdatePanelVisibility()
@@ -188,8 +202,25 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     {
         if (!_isInitialized || CBoxTaskList.SelectedIndex < 0) return;
         if (CBoxTaskList.SelectedIndex < _calendars.Count)
+        {
             _taskEvent.CalendarId = _calendars[CBoxTaskList.SelectedIndex].No;
+            if (Settings.UseGoogle.Value)
+                UpdateSyncCheckbox(ChkTaskGoogleSync, CBoxTaskList.SelectedIndex);
+        }
+    }
 
+    private async void CBoxTaskList_TextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
+    {
+        args.Handled = true;
+        var text = args.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(text)) return;
+
+        var idx = await FindOrCreateCalendarAsync(text);
+        if (idx >= 0)
+        {
+            RefreshComboBoxSources();
+            sender.SelectedIndex = idx;
+        }
     }
 
     private void TaskDueDatePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
@@ -197,7 +228,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized || !args.NewDate.HasValue) return;
         var newDate = args.NewDate.Value.Date;
         _taskEvent.Start = DateTime.SpecifyKind(newDate + _taskEvent.Start.TimeOfDay, DateTimeKind.Unspecified);
-        _taskEvent.End   = DateTime.SpecifyKind(newDate.AddDays(1), DateTimeKind.Unspecified);
+        _taskEvent.End   = DateTime.SpecifyKind(newDate, DateTimeKind.Unspecified);
 
         UpdateRepeatLabels();
     }
@@ -216,6 +247,10 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized) return;
         _taskEvent.IsAllday = ChkTaskAllday.IsChecked == true;
         TaskDueTimePicker.Visibility = _taskEvent.IsAllday ? Visibility.Collapsed : Visibility.Visible;
+
+        // 종일로 전환 시 End를 Start.Date로 리셋 (시간 변경으로 자정 넘긴 경우 대비)
+        if (_taskEvent.IsAllday)
+            _taskEvent.End = DateTime.SpecifyKind(_taskEvent.Start.Date, DateTimeKind.Unspecified);
 
         UpdateRepeatLabels();
     }
@@ -253,8 +288,23 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             // 이벤트 고유 색상이 없으면 캘린더 기본색 미리보기
             if (string.IsNullOrEmpty(_event.ColorId))
                 UpdateColorPreviewHex(cal.Color);
+            if (Settings.UseGoogle.Value)
+                UpdateSyncCheckbox(ChkEventGoogleSync, CBoxCalendar.SelectedIndex);
         }
+    }
 
+    private async void CBoxCalendar_TextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
+    {
+        args.Handled = true;
+        var text = args.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(text)) return;
+
+        var idx = await FindOrCreateCalendarAsync(text);
+        if (idx >= 0)
+        {
+            RefreshComboBoxSources();
+            sender.SelectedIndex = idx;
+        }
     }
 
     private void EventStartDatePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
@@ -331,6 +381,16 @@ public sealed partial class UnifiedItemDialog : ContentDialog
                 await SaveEventAsync();
 
             if (ResultEvent == null) args.Cancel = true;
+
+            // 구글 캘린더 즉시 Push
+            if (ResultEvent != null)
+            {
+                bool shouldSync = _isTaskMode
+                    ? ChkTaskGoogleSync.IsChecked == true
+                    : ChkEventGoogleSync.IsChecked == true;
+                if (shouldSync)
+                    await PushToGoogleAsync(ResultEvent);
+            }
         }
         catch (Exception ex)
         {
@@ -389,6 +449,8 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
         var tasks = GenerateRepeatTasks();
         using var service = Scheduler.CreateService();
+
+        Debug.WriteLine($"[SaveTaskAsync] IsAllday={_taskEvent.IsAllday}, Start={_taskEvent.Start:O}, End={_taskEvent.End:O}");
 
         if (tasks.Count <= 1)
         {
@@ -464,7 +526,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         {
             var t = CloneTaskEvent(_taskEvent);
             t.Start = DateTime.SpecifyKind(current + _taskEvent.Start.TimeOfDay, DateTimeKind.Unspecified);
-            t.End   = DateTime.SpecifyKind(current.AddDays(1), DateTimeKind.Unspecified);
+            t.End   = DateTime.SpecifyKind(current, DateTimeKind.Unspecified);
             tasks.Add(t);
             count++;
 
@@ -538,7 +600,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         No = -1,
         ItemType = "task",
         Start = DateTime.SpecifyKind(date.Date.AddHours(DateTime.Now.Hour).AddMinutes(DateTime.Now.Minute), DateTimeKind.Unspecified),
-        End   = DateTime.SpecifyKind(date.Date.AddDays(1), DateTimeKind.Unspecified),
+        End   = DateTime.SpecifyKind(date.Date, DateTimeKind.Unspecified),
         IsAllday = true,
         IsDone = false,
         Status = "confirmed",
@@ -560,6 +622,124 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     #endregion
 
     #region Helpers
+
+    /// <summary>캘린더 목록에서 찾거나, 없으면 DB에 새로 생성하고 인덱스 반환</summary>
+    private async Task<int> FindOrCreateCalendarAsync(string title)
+    {
+        var idx = _titles.IndexOf(title);
+        if (idx >= 0) return idx;
+
+        try
+        {
+            using var service = Scheduler.CreateService();
+            var newId = await service.GetOrCreateCalendarIdAsync(title);
+            // DB에서 전체 목록 다시 로드
+            _calendars = await service.GetAllCalendarsAsync();
+            _titles = _calendars.Select(c => c.Title).ToList();
+            return _titles.IndexOf(title);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[UnifiedItemDialog] 캘린더 생성 오류: {ex.Message}");
+            return -1;
+        }
+    }
+
+    /// <summary>두 ComboBox의 ItemsSource를 갱신</summary>
+    private void RefreshComboBoxSources()
+    {
+        var taskIdx = CBoxTaskList.SelectedIndex;
+        var calIdx = CBoxCalendar.SelectedIndex;
+
+        CBoxTaskList.ItemsSource = null;
+        CBoxTaskList.ItemsSource = _titles;
+        CBoxCalendar.ItemsSource = null;
+        CBoxCalendar.ItemsSource = _titles;
+
+        // 인덱스 복원 (변경되지 않은 쪽)
+        if (taskIdx >= 0 && taskIdx < _titles.Count)
+            CBoxTaskList.SelectedIndex = taskIdx;
+        if (calIdx >= 0 && calIdx < _titles.Count)
+            CBoxCalendar.SelectedIndex = calIdx;
+    }
+
+    /// <summary>구글 캘린더 연동 활성화 시 체크박스 표시</summary>
+    private void UpdateGoogleSyncCheckboxVisibility()
+    {
+        bool googleEnabled = Settings.UseGoogle.Value;
+
+        if (googleEnabled)
+        {
+            // 할 일: 선택된 캘린더가 TwoWay 동기화인지 확인
+            UpdateSyncCheckbox(ChkTaskGoogleSync, CBoxTaskList.SelectedIndex);
+            UpdateSyncCheckbox(ChkEventGoogleSync, CBoxCalendar.SelectedIndex);
+        }
+        else
+        {
+            ChkTaskGoogleSync.Visibility = Visibility.Collapsed;
+            ChkEventGoogleSync.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void UpdateSyncCheckbox(CheckBox chk, int calendarIndex)
+    {
+        if (calendarIndex >= 0 && calendarIndex < _calendars.Count)
+        {
+            var cal = _calendars[calendarIndex];
+            bool isTwoWay = cal.SyncMode == "TwoWay" && !string.IsNullOrEmpty(cal.GoogleId);
+            chk.Visibility = isTwoWay ? Visibility.Visible : Visibility.Collapsed;
+            chk.IsChecked = isTwoWay; // 기본 체크
+        }
+        else
+        {
+            chk.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>저장 후 구글 캘린더에 즉시 Push</summary>
+    private async Task PushToGoogleAsync(KEvent ev)
+    {
+        try
+        {
+            var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
+            if (cal == null || string.IsNullOrEmpty(cal.GoogleId)) return;
+
+            var authService = new GoogleAuthService();
+            var apiClient = new GoogleCalendarApiClient(authService);
+            var gEvent = GoogleSyncService.ConvertToGoogleEvent(ev);
+
+            if (string.IsNullOrEmpty(ev.GoogleId))
+            {
+                // 신규 → Insert
+                var created = await apiClient.InsertEventAsync(cal.GoogleId, gEvent);
+                if (created?.Id != null)
+                {
+                    ev.GoogleId = created.Id;
+                    ev.Updated = created.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                    using var service = Scheduler.CreateService();
+                    await service.UpdateEventAsync(ev);
+                }
+            }
+            else
+            {
+                // 수정 → Update
+                var updated = await apiClient.UpdateEventAsync(cal.GoogleId, ev.GoogleId, gEvent);
+                if (updated != null)
+                {
+                    ev.Updated = updated.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                    using var service = Scheduler.CreateService();
+                    await service.UpdateEventAsync(ev);
+                }
+            }
+
+            Debug.WriteLine($"[UnifiedItemDialog] 구글 Push 완료: {ev.Title}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[UnifiedItemDialog] 구글 Push 실패: {ex.Message}");
+            // 실패해도 로컬 저장은 유지 — 다음 배치 동기화에서 재시도됨
+        }
+    }
 
     private static string KorDow(DayOfWeek d) => d switch
     {

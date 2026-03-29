@@ -266,12 +266,12 @@ namespace NewSchool.Repositories
                 {
                     LogInfo($"학생 수정 완료: No={student.No}");
                     
-                    // ⚠️ Enrollment 동기화: Name, Sex, Photo
-                    var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
+                    // Enrollment 동기화: Name, Sex, Photo
+                    using var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
                     await enrollmentRepo.SyncStudentInfoAsync(
-                        student.StudentID, 
-                        student.Name, 
-                        student.Sex, 
+                        student.StudentID,
+                        student.Name,
+                        student.Sex,
                         student.Photo
                     );
                 }
@@ -297,12 +297,12 @@ namespace NewSchool.Repositories
         /// </summary>
         public async Task<bool> DeleteByIdAsync(string studentId)
         {
-            const string query = "DELETE FROM Student WHERE ID = @ID";
+            const string query = "DELETE FROM Student WHERE StudentID = @StudentID";
 
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@ID", studentId);
+                cmd.Parameters.AddWithValue("@StudentID", studentId);
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 bool success = rowsAffected > 0;
@@ -432,8 +432,8 @@ namespace NewSchool.Repositories
                 Email = reader.IsDBNull(reader.GetOrdinal("Email")) ? string.Empty : reader.GetString(reader.GetOrdinal("Email")),
                 Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? string.Empty : reader.GetString(reader.GetOrdinal("Address")),
                 Memo = reader.IsDBNull(reader.GetOrdinal("Memo")) ? string.Empty : reader.GetString(reader.GetOrdinal("Memo")),
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt"))),
+                CreatedAt = DateTime.TryParse(reader.GetString(reader.GetOrdinal("CreatedAt")), out var ca) ? ca : DateTime.MinValue,
+                UpdatedAt = DateTime.TryParse(reader.GetString(reader.GetOrdinal("UpdatedAt")), out var ua) ? ua : DateTime.MinValue,
                 IsDeleted = reader.GetInt32(reader.GetOrdinal("IsDeleted")) == 1
             };
         }

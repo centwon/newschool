@@ -101,10 +101,8 @@
                                   VerticalAlignment="Stretch"/>
 
             <!-- 우측: StudentLogBox -->
-            <ScrollViewer Grid.Column="2"
-                          VerticalScrollBarVisibility="Auto">
-                <controls:StudentLogBox x:Name="LogBox"/>
-            </ScrollViewer>
+            <controls:StudentLogBox x:Name="LogBox"
+                                    Grid.Column="2"/>
         </Grid>
     </Grid>
 </Window>

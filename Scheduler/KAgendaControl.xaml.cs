@@ -343,9 +343,9 @@ public sealed partial class KAgendaControl : UserControl
             }
             else
             {
-                // 다일 일정: 각 날짜별로 AgendaItem 생성
+                // 다일 일정: 각 날짜별로 AgendaItem 생성 (End는 inclusive)
                 int days = (ev.End.Date - ev.Start.Date).Days;
-                if (days <= 0) days = 0; // 같은 날 또는 종료<시작 방지
+                if (days < 0) days = 0;
 
                 for (int d = 0; d <= days; d++)
                 {

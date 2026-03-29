@@ -30,13 +30,10 @@ public class SeatsPrintService
         QuestPDF.Settings.License = LicenseType.Community;
 
         var fileName = $"좌석배정표_{grade}학년{classRoom}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "NewSchool", "Prints", fileName);
-
-        var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            Directory.CreateDirectory(directory);
+        var printsDir = Path.Combine(Settings.UserDataPath, "Prints");
+        if (!Directory.Exists(printsDir))
+            Directory.CreateDirectory(printsDir);
+        var filePath = Path.Combine(printsDir, fileName);
 
         // 좌석 그리드 크기 계산
         int totalCols = jul * jjak;

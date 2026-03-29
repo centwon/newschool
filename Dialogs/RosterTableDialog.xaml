@@ -32,21 +32,29 @@
         </StackPanel>
 
         <!-- 학급 선택 (Class scope) -->
-        <StackPanel x:Name="ClassPanel" Spacing="4">
-            <TextBlock Text="학년 / 반" FontWeight="SemiBold"/>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <NumberBox x:Name="GradeBox"
-                           Minimum="1" Maximum="6"
-                           SpinButtonPlacementMode="Compact"
-                           Header=""
-                           MinWidth="100"/>
-                <TextBlock Text="학년" VerticalAlignment="Center"/>
-                <NumberBox x:Name="ClassBox"
-                           Minimum="1" Maximum="30"
-                           SpinButtonPlacementMode="Compact"
-                           Header=""
-                           MinWidth="100"/>
-                <TextBlock Text="반" VerticalAlignment="Center"/>
+        <StackPanel x:Name="ClassPanel" Spacing="8">
+            <StackPanel Spacing="4">
+                <TextBlock Text="학년 / 반" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <NumberBox x:Name="GradeBox"
+                               Minimum="1" Maximum="6"
+                               SpinButtonPlacementMode="Compact"
+                               Header=""
+                               MinWidth="100"
+                               ValueChanged="GradeBox_ValueChanged"/>
+                    <TextBlock Text="학년" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="ClassComboBox"
+                              MinWidth="120"
+                              PlaceholderText="반 선택"
+                              SelectionChanged="ClassComboBox_SelectionChanged"/>
+                </StackPanel>
+            </StackPanel>
+            <StackPanel x:Name="ClassLayoutPanel" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="레이아웃" FontWeight="SemiBold"/>
+                <RadioButtons x:Name="ClassLayoutRadio" SelectedIndex="0">
+                    <RadioButton Content="세로 (반별 구분)" Tag="Vertical"/>
+                    <RadioButton Content="가로 (반별 칼럼)" Tag="Horizontal"/>
+                </RadioButtons>
             </StackPanel>
         </StackPanel>
 
@@ -67,7 +75,15 @@
                       HorizontalAlignment="Stretch"
                       PlaceholderText="강의실을 선택하세요"
                       Margin="0,4,0,0"
-                      Visibility="Collapsed"/>
+                      Visibility="Collapsed"
+                      SelectionChanged="RoomComboBox_SelectionChanged"/>
+            <StackPanel x:Name="CourseLayoutPanel" Spacing="4" Visibility="Collapsed" Margin="0,4,0,0">
+                <TextBlock Text="레이아웃" FontWeight="SemiBold"/>
+                <RadioButtons x:Name="CourseLayoutRadio" SelectedIndex="0">
+                    <RadioButton Content="세로 (강의실별 구분)" Tag="Vertical"/>
+                    <RadioButton Content="가로 (강의실별 칼럼)" Tag="Horizontal"/>
+                </RadioButtons>
+            </StackPanel>
         </StackPanel>
 
         <!-- 동아리 선택 (Club scope) -->

@@ -393,7 +393,7 @@ namespace NewSchool.Helpers
         public static string CreateStudentTemplate(string? filePath = null)
         {
             string outputPath = filePath ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                Settings.UserDataPath, "Exports",
                 $"학생명단_템플릿_{DateTime.Now:yyyyMMdd}.xlsx");
 
             var template = new List<Dictionary<string, object>>

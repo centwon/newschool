@@ -100,13 +100,6 @@
                                 <FontIcon Glyph="&#xE8D3;"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem
-                            Tag="Settings_Homeroom"
-                            Content="담임반 설정">
-                            <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE716;"/>
-                            </NavigationViewItem.Icon>
-                        </NavigationViewItem>
                     </NavigationViewItem.MenuItems>
                 </NavigationViewItem>
 
@@ -249,6 +242,13 @@
                             Content="앱 설정">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE713;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem
+                            Tag="Help"
+                            Content="도움말">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE897;"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                     </NavigationViewItem.MenuItems>

@@ -8,6 +8,7 @@
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
+    <Version>1.0.2</Version>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -68,8 +69,11 @@
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
   </ItemGroup>
 
-  <!-- Jodit Editor - Virtual Host Mapping용 Content 파일 -->
+  <!-- WebView2 Content 파일 (Jodit Editor + 도움말) -->
   <ItemGroup>
+    <Content Include="Assets\help.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Assets\Jodit\editor.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -110,9 +114,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.5" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260317003" />
     <PackageReference Include="MiniExcel" Version="1.43.0" />
-    <PackageReference Include="QuestPDF" Version="2026.2.3" />
+    <PackageReference Include="QuestPDF" Version="2026.2.4" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
     <PackageReference Include="SQLitePCLRaw.core" Version="3.0.2" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.5" />
@@ -226,6 +230,9 @@
     <ApplicationManifest></ApplicationManifest>
     <ApplicationIcon>newschool.ico</ApplicationIcon>
     <PackageIcon>newschool.png</PackageIcon>
+    <!-- Release 게시 시 PDB 제외 (123MB 절약) -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
   </PropertyGroup>
 
   <!-- ==========================================
@@ -240,13 +247,21 @@
     <Content Remove="Docs\**" />
     <None Remove="Docs\**" />
 
-    <!-- QuestPDF LatoFont 출력 제외 (코드에서 미사용, ~12MB 절약) -->
-    <None Remove="$(NuGetPackageRoot)questpdf\**\LatoFont\*.*" />
+    <!-- .gitignore 제외 -->
+    <Content Remove=".gitignore" />
+    <None Remove=".gitignore" />
+
+    <!-- Inno Setup 스크립트 출력 제외 -->
+    <Content Remove="installer.iss" />
+    <None Remove="installer.iss" />
 
     <!-- Properties 디렉토리 출력 제외 (launchSettings, PublishProfiles) -->
     <Content Remove="Properties\launchSettings.json" />
     <Content Remove="Properties\PublishProfiles\**" />
     <None Update="Properties\launchSettings.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Update="Properties\PublishProfiles\**">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
 
@@ -255,4 +270,48 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- QuestPDF LatoFont 출력 제외 (~12MB 절약, 코드에서 미사용) -->
+  <Target Name="RemoveQuestPdfLaToFont" BeforeTargets="AssignTargetPaths">
+    <ItemGroup>
+      <None Remove="@(None)" Condition="'%(None.Link)' != '' and $([System.String]::new('%(None.Link)').StartsWith('LatoFont'))" />
+    </ItemGroup>
+  </Target>
+
+  <!-- 게시 폴더에 복사 방지 -->
+  <ItemGroup>
+    <Content Remove="installer.iss" />
+    <Content Remove="prerequisites\**" />
+    <None Remove="installer.iss" />
+    <None Remove="prerequisites\**" />
+  </ItemGroup>
+
+  <!-- 게시 후 불필요 파일/폴더 정리 -->
+  <Target Name="CleanPublishOutput" AfterTargets="Publish">
+    <ItemGroup>
+      <_PublishXamlFiles Include="$(PublishDir)**\*.xaml" />
+      <_PublishPdbFiles Include="$(PublishDir)**\*.pdb" />
+      <_PublishManifestFiles Include="$(PublishDir)app.manifest" />
+      <_PublishGitignoreFiles Include="$(PublishDir).gitignore" />
+      <_PublishPropertiesFiles Include="$(PublishDir)Properties\**\*" />
+      <_PublishInstallerFiles Include="$(PublishDir)Installer\**\*" />
+      <_PublishPrereqFiles Include="$(PublishDir)prerequisites\**\*" />
+    </ItemGroup>
+    <Delete Files="@(_PublishXamlFiles)" />
+    <Delete Files="@(_PublishPdbFiles)" />
+    <Delete Files="@(_PublishManifestFiles)" />
+    <Delete Files="@(_PublishGitignoreFiles)" />
+    <Delete Files="@(_PublishPropertiesFiles)" />
+    <Delete Files="@(_PublishInstallerFiles)" />
+    <Delete Files="@(_PublishPrereqFiles)" />
+    <RemoveDir Directories="$(PublishDir)Properties" />
+    <RemoveDir Directories="$(PublishDir)Pages" />
+    <RemoveDir Directories="$(PublishDir)Controls" />
+    <RemoveDir Directories="$(PublishDir)Dialogs" />
+    <RemoveDir Directories="$(PublishDir)Board" />
+    <RemoveDir Directories="$(PublishDir)Scheduler" />
+    <RemoveDir Directories="$(PublishDir)Installer" />
+    <RemoveDir Directories="$(PublishDir)prerequisites" />
+    <Message Text="[CleanPublishOutput] 불필요 파일/폴더 정리 완료" Importance="high" />
+  </Target>
 </Project>

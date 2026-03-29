@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -21,6 +22,7 @@ public sealed partial class AppSettingsPage : Page
 
     private void AppSettingsPage_Loaded(object sender, RoutedEventArgs e)
     {
+        StartWithWindowsToggle.IsOn = Settings.IsStartWithWindowsRegistered();
         TopMostToggle.IsOn = Settings.TopMost.Value;
         ThemeComboBox.SelectedIndex = Settings.Theme.Value switch
         {
@@ -37,6 +39,7 @@ public sealed partial class AppSettingsPage : Page
         AutoBackupToggle.IsOn = Settings.AutoBackup.Value;
         AutoBackupIntervalDaysNumberBox.Value = Settings.AutoBackupIntervalDays.Value;
         BackupRetentionCountNumberBox.Value = Settings.BackupRetentionCount.Value;
+        UpdateLastBackupTimeText();
 
         LogLevelComboBox.SelectedIndex = Settings.LogLevel.Value switch
         {
@@ -47,10 +50,21 @@ public sealed partial class AppSettingsPage : Page
             _ => 1
         };
 
+        DataPathText.Text = Settings.UserDataPath;
+        DataModeText.Text = Settings.IsPortableMode ? "포터블 모드 (실행 파일 위치)" : "사용자 폴더 모드";
+
+        CurrentVersionText.Text = $"v{Services.UpdateService.CurrentVersion.ToString(3)}";
+
         _isInitialized = true;
     }
 
     #region 일반
+
+    private void OnStartWithWindowsToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_isInitialized) return;
+        Settings.SetStartWithWindows(StartWithWindowsToggle.IsOn);
+    }
 
     private void OnTopMostToggled(object sender, RoutedEventArgs e)
     {
@@ -149,7 +163,10 @@ public sealed partial class AppSettingsPage : Page
         {
             string? backupPath = Settings.Backup();
             if (!string.IsNullOrEmpty(backupPath))
+            {
+                UpdateLastBackupTimeText();
                 await MessageBox.ShowAsync($"백업이 완료되었습니다.\n경로: {backupPath}", "백업 완료");
+            }
             else
                 await MessageBox.ShowAsync("백업 중 오류가 발생했습니다.", "백업 실패");
         }
@@ -163,25 +180,28 @@ public sealed partial class AppSettingsPage : Page
     {
         try
         {
-            var picker = new FileOpenPicker();
+            var picker = new Windows.Storage.Pickers.FolderPicker();
             var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
             InitializeWithWindow.Initialize(picker, hwnd);
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add("*");
 
-            picker.ViewMode = PickerViewMode.List;
-            picker.FileTypeFilter.Add(".db");
-
-            var file = await picker.PickSingleFileAsync();
-            if (file != null)
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder != null)
             {
-                bool success = Settings.Restore(file.Path);
+                var confirmed = await MessageBox.ShowConfirmAsync(
+                    $"'{folder.Name}' 백업을 복원하시겠습니까?\n현재 데이터가 덮어씌워집니다.\n복원 후 앱을 재시작해야 합니다.",
+                    "복원 확인", "복원", "취소");
+                if (!confirmed) return;
+
+                bool success = Settings.Restore(folder.Path);
                 if (success)
                 {
-                    AppSettingsPage_Loaded(this, new RoutedEventArgs());
-                    await MessageBox.ShowAsync("설정이 복원되었습니다.", "복원 완료");
+                    await MessageBox.ShowAsync("복원이 완료되었습니다.\n앱을 재시작해주세요.", "복원 완료");
                 }
                 else
                 {
-                    await MessageBox.ShowAsync("설정 복원 중 오류가 발생했습니다.", "복원 실패");
+                    await MessageBox.ShowAsync("복원 중 오류가 발생했습니다.", "복원 실패");
                 }
             }
         }
@@ -189,6 +209,23 @@ public sealed partial class AppSettingsPage : Page
         {
             await MessageBox.ShowAsync(ex.Message, "복원 오류");
         }
+    }
+
+    private void OnOpenBackupFolderClick(object sender, RoutedEventArgs e)
+    {
+        var backupDir = Settings.BackupDirectory;
+        if (!System.IO.Directory.Exists(backupDir))
+            System.IO.Directory.CreateDirectory(backupDir);
+        Process.Start(new ProcessStartInfo { FileName = backupDir, UseShellExecute = true });
+    }
+
+    private void UpdateLastBackupTimeText()
+    {
+        var lastBackup = Settings.LastBackupTime.Value;
+        if (!string.IsNullOrEmpty(lastBackup) && DateTime.TryParse(lastBackup, out var dt))
+            LastBackupTimeText.Text = $"마지막 백업: {dt:yyyy-MM-dd HH:mm}";
+        else
+            LastBackupTimeText.Text = "마지막 백업: 없음";
     }
 
     #endregion
@@ -222,6 +259,22 @@ public sealed partial class AppSettingsPage : Page
         Logging.FileLogger.Instance.SetMinimumLevel(logLevel);
     }
 
+    private void OnOpenLogFolderClick(object sender, RoutedEventArgs e)
+    {
+        var logDir = System.IO.Path.Combine(Settings.UserDataPath, "Logs");
+        if (!System.IO.Directory.Exists(logDir))
+            System.IO.Directory.CreateDirectory(logDir);
+        Process.Start(new ProcessStartInfo { FileName = logDir, UseShellExecute = true });
+    }
+
+    private void OnOpenDataFolderClick(object sender, RoutedEventArgs e)
+    {
+        var dataDir = Settings.UserDataPath;
+        if (!System.IO.Directory.Exists(dataDir))
+            System.IO.Directory.CreateDirectory(dataDir);
+        Process.Start(new ProcessStartInfo { FileName = dataDir, UseShellExecute = true });
+    }
+
     private async void OnResetSettingsClick(object sender, RoutedEventArgs e)
     {
         var confirmed = await MessageBox.ShowConfirmAsync(
@@ -236,10 +289,54 @@ public sealed partial class AppSettingsPage : Page
         }
     }
 
-    private async void OnPrintSettingsClick(object sender, RoutedEventArgs e)
+    #endregion
+
+    #region 업데이트
+
+    private string _downloadUrl = "";
+
+    private async void OnCheckUpdateClick(object sender, RoutedEventArgs e)
     {
-        Settings.PrintAll();
-        await MessageBox.ShowAsync("설정 정보가 디버그 콘솔에 출력되었습니다.", "설정 출력");
+        CheckUpdateButton.IsEnabled = false;
+        UpdateProgressRing.Visibility = Visibility.Visible;
+        UpdateProgressRing.IsActive = true;
+        UpdateStatusText.Visibility = Visibility.Collapsed;
+        DownloadLink.Visibility = Visibility.Collapsed;
+
+        var result = await Services.UpdateService.CheckForUpdateAsync();
+
+        UpdateProgressRing.IsActive = false;
+        UpdateProgressRing.Visibility = Visibility.Collapsed;
+        CheckUpdateButton.IsEnabled = true;
+        UpdateStatusText.Visibility = Visibility.Visible;
+
+        if (!result.IsSuccess)
+        {
+            UpdateStatusText.Text = result.ErrorMessage;
+            return;
+        }
+
+        var info = result.Info!;
+        if (info.IsUpdateAvailable)
+        {
+            UpdateStatusText.Text = $"새 버전이 있습니다: v{info.LatestVersion.ToString(3)}"
+                + (string.IsNullOrEmpty(info.ReleaseName) ? "" : $"\n{info.ReleaseName}")
+                + (string.IsNullOrEmpty(info.ReleaseNotes) ? "" : $"\n\n{info.ReleaseNotes}");
+            _downloadUrl = info.DownloadUrl;
+            DownloadLink.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            UpdateStatusText.Text = "현재 최신 버전을 사용하고 있습니다.";
+        }
+    }
+
+    private void OnDownloadLinkClick(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(_downloadUrl))
+        {
+            Process.Start(new ProcessStartInfo(_downloadUrl) { UseShellExecute = true });
+        }
     }
 
     #endregion

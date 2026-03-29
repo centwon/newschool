@@ -714,7 +714,11 @@ public sealed partial class MemoBoard : UserControl
         {
             _selectedPost.Category = GetSelectedCategory();
             _selectedPost.Content = _memoEditor?.Text ?? _selectedPost.Content;
-            _selectedPost.Title = ExtractTitleFromPlainText(_memoEditor?.PlainText);
+
+            // 제목이 비어있을 때만 자동 생성 (기존 제목 보존)
+            if (string.IsNullOrWhiteSpace(_selectedPost.Title))
+                _selectedPost.Title = ExtractTitleFromPlainText(_memoEditor?.PlainText);
+
             _selectedPost.DateTime = DateTime.Now;
 
             if (_currentTxtTitle != null)
@@ -844,7 +848,11 @@ public sealed partial class MemoBoard : UserControl
         {
             _selectedPost.Category = GetSelectedCategory();
             _selectedPost.Content = _memoEditor?.Text ?? "";
-            _selectedPost.Title = ExtractTitleFromPlainText(_memoEditor?.PlainText);
+
+            // 제목이 비어있을 때만 자동 생성 (기존 제목 보존)
+            if (string.IsNullOrWhiteSpace(_selectedPost.Title))
+                _selectedPost.Title = ExtractTitleFromPlainText(_memoEditor?.PlainText);
+
             _selectedPost.DateTime = DateTime.Now;
 
             if (_currentTxtTitle != null)

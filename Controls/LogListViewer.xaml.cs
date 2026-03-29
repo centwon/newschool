@@ -30,6 +30,7 @@ public sealed partial class LogListViewer : UserControl
     private LogCategory _category = LogCategory.전체;
     private StudentLogViewModel? _focusedLog;
     private Border? _focusedBorder;
+    private bool _isLoading;
 
     #endregion
 
@@ -285,6 +286,30 @@ public sealed partial class LogListViewer : UserControl
     }
 
     /// <summary>
+    /// 실제 데이터에 따라 빈 칼럼 숨김
+    /// </summary>
+    private void AdjustColumnsToData()
+    {
+        if (Logs.Count == 0) return;
+
+        // 세부영역(SubjectName)이 하나도 없으면 칼럼 숨김
+        bool hasSubject = Logs.Any(l => !string.IsNullOrWhiteSpace(l.SubjectName));
+        if (!hasSubject)
+        {
+            ColSubjectHeader.Width = new GridLength(0);
+        }
+
+        // 전체 모드에서 카테고리가 모두 동일하면 영역 칼럼 숨김
+        if (_category == LogCategory.전체 && Logs.Select(l => l.Category).Distinct().Count() == 1)
+        {
+            ColCategoryHeader.Width = new GridLength(0);
+            TxtCategoryHeader.Visibility = Visibility.Collapsed;
+        }
+
+        UpdateDataRowColumns();
+    }
+
+    /// <summary>
     /// 데이터 행 Grid Loaded 이벤트 - 열 너비를 헤더와 동기화
     /// </summary>
     private void OnDataRowGridLoaded(object sender, RoutedEventArgs e)
@@ -459,19 +484,23 @@ public sealed partial class LogListViewer : UserControl
 
     #region Text Change Handlers
 
-    /// <summary>주제 변경 시 자동 선택</summary>
+    /// <summary>주제 변경 시 자동 선택 (사용자 입력 시에만)</summary>
     private void OnTopicChanged(object sender, TextChangedEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.Tag is StudentLogViewModel log)
+        if (_isLoading) return;
+        if (sender is TextBox textBox && textBox.FocusState != FocusState.Unfocused
+            && textBox.Tag is StudentLogViewModel log)
         {
             log.IsSelected = true;
         }
     }
 
-    /// <summary>기록 내용 변경 시 자동 선택 + 바이트 계산</summary>
+    /// <summary>기록 내용 변경 시 자동 선택 (사용자 입력 시에만)</summary>
     private void OnLogChanged(object sender, TextChangedEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.Tag is StudentLogViewModel log)
+        if (_isLoading) return;
+        if (sender is TextBox textBox && textBox.FocusState != FocusState.Unfocused
+            && textBox.Tag is StudentLogViewModel log)
         {
             log.IsSelected = true;
         }
@@ -485,6 +514,7 @@ public sealed partial class LogListViewer : UserControl
     public void LoadLogs(System.Collections.Generic.IEnumerable<StudentLogViewModel> logs)
     {
         System.Diagnostics.Debug.WriteLine($"[LogListViewer] LoadLogs 시작");
+        _isLoading = true;
         Logs.Clear();
         int count = 0;
         foreach (var log in logs)
@@ -492,7 +522,9 @@ public sealed partial class LogListViewer : UserControl
             Logs.Add(log);
             count++;
         }
+        _isLoading = false;
         System.Diagnostics.Debug.WriteLine($"[LogListViewer] LoadLogs 완료: {count}건 추가됨, Logs.Count={Logs.Count}");
+        AdjustColumnsToData();
     }
 
     /// <summary>모든 선택 해제</summary>
