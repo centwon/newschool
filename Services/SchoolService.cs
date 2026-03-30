@@ -25,6 +25,43 @@ namespace NewSchool.Services
         #region 학교 기본 관리
 
         /// <summary>
+        /// 학교 저장 (Upsert: 있으면 업데이트, 없으면 생성)
+        /// </summary>
+        public async Task<School> SaveSchoolAsync(School school)
+        {
+            using var repo = new SchoolRepository(_dbPath);
+            var existing = await repo.GetBySchoolCodeAsync(school.SchoolCode);
+
+            if (existing != null)
+            {
+                existing.SchoolName = school.SchoolName;
+                existing.ATPT_OFCDC_SC_CODE = school.ATPT_OFCDC_SC_CODE;
+                existing.ATPT_OFCDC_SC_NAME = school.ATPT_OFCDC_SC_NAME;
+                existing.SchoolType = school.SchoolType;
+                existing.Address = school.Address;
+                existing.Phone = school.Phone;
+                existing.Fax = school.Fax;
+                existing.Website = school.Website;
+                existing.FoundationDate = school.FoundationDate;
+                existing.IsActive = true;
+                existing.UpdatedAt = DateTime.Now;
+
+                await repo.UpdateAsync(existing);
+                return existing;
+            }
+            else
+            {
+                school.IsActive = true;
+                school.IsDeleted = false;
+                school.CreatedAt = DateTime.Now;
+                school.UpdatedAt = DateTime.Now;
+
+                school.No = await repo.CreateAsync(school);
+                return school;
+            }
+        }
+
+        /// <summary>
         /// 학교 등록
         /// </summary>
         public async Task<(bool Success, string Message, int SchoolNo)> CreateSchoolAsync(School school)

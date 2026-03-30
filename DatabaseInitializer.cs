@@ -318,40 +318,6 @@ namespace NewSchool.Database
             Debug.WriteLine("[DatabaseInitializer] CourseEnrollment 테이블 생성 완료");
 
             // ==========================================
-            // 13. Evaluation 테이블 (평가/성적)
-            // ⭐ TeacherID NULL 허용 + ON DELETE SET NULL 추가
-            // ==========================================
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS Evaluation (
-                    No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    StudentID TEXT NOT NULL,
-                    SchoolCode TEXT NOT NULL,
-                    Year INTEGER NOT NULL,
-                    Semester INTEGER NOT NULL,
-                    CourseNo INTEGER NOT NULL,
-                    Subject TEXT NOT NULL,
-                    EvaluationType TEXT DEFAULT '지필',
-                    Round INTEGER DEFAULT 1,
-                    Score REAL DEFAULT 0,
-                    MaxScore REAL DEFAULT 100,
-                    Grade TEXT,
-                    Rank INTEGER DEFAULT 0,
-                    TotalStudents INTEGER DEFAULT 0,
-                    Achievement TEXT,
-                    TeacherID TEXT NULL,
-                    Memo TEXT,
-                    CreatedAt TEXT NOT NULL,
-                    UpdatedAt TEXT NOT NULL,
-                    IsDeleted INTEGER DEFAULT 0,
-                    FOREIGN KEY (StudentID) REFERENCES Student(StudentID) ON DELETE CASCADE,
-                    FOREIGN KEY (SchoolCode) REFERENCES School(SchoolCode),
-                    FOREIGN KEY (CourseNo) REFERENCES Course(No) ON DELETE CASCADE,
-                    FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL
-                );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Evaluation 테이블 생성 완료");
-
-            // ==========================================
             // 14. StudentLog 테이블 (학생 기록부) - ⭐ 확장 버전
             // Category: INTEGER (LogCategory enum 값)
             // 구조화된 활동 기록 필드 추가
@@ -476,27 +442,6 @@ namespace NewSchool.Database
                 );";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] ClubEnrollment 테이블 생성 완료");
-
-            // ==========================================
-            // Attachment 테이블 (공통 첨부파일)
-            // LessonLog, ClassDiary, CourseSection 등에서 사용
-            // ==========================================
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS Attachment (
-                    No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    OwnerType TEXT NOT NULL,
-                    OwnerNo INTEGER NOT NULL,
-                    FileName TEXT NOT NULL,
-                    OriginalFileName TEXT NOT NULL,
-                    FileSize INTEGER DEFAULT 0,
-                    FilePath TEXT NOT NULL,
-                    ContentType TEXT DEFAULT '',
-                    Description TEXT DEFAULT '',
-                    SortOrder INTEGER DEFAULT 0,
-                    CreatedAt TEXT NOT NULL
-                );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Attachment 테이블 생성 완료");
 
             // LessonLog 테이블
             cmd.CommandText = @"
@@ -635,12 +580,6 @@ namespace NewSchool.Database
                 CREATE INDEX IF NOT EXISTS idx_courseenrollment_course ON CourseEnrollment(CourseNo);
                 CREATE INDEX IF NOT EXISTS idx_courseenrollment_status ON CourseEnrollment(Status);
 
-                -- Evaluation 인덱스
-                CREATE INDEX IF NOT EXISTS idx_evaluation_student ON Evaluation(StudentID, Year, Semester);
-                CREATE INDEX IF NOT EXISTS idx_evaluation_course ON Evaluation(CourseNo, EvaluationType, Round);
-                CREATE INDEX IF NOT EXISTS idx_evaluation_teacher ON Evaluation(TeacherID);
-                CREATE INDEX IF NOT EXISTS idx_evaluation_rank ON Evaluation(CourseNo, Rank);
-
                 -- StudentLog 인덱스 (성능 최적화)
                 CREATE INDEX IF NOT EXISTS idx_studentlog_student ON StudentLog(StudentID, Year, Semester);
                 CREATE INDEX IF NOT EXISTS idx_studentlog_teacher ON StudentLog(TeacherID, Year, Semester);
@@ -680,9 +619,6 @@ namespace NewSchool.Database
                 CREATE INDEX IF NOT EXISTS idx_classdiary_date ON ClassDiary(Date);
                 CREATE INDEX IF NOT EXISTS idx_classdiary_teacher ON ClassDiary(TeacherID);
 
-                -- Attachment 인덱스
-                CREATE INDEX IF NOT EXISTS idx_attachment_owner ON Attachment(OwnerType, OwnerNo);
-                CREATE INDEX IF NOT EXISTS idx_attachment_type ON Attachment(OwnerType);
             ";
 
             await cmd.ExecuteNonQueryAsync();

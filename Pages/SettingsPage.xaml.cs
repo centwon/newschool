@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using NewSchool.Controls;
 using NewSchool.Dialogs;
 using NewSchool.Models;
-using NewSchool.Repositories;
+using NewSchool.Services;
 
 namespace NewSchool.Pages;
 
@@ -132,36 +132,8 @@ public sealed partial class SettingsPage : Page
     {
         try
         {
-            string dbPath = SchoolDatabase.DbPath;
-            using var schoolRepo = new SchoolRepository(dbPath);
-
-            var existingSchool = await schoolRepo.GetBySchoolCodeAsync(school.SchoolCode);
-
-            if (existingSchool != null)
-            {
-                existingSchool.SchoolName = school.SchoolName;
-                existingSchool.ATPT_OFCDC_SC_CODE = school.ATPT_OFCDC_SC_CODE;
-                existingSchool.ATPT_OFCDC_SC_NAME = school.ATPT_OFCDC_SC_NAME;
-                existingSchool.SchoolType = school.SchoolType;
-                existingSchool.Address = school.Address;
-                existingSchool.Phone = school.Phone;
-                existingSchool.Fax = school.Fax;
-                existingSchool.Website = school.Website;
-                existingSchool.FoundationDate = school.FoundationDate;
-                existingSchool.IsActive = true;
-                existingSchool.UpdatedAt = DateTime.Now;
-
-                await schoolRepo.UpdateAsync(existingSchool);
-            }
-            else
-            {
-                school.CreatedAt = DateTime.Now;
-                school.UpdatedAt = DateTime.Now;
-                school.IsActive = true;
-                school.IsDeleted = false;
-
-                await schoolRepo.CreateAsync(school);
-            }
+            using var schoolService = new SchoolService(SchoolDatabase.DbPath);
+            await schoolService.SaveSchoolAsync(school);
         }
         catch (Exception ex)
         {
