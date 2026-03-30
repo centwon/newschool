@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.2 (2026-03-29)
+## v1.0.3 (2026-03-30)
 
 ### 보안
 - SQL Injection 취약 메서드 제거: `Sqlite.cs`의 `CountRecord`, `GetCondition` (미사용 레거시 코드 삭제)
@@ -10,6 +10,16 @@
   - 기존 평문 데이터 호환 (복호화 실패 시 평문으로 간주, 재저장 시 자동 암호화)
 - 로그 민감정보 제거: `StudentLogRepository`, `StudentRepository`, `TeacherRepository`
   - 파라미터 값 덤프 삭제, 학생/교사 이름·ID 로깅 제거
+
+### 정리
+- 미사용 코드 대규모 삭제 (17개 파일):
+  - 기능 체인: TodoItem, WorkLog, SchoolEvent (Model+Repository+Service), Evaluation (Model+Repository)
+  - 첨부파일 시스템: AttachmentBox, AttachmentService, AttachmentRepository, Attachment 모델
+  - 미사용 개별 파일: StudentDragEventArgs, StudentLogWin, SchoolTextBox, UIHelpers, ValidationHelper, EventAggregator
+  - DB의 Attachment/Evaluation 테이블·인덱스 생성 코드 제거
+- SchoolService 계층 통일: 3곳의 SchoolRepository 직접 호출 → SchoolService 경유로 변경
+  - `SaveSchoolAsync()` Upsert 메서드 추가, 중복 코드 ~85줄 → 9줄로 축소
+  - Page → Service → Repository → DB 패턴 통일
 
 ### 기능 개선
 - 진도 매트릭스 × 연간계획 연동

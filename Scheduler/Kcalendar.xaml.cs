@@ -113,6 +113,7 @@ public sealed partial class Kcalendar : Page
                 var cell = new DayCell();
                 cell.Position = (row, column);
                 cell.PointerPressed += DayCell_PointerPressed;
+                cell.CellChanged += DayCell_CellChanged;
 
                 Grid.SetRow(cell, row);
                 Grid.SetColumn(cell, column);
@@ -151,6 +152,7 @@ public sealed partial class Kcalendar : Page
                 var cell = new DayCell();
                 cell.Position = (row, column);
                 cell.PointerPressed += DayCell_PointerPressed;
+                cell.CellChanged += DayCell_CellChanged;
 
                 Grid.SetRow(cell, row);
                 Grid.SetColumn(cell, column);
@@ -450,6 +452,15 @@ public sealed partial class Kcalendar : Page
             await ShowErrorAsync($"항목 생성 오류: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// DayCell에서 일정/할일 편집/삭제 후 전체 새로고침
+    /// </summary>
+    private async void DayCell_CellChanged(object? sender, EventArgs e)
+    {
+        await RefreshCalendarAsync();
+    }
+
     /// <summary>
     /// 이전 달 버튼 클릭
     /// </summary>

@@ -233,6 +233,9 @@ public sealed partial class DayCell : UserControl
 
     #endregion
 
+    /// <summary>일정/할일 변경 시 부모 캘린더에 전체 새로고침 요청</summary>
+    public event EventHandler? CellChanged;
+
     #region Fields
     private readonly SolidColorBrush _normalBrush;
     private readonly SolidColorBrush _holidayBrush;
@@ -406,13 +409,8 @@ public sealed partial class DayCell : UserControl
 
             if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
             {
-                var ev = dialog.ResultEvent;
-                if (ev.ItemType == "task" && ev.Start.Date == Dayinfo.Date.Date)
-                    Dayinfo.Tasks?.Add(ev);
-                else if (ev.ItemType != "task" && ev.Start.Date == Dayinfo.Date.Date)
-                    Dayinfo.Events?.Add(ev);
-
-                await UpdateDayDisplayAsync(Dayinfo);
+                // DB에서 전체 새로고침 (반복 생성, 다일 일정 등 반영)
+                CellChanged?.Invoke(this, EventArgs.Empty);
             }
         }
         catch (Exception ex)
@@ -434,21 +432,11 @@ public sealed partial class DayCell : UserControl
             };
             var result = await dialog.ShowAsync();
 
-            if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
+            if (result == ContentDialogResult.Primary || result == ContentDialogResult.Secondary)
             {
-                var tasks = Dayinfo?.Tasks;
-                if (tasks != null)
-                {
-                    var idx = tasks.IndexOf(clickedTask);
-                    if (idx >= 0) tasks[idx] = dialog.ResultEvent;
-                }
+                // DB에서 전체 새로고침 (날짜 변경, 삭제, 반복 생성 등 반영)
+                CellChanged?.Invoke(this, EventArgs.Empty);
             }
-            else if (result == ContentDialogResult.Secondary)
-            {
-                Dayinfo?.Tasks?.Remove(clickedTask);
-            }
-
-            if (Dayinfo != null) await UpdateDayDisplayAsync(Dayinfo);
         }
         catch (Exception ex)
         {
@@ -815,22 +803,11 @@ public sealed partial class DayCell : UserControl
             };
             var result = await dialog.ShowAsync();
 
-            if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
+            if (result == ContentDialogResult.Primary || result == ContentDialogResult.Secondary)
             {
-                var ev = dialog.ResultEvent;
-                var events = Dayinfo?.Events;
-                if (events != null)
-                {
-                    var idx = events.IndexOf(clickedEvent);
-                    if (idx >= 0) events[idx] = ev;
-                }
+                // DB에서 전체 새로고침 (날짜 변경, 삭제, 다일 일정 등 반영)
+                CellChanged?.Invoke(this, EventArgs.Empty);
             }
-            else if (result == ContentDialogResult.Secondary)
-            {
-                Dayinfo?.Events?.Remove(clickedEvent);
-            }
-
-            if (Dayinfo != null) await UpdateDayDisplayAsync(Dayinfo);
         }
         catch (Exception ex)
         {
