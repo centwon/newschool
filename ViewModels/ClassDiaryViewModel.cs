@@ -17,7 +17,7 @@ namespace NewSchool.ViewModels
     /// 학급 일지 ViewModel
     /// ClassDiary 모델을 UI 바인딩 가능하게 래핑
     /// </summary>
-    public class ClassDiaryViewModel : INotifyPropertyChanged
+    public class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     {
         #region Fields
 
@@ -601,6 +601,15 @@ namespace NewSchool.ViewModels
             }
 
             Life = sb.ToString();
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            _diaryService?.Dispose();
         }
 
         #endregion

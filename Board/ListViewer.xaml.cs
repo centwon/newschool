@@ -205,7 +205,11 @@ public sealed partial class ListViewer : Page
         var subject = CBoxSubject.SelectedItem?.ToString() ?? string.Empty;
         // Subject는 아직 ViewModel에 없으므로 나중에 추가 필요
         // 현재는 LoadPostsAsync 호출
-        _ = ViewModel.LoadPostsAsync();
+        _ = ViewModel.LoadPostsAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[ListViewer] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     #endregion
@@ -227,7 +231,11 @@ public sealed partial class ListViewer : Page
 
     private void Box_Unloaded(object sender, RoutedEventArgs e)
     {
-        _ = ViewModel.LoadPostsAsync();
+        _ = ViewModel.LoadPostsAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[ListViewer] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     private void ShowPost(Post? post)

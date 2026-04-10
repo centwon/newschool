@@ -1,5 +1,84 @@
 # Changelog
 
+## v1.0.4 (2026-04-06)
+
+### UI 개선
+- 달력 시인성 강화: 오늘 날짜에 파란 원형 배경 + 파란 테두리, 마우스 호버 시 회색 배경 효과 추가 (`DayCell`)
+- 홈 학사일정 스크롤 수정: `ItemsRepeater` → `ListView`로 교체하여 마우스 휠 스크롤 정상 작동 (`SchoolScheduleListControl`)
+- 게시물 보기 레이아웃 개선: `ScrollViewer+StackPanel` → `Grid` 레이아웃으로 변경, JoditEditor 내부 스크롤 지원 (`PostDetailPage`)
+  - 첨부파일이 없을 때 첨부 영역 자동 숨김
+  - JoditEditor ReadOnly 모드에서 내부 스크롤 활성화 (CSS height chain + overflow 설정)
+- 일정 추가 TimePicker 교체: WinUI 3 TimePicker → 커스텀 `CompactTimePicker` (NumberBox 기반)
+  - 마우스 휠/스핀버튼/직접 입력으로 시·분 변경 가능
+- 교사 시간표 표시 모드 수정: `DisplayMode`를 `Teacher`로 설정하여 과목+강의실 표시 (`TeacherTimetablePage`)
+
+### 기능 개선
+- 업데이트 확인 메뉴 추가: 설정 하위에 수동 업데이트 확인 항목 추가 (`MainWindow`)
+- 일정 구글 동기화 라벨 수정: 카테고리 "학급"일 때만 구글 동기화 옵션 표시, "담임"은 제외 (`UnifiedItemDialog`)
+- 게시물 읽기 인쇄 기능 개선: PDF 생성 방식 → JoditEditor 네이티브 인쇄로 변경 (`PostDetailPage`)
+  - HTML 서식(표, 이미지, 글꼴, 색상) 완전 보존
+  - 화면 85% 크기 미리보기 창(최대 1024×900)을 중앙에 열고 시스템 인쇄 대화상자 표시
+- 좌석배정표 인쇄 개선 (`SeatsPrintService`, `PhotoCard`)
+  - 미표시 좌석 옵션 추가: 우클릭 메뉴에서 "미표시 좌석" 체크 시 인쇄에서 해당 좌석 완전 숨김
+  - A4 하단 정렬: 좌석+교탁이 용지 아래쪽부터 배치, 상단에 여백
+  - 사진 최대화: 셀 내 3:4 비율 유지하면서 가용 공간에 최대 크기로 표시
+  - 줄 사이 통로: 짝(jjak)은 붙이고 줄(jul) 사이에 10pt 통로 간격 삽입
+  - 클린 레이아웃: 셀 테두리/배경 제거, 이름은 사진 너비 기준 가는 테두리 박스로 표시
+  - 1페이지 보장: 모든 요소 높이를 A4 가용 영역에서 역산하여 오버플로 방지
+- 좌석배정 짝 분리/고정 설정 (`SeatExclusionDialog`, `PageSeats`)
+  - 짝 분리: 특정 학생 쌍이 인접하지 않도록 자동배정 시 제약 적용
+  - 짝 고정: 특정 학생 쌍이 반드시 인접하도록 자동배정 시 제약 적용
+  - "● 자리 배정" 제목의 불릿 버튼으로 설정 다이얼로그 진입
+- 좌석배정 배열 UI 개선 (`PageSeats`)
+  - 줄 설정: ComboBox → NumberBox(2~8, "N줄" 접미사 포맷터) 교체
+  - 짝 설정: ComboBox → CheckBox 교체 (체크=짝2명, 해제=1명)
+  - 인라인 도트 패턴: 배열 시각화 (예: ●● ●● ●●)
+  - 좌측 패널 레이아웃 통합: 필터+학생목록 단일 블록
+
+### 성능 개선
+- GoogleSyncService 리소스 누수 수정: 정적 필드로 인스턴스 보관, 앱 종료 시 Dispose 호출 (`App.xaml.cs`)
+- StudentLogViewModel IDisposable 구현: 3개 서비스(StudentLogService, EnrollmentService, StudentService) Dispose 보장
+- ClassDiaryViewModel IDisposable 구현: ClassDiaryService Dispose 보장
+- StudentLogDialog 이벤트 누수 수정: `Activated` 핸들러를 1회 실행 후 즉시 해제
+- PageStudentLog 이벤트 해제 추가: `Unloaded` 시 `StudentSelected` 핸들러 해제
+- 일괄 내보내기 N+1 쿼리 제거: `LoadStudentAsync` (학생당 DB 4회) → `LoadFromEnrollment` (DB 0회)
+  - 30명 기준 120회 DB 호출 제거
+- StudentLogRepository GetOrdinal 캐싱: `ReadAllLogsAsync` 헬퍼 추가, 첫 row에서 캐시 초기화 후 재사용
+- HttpClient 연결 풀 최적화: `SocketsHttpHandler` 적용 (연결 수명 2분, GZip 압축, 쿠키 비활성) (`GoogleCalendarApiClient`)
+- FileLogger Dispose 개선: 이미 완료된 Task는 Wait 생략, 타임아웃 5초→2초 단축
+- 이미지 캐시 LRU 개선: 히트 시 제거→재삽입으로 최근 접근 항목 보존 (`PhotoService`)
+- 일괄 내보내기 중복 정렬 제거: 단일 학기+필터 없음일 때 불필요한 `OrderByDescending` 생략
+- 앱 시작 DB 초기화 병렬화: Board/Scheduler/School 3개 DB `Task.WhenAll` 동시 초기화 (`App.xaml.cs`)
+- 진도 매트릭스 SolidColorBrush 캐싱: 20개 브러시를 static readonly 필드로 캐시, 셀·호버·선택 시 재생성 제거 (`ProgressMatrixPage`)
+- PostListPage PropertyChanged 누수 수정: `NavigationCacheMode.Enabled`에서 `OnNavigatedFrom`/`OnNavigatedTo` 구독 관리로 중복 핸들러 방지
+- StudentCard 이중 Unloaded 구독 수정: DI 생성자에서 `-=` 후 `+=`으로 중복 방지 (`StudentCard`)
+- N+1 배치 INSERT: `LessonRepository.CreateFromSchedulesAsync` — 개별 INSERT → 트랜잭션+파라미터 재사용 배치
+- N+1 배치 INSERT: `CourseEnrollmentRepository.BulkCreateAsync` — 개별 CreateAsync → 트랜잭션+파라미터 재사용 배치
+- N+1 배치 INSERT: `SchoolScheduleRepository.CreateBulkAsync` — 행별 중복체크 SELECT+INSERT → 일괄 SELECT 후 메모리 필터+배치 INSERT
+- Board ReaderColumnCache 적용: `PostRepository`, `CommentRepository`, `PostFileRepository`에 `ReaderColumnCache`+`ExecuteListAsync` 도입
+  - 댓글 100개 기준 GetOrdinal 1,200회 → 9회 (99% 감소)
+- StudentCardViewModel IDisposable 인터페이스 선언 추가 (기존 Dispose 본문은 유지)
+- StudentLogRepository date() 함수 제거: WHERE 절에서 `date(sl.Date)` → `sl.Date` 직접 비교로 인덱스 활용
+- SchoolScheduleConverters 정적 브러시 캐싱: `BoolToVacationColorConverter`, `BoolToTodayBackgroundConverter`에 static readonly 브러시
+- DayCell 인스턴스 브러시 캐싱: `_whiteBrush`, `_transparentBrush` 필드 추가
+- AnnualLessonPlanViewModel PropertyChanged 등호 검사: 10개 setter에 `if (_field == value) return;` 추가
+- PostRepository SELECT 컬럼 명시: GetListAsync에서 `SELECT *` → 14개 컬럼 지정
+- COUNT(*) → EXISTS 변환: 11개 파일, 13개 존재 확인 쿼리 최적화
+- Board BaseRepository `[Conditional("DEBUG")]`: LogDebug/LogInfo에 적용, Release 빌드에서 문자열 보간 제거
+- SQLite PRAGMA 성능 튜닝: `cache_size=10000`, `mmap_size=30000000` — Board.cs, Scheduler, 양쪽 BaseRepository에 추가
+- AnnualLessonPlanPage `{Binding}` → `{x:Bind}` 변환 (DataTemplate 내 string 바인딩)
+- OptimizedObservableCollection 확대: PostListViewModel, PostDetailViewModel에서 Clear+Add 루프 → ReplaceAll 단일 호출
+- DayCell 불필요한 Task.Run(async) 래핑 제거: 직접 await로 스레드풀 홉 제거
+- App.xaml.cs fire-and-forget 안전망: TryStartGoogleSyncAsync에 ContinueWith(OnlyOnFaulted) 추가
+- COUNT(*) OVER() 윈도우 함수: PostRepository.GetListWithCountAsync 신규, BoardService 페이징에서 DB 2회 → 1회 호출
+- AddWithValue boxing 제거: PostRepository, CommentRepository, LessonProgressRepository, StudentLogRepository — 73개 int/bool 파라미터를 typed Add()로 변환
+
+### 정리
+- Tools.cs 미사용 코드 삭제 (496줄 → 155줄):
+  - 메서드 6개: `WaitAsync`, `IsConnected`, `IsNumeric`, `FindVisualParent`, `FindVisualChild`, `GetWeekOfMonth`
+  - 컨버터 8개: `YearToAcademicYearConverter`, `GradeConverter`, `ClassConverter`, `HtmlToPlainTextConverter`, `SizeFormatConverter`, `UtcToLocal`, `NeisByteConverter`, `InverseBooleanConverter`
+- StudentLogViewModel 미사용 코드 삭제: `CalculateNeisByte()` 메서드, 주석 처리된 `LogByteCount`/`LogCharCount`/`LogByteInfo` 프로퍼티
+
 ## v1.0.3 (2026-03-30)
 
 ### 보안

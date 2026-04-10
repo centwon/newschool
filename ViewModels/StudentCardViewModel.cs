@@ -11,7 +11,7 @@ namespace NewSchool.ViewModels;
 /// StudentCard용 간소화된 ViewModel
 /// 모델을 직접 노출하여 불필요한 래핑 제거
 /// </summary>
-public class StudentCardViewModel : NotifyPropertyChangedBase
+public class StudentCardViewModel : NotifyPropertyChangedBase, IDisposable
 {
     #region Fields
 
@@ -185,6 +185,22 @@ public class StudentCardViewModel : NotifyPropertyChangedBase
     #endregion
 
     #region Methods - 데이터 로드
+
+    /// <summary>
+    /// Enrollment 기반 간이 초기화 (배치 내보내기용 — DB 호출 없음)
+    /// </summary>
+    public void LoadFromEnrollment(Enrollment enrollment)
+    {
+        Student = new Student
+        {
+            StudentID = enrollment.StudentID,
+            Name = enrollment.Name,
+            Sex = enrollment.Sex,
+            Photo = enrollment.Photo
+        };
+        Enrollment = enrollment;
+        IsChanged = false;
+    }
 
     /// <summary>
     /// 학생 정보 로드 (Student + StudentDetail + Enrollment)
@@ -498,7 +514,11 @@ public class StudentCardViewModel : NotifyPropertyChangedBase
                     OnPropertyChanged(nameof(Age));
                     break;
                 case nameof(Student.Photo):
-                    _ = ReloadPhotoAsync();
+                    _ = ReloadPhotoAsync().ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            System.Diagnostics.Debug.WriteLine($"[StudentCardViewModel] {t.Exception?.InnerException?.Message}");
+                    }, TaskContinuationOptions.OnlyOnFaulted);
                     break;
             }
         }

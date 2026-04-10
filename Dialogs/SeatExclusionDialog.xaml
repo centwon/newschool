@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="NewSchool.Dialogs.SeatExclusionDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="짝 설정"
+    CloseButtonText="닫기"
+    DefaultButton="Close">
+
+    <StackPanel Spacing="12" MinWidth="420">
+        <!-- 학생 선택 -->
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="StudentABox"
+                      Grid.Column="0"
+                      PlaceholderText="학생 A"
+                      HorizontalAlignment="Stretch"/>
+            <ComboBox x:Name="StudentBBox"
+                      Grid.Column="1"
+                      PlaceholderText="학생 B"
+                      HorizontalAlignment="Stretch"/>
+        </Grid>
+
+        <!-- 추가 버튼 -->
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <Button Click="AddExclusionButton_Click" ToolTipService.ToolTip="짝 분리 추가">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE711;" FontSize="14"/>
+                    <TextBlock Text="분리 추가" FontSize="12"/>
+                </StackPanel>
+            </Button>
+            <Button Click="AddFixedButton_Click" ToolTipService.ToolTip="짝 고정 추가">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE718;" FontSize="14"/>
+                    <TextBlock Text="고정 추가" FontSize="12"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
+        <!-- 설정 목록 -->
+        <ListView x:Name="PairListView"
+                  MaxHeight="280"
+                  SelectionMode="None"/>
+
+        <TextBlock x:Name="EmptyMessage"
+                   Text="설정된 짝 조건이 없습니다."
+                   FontSize="12"
+                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                   HorizontalAlignment="Center"/>
+    </StackPanel>
+</ContentDialog>

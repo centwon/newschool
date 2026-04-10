@@ -378,11 +378,14 @@ public sealed partial class PageStudentLog : Page
 
                 if (logs.Count == 0) continue;
 
-                logs = logs.OrderByDescending(l => l.Date).ToList();
+                // Concat(1학기+2학기) 또는 필터 후 정렬이 필요한 경우만 재정렬
+                if (filterSemester == 0 || filterCategory != LogCategory.전체 || !string.IsNullOrEmpty(keyword))
+                    logs = logs.OrderByDescending(l => l.Date).ToList();
+
                 var logVms = logs.Select(l => new StudentLogViewModel(l)).ToList();
 
                 var studentVm = new StudentCardViewModel();
-                await studentVm.LoadStudentAsync(enrollment.StudentID);
+                studentVm.LoadFromEnrollment(enrollment);
 
                 studentLogsList.Add((studentVm, logVms));
                 totalLogs += logs.Count;
@@ -514,8 +517,14 @@ public sealed partial class PageStudentLog : Page
 
     private void LogList_Unloaded(object sender, RoutedEventArgs e)
     {
-        _ = CheckUnSavedAsync();
+        _ = CheckUnSavedAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[PageStudentLog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
         _logService?.Dispose();
+        if (StudentList != null)
+            StudentList.StudentSelected -= OnStudentSelected;
     }
 
     private void ChkShowSpec_Click(object sender, RoutedEventArgs e)

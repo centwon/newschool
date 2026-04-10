@@ -531,20 +531,32 @@ public sealed partial class PostEditPage : Page
     {
         if (string.IsNullOrWhiteSpace(TitleTextBox.Text))
         {
-            _ = ShowErrorAsync("제목을 입력하세요.");
+            _ = ShowErrorAsync("제목을 입력하세요.").ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[PostEditPage] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(ContentEditor.Text))
         {
-            _ = ShowErrorAsync("내용을 입력하세요.");
+            _ = ShowErrorAsync("내용을 입력하세요.").ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[PostEditPage] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
             return false;
         }
 
         // 카테고리 고정이 아닌 경우에만 선택 검증
         if (CategoryComboBox.SelectedItem == null && (_parameter == null || _parameter.AllowCategoryChange))
         {
-            _ = ShowErrorAsync("카테고리를 선택하세요.");
+            _ = ShowErrorAsync("카테고리를 선택하세요.").ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[PostEditPage] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
             return false;
         }
 

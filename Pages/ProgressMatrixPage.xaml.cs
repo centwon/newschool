@@ -40,6 +40,27 @@ public sealed partial class ProgressMatrixPage : Page
     // 셀 Border 참조 (선택 상태 업데이트용)
     private readonly Dictionary<(int SectionId, string Room), Border> _cellBorders = new();
 
+    // 정적 브러시 캐시 (매 셀마다 new SolidColorBrush 방지)
+    private static readonly SolidColorBrush HeaderBackground = new(ColorHelper.FromArgb(255, 240, 240, 240));
+    private static readonly SolidColorBrush HeaderBorder = new(ColorHelper.FromArgb(255, 200, 200, 200));
+    private static readonly SolidColorBrush CellBorder = new(ColorHelper.FromArgb(255, 220, 220, 220));
+    private static readonly SolidColorBrush RedLineBrush = new(ColorHelper.FromArgb(200, 244, 67, 54));
+    private static readonly SolidColorBrush CurrentWeekBg = new(ColorHelper.FromArgb(40, 33, 150, 243));
+    private static readonly SolidColorBrush PastDueBg = new(ColorHelper.FromArgb(20, 244, 67, 54));
+    private static readonly SolidColorBrush TransparentBrush = new(Colors.Transparent);
+    private static readonly SolidColorBrush CurrentWeekFg = new(ColorHelper.FromArgb(255, 33, 150, 243));
+    private static readonly SolidColorBrush PastDueFg = new(ColorHelper.FromArgb(255, 244, 67, 54));
+    private static readonly SolidColorBrush PlanDefaultFg = new(ColorHelper.FromArgb(255, 100, 100, 100));
+    private static readonly SolidColorBrush DelayedBg = new(ColorHelper.FromArgb(30, 244, 67, 54));
+    private static readonly SolidColorBrush DelayedFg = new(ColorHelper.FromArgb(180, 244, 67, 54));
+    private static readonly SolidColorBrush ProgressNormalBg = new(ColorHelper.FromArgb(96, 76, 175, 80));
+    private static readonly SolidColorBrush ProgressMakeupBg = new(ColorHelper.FromArgb(96, 33, 150, 243));
+    private static readonly SolidColorBrush ProgressMergedBg = new(ColorHelper.FromArgb(96, 156, 39, 176));
+    private static readonly SolidColorBrush ProgressSkippedBg = new(ColorHelper.FromArgb(96, 255, 152, 0));
+    private static readonly SolidColorBrush ProgressCancelledBg = new(ColorHelper.FromArgb(96, 244, 67, 54));
+    private static readonly SolidColorBrush HoverBorder = new(ColorHelper.FromArgb(255, 100, 100, 100));
+    private static readonly SolidColorBrush SelectedBorder = new(ColorHelper.FromArgb(255, 0, 120, 212));
+
     // 컨텍스트 메뉴
     private MenuFlyout? _cellContextMenu;
 
@@ -864,7 +885,7 @@ public sealed partial class ProgressMatrixPage : Page
 
             var lineBorder = new Border
             {
-                BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(200, 244, 67, 54)),
+                BorderBrush = RedLineBrush,
                 BorderThickness = new Thickness(0, 0, 0, 2.5),
                 IsHitTestVisible = false
             };
@@ -900,8 +921,8 @@ public sealed partial class ProgressMatrixPage : Page
     {
         var border = new Border
         {
-            Background = new SolidColorBrush(ColorHelper.FromArgb(255, 240, 240, 240)),
-            BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(255, 200, 200, 200)),
+            Background = HeaderBackground,
+            BorderBrush = HeaderBorder,
             BorderThickness = new Thickness(0, 0, 1, 1),
             Padding = new Thickness(8, 4, 8, 4)
         };
@@ -926,7 +947,7 @@ public sealed partial class ProgressMatrixPage : Page
     {
         var border = new Border
         {
-            BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(255, 220, 220, 220)),
+            BorderBrush = CellBorder,
             BorderThickness = new Thickness(0, 0, 1, 1),
             Padding = new Thickness(8, 4, 8, 4)
         };
@@ -957,12 +978,11 @@ public sealed partial class ProgressMatrixPage : Page
 
         var border = new Border
         {
-            BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(255, 220, 220, 220)),
+            BorderBrush = CellBorder,
             BorderThickness = new Thickness(0, 0, 1, 1),
-            Background = new SolidColorBrush(
-                isCurrentWeek ? ColorHelper.FromArgb(40, 33, 150, 243) :
-                isPastDue ? ColorHelper.FromArgb(20, 244, 67, 54) :
-                Colors.Transparent),
+            Background = isCurrentWeek ? CurrentWeekBg :
+                         isPastDue ? PastDueBg :
+                         TransparentBrush,
             Padding = new Thickness(4)
         };
 
@@ -972,10 +992,9 @@ public sealed partial class ProgressMatrixPage : Page
             FontSize = 11,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = new SolidColorBrush(
-                isCurrentWeek ? ColorHelper.FromArgb(255, 33, 150, 243) :
-                isPastDue ? ColorHelper.FromArgb(255, 244, 67, 54) :
-                ColorHelper.FromArgb(255, 100, 100, 100))
+            Foreground = isCurrentWeek ? CurrentWeekFg :
+                         isPastDue ? PastDueFg :
+                         PlanDefaultFg
         };
 
         if (isCurrentWeek)
@@ -998,25 +1017,25 @@ public sealed partial class ProgressMatrixPage : Page
     {
         var border = new Border
         {
-            BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(255, 220, 220, 220)),
+            BorderBrush = CellBorder,
             BorderThickness = new Thickness(0, 0, 1, 1),
             Tag = new ProgressCellTag { SectionId = sectionId, Room = room }
         };
 
         // 상태에 따른 배경색 및 아이콘
         string icon = "";
-        Color bgColor = Colors.Transparent;
+        SolidColorBrush bgBrush = TransparentBrush;
 
         if (cell?.Progress != null)
         {
-            bgColor = cell.Progress.ProgressType switch
+            bgBrush = cell.Progress.ProgressType switch
             {
-                ProgressType.Normal when cell.IsCompleted => ColorHelper.FromArgb(96, 76, 175, 80),
-                ProgressType.Makeup => ColorHelper.FromArgb(96, 33, 150, 243),
-                ProgressType.Merged => ColorHelper.FromArgb(96, 156, 39, 176),
-                ProgressType.Skipped => ColorHelper.FromArgb(96, 255, 152, 0),
-                ProgressType.Cancelled => ColorHelper.FromArgb(96, 244, 67, 54),
-                _ => Colors.Transparent
+                ProgressType.Normal when cell.IsCompleted => ProgressNormalBg,
+                ProgressType.Makeup => ProgressMakeupBg,
+                ProgressType.Merged => ProgressMergedBg,
+                ProgressType.Skipped => ProgressSkippedBg,
+                ProgressType.Cancelled => ProgressCancelledBg,
+                _ => TransparentBrush
             };
 
             icon = cell.Progress.ShortStatus;
@@ -1024,12 +1043,11 @@ public sealed partial class ProgressMatrixPage : Page
         }
         else if (isDelayed)
         {
-            // 계획 대비 지연: 미완료인데 계획 주차를 지남
-            bgColor = ColorHelper.FromArgb(30, 244, 67, 54);
+            bgBrush = DelayedBg;
             ToolTipService.SetToolTip(border, "지연 — 계획 주차를 지났으나 미완료");
         }
 
-        border.Background = new SolidColorBrush(bgColor);
+        border.Background = bgBrush;
 
         // 내용: 아이콘 표시
         var textBlock = new TextBlock
@@ -1042,7 +1060,7 @@ public sealed partial class ProgressMatrixPage : Page
 
         if (isDelayed && string.IsNullOrEmpty(icon))
         {
-            textBlock.Foreground = new SolidColorBrush(ColorHelper.FromArgb(180, 244, 67, 54));
+            textBlock.Foreground = DelayedFg;
             textBlock.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
         }
 
@@ -1154,7 +1172,7 @@ public sealed partial class ProgressMatrixPage : Page
             var key = (tag.SectionId, tag.Room);
             if (!_selectedCells.Contains(key))
             {
-                border.BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(255, 100, 100, 100));
+                border.BorderBrush = HoverBorder;
             }
         }
     }
@@ -1166,7 +1184,7 @@ public sealed partial class ProgressMatrixPage : Page
             var key = (tag.SectionId, tag.Room);
             if (!_selectedCells.Contains(key))
             {
-                border.BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(255, 220, 220, 220));
+                border.BorderBrush = CellBorder;
             }
         }
     }
@@ -1180,12 +1198,12 @@ public sealed partial class ProgressMatrixPage : Page
 
             if (isSelected)
             {
-                border.BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(255, 0, 120, 212));
+                border.BorderBrush = SelectedBorder;
                 border.BorderThickness = new Thickness(2);
             }
             else
             {
-                border.BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(255, 220, 220, 220));
+                border.BorderBrush = CellBorder;
                 border.BorderThickness = new Thickness(0, 0, 1, 1);
             }
         }

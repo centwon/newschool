@@ -62,7 +62,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
@@ -96,7 +96,7 @@ namespace NewSchool.Board.Repositories
 
             try
             {
-                string query = "SELECT * FROM Post WHERE 1=1";
+                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted FROM Post WHERE 1=1";
                 using var cmd = CreateCommand(query);
 
                 // 카테고리 필터
@@ -142,22 +142,18 @@ namespace NewSchool.Board.Repositories
                 if (limit > 0)
                 {
                     query += " LIMIT @Limit";
-                    cmd.Parameters.AddWithValue("@Limit", limit);
+                    cmd.Parameters.Add("@Limit", SqliteType.Integer).Value = limit;
 
                     if (offset > 0)
                     {
                         query += " OFFSET @Offset";
-                        cmd.Parameters.AddWithValue("@Offset", offset);
+                        cmd.Parameters.Add("@Offset", SqliteType.Integer).Value = offset;
                     }
                 }
 
                 cmd.CommandText = query;
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    posts.Add(MapPost(reader));
-                }
+                posts = await ExecuteListAsync(cmd, MapPost);
 
                 LogInfo($"Post 목록 조회 완료: {posts.Count}개");
                 return posts;
@@ -165,6 +161,103 @@ namespace NewSchool.Board.Repositories
             catch (Exception ex)
             {
                 LogError("Post 목록 조회 실패", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Post 목록 + 전체 개수 조회 (단일 쿼리, COUNT(*) OVER() 윈도우 함수 사용)
+        /// </summary>
+        public async Task<(List<Post> Posts, int TotalCount)> GetListWithCountAsync(
+            int limit,
+            int offset,
+            string category = "",
+            string subject = "",
+            bool searchTitle = false,
+            bool searchContent = false,
+            string searchText = "")
+        {
+            var posts = new List<Post>();
+            int totalCount = 0;
+
+            try
+            {
+                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, COUNT(*) OVER() AS TotalCount FROM Post WHERE 1=1";
+                using var cmd = CreateCommand(query);
+
+                // 카테고리 필터
+                if (!string.IsNullOrEmpty(category))
+                {
+                    query += " AND Category = @Category";
+                    cmd.Parameters.AddWithValue("@Category", category);
+                }
+
+                // 주제 필터
+                if (!string.IsNullOrEmpty(subject))
+                {
+                    query += " AND Subject = @Subject";
+                    cmd.Parameters.AddWithValue("@Subject", subject);
+                }
+
+                // 검색 필터
+                if (!string.IsNullOrEmpty(searchText))
+                {
+                    if (searchTitle && searchContent)
+                    {
+                        query += " AND (Title LIKE @Search OR Content LIKE @Search)";
+                    }
+                    else if (searchTitle)
+                    {
+                        query += " AND Title LIKE @Search";
+                    }
+                    else if (searchContent)
+                    {
+                        query += " AND Content LIKE @Search";
+                    }
+
+                    if (searchTitle || searchContent)
+                    {
+                        cmd.Parameters.AddWithValue("@Search", $"%{searchText}%");
+                    }
+                }
+
+                // 정렬
+                query += " ORDER BY No DESC";
+
+                // 페이징
+                if (limit > 0)
+                {
+                    query += " LIMIT @Limit";
+                    cmd.Parameters.Add("@Limit", SqliteType.Integer).Value = limit;
+
+                    if (offset > 0)
+                    {
+                        query += " OFFSET @Offset";
+                        cmd.Parameters.Add("@Offset", SqliteType.Integer).Value = offset;
+                    }
+                }
+
+                cmd.CommandText = query;
+
+                var cache = new ReaderColumnCache();
+                using var reader = await cmd.ExecuteReaderAsync();
+                cache.Initialize(reader);
+
+                while (await reader.ReadAsync())
+                {
+                    posts.Add(MapPost(reader, cache));
+                    if (totalCount == 0)
+                    {
+                        totalCount = reader.GetInt32(cache.GetOrdinal("TotalCount"));
+                    }
+                }
+
+                LogInfo($"Post 목록+개수 조회 완료: {posts.Count}개 / 전체 {totalCount}개");
+                return (posts, totalCount);
+            }
+            catch (Exception ex)
+            {
+                LogError("Post 목록+개수 조회 실패", ex);
                 throw;
             }
         }
@@ -249,7 +342,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", post.No);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = post.No;
                 AddPostParameters(cmd, post);
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
@@ -283,8 +376,8 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", postNo);
-                cmd.Parameters.AddWithValue("@HasFile", hasFile ? 1 : 0);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = postNo;
+                cmd.Parameters.Add("@HasFile", SqliteType.Integer).Value = hasFile ? 1 : 0;
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 LogDebug($"Post.HasFile 업데이트: No={postNo}, HasFile={hasFile}");
@@ -307,8 +400,8 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", postNo);
-                cmd.Parameters.AddWithValue("@HasComment", hasComment ? 1 : 0);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = postNo;
+                cmd.Parameters.Add("@HasComment", SqliteType.Integer).Value = hasComment ? 1 : 0;
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 LogDebug($"Post.HasComment 업데이트: No={postNo}, HasComment={hasComment}");
@@ -331,8 +424,8 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", postNo);
-                cmd.Parameters.AddWithValue("@IsCompleted", isCompleted ? 1 : 0);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = postNo;
+                cmd.Parameters.Add("@IsCompleted", SqliteType.Integer).Value = isCompleted ? 1 : 0;
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 LogDebug($"Post.IsCompleted 업데이트: No={postNo}, IsCompleted={isCompleted}");
@@ -355,7 +448,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", postNo);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = postNo;
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 return rowsAffected > 0;
@@ -381,7 +474,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", postNo);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = postNo;
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 bool success = rowsAffected > 0;
@@ -490,49 +583,66 @@ namespace NewSchool.Board.Repositories
             cmd.Parameters.AddWithValue("@Subject", post.Subject);
             cmd.Parameters.AddWithValue("@Title", post.Title);
             cmd.Parameters.AddWithValue("@Content", post.Content);
-            cmd.Parameters.AddWithValue("@RefNo", post.RefNo);
-            cmd.Parameters.AddWithValue("@ReplyOrder", post.ReplyOrder);
-            cmd.Parameters.AddWithValue("@Depth", post.Depth);
-            cmd.Parameters.AddWithValue("@ReadCount", post.ReadCount);
-            cmd.Parameters.AddWithValue("@HasFile", post.HasFile ? 1 : 0);
-            cmd.Parameters.AddWithValue("@HasComment", post.HasComment ? 1 : 0);
-            cmd.Parameters.AddWithValue("@IsCompleted", post.IsCompleted ? 1 : 0);
+            cmd.Parameters.Add("@RefNo", SqliteType.Integer).Value = post.RefNo;
+            cmd.Parameters.Add("@ReplyOrder", SqliteType.Integer).Value = post.ReplyOrder;
+            cmd.Parameters.Add("@Depth", SqliteType.Integer).Value = post.Depth;
+            cmd.Parameters.Add("@ReadCount", SqliteType.Integer).Value = post.ReadCount;
+            cmd.Parameters.Add("@HasFile", SqliteType.Integer).Value = post.HasFile ? 1 : 0;
+            cmd.Parameters.Add("@HasComment", SqliteType.Integer).Value = post.HasComment ? 1 : 0;
+            cmd.Parameters.Add("@IsCompleted", SqliteType.Integer).Value = post.IsCompleted ? 1 : 0;
         }
 
         /// <summary>
-        /// SqliteDataReader를 Post로 매핑 (Native AOT 호환)
+        /// SqliteDataReader를 Post로 매핑 (캐시된 컬럼 인덱스 사용)
+        /// </summary>
+        private Post MapPost(SqliteDataReader reader, ReaderColumnCache cache)
+        {
+            var noOrd = cache.GetOrdinal("No");
+            var userOrd = cache.GetOrdinal("User");
+            var dtOrd = cache.GetOrdinal("DateTime");
+            var catOrd = cache.GetOrdinal("Category");
+            var subOrd = cache.GetOrdinal("Subject");
+            var titleOrd = cache.GetOrdinal("Title");
+            var contentOrd = cache.GetOrdinal("Content");
+            var refOrd = cache.GetOrdinal("RefNo");
+            var replyOrd = cache.GetOrdinal("ReplyOrder");
+            var depthOrd = cache.GetOrdinal("Depth");
+            var readOrd = cache.GetOrdinal("ReadCount");
+            var fileOrd = cache.GetOrdinal("HasFile");
+            var commentOrd = cache.GetOrdinal("HasComment");
+
+            var post = new Post
+            {
+                No = reader.GetInt32(noOrd),
+                User = reader.GetString(userOrd),
+                DateTime = DateTimeHelper.FromDateString(reader.GetString(dtOrd)),
+                Category = reader.IsDBNull(catOrd) ? "" : reader.GetString(catOrd),
+                Subject = reader.IsDBNull(subOrd) ? "" : reader.GetString(subOrd),
+                Title = reader.GetString(titleOrd),
+                Content = reader.IsDBNull(contentOrd) ? "" : reader.GetString(contentOrd),
+                RefNo = reader.GetInt32(refOrd),
+                ReplyOrder = reader.GetInt32(replyOrd),
+                Depth = reader.GetInt32(depthOrd),
+                ReadCount = reader.GetInt32(readOrd),
+                HasFile = reader.GetInt32(fileOrd) == 1,
+                HasComment = reader.GetInt32(commentOrd) == 1
+            };
+
+            // IsCompleted 컬럼 (기존 DB 호환성)
+            if (cache.TryGetOrdinal("IsCompleted", out var compOrd))
+                post.IsCompleted = !reader.IsDBNull(compOrd) && reader.GetInt32(compOrd) == 1;
+
+            return post;
+        }
+
+        /// <summary>
+        /// 비캐시 오버로드 (단일 행 조회용)
         /// </summary>
         private Post MapPost(SqliteDataReader reader)
         {
-            var post = new Post
-            {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                User = reader.GetString(reader.GetOrdinal("User")),
-                DateTime = DateTimeHelper.FromDateString(reader.GetString(reader.GetOrdinal("DateTime"))),
-                Category = reader.IsDBNull(reader.GetOrdinal("Category")) ? "" : reader.GetString(reader.GetOrdinal("Category")),
-                Subject = reader.IsDBNull(reader.GetOrdinal("Subject")) ? "" : reader.GetString(reader.GetOrdinal("Subject")),
-                Title = reader.GetString(reader.GetOrdinal("Title")),
-                Content = reader.IsDBNull(reader.GetOrdinal("Content")) ? "" : reader.GetString(reader.GetOrdinal("Content")),
-                RefNo = reader.GetInt32(reader.GetOrdinal("RefNo")),
-                ReplyOrder = reader.GetInt32(reader.GetOrdinal("ReplyOrder")),
-                Depth = reader.GetInt32(reader.GetOrdinal("Depth")),
-                ReadCount = reader.GetInt32(reader.GetOrdinal("ReadCount")),
-                HasFile = reader.GetInt32(reader.GetOrdinal("HasFile")) == 1,
-                HasComment = reader.GetInt32(reader.GetOrdinal("HasComment")) == 1
-            };
-
-            // IsCompleted 컨럼 (기존 DB 호환성)
-            try
-            {
-                var ordinal = reader.GetOrdinal("IsCompleted");
-                post.IsCompleted = !reader.IsDBNull(ordinal) && reader.GetInt32(ordinal) == 1;
-            }
-            catch
-            {
-                post.IsCompleted = false;
-            }
-
-            return post;
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);
+            return MapPost(reader, cache);
         }
 
         #endregion

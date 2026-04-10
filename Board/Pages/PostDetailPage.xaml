@@ -11,7 +11,9 @@
     <Grid Padding="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <!-- 헤더 -->
         <Grid Grid.Row="0" Margin="0,0,0,20">
@@ -33,7 +35,7 @@
 
             <TextBlock Grid.Column="1" Text="게시글 보기" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
 
-            <Button Grid.Column="2" Click="PrintButton_Click" Margin="0,0,10,0" ToolTipService.ToolTip="PDF로 저장">
+            <Button Grid.Column="2" Click="PrintButton_Click" Margin="0,0,10,0" ToolTipService.ToolTip="인쇄">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE749;" FontSize="14"/>
                     <TextBlock Text="인쇄"/>
@@ -44,67 +46,86 @@
 
             <Button Grid.Column="4" Content="삭제" Click="DeleteButton_Click" Style="{StaticResource AccentButtonStyle}"/>
         </Grid>
-        <!-- 본문 -->
-        <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2">
-            <StackPanel Spacing="20">
-                <!-- Post 정보 -->
-                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="20">
-                    <StackPanel Spacing="12">
-                        <!-- 카테고리/주제 + 제목 -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind ViewModel.Post.Category, Mode=OneWay}" Foreground="White" FontSize="12"/>
-                            </Border>
-                            <Border Grid.Column="1" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center"
-                                    Visibility="{x:Bind ViewModel.SubjectVisibility, Mode=OneWay}">
-                                <TextBlock Text="{x:Bind ViewModel.Post.Subject, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </Border>
-                            <TextBlock Grid.Column="2"
-                                       Text="{x:Bind ViewModel.Post.Title, Mode=OneWay}"
-                                       Style="{StaticResource SubtitleTextBlockStyle}"
-                                       FontWeight="Bold"
-                                       TextWrapping="Wrap"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
+        <!-- Post 정보 상단 -->
+        <Border Grid.Row="1"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1,1,1,0"
+                CornerRadius="8,8,0,0"
+                Padding="20,20,20,12">
+            <StackPanel Spacing="12">
+                <!-- 카테고리/주제 + 제목 -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind ViewModel.Post.Category, Mode=OneWay}" Foreground="White" FontSize="12"/>
+                    </Border>
+                    <Border Grid.Column="1" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center"
+                            Visibility="{x:Bind ViewModel.SubjectVisibility, Mode=OneWay}">
+                        <TextBlock Text="{x:Bind ViewModel.Post.Subject, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Border>
+                    <TextBlock Grid.Column="2"
+                               Text="{x:Bind ViewModel.Post.Title, Mode=OneWay}"
+                               Style="{StaticResource SubtitleTextBlockStyle}"
+                               FontWeight="Bold"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                </Grid>
 
-                        <!-- 메타 정보 -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+                <!-- 메타 정보 -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.Post.DateTime, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.Post.DateTime, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="조회" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <TextBlock Text="{x:Bind ViewModel.Post.ReadCount, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <Border Height="1"                                 Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-
-                        <!-- 내용 (Jodit HTML 뷰어) -->
-                        <appcontrols:JoditEditor x:Name="ContentViewer"
-                                                 Mode="ReadOnly"
-                                                 MinHeight="80"/>
-
-                        <!-- 첨부파일  -->
-                        <StackPanel Spacing="12">
-                            <controls:PostFileListBox x:Name="DetailFileListBox"/>
-                        </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="조회" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Post.ReadCount, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                </Border>
+                </Grid>
 
+                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 내용 (Jodit HTML 뷰어) - 남은 공간을 채우며 내부 스크롤 -->
+        <Border Grid.Row="2"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1,0,1,1"
+                CornerRadius="0,0,8,8"
+                Padding="20,0,20,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <appcontrols:JoditEditor x:Name="ContentViewer"
+                                         Grid.Row="0"
+                                         Mode="ReadOnly"/>
+
+                <!-- 첨부파일 (파일이 있을 때만 표시) -->
+                <controls:PostFileListBox x:Name="DetailFileListBox"
+                                          Grid.Row="1"
+                                          Margin="0,8,0,0"
+                                          Visibility="Collapsed"/>
+            </Grid>
+        </Border>
+
+        <!-- 댓글 섹션 -->
+        <ScrollViewer Grid.Row="3" MaxHeight="350" Margin="0,20,0,0"
+                      VerticalScrollBarVisibility="Auto"
+                      VerticalScrollMode="Enabled"
+                      HorizontalScrollMode="Disabled">
+            <StackPanel Spacing="12">
                 <!-- 댓글 섹션 -->
                 <StackPanel Spacing="12">
                     <TextBlock Text="댓글"
@@ -277,5 +298,6 @@
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
+
     </Grid>
 </Page>

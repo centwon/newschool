@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
-using NewSchool.Board.Services;
 using NewSchool.Board.ViewModels;
 using NewSchool.Controls;
 using Windows.Storage;
@@ -52,7 +51,11 @@ public sealed partial class PostDetailPage : Page
 
                 using var service = Board.CreateService();
                 var files = await service.GetPostFilesByPostAsync(_postNo);
-                DetailFileListBox.LoadFiles(files, ViewModel.Post.Category, readOnly: true);
+                if (files != null && files.Count > 0)
+                {
+                    DetailFileListBox.LoadFiles(files, ViewModel.Post.Category, readOnly: true);
+                    DetailFileListBox.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                }
             }
         }
     }
@@ -74,20 +77,11 @@ public sealed partial class PostDetailPage : Page
 
         try
         {
-            var printService = new PostPrintService();
-            var comments = new System.Collections.Generic.List<Comment>(ViewModel.Comments);
-            string filePath = printService.GeneratePostPdf(ViewModel.Post, comments);
-
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = filePath,
-                UseShellExecute = true
-            };
-            System.Diagnostics.Process.Start(psi);
+            await ContentViewer.PrintAsync();
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync($"PDF 생성 중 오류가 발생했습니다.\n{ex.Message}");
+            await ShowErrorAsync($"인쇄 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
 

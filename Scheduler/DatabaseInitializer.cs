@@ -42,6 +42,8 @@ namespace NewSchool.Scheduler
                         PRAGMA busy_timeout=5000;
                         PRAGMA temp_store=MEMORY;
                         PRAGMA foreign_keys=ON;
+                        PRAGMA cache_size=10000;
+                        PRAGMA mmap_size=30000000;
                     ";
                     await pragmaCmd.ExecuteNonQueryAsync();
                     Debug.WriteLine("[SchedulerDB] PRAGMA 설정 완료");
@@ -140,9 +142,9 @@ namespace NewSchool.Scheduler
         private static async Task SeedDefaultListsAsync(SqliteCommand cmd)
         {
             // 기본 목록이 없으면 생성
-            cmd.CommandText = "SELECT COUNT(*) FROM KtaskList";
+            cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM KtaskList)";
             var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-            if (count > 0) return;
+            if (count == 1) return;
 
             // (title, order, syncMode)
             var defaults = new[] { (CategoryNames.Lesson, 1, "None"), (CategoryNames.Homeroom, 2, "None"), (CategoryNames.Work, 3, "None"), (CategoryNames.Personal, 4, "TwoWay") };
@@ -161,7 +163,7 @@ namespace NewSchool.Scheduler
             Debug.WriteLine("[SchedulerDB] 기본 목록 4개 생성 완료 (수업/학급/업무/개인)");
 
             // KCalendarList 기본 캘린더 생성 (없는 경우만)
-            cmd.CommandText = "SELECT COUNT(*) FROM KCalendarList";
+            cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM KCalendarList)";
             count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             if (count == 0)
             {

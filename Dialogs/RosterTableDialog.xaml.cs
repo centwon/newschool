@@ -29,7 +29,11 @@ public sealed partial class RosterTableDialog : ContentDialog
         this.InitializeComponent();
         GradeBox.Value = Settings.HomeGrade.Value;
         _isInitialized = true;
-        _ = LoadClassListAsync((int)GradeBox.Value);
+        _ = LoadClassListAsync((int)GradeBox.Value).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[RosterTableDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     /// <summary>

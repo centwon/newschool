@@ -508,7 +508,11 @@ public sealed partial class MemoBoard : UserControl
         // 파일 로드
         if (memo.No > 0)
         {
-            _ = LoadFilesAsync(memo);
+            _ = LoadFilesAsync(memo).ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[MemoBoard] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         border.Child = mainGrid;

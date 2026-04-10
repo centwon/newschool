@@ -287,6 +287,8 @@ namespace NewSchool.Board
                     PRAGMA busy_timeout=5000;
                     PRAGMA temp_store=MEMORY;
                     PRAGMA foreign_keys=ON;
+                    PRAGMA cache_size=10000;
+                    PRAGMA mmap_size=30000000;
                 ";
                     await pragmaCmd.ExecuteNonQueryAsync();
                     Debug.WriteLine("[DatabaseInitializer] PRAGMA 설정 완료");

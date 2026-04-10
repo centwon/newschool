@@ -214,6 +214,7 @@ public sealed partial class LogListViewer : UserControl
 
         // ItemsRepeater의 각 항목 업데이트
         UpdateDataRowColumns();
+        SyncColumnVisibilityToViewModels();
 
         HeaderGrid.InvalidateMeasure();
         LogItemsRepeater.InvalidateMeasure();
@@ -279,6 +280,7 @@ public sealed partial class LogListViewer : UserControl
 
         // ItemsRepeater의 각 항목 업데이트
         UpdateDataRowColumns();
+        SyncColumnVisibilityToViewModels();
 
         HeaderGrid.InvalidateMeasure();
         LogItemsRepeater.InvalidateMeasure();
@@ -307,6 +309,7 @@ public sealed partial class LogListViewer : UserControl
         }
 
         UpdateDataRowColumns();
+        SyncColumnVisibilityToViewModels();
     }
 
     /// <summary>
@@ -324,6 +327,24 @@ public sealed partial class LogListViewer : UserControl
             grid.ColumnDefinitions[6].Width = ColClassHeader.Width;
             grid.ColumnDefinitions[7].Width = ColNumberHeader.Width;
             grid.ColumnDefinitions[8].Width = ColNameHeader.Width;
+        }
+    }
+
+    /// <summary>
+    /// 헤더 Visibility를 각 ViewModel 항목에 동기화 (x:Bind용)
+    /// </summary>
+    private void SyncColumnVisibilityToViewModels()
+    {
+        foreach (var log in Logs)
+        {
+            log.YearColumnVisibility = TxtYearHeader.Visibility;
+            log.SemesterColumnVisibility = TxtSemesterHeader.Visibility;
+            log.CategoryColumnVisibility = TxtCategoryHeader.Visibility;
+            log.SubjectColumnVisibility = TxtSubjectHeader.Visibility;
+            log.GradeColumnVisibility = TxtGradeHeader.Visibility;
+            log.ClassColumnVisibility = TxtClassHeader.Visibility;
+            log.NumberColumnVisibility = TxtNumberHeader.Visibility;
+            log.NameColumnVisibility = TxtNameHeader.Visibility;
         }
     }
 
@@ -524,6 +545,7 @@ public sealed partial class LogListViewer : UserControl
         }
         _isLoading = false;
         System.Diagnostics.Debug.WriteLine($"[LogListViewer] LoadLogs 완료: {count}건 추가됨, Logs.Count={Logs.Count}");
+        SyncColumnVisibilityToViewModels();
         AdjustColumnsToData();
     }
 

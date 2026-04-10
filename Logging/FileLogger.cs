@@ -250,7 +250,8 @@ namespace NewSchool.Logging
 
                 try
                 {
-                    _writerTask.Wait(TimeSpan.FromSeconds(5));
+                    if (!_writerTask.IsCompleted)
+                        _writerTask.Wait(TimeSpan.FromSeconds(2));
                 }
                 catch (Exception ex)
                 {

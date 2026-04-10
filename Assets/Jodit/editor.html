@@ -6,7 +6,7 @@
 <title>Jodit Editor</title>
 <link rel="stylesheet" href="jodit.fat.min.css">
 <style>
-    body { margin: 0; padding: 0; font-family: 'Malgun Gothic', Arial, sans-serif; font-size: 12px; line-height: 1.3; }
+    html, body { margin: 0; padding: 0; font-family: 'Malgun Gothic', Arial, sans-serif; font-size: 12px; line-height: 1.3; height: 100%; overflow: hidden; }
     #editor { width: 100%; height: 100%; }
 </style>
 </head>
@@ -20,23 +20,18 @@
             editor.setReadOnly(true);
             if (editor.toolbar) editor.toolbar.container.style.display = 'none';
             if (editor.statusbar) editor.statusbar.container.style.display = 'none';
-            // ReadOnly: 내부 스크롤 비활성화, 콘텐츠 높이 보고
-            var area = editor.editor || editor.container;
+            // ReadOnly: 에디터 영역이 WebView2 전체를 채우고 내부 스크롤
+            var container = editor.container;
+            if (container) {
+                container.style.height = '100vh';
+                container.style.overflow = 'hidden';
+            }
+            var area = editor.editor;
             if (area) {
-                area.style.overflow = 'hidden';
+                area.style.overflow = 'auto';
+                area.style.height = '100%';
             }
             document.body.style.overflow = 'hidden';
-            // 여러 타이밍에 높이 측정 (콘텐츠 렌더링 + 이미지 로딩 대기)
-            setTimeout(reportContentHeight, 100);
-            setTimeout(reportContentHeight, 500);
-            setTimeout(reportContentHeight, 1500);
-            // 이미지 로딩 완료 후 높이 재측정
-            var images = area ? area.querySelectorAll('img') : [];
-            images.forEach(function(img) {
-                if (!img.complete) {
-                    img.addEventListener('load', reportContentHeight);
-                }
-            });
         }
         else if (mode === 'Simple') {
             editor.setReadOnly(false);
@@ -50,6 +45,30 @@
             if (editor.statusbar) editor.statusbar.container.style.display = '';
             document.body.style.overflow = '';
         }
+    }
+
+    function printContent() {
+        var content = editor.value;
+        var w = Math.min(screen.width * 0.85, 1024);
+        var h = Math.min(screen.height * 0.85, 900);
+        var left = (screen.width - w) / 2;
+        var top = (screen.height - h) / 2;
+        var win = window.open('', '_blank',
+            'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top +
+            ',menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes');
+        if (!win) return;
+        win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+        win.document.write('<title>인쇄 미리보기</title>');
+        win.document.write('<style>');
+        win.document.write('body { font-family: "Malgun Gothic", Arial, sans-serif; font-size: 12px; line-height: 1.6; margin: 30px; color: #000; }');
+        win.document.write('img { max-width: 100%; height: auto; }');
+        win.document.write('table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #999; padding: 4px 8px; }');
+        win.document.write('@media print { body { margin: 0; } }');
+        win.document.write('</style></head><body>');
+        win.document.write(content);
+        win.document.write('</body></html>');
+        win.document.close();
+        win.onload = function() { win.focus(); win.print(); };
     }
 
     function reportContentHeight() {

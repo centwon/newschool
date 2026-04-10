@@ -56,10 +56,6 @@ public sealed partial class PostListPage : Page
         this.NavigationCacheMode = NavigationCacheMode.Enabled;
 
         ViewModel = new PostListViewModel();
-
-        // PropertyChanged 이벤트로 수동 UI 업데이트
-        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
-
         this.DataContext = ViewModel;
 
         Debug.WriteLine("ViewModel 및 이벤트 설정 완료");
@@ -126,10 +122,20 @@ public sealed partial class PostListPage : Page
         });
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+    }
+
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
         Debug.WriteLine($"OnNavigatedTo 시작 - NavigationMode={e.NavigationMode}");
+
+        // NavigationCacheMode=Enabled 시 중복 구독 방지: 항상 재구독
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
         // Back 네비게이션: 상태 유지, 데이터만 새로고침
         if (e.NavigationMode == NavigationMode.Back)

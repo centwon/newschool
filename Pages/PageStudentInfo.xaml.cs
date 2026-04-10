@@ -82,7 +82,11 @@ public sealed partial class PageStudentInfo : Page
     private void PageStudentInfo_Unloaded(object sender, RoutedEventArgs e)
     {
         // 자동 저장
-        _ = SaveChangedAsync();
+        _ = SaveChangedAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
 
         // 이벤트 구독 해제
         StudentList.StudentSelected -= StudentList_StudentSelected;

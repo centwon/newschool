@@ -29,7 +29,11 @@ public sealed partial class Kcalendar : Page
             if (value != _basedate && _isInitialized)
             {
                 _basedate = value;
-                _ = RefreshCalendarAsync();
+                _ = RefreshCalendarAsync().ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        System.Diagnostics.Debug.WriteLine($"[Kcalendar] {t.Exception?.InnerException?.Message}");
+                }, TaskContinuationOptions.OnlyOnFaulted);
             }
         }
     }

@@ -49,20 +49,47 @@ namespace NewSchool.Repositories
 
         /// <summary>
         /// 여러 학생 일괄 수강 신청
+        /// 단일 트랜잭션 + 파라미터 재사용으로 배치 INSERT
         /// </summary>
         public async Task<int> BulkCreateAsync(List<CourseEnrollment> enrollments)
         {
             if (enrollments == null || enrollments.Count == 0)
                 return 0;
 
+            const string query = @"
+                INSERT INTO CourseEnrollment (
+                    StudentID, CourseNo, Status, Remark, Room, CreatedAt, UpdatedAt
+                ) VALUES (
+                    @StudentID, @CourseNo, @Status, @Remark, @Room, @CreatedAt, @UpdatedAt
+                );
+                SELECT last_insert_rowid();";
+
             try
             {
                 BeginTransaction();
 
+                using var cmd = CreateCommand(query);
+                cmd.Parameters.AddWithValue("@StudentID", string.Empty);
+                cmd.Parameters.AddWithValue("@CourseNo", 0);
+                cmd.Parameters.AddWithValue("@Status", string.Empty);
+                cmd.Parameters.AddWithValue("@Remark", string.Empty);
+                cmd.Parameters.AddWithValue("@Room", string.Empty);
+                cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
+                cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now);
+
                 int count = 0;
                 foreach (var enrollment in enrollments)
                 {
-                    await CreateAsync(enrollment);
+                    cmd.Parameters["@StudentID"].Value = enrollment.StudentID ?? string.Empty;
+                    cmd.Parameters["@CourseNo"].Value = enrollment.CourseNo;
+                    cmd.Parameters["@Status"].Value = enrollment.Status ?? CourseEnrollmentStatus.Active;
+                    cmd.Parameters["@Remark"].Value = enrollment.Remark ?? string.Empty;
+                    cmd.Parameters["@Room"].Value = enrollment.Room ?? string.Empty;
+                    cmd.Parameters["@CreatedAt"].Value = enrollment.CreatedAt;
+                    cmd.Parameters["@UpdatedAt"].Value = enrollment.UpdatedAt;
+
+                    var result = await cmd.ExecuteScalarAsync();
+                    enrollment.No = Convert.ToInt32(result);
                     count++;
                 }
 
@@ -213,8 +240,8 @@ namespace NewSchool.Repositories
         public async Task<bool> ExistsAsync(string studentId, int courseNo)
         {
             const string query = @"
-                SELECT COUNT(*) FROM CourseEnrollment 
-                WHERE StudentID = @StudentID AND CourseNo = @CourseNo";
+                SELECT EXISTS(SELECT 1 FROM CourseEnrollment
+                WHERE StudentID = @StudentID AND CourseNo = @CourseNo)";
 
             try
             {
@@ -222,8 +249,8 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
                 cmd.Parameters.AddWithValue("@CourseNo", courseNo);
 
-                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-                return count > 0;
+                var result = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                return result == 1;
             }
             catch (Exception ex)
             {

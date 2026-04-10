@@ -231,19 +231,7 @@ public partial class JoditEditor : UserControl, INotifyPropertyChanged, IDisposa
             }
             else if (type == "contentHeight")
             {
-                // ReadOnly 모드에서 콘텐츠 높이에 맞춰 컨트롤 크기 조정
-                if (Mode == EditorMode.ReadOnly && json.TryGetProperty("height", out var heightProp))
-                {
-                    int height = heightProp.GetInt32();
-                    if (height > 40)
-                    {
-                        DispatcherQueue.TryEnqueue(() =>
-                        {
-                            this.Height = height;
-                            Debug.WriteLine($"[JoditEditor] ReadOnly 높이 조정: {height}px");
-                        });
-                    }
-                }
+                // ReadOnly 모드: 내부 스크롤 사용, 동적 높이 조정 불필요
             }
             else if (type == "ready")
             {
@@ -398,7 +386,11 @@ public partial class JoditEditor : UserControl, INotifyPropertyChanged, IDisposa
 
         if (DispatcherQueue.HasThreadAccess)
         {
-            _ = DisposeAsync();
+            _ = DisposeAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[JoditEditor] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
         else
         {
@@ -432,7 +424,7 @@ public partial class JoditEditor : UserControl, INotifyPropertyChanged, IDisposa
             throw new InvalidOperationException("JoditEditor가 초기화되지 않았습니다.");
         }
 
-        await _webView.CoreWebView2.ExecuteScriptAsync("window.print()");
+        await _webView.CoreWebView2.ExecuteScriptAsync("printContent()");
     }
 
     /// <summary>
