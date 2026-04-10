@@ -311,15 +311,15 @@ namespace NewSchool.Repositories
             int grade, int classNo, int dayOfWeek, int period)
         {
             const string query = @"
-                SELECT COUNT(*) 
-                FROM ClassTimetable 
+                SELECT EXISTS(SELECT 1
+                FROM ClassTimetable
                 WHERE SchoolCode = @SchoolCode
                   AND Year = @Year
                   AND Semester = @Semester
                   AND Grade = @Grade
                   AND Class = @Class
                   AND DayOfWeek = @DayOfWeek
-                  AND Period = @Period";
+                  AND Period = @Period)";
 
             try
             {
@@ -333,7 +333,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Period", period);
 
                 var result = await cmd.ExecuteScalarAsync();
-                return Convert.ToInt32(result) > 0;
+                return Convert.ToInt32(result) == 1;
             }
             catch (Exception ex)
             {

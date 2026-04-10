@@ -12,6 +12,7 @@ using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using NewSchool.Board.Pages;
 using NewSchool.Board.Services;
+using NewSchool.Collections;
 using Windows.Storage;
 
 namespace NewSchool.Board.ViewModels;
@@ -22,8 +23,8 @@ public class PostDetailViewModel : INotifyPropertyChanged
 {
     private readonly BoardService _service;
     private Post? _post;
-    private ObservableCollection<Comment> _comments;
-    private ObservableCollection<PostFile> _files;
+    private OptimizedObservableCollection<Comment> _comments;
+    private OptimizedObservableCollection<PostFile> _files;
     private bool _isLoading;
     private string _newCommentContent = "";
 
@@ -47,7 +48,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-    public ObservableCollection<Comment> Comments
+    public OptimizedObservableCollection<Comment> Comments
     {
         get => _comments;
         set
@@ -57,7 +58,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
         }
     }
 
-    public ObservableCollection<PostFile> Files
+    public OptimizedObservableCollection<PostFile> Files
     {
         get => _files;
         set
@@ -114,8 +115,8 @@ public class PostDetailViewModel : INotifyPropertyChanged
     public PostDetailViewModel()
     {
         _service = Board.CreateService();
-        _comments = new ObservableCollection<Comment>();
-        _files = new ObservableCollection<PostFile>();
+        _comments = new OptimizedObservableCollection<Comment>();
+        _files = new OptimizedObservableCollection<PostFile>();
 
         LoadPostCommand = new RelayCommand<int>(async (postNo) => await LoadPostAsync(postNo));
         AddCommentCommand = new RelayCommand(async () => await AddCommentAsync());
@@ -158,11 +159,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             var comments = await _service.GetCommentsByPostAsync(postNo);
 
-            Comments.Clear();
-            foreach (var comment in comments)
-            {
-                Comments.Add(comment);
-            }
+            Comments.ReplaceAll(comments);
 
             Debug.WriteLine($"댓글 로드 완료: {Comments.Count}개");
         }
@@ -178,11 +175,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             var files = await _service.GetPostFilesByPostAsync(postNo);
 
-            Files.Clear();
-            foreach (var file in files)
-            {
-                Files.Add(file);
-            }
+            Files.ReplaceAll(files);
 
             Debug.WriteLine($"파일 로드 완료: {Files.Count}개");
         }

@@ -17,7 +17,12 @@ namespace NewSchool.Google;
 public class GoogleCalendarApiClient
 {
     private const string BaseUrl = "https://www.googleapis.com/calendar/v3";
-    private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private static readonly HttpClient _httpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+        UseCookies = false
+    }) { Timeout = TimeSpan.FromSeconds(30) };
     private readonly GoogleAuthService _authService;
 
     public GoogleCalendarApiClient(GoogleAuthService authService)

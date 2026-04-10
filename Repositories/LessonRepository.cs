@@ -97,37 +97,57 @@ public class LessonRepository : BaseRepository
 
     /// <summary>
     /// 정기 시간표 일괄 생성 (CourseSchedule 데이터 기반)
+    /// 단일 트랜잭션 + 파라미터 재사용으로 배치 INSERT
     /// </summary>
     public async Task<int> CreateFromSchedulesAsync(
         int courseNo, string teacherId, int year, int semester,
         int grade, int classNum, List<(int DayOfWeek, int Period, string Room)> schedules)
     {
+        if (schedules.Count == 0) return 0;
+
+        const string query = @"
+            INSERT INTO Lesson (
+                Course, Teacher, Year, Semester, Date, DayOfWeek, Period,
+                Grade, Class, Room, Topic, IsRecurring, IsCompleted, IsCancelled
+            ) VALUES (
+                @Course, @Teacher, @Year, @Semester, '', @DayOfWeek, @Period,
+                @Grade, @Class, @Room, '', 1, 0, 0
+            )";
+
         int count = 0;
-
-        foreach (var (dayOfWeek, period, room) in schedules)
+        BeginTransaction();
+        try
         {
-            var lesson = new Lesson
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@Course", courseNo);
+            cmd.Parameters.AddWithValue("@Teacher", teacherId);
+            cmd.Parameters.AddWithValue("@Year", year);
+            cmd.Parameters.AddWithValue("@Semester", semester);
+            cmd.Parameters.AddWithValue("@Grade", grade);
+            cmd.Parameters.AddWithValue("@Class", classNum);
+            cmd.Parameters.AddWithValue("@DayOfWeek", 0);
+            cmd.Parameters.AddWithValue("@Period", 0);
+            cmd.Parameters.AddWithValue("@Room", string.Empty);
+
+            foreach (var (dayOfWeek, period, room) in schedules)
             {
-                Course = courseNo,
-                Teacher = teacherId,
-                Year = year,
-                Semester = semester,
-                DayOfWeek = dayOfWeek,
-                Period = period,
-                Grade = grade,
-                Class = classNum,
-                Room = room,
-                IsRecurring = true,
-                IsCompleted = false,
-                IsCancelled = false
-            };
+                cmd.Parameters["@DayOfWeek"].Value = dayOfWeek;
+                cmd.Parameters["@Period"].Value = period;
+                cmd.Parameters["@Room"].Value = room ?? string.Empty;
 
-            await CreateAsync(lesson);
-            count++;
+                await cmd.ExecuteNonQueryAsync();
+                count++;
+            }
+
+            Commit();
+            LogInfo($"정기 시간표 일괄 생성: {count}개");
+            return count;
         }
-
-        LogInfo($"정기 시간표 일괄 생성: {count}개");
-        return count;
+        catch
+        {
+            Rollback();
+            throw;
+        }
     }
 
     #endregion

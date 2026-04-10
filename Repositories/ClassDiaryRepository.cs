@@ -487,13 +487,13 @@ namespace NewSchool.Repositories
         public async Task<bool> ExistsAsync(string schoolCode, int year, int semester, int grade, int classNum, DateTime date)
         {
             const string query = @"
-                SELECT COUNT(*) FROM ClassDiary 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester 
-                  AND Grade = @Grade 
-                  AND Class = @Class 
-                  AND Date = @Date";
+                SELECT EXISTS(SELECT 1 FROM ClassDiary
+                WHERE SchoolCode = @SchoolCode
+                  AND Year = @Year
+                  AND Semester = @Semester
+                  AND Grade = @Grade
+                  AND Class = @Class
+                  AND Date = @Date)";
 
             try
             {
@@ -506,7 +506,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Date", date.ToString("yyyy-MM-dd"));
 
                 var result = await cmd.ExecuteScalarAsync();
-                return Convert.ToInt32(result) > 0;
+                return Convert.ToInt32(result) == 1;
             }
             catch (Exception ex)
             {

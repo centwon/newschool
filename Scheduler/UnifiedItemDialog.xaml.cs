@@ -233,10 +233,10 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         UpdateRepeatLabels();
     }
 
-    private void TaskDueTimePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e)
+    private void TaskDueTimePicker_TimeChanged(object sender, TimeSpan e)
     {
         if (!_isInitialized) return;
-        _taskEvent.Start = DateTime.SpecifyKind(_taskEvent.Start.Date + e.NewTime, DateTimeKind.Unspecified);
+        _taskEvent.Start = DateTime.SpecifyKind(_taskEvent.Start.Date + e, DateTimeKind.Unspecified);
         _taskEvent.End   = DateTime.SpecifyKind(_taskEvent.Start.AddHours(1), DateTimeKind.Unspecified);
 
         UpdateRepeatLabels();
@@ -318,10 +318,10 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
     }
 
-    private void EventStartTimePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e)
+    private void EventStartTimePicker_TimeChanged(object sender, TimeSpan e)
     {
         if (!_isInitialized) return;
-        _event.Start = DateTime.SpecifyKind(_event.Start.Date + e.NewTime, DateTimeKind.Unspecified);
+        _event.Start = DateTime.SpecifyKind(_event.Start.Date + e, DateTimeKind.Unspecified);
 
     }
 
@@ -332,10 +332,10 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
     }
 
-    private void EventEndTimePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e)
+    private void EventEndTimePicker_TimeChanged(object sender, TimeSpan e)
     {
         if (!_isInitialized) return;
-        _event.End = DateTime.SpecifyKind(_event.End.Date + e.NewTime, DateTimeKind.Unspecified);
+        _event.End = DateTime.SpecifyKind(_event.End.Date + e, DateTimeKind.Unspecified);
 
     }
 
@@ -686,9 +686,12 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (calendarIndex >= 0 && calendarIndex < _calendars.Count)
         {
             var cal = _calendars[calendarIndex];
-            bool isTwoWay = cal.SyncMode == "TwoWay" && !string.IsNullOrEmpty(cal.GoogleId);
+            // "담임"(구버전 이름)은 구글 동기화 대상에서 제외
+            bool isTwoWay = cal.SyncMode == "TwoWay"
+                            && !string.IsNullOrEmpty(cal.GoogleId)
+                            && cal.Title != "담임";
             chk.Visibility = isTwoWay ? Visibility.Visible : Visibility.Collapsed;
-            chk.IsChecked = isTwoWay; // 기본 체크
+            chk.IsChecked = isTwoWay;
         }
         else
         {

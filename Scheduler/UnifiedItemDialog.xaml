@@ -16,7 +16,6 @@
     SecondaryButtonClick="Dialog_SecondaryButtonClick">
 
     <ContentDialog.Resources>
-        <!-- Converter: XAML 내부 사용 -->
     </ContentDialog.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -72,8 +71,7 @@
                             Margin="10,4,2,4" Spacing="10">
                     <CalendarDatePicker x:Name="TaskDueDatePicker"
                                         DateChanged="TaskDueDatePicker_DateChanged"/>
-                    <TimePicker x:Name="TaskDueTimePicker"
-                                ClockIdentifier="24HourClock"
+                    <control:CompactTimePicker x:Name="TaskDueTimePicker"
                                 TimeChanged="TaskDueTimePicker_TimeChanged"/>
                     <CheckBox x:Name="ChkTaskAllday" Content="종일"
                               VerticalAlignment="Center" Click="ChkTaskAllday_Click"/>
@@ -176,8 +174,7 @@
                             Margin="10,4,2,4" Spacing="10">
                     <CalendarDatePicker x:Name="EventStartDatePicker"
                                         DateChanged="EventStartDatePicker_DateChanged"/>
-                    <TimePicker x:Name="EventStartTimePicker"
-                                ClockIdentifier="24HourClock"
+                    <control:CompactTimePicker x:Name="EventStartTimePicker"
                                 TimeChanged="EventStartTimePicker_TimeChanged"/>
                     <CheckBox x:Name="ChkEventAllday" Content="종일"
                               VerticalAlignment="Center" Click="ChkEventAllday_Click"/>
@@ -189,8 +186,7 @@
                             Margin="10,4,2,4" Spacing="10">
                     <CalendarDatePicker x:Name="EventEndDatePicker"
                                         DateChanged="EventEndDatePicker_DateChanged"/>
-                    <TimePicker x:Name="EventEndTimePicker"
-                                ClockIdentifier="24HourClock"
+                    <control:CompactTimePicker x:Name="EventEndTimePicker"
                                 TimeChanged="EventEndTimePicker_TimeChanged"/>
                 </StackPanel>
 

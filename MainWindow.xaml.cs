@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -9,6 +10,7 @@ using NewSchool.Pages;
 using NewSchool.Scheduler;
 using Windows.Media.Miracast;
 using WinRT.Interop;
+using NewSchool.Services;
 
 namespace NewSchool;
 
@@ -93,7 +95,7 @@ private void SetAppIcon()
     /// <summary>
     /// NavigationView 아이템 선택 이벤트
     /// </summary>
-    private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
+    private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         if (args.InvokedItemContainer is NavigationViewItem item)
         {
@@ -239,9 +241,106 @@ private void SetAppIcon()
                 case "Help":
                     WorkFrame.Navigate(typeof(HelpPage));
                     break;
+                case "CheckUpdate":
+                    await CheckForUpdateAsync();
+                    break;
                 default:
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// 업데이트 확인 (ContentDialog로 결과 표시)
+    /// </summary>
+    private async Task CheckForUpdateAsync()
+    {
+        // 확인 중 다이얼로그
+        var progressDialog = new ContentDialog
+        {
+            Title = "업데이트 확인",
+            Content = new StackPanel
+            {
+                Spacing = 12,
+                Children =
+                {
+                    new ProgressRing { IsActive = true, Width = 32, Height = 32 },
+                    new TextBlock { Text = "업데이트를 확인하고 있습니다...", HorizontalAlignment = HorizontalAlignment.Center }
+                }
+            },
+            XamlRoot = this.Content.XamlRoot
+        };
+
+        // 비동기로 업데이트 확인 시작
+        var checkTask = UpdateService.CheckForUpdateAsync();
+
+        // ProgressDialog를 잠깐 표시했다가 결과 나오면 닫기
+        _ = progressDialog.ShowAsync();
+        var result = await checkTask;
+        progressDialog.Hide();
+
+        // 결과 다이얼로그
+        if (!result.IsSuccess)
+        {
+            var errorDialog = new ContentDialog
+            {
+                Title = "업데이트 확인 실패",
+                Content = result.ErrorMessage,
+                CloseButtonText = "확인",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await errorDialog.ShowAsync();
+            return;
+        }
+
+        var info = result.Info!;
+        if (info.IsUpdateAvailable)
+        {
+            var updateContent = new StackPanel { Spacing = 8 };
+            updateContent.Children.Add(new TextBlock
+            {
+                Text = $"새 버전이 있습니다: v{info.LatestVersion.ToString(3)}",
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+
+            if (!string.IsNullOrEmpty(info.ReleaseName))
+                updateContent.Children.Add(new TextBlock { Text = info.ReleaseName });
+
+            if (!string.IsNullOrEmpty(info.ReleaseNotes))
+                updateContent.Children.Add(new TextBlock
+                {
+                    Text = info.ReleaseNotes,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 400
+                });
+
+            var updateDialog = new ContentDialog
+            {
+                Title = "업데이트 가능",
+                Content = updateContent,
+                PrimaryButtonText = "다운로드",
+                CloseButtonText = "나중에",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            if (await updateDialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                if (!string.IsNullOrEmpty(info.DownloadUrl))
+                {
+                    await Windows.System.Launcher.LaunchUriAsync(new Uri(info.DownloadUrl));
+                }
+            }
+        }
+        else
+        {
+            var upToDateDialog = new ContentDialog
+            {
+                Title = "업데이트 확인",
+                Content = $"현재 최신 버전(v{UpdateService.CurrentVersion.ToString(3)})을 사용하고 있습니다.",
+                CloseButtonText = "확인",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await upToDateDialog.ShowAsync();
         }
     }
 

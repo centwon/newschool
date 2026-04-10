@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -11,6 +12,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Board.Services;
 using NewSchool.Board.ViewModels;
+using NewSchool.Collections;
 
 namespace NewSchool.Board.ViewModels;
 
@@ -21,13 +23,13 @@ namespace NewSchool.Board.ViewModels;
 public class PostListViewModel : INotifyPropertyChanged
 {
     private readonly BoardService _service;
-    private ObservableCollection<PostItemViewModel> _posts;
+    private OptimizedObservableCollection<PostItemViewModel> _posts;
     private readonly DispatcherQueue? _dispatcherQueue;
     public event PropertyChangedEventHandler? PropertyChanged;
 
     #region Properties
 
-    public ObservableCollection<PostItemViewModel> Posts
+    public OptimizedObservableCollection<PostItemViewModel> Posts
     {
         get => _posts;
         set
@@ -47,7 +49,11 @@ public class PostListViewModel : INotifyPropertyChanged
             {
                 field = value;
                 OnPropertyChanged();
-                _ = LoadPostsAsync(); // 자동 새로고침
+                _ = LoadPostsAsync().ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
+                }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
             }
         }
     } = "";
@@ -212,7 +218,7 @@ public class PostListViewModel : INotifyPropertyChanged
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
         _service = Board.CreateService();
-        _posts = new ObservableCollection<PostItemViewModel>();
+        _posts = new OptimizedObservableCollection<PostItemViewModel>();
         // Posts 컬렉션 변경 감지 추가
         _posts.CollectionChanged += (s, e) =>
         {
@@ -248,7 +254,7 @@ public class PostListViewModel : INotifyPropertyChanged
             Debug.WriteLine($"서비스에서 받은 아이템 수: {result.Items.Count}");
 
             // ConfigureAwait(true)로 UI 컨텍스트로 돌아옴 (기본값이지만 명시)
-            Posts.Clear();
+            var postItems = new List<PostItemViewModel>();
             foreach (var post in result.Items)
             {
                 // 댓글 개수 계산
@@ -264,9 +270,10 @@ public class PostListViewModel : INotifyPropertyChanged
                 }
 
                 var postItem = new PostItemViewModel(post, commentCount);
-                Posts.Add(postItem);
+                postItems.Add(postItem);
                 Debug.WriteLine($"추가됨 - No: {post.No}, Title: {post.Title}, Comments: {commentCount}");
             }
+            Posts.ReplaceAll(postItems);
 
             TotalPages = result.TotalPages;
             TotalCount = result.TotalCount;

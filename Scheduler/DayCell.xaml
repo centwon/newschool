@@ -16,7 +16,9 @@
         <SolidColorBrush x:Key="SundayColor" Color="#FF4444"/>
         <SolidColorBrush x:Key="VacationColor" Color="#FFA500"/>
         <SolidColorBrush x:Key="TaskHoverColor" Color="#E6F4FF"/>
-        <SolidColorBrush x:Key="TodayHighlightColor" Color="#FFF8DC"/>
+        <SolidColorBrush x:Key="TodayHighlightColor" Color="#DCEEFB"/>
+        <SolidColorBrush x:Key="TodayBorderColor" Color="#4285F4"/>
+        <SolidColorBrush x:Key="HoverHighlightColor" Color="#F0F0F0"/>
         <!-- 컨버터 -->
         <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:DayOfWeekToColorConverter x:Key="DayOfWeekToColorConverter"/>
@@ -25,17 +27,36 @@
     </UserControl.Resources>
 
     <!-- 오른쪽과 아래쪽 테두리만 표시 (0,0,0.5,0.5) -->
-    <Border x:Name="BrdBase" 
-            BorderBrush="{StaticResource BorderColor}" 
+    <Border x:Name="BrdBase"
+            BorderBrush="{StaticResource BorderColor}"
             BorderThickness="0,0,0.5,0.5"
             CornerRadius="0"
-            Background="White">
+            Background="White"
+            PointerEntered="BrdBase_PointerEntered"
+            PointerExited="BrdBase_PointerExited">
 
         <Grid x:Name="GridBase">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
+
+            <!-- 마우스 호버 효과 (배경 레이어) -->
+            <Border x:Name="HoverHighlight"
+                    Grid.RowSpan="2"
+                    Background="{StaticResource HoverHighlightColor}"
+                    IsHitTestVisible="False"
+                    Opacity="0"/>
+
+            <!-- 오늘 날짜 강조 효과 (배경 레이어) -->
+            <Border x:Name="TodayHighlight"
+                    Grid.RowSpan="2"
+                    Background="{StaticResource TodayHighlightColor}"
+                    BorderBrush="{StaticResource TodayBorderColor}"
+                    BorderThickness="2"
+                    CornerRadius="4"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed"/>
 
             <!-- 헤더 영역 -->
             <Grid Grid.Row="0" Padding="6,4">
@@ -45,13 +66,21 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- 날짜 -->
-                <TextBlock x:Name="LbDate" 
-                           Grid.Column="0"
-                           FontWeight="Bold" 
-                           FontSize="12"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,0"/>
+                <!-- 날짜 (오늘이면 원형 배경 표시) -->
+                <Grid Grid.Column="0" Margin="0,0,4,0">
+                    <Border x:Name="TodayCircle"
+                            Background="{StaticResource TodayBorderColor}"
+                            CornerRadius="12"
+                            Width="24" Height="24"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="Collapsed"/>
+                    <TextBlock x:Name="LbDate"
+                               FontWeight="Bold"
+                               FontSize="12"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Grid>
 
                 <!-- 날짜 이름 (공휴일 등) -->
                 <TextBlock x:Name="TbDateName" 
@@ -159,13 +188,6 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- 오늘 날짜 강조 효과 -->
-            <Rectangle x:Name="TodayHighlight"
-                       Grid.RowSpan="2"
-                       Fill="{StaticResource TodayHighlightColor}"
-                       Opacity="0.3"
-                       IsHitTestVisible="False"
-                       Visibility="Collapsed"/>
         </Grid>
     </Border>
 </UserControl>

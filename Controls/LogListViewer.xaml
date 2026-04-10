@@ -138,7 +138,7 @@
                                     <!-- 학년도 -->
                                     <TextBlock Grid.Column="1"
                                                Text="{x:Bind Year}"
-                                               Visibility="{Binding ElementName=TxtYearHeader, Path=Visibility}"
+                                               Visibility="{x:Bind YearColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Top"
                                                HorizontalAlignment="Center"
                                                FontSize="12"
@@ -147,7 +147,7 @@
                                     <!-- 학기 -->
                                     <TextBlock Grid.Column="2"
                                                Text="{x:Bind Semester}"
-                                               Visibility="{Binding ElementName=TxtSemesterHeader, Path=Visibility}"
+                                               Visibility="{x:Bind SemesterColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Top"
                                                HorizontalAlignment="Center"
                                                FontSize="12"

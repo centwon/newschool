@@ -104,11 +104,11 @@ public class LessonProgressRepository : IDisposable
         ";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@No", progress.No);
-        cmd.Parameters.AddWithValue("@IsCompleted", progress.IsCompleted ? 1 : 0);
+        cmd.Parameters.Add("@No", SqliteType.Integer).Value = progress.No;
+        cmd.Parameters.Add("@IsCompleted", SqliteType.Integer).Value = progress.IsCompleted ? 1 : 0;
         cmd.Parameters.AddWithValue("@CompletedDate", progress.CompletedDate?.ToString("o") ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@ProgressType", (int)progress.ProgressType);
-        cmd.Parameters.AddWithValue("@ScheduleId", progress.ScheduleId ?? (object)DBNull.Value);
+        cmd.Parameters.Add("@ProgressType", SqliteType.Integer).Value = (int)progress.ProgressType;
+        cmd.Parameters.Add("@ScheduleId", SqliteType.Integer).Value = progress.ScheduleId ?? (object)DBNull.Value;
         cmd.Parameters.AddWithValue("@Memo", progress.Memo ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now.ToString("o"));
 
@@ -126,7 +126,7 @@ public class LessonProgressRepository : IDisposable
         var sql = "DELETE FROM LessonProgress WHERE No = @No";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@No", no);
+        cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
 
         await cmd.ExecuteNonQueryAsync();
     }
@@ -142,7 +142,7 @@ public class LessonProgressRepository : IDisposable
         var sql = "SELECT * FROM LessonProgress WHERE No = @No";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@No", no);
+        cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
 
         using var reader = await cmd.ExecuteReaderAsync();
         if (await reader.ReadAsync())
@@ -164,7 +164,7 @@ public class LessonProgressRepository : IDisposable
         var sql = "SELECT * FROM LessonProgress WHERE CourseSectionId = @SectionId AND Room = @Room";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@SectionId", sectionId);
+        cmd.Parameters.Add("@SectionId", SqliteType.Integer).Value = sectionId;
         cmd.Parameters.AddWithValue("@Room", room);
 
         using var reader = await cmd.ExecuteReaderAsync();
@@ -218,7 +218,7 @@ public class LessonProgressRepository : IDisposable
         ";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@CourseId", courseId);
+        cmd.Parameters.Add("@CourseId", SqliteType.Integer).Value = courseId;
 
         var list = new List<LessonProgress>();
         using var reader = await cmd.ExecuteReaderAsync();
@@ -246,7 +246,7 @@ public class LessonProgressRepository : IDisposable
         ";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@CourseId", courseId);
+        cmd.Parameters.Add("@CourseId", SqliteType.Integer).Value = courseId;
         cmd.Parameters.AddWithValue("@Room", room);
 
         var list = new List<LessonProgress>();
@@ -270,7 +270,7 @@ public class LessonProgressRepository : IDisposable
         var sql = "SELECT * FROM LessonProgress WHERE CourseSectionId = @SectionId ORDER BY Room";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@SectionId", sectionId);
+        cmd.Parameters.Add("@SectionId", SqliteType.Integer).Value = sectionId;
 
         var list = new List<LessonProgress>();
         using var reader = await cmd.ExecuteReaderAsync();
@@ -293,7 +293,7 @@ public class LessonProgressRepository : IDisposable
         // 전체 단원 수 조회
         var countSql = "SELECT COUNT(*) FROM CourseSection WHERE Course = @CourseId";
         using var countCmd = new SqliteCommand(countSql, conn);
-        countCmd.Parameters.AddWithValue("@CourseId", courseId);
+        countCmd.Parameters.Add("@CourseId", SqliteType.Integer).Value = courseId;
         int totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
 
         // 학급별 완료 수 조회
@@ -306,7 +306,7 @@ public class LessonProgressRepository : IDisposable
         ";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@CourseId", courseId);
+        cmd.Parameters.Add("@CourseId", SqliteType.Integer).Value = courseId;
 
         var completedByRoom = new Dictionary<string, int>();
         using var reader = await cmd.ExecuteReaderAsync();
@@ -413,12 +413,12 @@ public class LessonProgressRepository : IDisposable
             foreach (var sectionId in sectionIds)
             {
                 // 이미 존재하는지 확인
-                var checkSql = "SELECT COUNT(*) FROM LessonProgress WHERE CourseSectionId = @SectionId AND Room = @Room";
+                var checkSql = "SELECT EXISTS(SELECT 1 FROM LessonProgress WHERE CourseSectionId = @SectionId AND Room = @Room)";
                 using var checkCmd = new SqliteCommand(checkSql, conn, transaction);
-                checkCmd.Parameters.AddWithValue("@SectionId", sectionId);
+                checkCmd.Parameters.Add("@SectionId", SqliteType.Integer).Value = sectionId;
                 checkCmd.Parameters.AddWithValue("@Room", room);
 
-                var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+                var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) == 1;
                 if (exists) continue;
 
                 // 새로 생성
@@ -427,7 +427,7 @@ public class LessonProgressRepository : IDisposable
                     VALUES (@SectionId, @Room, 0, 0, @CreatedAt)
                 ";
                 using var insertCmd = new SqliteCommand(insertSql, conn, transaction);
-                insertCmd.Parameters.AddWithValue("@SectionId", sectionId);
+                insertCmd.Parameters.Add("@SectionId", SqliteType.Integer).Value = sectionId;
                 insertCmd.Parameters.AddWithValue("@Room", room);
                 insertCmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now.ToString("o"));
 
@@ -465,7 +465,7 @@ public class LessonProgressRepository : IDisposable
         ";
 
         using var cmd = new SqliteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@CourseId", courseId);
+        cmd.Parameters.Add("@CourseId", SqliteType.Integer).Value = courseId;
         cmd.Parameters.AddWithValue("@Room", room);
 
         using var reader = await cmd.ExecuteReaderAsync();
@@ -491,12 +491,12 @@ public class LessonProgressRepository : IDisposable
 
     private void AddParameters(SqliteCommand cmd, LessonProgress progress)
     {
-        cmd.Parameters.AddWithValue("@CourseSectionId", progress.CourseSectionId);
+        cmd.Parameters.Add("@CourseSectionId", SqliteType.Integer).Value = progress.CourseSectionId;
         cmd.Parameters.AddWithValue("@Room", progress.Room);
-        cmd.Parameters.AddWithValue("@IsCompleted", progress.IsCompleted ? 1 : 0);
+        cmd.Parameters.Add("@IsCompleted", SqliteType.Integer).Value = progress.IsCompleted ? 1 : 0;
         cmd.Parameters.AddWithValue("@CompletedDate", progress.CompletedDate?.ToString("o") ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@ProgressType", (int)progress.ProgressType);
-        cmd.Parameters.AddWithValue("@ScheduleId", progress.ScheduleId ?? (object)DBNull.Value);
+        cmd.Parameters.Add("@ProgressType", SqliteType.Integer).Value = (int)progress.ProgressType;
+        cmd.Parameters.Add("@ScheduleId", SqliteType.Integer).Value = progress.ScheduleId ?? (object)DBNull.Value;
         cmd.Parameters.AddWithValue("@Memo", progress.Memo ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@CreatedAt", progress.CreatedAt.ToString("o"));
     }

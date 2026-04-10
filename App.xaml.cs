@@ -18,6 +18,7 @@ public partial class App : Application
 {
     private Window? _window;
     public static Window? MainWindow;
+    private static GoogleSyncService? _googleSyncService;
 
     public App()
     {
@@ -61,15 +62,13 @@ public partial class App : Application
         FileLogger.Instance.SetMinimumLevel(logLevel);
         Debug.WriteLine($"[App] 로그 레벨: {logLevel}");
 
-        // 2. DB 초기화
-        await NewSchool.Board.Board.InitAsync();
-        Debug.WriteLine("[App] Board 데이터베이스 초기화 완료");
-        // 3. scheduler 초기화 — 항상 실행 (신규 테이블 자동 반영)
-        await NewSchool.Scheduler.Scheduler.InitAsync();
-        Debug.WriteLine("[App] Scheduler 데이터베이스 초기화 완료");
-
-        await NewSchool.SchoolDatabase.InitAsync();
-        Debug.WriteLine("[App] School 데이터베이스 초기화 완료");
+        // 2. DB 초기화 (독립적인 3개 DB를 병렬 초기화)
+        await Task.WhenAll(
+            NewSchool.Board.Board.InitAsync(),
+            NewSchool.Scheduler.Scheduler.InitAsync(),
+            NewSchool.SchoolDatabase.InitAsync()
+        );
+        Debug.WriteLine("[App] 데이터베이스 초기화 완료 (Board, Scheduler, School)");
 
         // 3-1. 자동 백업 (필요 시)
         var backupResult = Settings.RunAutoBackupIfNeeded();
@@ -115,13 +114,22 @@ public partial class App : Application
         _window = new MainWindow();
         MainWindow = _window;
         MessageBox.Initialize(_window);
+        _window.Closed += (s, e) =>
+        {
+            _googleSyncService?.Dispose();
+            _googleSyncService = null;
+        };
         _window.Activate();
 
         Debug.WriteLine("[App] 앱 시작 완료");
         PrintSettings();
 
         // Google Calendar 시작 시 동기화 (비동기, fire-and-forget)
-        _ = TryStartGoogleSyncAsync();
+        _ = TryStartGoogleSyncAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.WriteLine($"[App] Google sync failed: {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     /// <summary>
@@ -147,8 +155,9 @@ public partial class App : Application
             Debug.WriteLine("[App] Google 토큰 유효 — 동기화 시작");
 
             var apiClient = new GoogleCalendarApiClient(authService);
-            var syncService = new GoogleSyncService(authService, apiClient);
-            var result = await syncService.SyncAllAsync();
+            _googleSyncService?.Dispose();
+            _googleSyncService = new GoogleSyncService(authService, apiClient);
+            var result = await _googleSyncService.SyncAllAsync();
 
             Debug.WriteLine($"[App] Google 시작 동기화 완료: {result.Summary}");
 
@@ -157,13 +166,13 @@ public partial class App : Application
             {
                 int intervalMinutes = Settings.GoogleSyncIntervalMinutes.Value;
                 if (intervalMinutes < 5) intervalMinutes = 15;
-                syncService.StartPeriodicSync(TimeSpan.FromMinutes(intervalMinutes));
+                _googleSyncService.StartPeriodicSync(TimeSpan.FromMinutes(intervalMinutes));
                 Debug.WriteLine($"[App] Google 자동 동기화 시작: {intervalMinutes}분 간격");
-                // 참고: syncService를 Dispose하지 않음 — 앱 수명 동안 유지
             }
             else
             {
-                syncService.Dispose();
+                _googleSyncService.Dispose();
+                _googleSyncService = null;
             }
         }
         catch (Exception ex)

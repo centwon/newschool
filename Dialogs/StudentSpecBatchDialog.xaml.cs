@@ -77,8 +77,16 @@ public sealed partial class StudentSpecBatchDialog : Window
         InitializeTypeComboBox(defaultType);
         InitializeStudentList();
 
-        _ = LoadStudentsAsync();
-        _ = LoadCoursesAsync();
+        _ = LoadStudentsAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
+        _ = LoadCoursesAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     #endregion
@@ -295,7 +303,11 @@ public sealed partial class StudentSpecBatchDialog : Window
         // 현재 학생 다시 로드
         if (_currentStudent != null)
         {
-            _ = ReloadCurrentStudentAsync();
+            _ = ReloadCurrentStudentAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
     }
 
@@ -309,7 +321,11 @@ public sealed partial class StudentSpecBatchDialog : Window
 
         if (_currentStudent != null)
         {
-            _ = ReloadCurrentStudentAsync();
+            _ = ReloadCurrentStudentAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
     }
 

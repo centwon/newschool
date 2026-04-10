@@ -124,7 +124,8 @@ public sealed partial class TeacherTimetablePage : Page
             using var timetableService = new TimetableService(SchoolDatabase.DbPath);
             var viewModel = await timetableService.GetTeacherTimetableAsync(teacherId, year, semester);
 
-            // 시간표 표시
+            // 시간표 표시 (교사용: 과목 + 강의실)
+            TimetableControl.DisplayMode = TimetableDisplayMode.Teacher;
             TimetableControl.DataContext = viewModel;
             ShowTimetableState();
         }
@@ -141,21 +142,21 @@ public sealed partial class TeacherTimetablePage : Page
     {
         LoadingPanel.Visibility = Visibility.Visible;
         EmptyPanel.Visibility = Visibility.Collapsed;
-        TimetableScrollViewer.Visibility = Visibility.Collapsed;
+        TimetableCard.Visibility = Visibility.Collapsed;
     }
 
     private void ShowEmptyState()
     {
         LoadingPanel.Visibility = Visibility.Collapsed;
         EmptyPanel.Visibility = Visibility.Visible;
-        TimetableScrollViewer.Visibility = Visibility.Collapsed;
+        TimetableCard.Visibility = Visibility.Collapsed;
     }
 
     private void ShowTimetableState()
     {
         LoadingPanel.Visibility = Visibility.Collapsed;
         EmptyPanel.Visibility = Visibility.Collapsed;
-        TimetableScrollViewer.Visibility = Visibility.Visible;
+        TimetableCard.Visibility = Visibility.Visible;
     }
 
     #endregion

@@ -251,6 +251,13 @@
                                 <FontIcon Glyph="&#xE897;"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem
+                            Tag="CheckUpdate"
+                            Content="업데이트 확인">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE895;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                     </NavigationViewItem.MenuItems>
                 </NavigationViewItem>
             </NavigationView.MenuItems>

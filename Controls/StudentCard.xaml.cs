@@ -64,6 +64,8 @@ namespace NewSchool.Controls
             ViewModel = viewModel;
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
+            // 기본 생성자와 동일하게 Unloaded 구독 (이중 호출 시 중복 방지는 호출측 책임)
+            this.Unloaded -= StudentCard_Unloaded;
             this.Unloaded += StudentCard_Unloaded;
         }
 
@@ -74,7 +76,11 @@ namespace NewSchool.Controls
         private void StudentCard_Unloaded(object sender, RoutedEventArgs e)
         {
             // 자동 저장 시도
-            _ = SaveChangedAsync();
+            _ = SaveChangedAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[StudentCard] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
 
             // 이벤트 구독 해제 (메모리 누수 방지)
             if (ViewModel != null)

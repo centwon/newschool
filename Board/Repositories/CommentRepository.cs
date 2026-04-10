@@ -61,7 +61,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
@@ -91,13 +91,9 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Post", postNo);
+                cmd.Parameters.Add("@Post", SqliteType.Integer).Value = postNo;
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    comments.Add(MapComment(reader));
-                }
+                comments = await ExecuteListAsync(cmd, MapComment);
 
                 LogInfo($"Comment 목록 조회 완료: Post={postNo}, Count={comments.Count}");
                 return comments;
@@ -119,7 +115,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Post", postNo);
+                cmd.Parameters.Add("@Post", SqliteType.Integer).Value = postNo;
 
                 var result = await cmd.ExecuteScalarAsync();
                 return Convert.ToInt32(result);
@@ -149,11 +145,11 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", comment.No);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = comment.No;
                 cmd.Parameters.AddWithValue("@Content", comment.Content);
-                cmd.Parameters.AddWithValue("@HasFile", comment.HasFile ? 1 : 0);
+                cmd.Parameters.Add("@HasFile", SqliteType.Integer).Value = comment.HasFile ? 1 : 0;
                 cmd.Parameters.AddWithValue("@FileName", comment.FileName);
-                cmd.Parameters.AddWithValue("@FileSize", comment.FileSize);
+                cmd.Parameters.Add("@FileSize", SqliteType.Integer).Value = comment.FileSize;
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 bool success = rowsAffected > 0;
@@ -186,7 +182,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
                 cmd.Parameters.AddWithValue("@Content", content);
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
@@ -214,7 +210,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 bool success = rowsAffected > 0;
@@ -247,7 +243,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Post", postNo);
+                cmd.Parameters.Add("@Post", SqliteType.Integer).Value = postNo;
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 LogInfo($"Comment 일괄 삭제 완료: Post={postNo}, Count={rowsAffected}");
@@ -269,32 +265,52 @@ namespace NewSchool.Board.Repositories
         /// </summary>
         private void AddCommentParameters(SqliteCommand cmd, Comment comment)
         {
-            cmd.Parameters.AddWithValue("@Post", comment.Post);
+            cmd.Parameters.Add("@Post", SqliteType.Integer).Value = comment.Post;
             cmd.Parameters.AddWithValue("@User", comment.User); // 추가
             cmd.Parameters.AddWithValue("@DateTime", DateTimeHelper.ToStandardString(comment.DateTime));
-            cmd.Parameters.AddWithValue("@ReplyOrder", comment.ReplyOrder);
+            cmd.Parameters.Add("@ReplyOrder", SqliteType.Integer).Value = comment.ReplyOrder;
             cmd.Parameters.AddWithValue("@Content", comment.Content);
-            cmd.Parameters.AddWithValue("@HasFile", comment.HasFile ? 1 : 0);
+            cmd.Parameters.Add("@HasFile", SqliteType.Integer).Value = comment.HasFile ? 1 : 0;
             cmd.Parameters.AddWithValue("@FileName", comment.FileName);
-            cmd.Parameters.AddWithValue("@FileSize", comment.FileSize);
+            cmd.Parameters.Add("@FileSize", SqliteType.Integer).Value = comment.FileSize;
         }
         /// <summary>
-        /// SqliteDataReader를 Comment로 매핑 (Native AOT 호환)
+        /// SqliteDataReader를 Comment로 매핑 (캐시된 컬럼 인덱스 사용)
+        /// </summary>
+        private Comment MapComment(SqliteDataReader reader, ReaderColumnCache cache)
+        {
+            var noOrd = cache.GetOrdinal("No");
+            var postOrd = cache.GetOrdinal("Post");
+            var userOrd = cache.GetOrdinal("User");
+            var dtOrd = cache.GetOrdinal("DateTime");
+            var replyOrd = cache.GetOrdinal("ReplyOrder");
+            var contentOrd = cache.GetOrdinal("Content");
+            var fileOrd = cache.GetOrdinal("HasFile");
+            var nameOrd = cache.GetOrdinal("FileName");
+            var sizeOrd = cache.GetOrdinal("FileSize");
+
+            return new Comment
+            {
+                No = reader.GetInt32(noOrd),
+                Post = reader.GetInt32(postOrd),
+                User = reader.IsDBNull(userOrd) ? "" : reader.GetString(userOrd),
+                DateTime = DateTimeHelper.FromDateString(reader.GetString(dtOrd)),
+                ReplyOrder = reader.GetInt32(replyOrd),
+                Content = reader.IsDBNull(contentOrd) ? "" : reader.GetString(contentOrd),
+                HasFile = reader.GetInt32(fileOrd) == 1,
+                FileName = reader.IsDBNull(nameOrd) ? "" : reader.GetString(nameOrd),
+                FileSize = reader.GetInt32(sizeOrd)
+            };
+        }
+
+        /// <summary>
+        /// 비캐시 오버로드 (단일 행 조회용)
         /// </summary>
         private Comment MapComment(SqliteDataReader reader)
         {
-            return new Comment
-            {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                Post = reader.GetInt32(reader.GetOrdinal("Post")),
-                User = reader.IsDBNull(reader.GetOrdinal("User")) ? "" : reader.GetString(reader.GetOrdinal("User")), // 추가
-                DateTime = DateTimeHelper.FromDateString(reader.GetString(reader.GetOrdinal("DateTime"))),
-                ReplyOrder = reader.GetInt32(reader.GetOrdinal("ReplyOrder")),
-                Content = reader.IsDBNull(reader.GetOrdinal("Content")) ? "" : reader.GetString(reader.GetOrdinal("Content")),
-                HasFile = reader.GetInt32(reader.GetOrdinal("HasFile")) == 1,
-                FileName = reader.IsDBNull(reader.GetOrdinal("FileName")) ? "" : reader.GetString(reader.GetOrdinal("FileName")),
-                FileSize = reader.GetInt32(reader.GetOrdinal("FileSize"))
-            };
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);
+            return MapComment(reader, cache);
         }
 
         #endregion

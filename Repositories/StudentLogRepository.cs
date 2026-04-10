@@ -73,7 +73,7 @@ namespace NewSchool.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
 
                 using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
                 if (await reader.ReadAsync().ConfigureAwait(false))
@@ -117,10 +117,10 @@ namespace NewSchool.Repositories
 
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@Year", year);
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
                 if (semester > 0)
                 {
-                    cmd.Parameters.AddWithValue("@Semester", semester);
+                    cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
                 }
 
                 var logs = await ExecuteListAsync(cmd, MapStudentLog).ConfigureAwait(false);
@@ -183,18 +183,12 @@ namespace NewSchool.Repositories
             {
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Category", (int)category);
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
+                cmd.Parameters.Add("@Category", SqliteType.Integer).Value = (int)category;
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
-
-                return logs;
+                return await ReadAllLogsAsync(reader);
             }
             catch (Exception ex)
             {
@@ -220,17 +214,11 @@ namespace NewSchool.Repositories
             {
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@TeacherID", teacherId);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
-
-                return logs;
+                return await ReadAllLogsAsync(reader);
             }
             catch (Exception ex)
             {
@@ -255,18 +243,12 @@ namespace NewSchool.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@CourseNo", courseNo);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
+                cmd.Parameters.Add("@CourseNo", SqliteType.Integer).Value = courseNo;
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
-
-                return logs;
+                return await ReadAllLogsAsync(reader);
             }
             catch (Exception ex)
             {
@@ -300,17 +282,13 @@ namespace NewSchool.Repositories
 
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classroom);
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                cmd.Parameters.Add("@Grade", SqliteType.Integer).Value = grade;
+                cmd.Parameters.Add("@Class", SqliteType.Integer).Value = classroom;
                 cmd.Parameters.AddWithValue("@Date", date.ToString("yyyy-MM-dd"));
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
+                var logs = await ReadAllLogsAsync(reader);
 
                 LogInfo($"학급별 기록 조회 완료: {logs.Count}건");
                 return logs;
@@ -336,8 +314,8 @@ namespace NewSchool.Repositories
                   AND e.Grade = @Grade
                   AND e.Class = @Class
                   AND sl.Year = @Year
-                  AND date(sl.Date) >= date(@StartDate)
-                  AND date(sl.Date) <= date(@EndDate)
+                  AND sl.Date >= @StartDate
+                  AND sl.Date <= @EndDate
                 ORDER BY sl.Date DESC, e.Number";
 
             try
@@ -346,18 +324,14 @@ namespace NewSchool.Repositories
 
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classroom);
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                cmd.Parameters.Add("@Grade", SqliteType.Integer).Value = grade;
+                cmd.Parameters.Add("@Class", SqliteType.Integer).Value = classroom;
                 cmd.Parameters.AddWithValue("@StartDate", startDate.ToString("yyyy-MM-dd"));
                 cmd.Parameters.AddWithValue("@EndDate", endDate.ToString("yyyy-MM-dd"));
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
+                var logs = await ReadAllLogsAsync(reader);
 
                 LogInfo($"학급별 기간 조회 완료: {logs.Count}건");
                 return logs;
@@ -387,17 +361,11 @@ namespace NewSchool.Repositories
             {
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
-
-                return logs;
+                return await ReadAllLogsAsync(reader);
             }
             catch (Exception ex)
             {
@@ -432,18 +400,12 @@ namespace NewSchool.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
                 cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
-
-                return logs;
+                return await ReadAllLogsAsync(reader);
             }
             catch (Exception ex)
             {
@@ -480,17 +442,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@EndDate", endDate);
                 if (year > 0)
                 {
-                    cmd.Parameters.AddWithValue("@Year", year);
+                    cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
                 }
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
-
-                return logs;
+                return await ReadAllLogsAsync(reader);
             }
             catch (Exception ex)
             {
@@ -517,17 +473,11 @@ namespace NewSchool.Repositories
             {
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
 
-                var logs = new List<StudentLog>();
                 using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    logs.Add(MapStudentLog(reader));
-                }
-
-                return logs;
+                return await ReadAllLogsAsync(reader);
             }
             catch (Exception ex)
             {
@@ -603,7 +553,7 @@ namespace NewSchool.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
+                cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
 
                 int affected = await cmd.ExecuteNonQueryAsync();
                 bool success = affected > 0;
@@ -631,22 +581,22 @@ namespace NewSchool.Repositories
         /// </summary>
         private void AddLogParameters(SqliteCommand cmd, StudentLog log)
         {
-            cmd.Parameters.AddWithValue("@No", log.No);
+            cmd.Parameters.Add("@No", SqliteType.Integer).Value = log.No;
             cmd.Parameters.AddWithValue("@StudentID", log.StudentID ?? string.Empty);
             cmd.Parameters.AddWithValue("@TeacherID", string.IsNullOrEmpty(log.TeacherID) ? DBNull.Value : log.TeacherID);
-            cmd.Parameters.AddWithValue("@Year", log.Year);
-            cmd.Parameters.AddWithValue("@Semester", log.Semester);
+            cmd.Parameters.Add("@Year", SqliteType.Integer).Value = log.Year;
+            cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = log.Semester;
             cmd.Parameters.AddWithValue("@Date", log.Date.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@Category", (int)log.Category); // ⭐ enum을 int로 변환
+            cmd.Parameters.Add("@Category", SqliteType.Integer).Value = (int)log.Category; // ⭐ enum을 int로 변환
             // ⭐ CourseNo가 0이면 NULL로 저장 (외래키 제약 회피)
-            cmd.Parameters.AddWithValue("@CourseNo", log.CourseNo == 0 ? (object)DBNull.Value : log.CourseNo);
+            cmd.Parameters.Add("@CourseNo", SqliteType.Integer).Value = log.CourseNo == 0 ? (object)DBNull.Value : log.CourseNo;
             cmd.Parameters.AddWithValue("@SubjectName", string.IsNullOrEmpty(log.SubjectName) ? DBNull.Value : log.SubjectName);
-            cmd.Parameters.AddWithValue("@ClubNo", log.ClubNo == 0 ? (object)DBNull.Value : log.ClubNo);
+            cmd.Parameters.Add("@ClubNo", SqliteType.Integer).Value = log.ClubNo == 0 ? (object)DBNull.Value : log.ClubNo;
             cmd.Parameters.AddWithValue("@ClubName", string.IsNullOrEmpty(log.ClubName) ? DBNull.Value : log.ClubName);
             cmd.Parameters.AddWithValue("@Log", string.IsNullOrEmpty(log.Log) ? DBNull.Value : log.Log);
             cmd.Parameters.AddWithValue("@Tag", string.IsNullOrEmpty(log.Tag) ? DBNull.Value : log.Tag);
-            cmd.Parameters.AddWithValue("@IsImportant", log.IsImportant ? 1 : 0);
-            
+            cmd.Parameters.Add("@IsImportant", SqliteType.Integer).Value = log.IsImportant ? 1 : 0;
+
             // 구조화된 필드들
             cmd.Parameters.AddWithValue("@ActivityName", string.IsNullOrEmpty(log.ActivityName) ? DBNull.Value : log.ActivityName);
             cmd.Parameters.AddWithValue("@Topic", string.IsNullOrEmpty(log.Topic) ? DBNull.Value : log.Topic);
@@ -662,43 +612,22 @@ namespace NewSchool.Repositories
         /// </summary>
         private StudentLog MapStudentLog(SqliteDataReader reader)
         {
-            // ClubNo, ClubName 컴럼 존재 여부 확인
-            int clubNoIdx = -1;
-            int clubNameIdx = -1;
-            try
+            var cache = new ReaderColumnCache(20);
+            cache.Initialize(reader);
+            return MapStudentLog(reader, cache);
+        }
+
+        private async Task<List<StudentLog>> ReadAllLogsAsync(SqliteDataReader reader)
+        {
+            var logs = new List<StudentLog>();
+            var cache = new ReaderColumnCache(20);
+            bool cacheInitialized = false;
+            while (await reader.ReadAsync())
             {
-                clubNoIdx = reader.GetOrdinal("ClubNo");
-                clubNameIdx = reader.GetOrdinal("ClubName");
+                if (!cacheInitialized) { cache.Initialize(reader); cacheInitialized = true; }
+                logs.Add(MapStudentLog(reader, cache));
             }
-            catch
-            {
-                // ClubNo, ClubName 컴럼이 없으면 무시
-            }
-            
-            return new StudentLog
-            {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                StudentID = reader.IsDBNull(reader.GetOrdinal("StudentID")) ? string.Empty : reader.GetString(reader.GetOrdinal("StudentID")),
-                TeacherID = reader.IsDBNull(reader.GetOrdinal("TeacherID")) ? string.Empty : reader.GetString(reader.GetOrdinal("TeacherID")),
-                Year = reader.GetInt32(reader.GetOrdinal("Year")),
-                Semester = reader.GetInt32(reader.GetOrdinal("Semester")),
-                Date = NewSchool.DateTimeHelper.FromDateString(reader.IsDBNull(reader.GetOrdinal("Date")) ? string.Empty : reader.GetString(reader.GetOrdinal("Date"))),
-                Category = (LogCategory)reader.GetInt32(reader.GetOrdinal("Category")),
-                CourseNo = reader.IsDBNull(reader.GetOrdinal("CourseNo")) ? 0 : reader.GetInt32(reader.GetOrdinal("CourseNo")),
-                SubjectName = reader.IsDBNull(reader.GetOrdinal("SubjectName")) ? string.Empty : reader.GetString(reader.GetOrdinal("SubjectName")),
-                ClubNo = (clubNoIdx >= 0 && !reader.IsDBNull(clubNoIdx)) ? reader.GetInt32(clubNoIdx) : 0,
-                ClubName = (clubNameIdx >= 0 && !reader.IsDBNull(clubNameIdx)) ? reader.GetString(clubNameIdx) : string.Empty,
-                Log = reader.IsDBNull(reader.GetOrdinal("Log")) ? string.Empty : reader.GetString(reader.GetOrdinal("Log")),
-                Tag = reader.IsDBNull(reader.GetOrdinal("Tag")) ? string.Empty : reader.GetString(reader.GetOrdinal("Tag")),
-                IsImportant = (reader.IsDBNull(reader.GetOrdinal("IsImportant")) ? 0 : reader.GetInt32(reader.GetOrdinal("IsImportant"))) == 1,
-                ActivityName = reader.IsDBNull(reader.GetOrdinal("ActivityName")) ? string.Empty : reader.GetString(reader.GetOrdinal("ActivityName")),
-                Topic = reader.IsDBNull(reader.GetOrdinal("Topic")) ? string.Empty : reader.GetString(reader.GetOrdinal("Topic")),
-                Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? string.Empty : reader.GetString(reader.GetOrdinal("Description")),
-                Role = reader.IsDBNull(reader.GetOrdinal("Role")) ? string.Empty : reader.GetString(reader.GetOrdinal("Role")),
-                SkillDeveloped = reader.IsDBNull(reader.GetOrdinal("SkillDeveloped")) ? string.Empty : reader.GetString(reader.GetOrdinal("SkillDeveloped")),
-                StrengthShown = reader.IsDBNull(reader.GetOrdinal("StrengthShown")) ? string.Empty : reader.GetString(reader.GetOrdinal("StrengthShown")),
-                ResultOrOutcome = reader.IsDBNull(reader.GetOrdinal("ResultOrOutcome")) ? string.Empty : reader.GetString(reader.GetOrdinal("ResultOrOutcome"))
-            };
+            return logs;
         }
 
         /// <summary>

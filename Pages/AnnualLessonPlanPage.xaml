@@ -378,12 +378,12 @@
                                                TextWrapping="Wrap"/>
                                     <ItemsControl x:Name="TimetableItemsControl">
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
+                                            <DataTemplate x:DataType="x:String">
                                                 <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                                         CornerRadius="4"
                                                         Padding="8,4"
                                                         Margin="0,2">
-                                                    <TextBlock Text="{Binding}" FontSize="11"/>
+                                                    <TextBlock Text="{x:Bind}" FontSize="11"/>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
