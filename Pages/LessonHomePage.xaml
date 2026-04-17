@@ -1,56 +1,45 @@
-﻿<Page
+<Page
     x:Class="NewSchool.Pages.LessonHomePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:NewSchool.Controls"
-    xmlns:models="using:NewSchool.Models"
     xmlns:scheduler="using:NewSchool.Scheduler"
+    xmlns:board="using:NewSchool.Board.Controls"
+    xmlns:local="using:NewSchool.Pages"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Padding="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>  <!-- 필터바 -->
-            <RowDefinition Height="*"/>     <!-- 메인 -->
+            <RowDefinition Height="Auto"/>  <!-- 페이지 헤더 -->
+            <RowDefinition Height="*"/>     <!-- 메인 콘텐츠 -->
         </Grid.RowDefinitions>
 
-        <!-- 상단: 필터바 -->
+        <!-- 페이지 헤더: 날짜 표시 -->
         <StackPanel Grid.Row="0"
                     Orientation="Horizontal"
-                    Spacing="12"
-                    Margin="8,0,0,12">
-            <TextBlock Text="과목" VerticalAlignment="Center"/>
-            <ComboBox x:Name="CBoxSubject"
-                      MinWidth="140"
-                      VerticalAlignment="Center"
-                      SelectionChanged="CBoxSubject_SelectionChanged">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="models:Course">
-                        <TextBlock Text="{x:Bind Subject}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-            <TextBlock Text="학급" VerticalAlignment="Center"/>
-            <ComboBox x:Name="CBoxRoom"
-                      MinWidth="100"
-                      VerticalAlignment="Center"
-                      SelectionChanged="CBoxRoom_SelectionChanged"/>
-            <TextBlock x:Name="TxtStudentCount"
-                       VerticalAlignment="Center"
-                       FontSize="12"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    Spacing="10"
+                    Margin="4,0,0,8">
+            <FontIcon Glyph="&#xE787;" FontSize="16"
+                      VerticalAlignment="Center"/>
+            <TextBlock x:Name="TxtPageDate"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
         </StackPanel>
 
-        <!-- 메인: 시간표(좌) + Pivot(우) -->
+        <!-- 메인: 좌(시간표 + 할일) + 우(오늘의 수업 + 최근 기록 + 메모) -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280"/>  <!-- 시간표 -->
-                <ColumnDefinition Width="*"/>    <!-- Pivot -->
+                <ColumnDefinition Width="360"/>   <!-- 좌측: 사이드 -->
+                <ColumnDefinition Width="*"/>     <!-- 우측: 메인 영역 -->
             </Grid.ColumnDefinitions>
 
+            <!-- ==================== -->
             <!-- 좌측: 시간표 + 할일 -->
+            <!-- ==================== -->
             <Grid Grid.Column="0" Margin="0,0,8,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>  <!-- 시간표 -->
@@ -71,8 +60,8 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0" 
-                                    Orientation="Horizontal" 
+                        <StackPanel Grid.Row="0"
+                                    Orientation="Horizontal"
                                     Margin="0,0,0,8">
                             <FontIcon Glyph="&#xE787;" FontSize="14"/>
                             <TextBlock Text="내 시간표"
@@ -89,33 +78,161 @@
                     </Grid>
                 </Border>
 
-                <!-- 할일 목록 -->
+                <!-- 할일 목록 (수업 카테고리 고정) -->
                 <scheduler:KAgendaControl Grid.Row="1"
                                           x:Name="LessonTaskList"
+                                          FixedCalendarName="수업"
                                           Background="Transparent"/>
             </Grid>
 
-            <!-- 우측: Pivot (수업 기록 / 수업 자료) -->
-            <Border Grid.Column="1"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                <Pivot>
-                    <!-- 탭1: 수업 기록 -->
-                    <PivotItem Header="수업 기록">
-                        <controls:LessonLogList x:Name="LessonLogList"
-                                                LessonSelected="LessonLogList_LessonSelected"
-                                                AddRequested="LessonLogList_AddRequested"
-                                                Margin="0,8,0,0"/>
-                    </PivotItem>
+            <!-- ==================== -->
+            <!-- 우측: 오늘의 수업 + 최근 수업 기록 + 메모 -->
+            <!-- ==================== -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- 오늘의 수업 -->
+                    <RowDefinition Height="*"/>     <!-- 최근 수업 기록 -->
+                    <RowDefinition Height="*"/>     <!-- 메모 -->
+                </Grid.RowDefinitions>
 
-                    <!-- 탭2: 수업 자료 -->
-                    <PivotItem Header="수업 자료">
-                        <Frame x:Name="MaterialFrame" Margin="0,8,0,0"/>
-                    </PivotItem>
-                </Pivot>
-            </Border>
+                <!-- 오늘의 수업 카드 -->
+                <Border Grid.Row="0"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        Padding="12"
+                        Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>  <!-- 헤더 -->
+                            <RowDefinition Height="Auto"/>  <!-- 목록 -->
+                        </Grid.RowDefinitions>
+
+                        <!-- 헤더 -->
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE8D1;" FontSize="14"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="오늘의 수업"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="TxtTodaySummary"
+                                       Grid.Column="1"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- 오늘의 수업 목록 -->
+                        <ItemsRepeater x:Name="TodayLessonRepeater"
+                                       Grid.Row="1">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Spacing="4"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="local:TodayLessonItem">
+                                    <Border CornerRadius="6"
+                                            Padding="12,8"
+                                            Background="{x:Bind RowBackground}">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="50"/>
+                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="44"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- 교시 -->
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{x:Bind PeriodText}"
+                                                       FontSize="13"
+                                                       FontWeight="{x:Bind PeriodFontWeight}"
+                                                       Foreground="{x:Bind PeriodForeground}"
+                                                       VerticalAlignment="Center"/>
+
+                                            <!-- 과목 -->
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{x:Bind Subject}"
+                                                       FontSize="13"
+                                                       Foreground="{x:Bind SubjectForeground}"
+                                                       VerticalAlignment="Center"/>
+
+                                            <!-- 학급 -->
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{x:Bind ClassDisplay}"
+                                                       FontSize="12"
+                                                       HorizontalTextAlignment="Center"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+
+                                            <!-- 주제 -->
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{x:Bind TopicText}"
+                                                       FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       MaxLines="1"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Visibility="{x:Bind HasTopic}"/>
+
+                                            <!-- 상태 버튼 -->
+                                            <Button Grid.Column="4"
+                                                    Content="{x:Bind StatusText}"
+                                                    MinWidth="56" Height="28"
+                                                    Padding="8,2"
+                                                    FontSize="12"
+                                                    Foreground="{x:Bind StatusForeground}"
+                                                    Background="{x:Bind StatusBackground}"
+                                                    BorderThickness="{x:Bind StatusBorderThickness}"
+                                                    VerticalAlignment="Center"
+                                                    Tag="{x:Bind}"
+                                                    Click="TodayLessonItem_Click"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+
+                        <!-- 수업 없음 메시지 -->
+                        <TextBlock x:Name="TxtNoLessons"
+                                   Grid.Row="1"
+                                   Text="오늘은 수업이 없습니다."
+                                   HorizontalAlignment="Center"
+                                   Margin="0,12,0,12"
+                                   FontSize="13"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Visibility="Collapsed"/>
+                    </Grid>
+                </Border>
+
+                <!-- 최근 수업 기록 -->
+                <Border Grid.Row="1"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        Margin="0,0,0,8">
+                    <controls:LessonLogList x:Name="LessonLogList"
+                                            LessonSelected="LessonLogList_LessonSelected"
+                                            AddRequested="LessonLogList_AddRequested"/>
+                </Border>
+
+                <!-- 수업 메모 -->
+                <board:MemoBoard x:Name="LessonMemoBoard"
+                                 Grid.Row="2"
+                                 ShowFilter="False"
+                                 FixedCategory="수업"/>
+            </Grid>
         </Grid>
     </Grid>
 </Page>

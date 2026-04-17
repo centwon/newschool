@@ -56,10 +56,10 @@ namespace NewSchool.Repositories
             try
             {
                 // 컬럼 존재 여부 확인
-                const string checkColumn = "SELECT COUNT(*) FROM pragma_table_info('WeeklyUnitPlan') WHERE name = 'UnitNo'";
+                const string checkColumn = "SELECT EXISTS(SELECT 1 FROM pragma_table_info('WeeklyUnitPlan') WHERE name = 'UnitNo')";
                 using var checkCmd = Connection.CreateCommand();
                 checkCmd.CommandText = checkColumn;
-                var hasUnitNo = Convert.ToInt32(checkCmd.ExecuteScalar()) > 0;
+                var hasUnitNo = Convert.ToInt32(checkCmd.ExecuteScalar()) == 1;
 
                 if (hasUnitNo)
                 {

@@ -273,16 +273,16 @@ public class UndoHistoryRepository : IDisposable
         await conn.OpenAsync();
 
         var sql = @"
-            SELECT COUNT(*) FROM UndoHistory 
-            WHERE CourseId = @CourseId AND Room = @Room AND IsUndone = 0
+            SELECT EXISTS(SELECT 1 FROM UndoHistory
+            WHERE CourseId = @CourseId AND Room = @Room AND IsUndone = 0)
         ";
 
         using var cmd = new SqliteCommand(sql, conn);
         cmd.Parameters.AddWithValue("@CourseId", courseId);
         cmd.Parameters.AddWithValue("@Room", room);
 
-        var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-        return count > 0;
+        var result = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return result == 1;
     }
 
     /// <summary>
@@ -294,16 +294,16 @@ public class UndoHistoryRepository : IDisposable
         await conn.OpenAsync();
 
         var sql = @"
-            SELECT COUNT(*) FROM UndoHistory 
-            WHERE CourseId = @CourseId AND Room = @Room AND IsUndone = 1
+            SELECT EXISTS(SELECT 1 FROM UndoHistory
+            WHERE CourseId = @CourseId AND Room = @Room AND IsUndone = 1)
         ";
 
         using var cmd = new SqliteCommand(sql, conn);
         cmd.Parameters.AddWithValue("@CourseId", courseId);
         cmd.Parameters.AddWithValue("@Room", room);
 
-        var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-        return count > 0;
+        var result = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return result == 1;
     }
 
     /// <summary>

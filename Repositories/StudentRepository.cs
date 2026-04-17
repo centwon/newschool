@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
@@ -43,7 +45,7 @@ namespace NewSchool.Repositories
                 var result = await cmd.ExecuteScalarAsync();
                 student.No = Convert.ToInt32(result);
 
-                LogInfo($"학생 생성: No={student.No}, StudentID={student.StudentID}, Name={student.Name}");
+                LogInfo($"학생 생성: No={student.No}");
                 return student.No;
             }
             catch (Exception ex)
@@ -266,12 +268,12 @@ namespace NewSchool.Repositories
                 {
                     LogInfo($"학생 수정 완료: No={student.No}");
                     
-                    // ⚠️ Enrollment 동기화: Name, Sex, Photo
-                    var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
+                    // Enrollment 동기화: Name, Sex, Photo
+                    using var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
                     await enrollmentRepo.SyncStudentInfoAsync(
-                        student.StudentID, 
-                        student.Name, 
-                        student.Sex, 
+                        student.StudentID,
+                        student.Name,
+                        student.Sex,
                         student.Photo
                     );
                 }
@@ -297,12 +299,12 @@ namespace NewSchool.Repositories
         /// </summary>
         public async Task<bool> DeleteByIdAsync(string studentId)
         {
-            const string query = "DELETE FROM Student WHERE ID = @ID";
+            const string query = "DELETE FROM Student WHERE StudentID = @StudentID";
 
             try
             {
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@ID", studentId);
+                cmd.Parameters.AddWithValue("@StudentID", studentId);
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 bool success = rowsAffected > 0;
@@ -399,7 +401,7 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@Name", student.Name);
             cmd.Parameters.AddWithValue("@Sex", student.Sex ?? string.Empty);
             cmd.Parameters.AddWithValue("@BirthDate", student.BirthDate?.ToString("yyyy-MM-dd") ?? string.Empty);
-            cmd.Parameters.AddWithValue("@ResidentNumber", student.ResidentNumber ?? string.Empty);
+            cmd.Parameters.AddWithValue("@ResidentNumber", EncryptField(student.ResidentNumber));
             cmd.Parameters.AddWithValue("@Photo", student.Photo ?? string.Empty);
             cmd.Parameters.AddWithValue("@Phone", student.Phone ?? string.Empty);
             cmd.Parameters.AddWithValue("@Email", student.Email ?? string.Empty);
@@ -426,14 +428,14 @@ namespace NewSchool.Repositories
                   : DateTime.TryParse(reader.GetString(reader.GetOrdinal("BirthDate")), out DateTime dt)
                       ? dt
                       : (DateTime?)null,
-                ResidentNumber = reader.IsDBNull(reader.GetOrdinal("ResidentNumber")) ? string.Empty : reader.GetString(reader.GetOrdinal("ResidentNumber")),
+                ResidentNumber = reader.IsDBNull(reader.GetOrdinal("ResidentNumber")) ? string.Empty : DecryptField(reader.GetString(reader.GetOrdinal("ResidentNumber"))),
                 Photo = reader.IsDBNull(reader.GetOrdinal("Photo")) ? string.Empty : reader.GetString(reader.GetOrdinal("Photo")),
                 Phone = reader.IsDBNull(reader.GetOrdinal("Phone")) ? string.Empty : reader.GetString(reader.GetOrdinal("Phone")),
                 Email = reader.IsDBNull(reader.GetOrdinal("Email")) ? string.Empty : reader.GetString(reader.GetOrdinal("Email")),
                 Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? string.Empty : reader.GetString(reader.GetOrdinal("Address")),
                 Memo = reader.IsDBNull(reader.GetOrdinal("Memo")) ? string.Empty : reader.GetString(reader.GetOrdinal("Memo")),
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt"))),
+                CreatedAt = DateTime.TryParse(reader.GetString(reader.GetOrdinal("CreatedAt")), out var ca) ? ca : DateTime.MinValue,
+                UpdatedAt = DateTime.TryParse(reader.GetString(reader.GetOrdinal("UpdatedAt")), out var ua) ? ua : DateTime.MinValue,
                 IsDeleted = reader.GetInt32(reader.GetOrdinal("IsDeleted")) == 1
             };
         }
@@ -470,7 +472,7 @@ namespace NewSchool.Repositories
                   : DateTime.TryParse(reader.GetString(birthDateIdx), out DateTime dt)
                       ? dt
                       : (DateTime?)null,
-                ResidentNumber = reader.IsDBNull(residentNumberIdx) ? string.Empty : reader.GetString(residentNumberIdx),
+                ResidentNumber = reader.IsDBNull(residentNumberIdx) ? string.Empty : DecryptField(reader.GetString(residentNumberIdx)),
                 Photo = reader.IsDBNull(photoIdx) ? string.Empty : reader.GetString(photoIdx),
                 Phone = reader.IsDBNull(phoneIdx) ? string.Empty : reader.GetString(phoneIdx),
                 Email = reader.IsDBNull(emailIdx) ? string.Empty : reader.GetString(emailIdx),
@@ -480,6 +482,47 @@ namespace NewSchool.Repositories
                 UpdatedAt = DateTime.Parse(reader.GetString(updatedAtIdx)),
                 IsDeleted = reader.GetInt32(isDeletedIdx) == 1
             };
+        }
+
+        #endregion
+
+        #region DPAPI 암호화 (주민번호 등 민감 필드)
+
+        /// <summary>
+        /// DPAPI로 필드 암호화 (CurrentUser 범위)
+        /// </summary>
+        private static string EncryptField(string? plainText)
+        {
+            if (string.IsNullOrEmpty(plainText)) return string.Empty;
+            try
+            {
+                byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+                byte[] encryptedBytes = ProtectedData.Protect(plainBytes, null, DataProtectionScope.CurrentUser);
+                return Convert.ToBase64String(encryptedBytes);
+            }
+            catch
+            {
+                return plainText; // 암호화 실패 시 평문 유지
+            }
+        }
+
+        /// <summary>
+        /// DPAPI로 필드 복호화 (기존 평문 데이터 호환)
+        /// </summary>
+        private static string DecryptField(string storedValue)
+        {
+            if (string.IsNullOrEmpty(storedValue)) return string.Empty;
+            try
+            {
+                byte[] encryptedBytes = Convert.FromBase64String(storedValue);
+                byte[] plainBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(plainBytes);
+            }
+            catch
+            {
+                // Base64 디코딩 또는 복호화 실패 → 기존 평문 데이터로 간주
+                return storedValue;
+            }
         }
 
         #endregion

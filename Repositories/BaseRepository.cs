@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 using System.Threading.Tasks;
+using NewSchool.Logging;
 
 namespace NewSchool.Repositories
 {
@@ -41,7 +42,7 @@ namespace NewSchool.Repositories
 
                 // WAL 모드 활성화 (동시 읽기/쓰기 개선)
                 using var cmd = Connection.CreateCommand();
-                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
                 cmd.ExecuteNonQuery();
 
                 LogDebug($"{GetType().Name} 연결 열림 (WAL 모드)");
@@ -309,6 +310,7 @@ namespace NewSchool.Repositories
         protected void LogWarning(string message)
         {
             Debug.WriteLine($"[WARNING] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+            FileLogger.Instance.Warning($"[{GetType().Name}] {message}");
         }
 
         protected void LogError(string message, Exception? ex = null)
@@ -320,6 +322,7 @@ namespace NewSchool.Repositories
                 Debug.WriteLine($"  Message: {ex.Message}");
                 Debug.WriteLine($"  StackTrace: {ex.StackTrace}");
             }
+            FileLogger.Instance.Error($"[{GetType().Name}] {message}", ex);
         }
 
         #endregion

@@ -212,8 +212,8 @@ namespace NewSchool.Repositories
         public async Task<bool> ExistsAsync(string studentId, int clubNo)
         {
             const string query = @"
-                SELECT COUNT(*) FROM ClubEnrollment 
-                WHERE StudentID = @StudentID AND ClubNo = @ClubNo";
+                SELECT EXISTS(SELECT 1 FROM ClubEnrollment
+                WHERE StudentID = @StudentID AND ClubNo = @ClubNo)";
 
             try
             {
@@ -221,8 +221,8 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
                 cmd.Parameters.AddWithValue("@ClubNo", clubNo);
 
-                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-                return count > 0;
+                var result = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                return result == 1;
             }
             catch (Exception ex)
             {
@@ -365,7 +365,7 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@No", enrollment.No);
             cmd.Parameters.AddWithValue("@StudentID", enrollment.StudentID ?? string.Empty);
             cmd.Parameters.AddWithValue("@ClubNo", enrollment.ClubNo);
-            cmd.Parameters.AddWithValue("@Status", enrollment.Status ?? "활동중");
+            cmd.Parameters.AddWithValue("@Status", enrollment.Status ?? ClubEnrollmentStatus.Active);
             cmd.Parameters.AddWithValue("@Remark", enrollment.Remark ?? string.Empty);
             cmd.Parameters.AddWithValue("@CreatedAt", enrollment.CreatedAt);
             cmd.Parameters.AddWithValue("@UpdatedAt", enrollment.UpdatedAt);

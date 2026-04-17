@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NewSchool.Board.Caching
@@ -21,6 +22,7 @@ namespace NewSchool.Board.Caching
         // 메모리 최적화: 캐시 크기 제한 (기본 50MB)
         private readonly long _maxCacheSizeBytes = 50 * 1024 * 1024; // 50MB
         private long _currentCacheSize = 0;
+        private readonly CancellationTokenSource _cleanupCts = new();
 
         private CacheManager()
         {
@@ -212,14 +214,27 @@ namespace NewSchool.Board.Caching
 
         private void StartCleanupTask()
         {
-            Task.Run(async () =>
+            var token = _cleanupCts.Token;
+            _ = Task.Run(async () =>
             {
-                while (true)
+                try
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(1));
-                    CleanupExpired();
+                    while (!token.IsCancellationRequested)
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(1), token);
+                        CleanupExpired();
+                    }
                 }
-            });
+                catch (OperationCanceledException) { /* 정상 종료 */ }
+            }, token);
+        }
+
+        /// <summary>
+        /// 백그라운드 정리 태스크 중지
+        /// </summary>
+        public void StopCleanup()
+        {
+            _cleanupCts.Cancel();
         }
 
         private void CleanupExpired()
@@ -260,10 +275,24 @@ namespace NewSchool.Board.Caching
         {
             if (_cache.Count == 0) return;
 
-            var oldest = _cache.OrderBy(kvp => kvp.Value.LastAccessTime).First();
-            _currentCacheSize -= oldest.Value.Size;
-            _cache.Remove(oldest.Key);
-            Debug.WriteLine($"[Cache] LRU 제거: {oldest.Key} (크기: {FormatBytes(oldest.Value.Size)})");
+            // O(n) 최소값 탐색 (OrderBy().First() 대비 성능 개선)
+            string? oldestKey = null;
+            DateTime oldestTime = DateTime.MaxValue;
+            foreach (var kvp in _cache)
+            {
+                if (kvp.Value.LastAccessTime < oldestTime)
+                {
+                    oldestTime = kvp.Value.LastAccessTime;
+                    oldestKey = kvp.Key;
+                }
+            }
+
+            if (oldestKey != null && _cache.TryGetValue(oldestKey, out var entry))
+            {
+                _currentCacheSize -= entry.Size;
+                _cache.Remove(oldestKey);
+                Debug.WriteLine($"[Cache] LRU 제거: {oldestKey} (크기: {FormatBytes(entry.Size)})");
+            }
         }
 
         #endregion

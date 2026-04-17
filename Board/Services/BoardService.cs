@@ -102,16 +102,9 @@ public partial class BoardService:IDisposable
         {
             int offset = (pageNumber - 1) * pageSize;
 
-            var posts = await uow.Posts.GetListAsync(
+            var (posts, totalCount) = await uow.Posts.GetListWithCountAsync(
                 limit: pageSize,
                 offset: offset,
-                category: category,
-                subject: subject,
-                searchTitle: searchTitle,
-                searchContent: searchContent,
-                searchText: searchText);
-
-            var totalCount = await uow.Posts.GetCountAsync(
                 category: category,
                 subject: subject,
                 searchTitle: searchTitle,

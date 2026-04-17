@@ -2,6 +2,7 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using NewSchool.Controls;
+using NewSchool.Dialogs;
 using NewSchool.Models;
 using NewSchool.Services;
 using System;
@@ -11,8 +12,34 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Globalization.NumberFormatting;
 
 namespace NewSchool.Pages;
+
+/// <summary>
+/// NumberBox에 "5줄" 형식으로 표시하는 포맷터
+/// </summary>
+internal sealed partial class JulNumberFormatter : INumberFormatter2, INumberParser
+{
+    public string FormatDouble(double value) => $"{(int)value}줄";
+    public string FormatInt(long value) => $"{value}줄";
+    public string FormatUInt(ulong value) => $"{value}줄";
+    public double? ParseDouble(string text)
+    {
+        var cleaned = text.Replace("줄", "").Trim();
+        return double.TryParse(cleaned, out var v) ? v : null;
+    }
+    public long? ParseInt(string text)
+    {
+        var cleaned = text.Replace("줄", "").Trim();
+        return long.TryParse(cleaned, out var v) ? v : null;
+    }
+    public ulong? ParseUInt(string text)
+    {
+        var cleaned = text.Replace("줄", "").Trim();
+        return ulong.TryParse(cleaned, out var v) ? v : null;
+    }
+}
 
 /// <summary>
 /// 좌석 배치 페이지
@@ -43,6 +70,10 @@ public sealed partial class PageSeats : Page
     private double SpaceSide;
     private double SpaceRow;
 
+    // 짝 분리/고정 목록: (StudentID_A, StudentID_B)
+    private readonly List<(string IdA, string IdB)> _exclusionPairs = new();
+    private readonly List<(string IdA, string IdB)> _fixedPairs = new();
+
     // Services
     private EnrollmentService? enrollmentService;
     private StudentService? studentService;
@@ -54,6 +85,7 @@ public sealed partial class PageSeats : Page
     public PageSeats()
     {
         this.InitializeComponent();
+        NBoxJul.NumberFormatter = new JulNumberFormatter();
         this.Loaded += PageSeats_Loaded;
         this.Unloaded += Page_Unloaded;
     }
@@ -110,14 +142,9 @@ public sealed partial class PageSeats : Page
                     CBoxGrade.SelectedItem = comboBoxItem;
                 }   
             }
-            CBoxJJak.Items.Add(new ComboBoxItem { Content="1명", Tag=1 });
-            CBoxJJak.Items.Add(new ComboBoxItem { Content="2명", Tag=2 });
-            CBoxJJak.SelectedIndex = 0;
-            CBoxJul.Items.Add(new ComboBoxItem { Content="3줄", Tag=3 });
-            CBoxJul.Items.Add(new ComboBoxItem { Content="4줄", Tag=4 });
-            CBoxJul.Items.Add(new ComboBoxItem { Content="5줄", Tag=5 });
-            CBoxJul.Items.Add(new ComboBoxItem { Content="6줄", Tag=6 });
-            CBoxJul.SelectedIndex = 2; // 기본 5줄
+            _jul = 5;
+            _jjak = 1;
+            UpdateDotPattern();
         }
         catch (Exception ex)
         {
@@ -177,16 +204,28 @@ public sealed partial class PageSeats : Page
         await LoadStudentsAsync();
     }
 
-    private void CBoxJul_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void NBoxJul_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
-        if (CBoxJul.SelectedIndex < 0 || CBoxJul.SelectedItem == null) return;
-        _jul =(int)((ComboBoxItem)CBoxJul.SelectedItem).Tag;
+        if (double.IsNaN(args.NewValue)) { sender.Value = args.OldValue; return; }
+        _jul = (int)args.NewValue;
+        UpdateDotPattern();
     }
 
-    private void CBoxJJak_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void ChkJJak_Click(object sender, RoutedEventArgs e)
     {
-        if (CBoxJJak.SelectedIndex < 0 || CBoxJJak.SelectedItem == null) return;
-        _jjak = (int)((ComboBoxItem)CBoxJJak.SelectedItem).Tag;
+        _jjak = ChkJJak.IsChecked == true ? 2 : 1;
+        UpdateDotPattern();
+    }
+
+    /// <summary>
+    /// 인라인 도트 패턴 업데이트: ●● ●● ●● (줄×짝 시각화)
+    /// </summary>
+    private void UpdateDotPattern()
+    {
+        if (TxtDotPattern == null || _jul == 0) return;
+        var dots = string.Join("  ",
+            Enumerable.Range(0, _jul).Select(_ => new string('●', _jjak)));
+        TxtDotPattern.Text = dots;
     }
 
     #endregion
@@ -538,21 +577,36 @@ public sealed partial class PageSeats : Page
         }
 
         Random random = new();
+        const int maxAttempts = 200;
 
-        foreach (var student in students)
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
-            // 이미 배치된 학생은 스킵
-            if (Cards.Any(c => c.StudentData != null && c.StudentData.StudentID == student.StudentID))
-                continue;
-
-            // 랜덤 좌석 선택
-            int n;
-            do
+            // 비고정 좌석 초기화 (재시도용)
+            if (attempt > 0)
             {
-                n = random.Next(Cards.Count);
-            } while (Cards[n].IsFixed || Cards[n].IsUnUsed || Cards[n].StudentData != null);
+                foreach (var card in Cards)
+                {
+                    if (card.IsFixed && card.StudentData != null) continue;
+                    card.ReplaceStudent(null);
+                }
+            }
 
-            Cards[n].StudentData = student;
+            // 랜덤 배치
+            foreach (var student in students)
+            {
+                if (Cards.Any(c => c.StudentData != null && c.StudentData.StudentID == student.StudentID))
+                    continue;
+
+                var available = Cards.Where(c => !c.IsFixed && !c.IsUnUsed && c.StudentData == null).ToList();
+                if (available.Count == 0) break;
+
+                int n = random.Next(available.Count);
+                available[n].StudentData = student;
+            }
+
+            // 짝 제약 검증: 위반 없으면 성공
+            if ((_exclusionPairs.Count == 0 && _fixedPairs.Count == 0) || !HasPairViolation())
+                break;
         }
 
         UpdateStudentList();
@@ -605,6 +659,69 @@ public sealed partial class PageSeats : Page
 
             await Task.Delay(150);
         }
+    }
+
+    #endregion
+
+    #region Exclusion Pairs
+
+    private async void BtnExclusion_Click(object sender, RoutedEventArgs e)
+    {
+        if (students.Count == 0)
+        {
+            await MessageBox.ShowAsync("학생 목록이 없습니다.", "알림");
+            return;
+        }
+
+        var dialog = new SeatExclusionDialog(students, _exclusionPairs, _fixedPairs)
+        {
+            XamlRoot = this.XamlRoot
+        };
+        await dialog.ShowAsync();
+
+        // 다이얼로그에서 수정된 목록 반영
+        _exclusionPairs.Clear();
+        _exclusionPairs.AddRange(dialog.ExclusionPairs);
+        _fixedPairs.Clear();
+        _fixedPairs.AddRange(dialog.FixedPairs);
+    }
+
+    /// <summary>
+    /// 두 학생이 짝(같은 줄, 인접 좌석)인지 확인
+    /// </summary>
+    private bool AreNeighbors(PhotoCard a, PhotoCard b)
+    {
+        if (a.Row != b.Row) return false;
+        int groupA = a.Col / _jjak;
+        int groupB = b.Col / _jjak;
+        if (groupA != groupB) return false;
+        return Math.Abs(a.Col - b.Col) == 1;
+    }
+
+    /// <summary>
+    /// 현재 배치에서 짝 제약 위반이 있는지 확인
+    /// </summary>
+    private bool HasPairViolation()
+    {
+        // 분리 쌍이 짝이면 위반
+        foreach (var (idA, idB) in _exclusionPairs)
+        {
+            var cardA = Cards.FirstOrDefault(c => c.StudentData?.StudentID == idA);
+            var cardB = Cards.FirstOrDefault(c => c.StudentData?.StudentID == idB);
+            if (cardA != null && cardB != null && AreNeighbors(cardA, cardB))
+                return true;
+        }
+
+        // 고정 쌍이 짝이 아니면 위반
+        foreach (var (idA, idB) in _fixedPairs)
+        {
+            var cardA = Cards.FirstOrDefault(c => c.StudentData?.StudentID == idA);
+            var cardB = Cards.FirstOrDefault(c => c.StudentData?.StudentID == idB);
+            if (cardA != null && cardB != null && !AreNeighbors(cardA, cardB))
+                return true;
+        }
+
+        return false;
     }
 
     #endregion

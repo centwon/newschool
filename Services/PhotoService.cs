@@ -24,7 +24,7 @@ namespace NewSchool.Services
 
         public PhotoService()
         {
-            _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            _baseDirectory = Settings.UserDataPath;
         }
 
         public PhotoService(string baseDirectory)
@@ -142,12 +142,13 @@ namespace NewSchool.Services
                     {
                         if (weakRef.TryGetTarget(out var cachedImage))
                         {
-                            System.Diagnostics.Debug.WriteLine($"[PhotoService] 캐시 히트: {Path.GetFileName(fullPath)}");
+                            // LRU 갱신: 제거 후 재삽입으로 최근 접근 기록
+                            _imageCache.Remove(cacheKey);
+                            _imageCache[cacheKey] = weakRef;
                             return cachedImage;
                         }
                         else
                         {
-                            // WeakReference가 해제됨
                             _imageCache.Remove(cacheKey);
                         }
                     }

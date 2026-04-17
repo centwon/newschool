@@ -75,7 +75,8 @@
                   Grid.Row="1"
                   SelectionMode="Single"
                   IsItemClickEnabled="True"
-                  ItemClick="LvLessonLogs_ItemClick">
+                  ItemClick="LvLessonLogs_ItemClick"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="models:LessonLog">
                     <Grid Padding="8,6" ColumnSpacing="6">

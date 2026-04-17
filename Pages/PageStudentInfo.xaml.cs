@@ -58,8 +58,9 @@ public sealed partial class PageStudentInfo : Page
     private async void PageStudentInfo_Loaded(object sender, RoutedEventArgs e)
     {
         InitializeServices();
+        SetupStudentContextMenu();
         // SchoolFilterPicker가 자동으로 초기화함
-        
+
         // ListStudent 이벤트 구독
         StudentList.StudentSelected += StudentList_StudentSelected;
         
@@ -81,13 +82,21 @@ public sealed partial class PageStudentInfo : Page
     private void PageStudentInfo_Unloaded(object sender, RoutedEventArgs e)
     {
         // 자동 저장
-        _ = SaveChangedAsync();
-        
+        _ = SaveChangedAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
+
+        // 이벤트 구독 해제
+        StudentList.StudentSelected -= StudentList_StudentSelected;
+        SCard.StudentChanged -= SCard_StudentChanged;
+
         // Service Dispose
         _enrollmentService?.Dispose();
         _studentService?.Dispose();
         _studentLogService?.Dispose();
-        
+
         // ViewModel Dispose (StudentCard가 내부적으로 ViewModel을 관리)
         SCard?.ViewModel?.Dispose();
     }
@@ -100,6 +109,11 @@ public sealed partial class PageStudentInfo : Page
     {
         try
         {
+            // 이전 인스턴스 정리 (Loaded 재호출 대비)
+            _enrollmentService?.Dispose();
+            _studentService?.Dispose();
+            _studentLogService?.Dispose();
+
             _enrollmentService = new EnrollmentService();
             _studentService = new StudentService(SchoolDatabase.DbPath);
             _studentLogService = new StudentLogService();
@@ -698,16 +712,22 @@ public sealed partial class PageStudentInfo : Page
             return;
         }
 
-        // 2. 각 학생의 기존 데이터 로드
+        // 2. 각 학생의 기존 데이터 일괄 로드 (N+1 쿼리 방지)
         using var studentService = new StudentService(SchoolDatabase.DbPath);
         using var detailService = new StudentDetailService(SchoolDatabase.DbPath);
+
+        var studentIds = roster.Select(r => r.StudentID).ToList();
+        var allStudents = await studentService.GetStudentsByIdsAsync(studentIds);
+        var studentDict = allStudents.ToDictionary(s => s.StudentID, s => s);
+        var allDetails = await detailService.GetByStudentIdsAsync(studentIds);
+        var detailDict = allDetails.ToDictionary(d => d.StudentID, d => d);
 
         var rows = new List<Dictionary<string, object>>();
 
         foreach (var enrollment in roster.OrderBy(r => r.Number))
         {
-            var student = await studentService.GetBasicInfoAsync(enrollment.StudentID);
-            var detail = await detailService.GetByStudentIdAsync(enrollment.StudentID);
+            studentDict.TryGetValue(enrollment.StudentID, out var student);
+            detailDict.TryGetValue(enrollment.StudentID, out var detail);
 
             var row = new Dictionary<string, object>
             {
@@ -817,9 +837,9 @@ public sealed partial class PageStudentInfo : Page
         int numberCol = -1;
         int nameCol = -1;
 
-        for (int r = 1; r <= Math.Min(rows, 10); r++)
+        for (int r = 1; r < Math.Min(rows, 11); r++)
         {
-            for (int c = 1; c <= cols; c++)
+            for (int c = 1; c < cols; c++)
             {
                 string val = (data[r, c] ?? string.Empty).Trim();
                 if (val == "번호") numberCol = c;
@@ -847,7 +867,7 @@ public sealed partial class PageStudentInfo : Page
         var detailColMap = new Dictionary<int, string>();   // col → Detail field
         var colNameMap = new Dictionary<int, string>();     // col → 원래 컬럼명
 
-        for (int c = 1; c <= cols; c++)
+        for (int c = 1; c < cols; c++)
         {
             string header = (data[headerRow, c] ?? string.Empty).Trim();
             if (string.IsNullOrEmpty(header)) continue;
@@ -867,14 +887,20 @@ public sealed partial class PageStudentInfo : Page
 
         var numberToEnrollment = roster.ToDictionary(r => r.Number, r => r);
 
-        // 5. 기존 데이터 로드
+        // 5. 기존 데이터 일괄 로드 (N+1 쿼리 방지)
         using var studentService = new StudentService(SchoolDatabase.DbPath);
         using var detailService = new StudentDetailService(SchoolDatabase.DbPath);
+
+        var rosterStudentIds = roster.Select(r => r.StudentID).ToList();
+        var allStudents = await studentService.GetStudentsByIdsAsync(rosterStudentIds);
+        var studentDict = allStudents.ToDictionary(s => s.StudentID, s => s);
+        var allDetails = await detailService.GetByStudentIdsAsync(rosterStudentIds);
+        var detailDict = allDetails.ToDictionary(d => d.StudentID, d => d);
 
         // 6. 각 행 파싱
         var result = new List<StudentImportPreviewItem>();
 
-        for (int r = headerRow + 1; r <= rows; r++)
+        for (int r = headerRow + 1; r < rows; r++)
         {
             string numStr = (data[r, numberCol] ?? string.Empty).Trim();
             string name = (data[r, nameCol] ?? string.Empty).Trim();
@@ -896,9 +922,9 @@ public sealed partial class PageStudentInfo : Page
             {
                 item.MatchedStudentID = enrollment.StudentID;
 
-                // 기존 데이터 로드하여 변경 비교
-                var existingStudent = await studentService.GetBasicInfoAsync(enrollment.StudentID);
-                var existingDetail = await detailService.GetByStudentIdAsync(enrollment.StudentID);
+                // 기존 데이터 조회 (Dictionary에서 O(1))
+                studentDict.TryGetValue(enrollment.StudentID, out var existingStudent);
+                detailDict.TryGetValue(enrollment.StudentID, out var existingDetail);
 
                 // Student 필드 비교
                 foreach (var (col, field) in studentColMap)
@@ -1105,6 +1131,50 @@ public sealed partial class PageStudentInfo : Page
 
     #endregion
 
+    #region 컨텍스트 메뉴
+
+    /// <summary>학생 목록 우클릭 컨텍스트 메뉴 설정</summary>
+    private void SetupStudentContextMenu()
+    {
+        var menu = new MenuFlyout();
+
+        var miAddLog = new MenuFlyoutItem
+        {
+            Text = "누가기록 작성",
+            Icon = new FontIcon { Glyph = "\uE70F" }
+        };
+        miAddLog.Click += ContextMenu_AddLog_Click;
+
+        menu.Items.Add(miAddLog);
+        StudentList.ItemContextFlyout = menu;
+    }
+
+    private async void ContextMenu_AddLog_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null) return;
+
+        if (_currentYear == 0)
+        {
+            await MessageBox.ShowAsync("학년도를 먼저 선택해주세요.", "알림");
+            return;
+        }
+
+        var logDialog = new StudentLogDialog(
+            student,
+            _currentYear,
+            Settings.WorkSemester.Value);
+        logDialog.Closed += async (s, args) =>
+        {
+            // 현재 학생의 누가기록 새로고침
+            if (_currentStudentId != null)
+                await LoadStudentLogsAsync(_currentStudentId);
+        };
+        logDialog.Activate();
+    }
+
+    #endregion
+
     #region Helper Methods
 
     /// <summary>
@@ -1112,22 +1182,7 @@ public sealed partial class PageStudentInfo : Page
     /// </summary>
     private void UpdateStudentInfoHeader()
     {
-        if (SCard.ViewModel == null || !SCard.ViewModel.IsLoaded)
-        {
-            TxtStudentInfo.Text = "학생을 선택하세요";
-            return;
-        }
-
-        var vm = SCard.ViewModel;
-        // 리팩토링 후: Enrollment를 통해 접근
-        if (vm.Enrollment != null)
-        {
-            TxtStudentInfo.Text = $"{vm.Enrollment.Grade}학년 {vm.Enrollment.Class}반 {vm.Enrollment.Number}번 {vm.Name}";
-        }
-        else
-        {
-            TxtStudentInfo.Text = $"{vm.Name} (학적 정보 없음)";
-        }
+        // 헤더 TextBlock 제거됨 — 학생 정보는 StudentCard에서 직접 표시
     }
 
     /// <summary>
@@ -1135,7 +1190,6 @@ public sealed partial class PageStudentInfo : Page
     /// </summary>
     private void EnableButtons(bool enabled)
     {
-        BtnAddPhoto.IsEnabled = enabled;
         BtnSave.IsEnabled = enabled && SCard.IsChanged;
         BtnReset.IsEnabled = enabled;
         BtnPrint.IsEnabled = enabled;

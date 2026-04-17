@@ -7,7 +7,6 @@ using Microsoft.UI.Xaml.Controls;
 using NewSchool.Controls;
 using NewSchool.Dialogs;
 using NewSchool.Models;
-using NewSchool.Repositories;
 using NewSchool.Services;
 
 namespace NewSchool.Pages;
@@ -200,34 +199,9 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
     {
         if (_selectedSchool == null) return;
 
-        using var schoolRepo = new SchoolRepository(SchoolDatabase.DbPath);
-
-        var existingSchool = await schoolRepo.GetBySchoolCodeAsync(_selectedSchool.SchoolCode);
-
-        if (existingSchool != null)
-        {
-            // 기존 학교 업데이트
-            existingSchool.SchoolName = _selectedSchool.SchoolName;
-            existingSchool.ATPT_OFCDC_SC_CODE = _selectedSchool.ATPT_OFCDC_SC_CODE;
-            existingSchool.ATPT_OFCDC_SC_NAME = _selectedSchool.ATPT_OFCDC_SC_NAME;
-            existingSchool.Address = _selectedSchool.Address;
-            existingSchool.Phone = _selectedSchool.Phone;
-            existingSchool.IsActive = true;
-            existingSchool.UpdatedAt = DateTime.Now;
-
-            await schoolRepo.UpdateAsync(existingSchool);
-            Debug.WriteLine("[InitialSetupWindow] 기존 학교 정보 업데이트");
-        }
-        else
-        {
-            // 새 학교 추가
-            _selectedSchool.IsActive = true;
-            _selectedSchool.CreatedAt = DateTime.Now;
-            _selectedSchool.UpdatedAt = DateTime.Now;
-
-            await schoolRepo.CreateAsync(_selectedSchool);
-            Debug.WriteLine("[InitialSetupWindow] 새 학교 정보 저장");
-        }
+        using var schoolService = new SchoolService(SchoolDatabase.DbPath);
+        await schoolService.SaveSchoolAsync(_selectedSchool);
+        Debug.WriteLine("[InitialSetupWindow] 학교 정보 저장 완료");
     }
 
     /// <summary>

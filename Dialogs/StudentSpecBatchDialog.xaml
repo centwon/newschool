@@ -87,76 +87,136 @@
             <!-- 좌측: 학생 목록 -->
             <controls:ListStudent x:Name="StudentList" Grid.Column="0"/>
 
-            <!-- 우측: 편집 영역 -->
-            <Border Grid.Column="1"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="8"
-                    Padding="16">
+            <!-- 우측: 편집 + 참조 영역 -->
+            <Grid Grid.Column="1" RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>      <!-- 편집 영역 -->
+                    <RowDefinition Height="Auto"/>   <!-- 참조 토글 -->
+                    <RowDefinition x:Name="RowRef" Height="0"/>  <!-- 누가기록 참조 -->
+                </Grid.RowDefinitions>
 
-                <Grid RowSpacing="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>  <!-- 학생 정보 + 바이트 -->
-                        <RowDefinition Height="*"/>     <!-- 텍스트 에디터 -->
-                        <RowDefinition Height="Auto"/>  <!-- 안내 -->
-                    </Grid.RowDefinitions>
+                <!-- 편집 영역 -->
+                <Border Grid.Row="0"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8"
+                        Padding="16">
 
-                    <!-- 학생 정보 & 바이트 -->
-                    <Grid Grid.Row="0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                    <Grid RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                            <TextBlock x:Name="TxtStudentName"
-                                       Text="학생을 선택하세요"
-                                       FontSize="16" FontWeight="SemiBold"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock x:Name="TxtStudentNum"
-                                       FontSize="13"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       VerticalAlignment="Center"/>
-                            <FontIcon x:Name="IconModified"
-                                      Glyph="&#xE915;"
-                                      FontSize="12"
-                                      Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                                      Visibility="Collapsed"
-                                      ToolTipService.ToolTip="수정됨 (미저장)"/>
+                        <!-- 학생 정보 & 바이트 -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                <TextBlock x:Name="TxtStudentName"
+                                           Text="학생을 선택하세요"
+                                           FontSize="16" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtStudentNum"
+                                           FontSize="13"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                                <FontIcon x:Name="IconModified"
+                                          Glyph="&#xE915;"
+                                          FontSize="12"
+                                          Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                          Visibility="Collapsed"
+                                          ToolTipService.ToolTip="수정됨 (미저장)"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="TxtByteInfo"
+                                       Grid.Column="1"
+                                       Text="0 / 0 Byte (0자)"
+                                       FontSize="12"
+                                       VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Grid>
+
+                        <!-- 텍스트 에디터 -->
+                        <TextBox x:Name="TxtContent"
+                                 Grid.Row="1"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 PlaceholderText="학생부 특기사항을 입력하세요..."
+                                 IsEnabled="False"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 TextChanged="TxtContent_TextChanged"
+                                 FontSize="13"/>
+
+                        <!-- 하단 안내 -->
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16">
+                            <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}">
+                                <Run Text="↑↓"/>
+                                <Run Text=" 방향키로 학생 전환"/>
+                            </TextBlock>
+                            <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}">
+                                <Run Text="Ctrl+S"/>
+                                <Run Text=" 저장"/>
+                            </TextBlock>
                         </StackPanel>
-
-                        <TextBlock x:Name="TxtByteInfo"
-                                   Grid.Column="1"
-                                   Text="0 / 0 Byte (0자)"
-                                   FontSize="12"
-                                   VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </Grid>
+                </Border>
 
-                    <!-- 텍스트 에디터 -->
-                    <TextBox x:Name="TxtContent"
-                             Grid.Row="1"
-                             AcceptsReturn="True"
-                             TextWrapping="Wrap"
-                             PlaceholderText="학생부 특기사항을 입력하세요..."
-                             IsEnabled="False"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             TextChanged="TxtContent_TextChanged"
-                             FontSize="13"/>
+                <!-- 참조 토글 버튼 + 초안 자동 생성 -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                    <ToggleButton x:Name="BtnToggleRef"
+                                  Click="BtnToggleRef_Click"
+                                  ToolTipService.ToolTip="누가기록 참조 영역 표시/숨김">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE8A5;" FontSize="14"/>
+                            <TextBlock Text="누가기록 참조" FontSize="12"/>
+                        </StackPanel>
+                    </ToggleButton>
 
-                    <!-- 하단 안내 -->
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16">
-                        <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}">
-                            <Run Text="↑↓"/>
-                            <Run Text=" 방향키로 학생 전환"/>
-                        </TextBlock>
-                        <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}">
-                            <Run Text="Ctrl+S"/>
-                            <Run Text=" 저장"/>
-                        </TextBlock>
-                    </StackPanel>
-                </Grid>
-            </Border>
+                    <Button x:Name="BtnAutoGenerate"
+                            Click="BtnAutoGenerate_Click"
+                            ToolTipService.ToolTip="누가기록의 학생부 초안을 병합하여 자동 생성">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE945;" FontSize="14"/>
+                            <TextBlock Text="초안 자동 생성" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- 누가기록 참조 패널 -->
+                <Border Grid.Row="2"
+                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8"
+                        Padding="12">
+
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="누가기록 학생부 초안"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+
+                        <ScrollViewer Grid.Row="1"
+                                      VerticalScrollBarVisibility="Auto"
+                                      MaxHeight="180">
+                            <TextBlock x:Name="TxtLogReference"
+                                       Text="학생을 선택하면 해당 학생의 누가기록 초안이 표시됩니다."
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       IsTextSelectionEnabled="True"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
 
         <!-- ==============================

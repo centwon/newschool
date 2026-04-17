@@ -446,10 +446,10 @@ public sealed partial class AnnualLessonPlanPage : Page
             DpStartDate.Date = new DateTimeOffset(semStart);
             DpEndDate.Date = new DateTimeOffset(semEnd);
 
-            // 탭3 기존 배치 결과 로드 (첫 번째 학급 기준)
+            // 탭3 기존 배치 결과 로드 (전체 강의실)
             if (_classColumns.Count > 0)
             {
-                await LoadPlacementResultsAsync(course.No, _classColumns[0]);
+                await LoadAllRoomPlacementsAsync(course.No);
             }
 
             HideLoading();
@@ -545,8 +545,10 @@ public sealed partial class AnnualLessonPlanPage : Page
             Debug.WriteLine($"[AnnualLessonPlanPage] 학급 목록: {string.Join(", ", _classColumns)}");
 
             // 탭3 학급 ComboBox 업데이트
-            CmbRoom.ItemsSource = _classColumns;
-            if (_classColumns.Count > 0 && CmbRoom.SelectedIndex < 0)
+            var roomItems = new List<string> { "전체" };
+            roomItems.AddRange(_classColumns);
+            CmbRoom.ItemsSource = roomItems;
+            if (roomItems.Count > 0 && CmbRoom.SelectedIndex < 0)
             {
                 CmbRoom.SelectedIndex = 0;
             }
@@ -1771,7 +1773,19 @@ public sealed partial class AnnualLessonPlanPage : Page
         if (_selectedCourse == null || CmbRoom.SelectedItem == null) return;
 
         string room = CmbRoom.SelectedItem.ToString()!;
-        await LoadPlacementResultsAsync(_selectedCourse.No, room);
+        bool isAll = room == "전체";
+
+        // 전체 모드에서는 자동 배치/수동 편집 비활성화
+        BtnGeneratePlan.IsEnabled = !isAll;
+
+        if (isAll)
+        {
+            await LoadAllRoomPlacementsAsync(_selectedCourse.No);
+        }
+        else
+        {
+            await LoadPlacementResultsAsync(_selectedCourse.No, room);
+        }
     }
 
     private async void OnGeneratePlanClick(object sender, RoutedEventArgs e)
@@ -1789,9 +1803,9 @@ public sealed partial class AnnualLessonPlanPage : Page
             return;
         }
 
-        if (CmbRoom.SelectedItem == null)
+        if (CmbRoom.SelectedItem == null || CmbRoom.SelectedItem.ToString() == "전체")
         {
-            ShowSectionError("학급을 선택해주세요.");
+            ShowSectionError("자동 배치를 실행하려면 개별 학급을 선택해주세요.");
             return;
         }
 
@@ -1934,7 +1948,6 @@ public sealed partial class AnnualLessonPlanPage : Page
             // 학기 시작일 기준 주차 계산
             var semesterStart = schedules.First().Date;
             var displayItems = new List<PlacementDisplayItem>();
-            int currentWeek = -1;
 
             // 주차별 그룹화를 위한 임시 수집
             var weekSchedules = new List<(Schedule schedule, List<ScheduleUnitMap> maps)>();
@@ -2007,6 +2020,128 @@ public sealed partial class AnnualLessonPlanPage : Page
         {
             Debug.WriteLine($"[AnnualLessonPlanPage] 배치 결과 로드 실패: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 전체 강의실 배치 결과를 통합 로드
+    /// </summary>
+    private async Task LoadAllRoomPlacementsAsync(int courseNo)
+    {
+        try
+        {
+            using var scheduleRepo = new ScheduleRepository(SchoolDatabase.DbPath);
+            using var mapRepo = new ScheduleUnitMapRepository(SchoolDatabase.DbPath);
+            using var sectionRepo = new CourseSectionRepository(SchoolDatabase.DbPath);
+
+            // 모든 강의실의 스케줄을 한 번에 로드
+            var allSchedules = new List<Schedule>();
+            foreach (var room in _classColumns)
+            {
+                var roomSchedules = await scheduleRepo.GetByCourseAndRoomAsync(courseNo, room);
+                allSchedules.AddRange(roomSchedules);
+            }
+
+            allSchedules = allSchedules.OrderBy(s => s.Date).ThenBy(s => s.Period).ThenBy(s => s.Room).ToList();
+
+            if (allSchedules.Count == 0)
+            {
+                UnitPlanListView.ItemsSource = null;
+                return;
+            }
+
+            var allSections = await sectionRepo.GetByCourseAsync(courseNo);
+            var sectionDict = allSections.ToDictionary(s => s.No);
+
+            // 강의실별 누적 카운터
+            var sectionProgress = new Dictionary<(int SectionNo, string Room), int>();
+
+            var semesterStart = allSchedules.First().Date;
+            var displayItems = new List<PlacementDisplayItem>();
+
+            // 스케줄별 매핑 로드
+            var weekSchedules = new List<(Schedule schedule, List<ScheduleUnitMap> maps)>();
+            foreach (var schedule in allSchedules)
+            {
+                var maps = await mapRepo.GetByScheduleWithSectionAsync(schedule.No);
+                weekSchedules.Add((schedule, maps));
+            }
+
+            // 주차별 그룹화
+            var weekGroups = weekSchedules
+                .GroupBy(ws => GetWeekNumber(ws.schedule.Date, semesterStart))
+                .OrderBy(g => g.Key);
+
+            foreach (var weekGroup in weekGroups)
+            {
+                int weekNum = weekGroup.Key;
+                var weekDates = weekGroup.Select(ws => ws.schedule.Date).Distinct().OrderBy(d => d).ToList();
+                string weekRange = weekDates.Count > 1
+                    ? $"{weekDates.First():M/d}~{weekDates.Last():M/d}"
+                    : $"{weekDates.First():M/d}";
+
+                // 주차 헤더
+                displayItems.Add(new PlacementDisplayItem
+                {
+                    IsHeader = true,
+                    WeekNumber = weekNum,
+                    WeekRange = weekRange,
+                    WeekSlotCount = weekGroup.Count()
+                });
+
+                foreach (var (schedule, maps) in weekGroup
+                    .OrderBy(ws => ws.schedule.Date)
+                    .ThenBy(ws => ws.schedule.Period)
+                    .ThenBy(ws => ws.schedule.Room))
+                {
+                    foreach (var map in maps)
+                    {
+                        var section = sectionDict.GetValueOrDefault(map.CourseSectionId);
+                        if (section == null) continue;
+
+                        var key = (section.No, schedule.Room);
+                        sectionProgress[key] = sectionProgress.GetValueOrDefault(key) + 1;
+                        int current = sectionProgress[key];
+                        int total = section.EstimatedHours;
+
+                        displayItems.Add(new PlacementDisplayItem
+                        {
+                            IsHeader = false,
+                            Date = schedule.Date,
+                            Period = schedule.Period,
+                            Room = schedule.Room,
+                            SectionName = section.SectionName,
+                            SectionType = section.SectionType,
+                            ProgressDisplay = total > 1 ? $"({current}/{total})" : "",
+                            IsPinned = section.IsPinned,
+                            ScheduleNo = schedule.No,
+                            SectionNo = section.No,
+                            MapNo = map.No
+                        });
+                    }
+                }
+            }
+
+            UnitPlanListView.ItemsSource = displayItems;
+            Debug.WriteLine($"[AnnualLessonPlanPage] 전체 강의실 배치 결과: {displayItems.Count}항목");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AnnualLessonPlanPage] 전체 배치 결과 로드 실패: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 현재 선택된 학급 또는 전체 모드에 따라 배치 목록 새로고침
+    /// </summary>
+    private async Task RefreshPlacementListAsync()
+    {
+        if (_selectedCourse == null || CmbRoom.SelectedItem == null) return;
+
+        string room = CmbRoom.SelectedItem.ToString()!;
+        if (room == "전체")
+            await LoadAllRoomPlacementsAsync(_selectedCourse.No);
+        else
+            await LoadPlacementResultsAsync(_selectedCourse.No, room);
     }
 
     #region 수동 편집
@@ -2085,8 +2220,7 @@ public sealed partial class AnnualLessonPlanPage : Page
             Debug.WriteLine($"[수동편집] 단원 변경: Schedule={item.ScheduleNo}, {item.SectionName} → {newSection.SectionName}");
 
             // 리스트 새로고침
-            string room = CmbRoom.SelectedItem.ToString()!;
-            await LoadPlacementResultsAsync(_selectedCourse.No, room);
+            await RefreshPlacementListAsync();
         }
         catch (Exception ex)
         {
@@ -2115,8 +2249,7 @@ public sealed partial class AnnualLessonPlanPage : Page
             Debug.WriteLine($"[수동편집] 배치 삭제: Schedule={item.ScheduleNo}, Section={item.SectionName}");
 
             // 리스트 새로고침
-            string room = CmbRoom.SelectedItem.ToString()!;
-            await LoadPlacementResultsAsync(_selectedCourse.No, room);
+            await RefreshPlacementListAsync();
         }
         catch (Exception ex)
         {
@@ -2142,9 +2275,10 @@ public sealed partial class AnnualLessonPlanPage : Page
 
     private async void OnUndoClick(object sender, RoutedEventArgs e)
     {
-        if (_selectedCourse == null || CmbRoom?.SelectedItem == null)
+        if (_selectedCourse == null || CmbRoom?.SelectedItem == null ||
+            CmbRoom.SelectedItem.ToString() == "전체")
         {
-            ShowSectionError("수업과 학급을 먼저 선택해주세요.");
+            ShowSectionError("실행 취소하려면 개별 학급을 선택해주세요.");
             return;
         }
 
@@ -2186,9 +2320,10 @@ public sealed partial class AnnualLessonPlanPage : Page
 
     private async void OnRedoClick(object sender, RoutedEventArgs e)
     {
-        if (_selectedCourse == null || CmbRoom?.SelectedItem == null)
+        if (_selectedCourse == null || CmbRoom?.SelectedItem == null ||
+            CmbRoom.SelectedItem.ToString() == "전체")
         {
-            ShowSectionError("수업과 학급을 먼저 선택해주세요.");
+            ShowSectionError("다시 실행하려면 개별 학급을 선택해주세요.");
             return;
         }
 
@@ -2230,7 +2365,8 @@ public sealed partial class AnnualLessonPlanPage : Page
 
     private async Task RefreshUndoRedoButtonsAsync()
     {
-        if (_selectedCourse == null || CmbRoom?.SelectedItem == null)
+        if (_selectedCourse == null || CmbRoom?.SelectedItem == null ||
+            CmbRoom.SelectedItem.ToString() == "전체")
         {
             BtnUndo.IsEnabled = false;
             BtnRedo.IsEnabled = false;
@@ -2384,6 +2520,7 @@ public class PlacementDisplayItem
     // 수업 슬롯용
     public DateTime Date { get; set; }
     public int Period { get; set; }
+    public string Room { get; set; } = string.Empty;
     public string SectionName { get; set; } = string.Empty;
     public string SectionType { get; set; } = string.Empty;
     public string ProgressDisplay { get; set; } = string.Empty;
@@ -2395,6 +2532,7 @@ public class PlacementDisplayItem
     public int MapNo { get; set; }
 
     // 표시 속성
+    public string RoomDisplay => string.IsNullOrEmpty(Room) ? "" : $"[{Room}]";
     public string DateDisplay => IsHeader ? "" : $"{Date:M/d}({DayName})";
     public string PeriodDisplay => IsHeader ? "" : $"{Period}교시";
     public string HeaderDisplay => IsHeader ? $"[{WeekNumber}주차] {WeekRange}  ({WeekSlotCount}차시)" : "";

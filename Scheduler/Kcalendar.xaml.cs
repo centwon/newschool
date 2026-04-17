@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Controls;
+using NewSchool.Dialogs;
 using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Services;
@@ -28,7 +29,11 @@ public sealed partial class Kcalendar : Page
             if (value != _basedate && _isInitialized)
             {
                 _basedate = value;
-                _ = RefreshCalendarAsync();
+                _ = RefreshCalendarAsync().ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        System.Diagnostics.Debug.WriteLine($"[Kcalendar] {t.Exception?.InnerException?.Message}");
+                }, TaskContinuationOptions.OnlyOnFaulted);
             }
         }
     }
@@ -112,6 +117,7 @@ public sealed partial class Kcalendar : Page
                 var cell = new DayCell();
                 cell.Position = (row, column);
                 cell.PointerPressed += DayCell_PointerPressed;
+                cell.CellChanged += DayCell_CellChanged;
 
                 Grid.SetRow(cell, row);
                 Grid.SetColumn(cell, column);
@@ -150,6 +156,7 @@ public sealed partial class Kcalendar : Page
                 var cell = new DayCell();
                 cell.Position = (row, column);
                 cell.PointerPressed += DayCell_PointerPressed;
+                cell.CellChanged += DayCell_CellChanged;
 
                 Grid.SetRow(cell, row);
                 Grid.SetColumn(cell, column);
@@ -321,9 +328,9 @@ public sealed partial class Kcalendar : Page
                         if (schedules.Count > 0)
                             Debug.WriteLine($"[UpdateCells] {cellDate:yyyy-MM-dd} 스케줄: {schedules.Count}개");
 
-                        // KEvent를 task와 event로 분리
+                        // KEvent를 task와 event로 분리 (다중일 이벤트: Start~End 범위, End는 inclusive)
                         var dayEvents = KEvents?
-                            .Where(x => x.Start.Date == cellDate.Date)
+                            .Where(x => cellDate.Date >= x.Start.Date && cellDate.Date <= x.End.Date)
                             .ToList() ?? new List<KEvent>();
 
                         var tasks = dayEvents.Where(e => e.ItemType == "task").ToList();
@@ -449,6 +456,15 @@ public sealed partial class Kcalendar : Page
             await ShowErrorAsync($"항목 생성 오류: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// DayCell에서 일정/할일 편집/삭제 후 전체 새로고침
+    /// </summary>
+    private async void DayCell_CellChanged(object? sender, EventArgs e)
+    {
+        await RefreshCalendarAsync();
+    }
+
     /// <summary>
     /// 이전 달 버튼 클릭
     /// </summary>
@@ -487,10 +503,16 @@ public sealed partial class Kcalendar : Page
     /// <summary>
     /// 설정 버튼 클릭
     /// </summary>
-    private void BtnSetup_Click(object sender, RoutedEventArgs e)
+    private async void BtnSetup_Click(object sender, RoutedEventArgs e)
     {
-        // 설정 창 표시 로직
-        Debug.WriteLine("[Kcalendar] 설정 버튼 클릭");
+        var dialog = new CalendarSettingsDialog
+        {
+            XamlRoot = this.XamlRoot
+        };
+        await dialog.ShowAsync();
+
+        // 다이얼로그 닫힌 후 달력 새로고침
+        await RefreshCalendarAsync();
     }
 
     /// <summary>

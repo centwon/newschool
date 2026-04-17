@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
@@ -113,6 +115,41 @@ namespace NewSchool.Repositories
             catch (Exception ex)
             {
                 LogError($"학생 상세정보 조회 실패: No={no}", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 여러 StudentID로 상세 정보 일괄 조회
+        /// </summary>
+        public async Task<List<StudentDetail>> GetByStudentIdsAsync(List<string> studentIds)
+        {
+            if (studentIds == null || studentIds.Count == 0)
+                return [];
+
+            var placeholders = string.Join(",", studentIds.Select((_, i) => $"@id{i}"));
+            var query = $"SELECT * FROM StudentDetail WHERE StudentID IN ({placeholders})";
+
+            try
+            {
+                using var cmd = CreateCommand(query);
+                for (int i = 0; i < studentIds.Count; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@id{i}", studentIds[i]);
+                }
+
+                var results = new List<StudentDetail>();
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    results.Add(MapStudentDetail(reader));
+                }
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                LogError($"학생 상세정보 일괄 조회 실패: {studentIds.Count}건", ex);
                 throw;
             }
         }

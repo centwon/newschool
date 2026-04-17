@@ -6,7 +6,7 @@ namespace NewSchool.Scheduler;
 /// <summary>
 /// KCalendarList 모델 — Google Calendar의 캘린더 목록 대응
 /// KtaskList(할일 목록)와 같은 이름을 공유하지만 별도 모델로 관리
-/// 수업 / 담임 / 행정 / 개인 등 카테고리별 색상 포함
+/// 수업 / 학급 / 행정 / 개인 등 카테고리별 색상 포함
 /// </summary>
 public class KCalendarList : INotifyPropertyChanged
 {
@@ -18,7 +18,7 @@ public class KCalendarList : INotifyPropertyChanged
     /// <summary>Google Calendar ID (동기화용)</summary>
     public string GoogleId { get; set; } = string.Empty;
 
-    /// <summary>캘린더 이름 (수업, 담임, 행정, 개인 등)</summary>
+    /// <summary>캘린더 이름 (수업, 학급, 행정, 개인 등)</summary>
     public string Title
     {
         get => _title;

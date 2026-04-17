@@ -12,7 +12,9 @@
             BorderThickness="1"
             CornerRadius="8">
 
-        <Grid x:Name="TimetableGrid">
+        <Grid x:Name="TimetableGrid"
+              Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+              ColumnSpacing="1" RowSpacing="1">
             <Grid.RowDefinitions>
                 <!-- 헤더 행 -->
                 <RowDefinition Height="auto"/>
@@ -39,104 +41,78 @@
 
             <!-- 헤더 행 -->
             <Border Grid.Row="0" Grid.Column="0" Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
                         Background="{ThemeResource LayerFillColorDefaultBrush}"/>
 
-            <Border Grid.Row="0" Grid.Column="1"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="0" Grid.Column="1" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="월" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="월" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="SemiBold"/>
             </Border>
 
-            <Border Grid.Row="0" Grid.Column="2"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="0" Grid.Column="2" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="화" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="화" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="SemiBold"/>
             </Border>
 
-            <Border Grid.Row="0" Grid.Column="3"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="0" Grid.Column="3" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="수" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="수" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="SemiBold"/>
             </Border>
 
-            <Border Grid.Row="0" Grid.Column="4"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="0" Grid.Column="4" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="목" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="목" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="SemiBold"/>
             </Border>
 
-            <Border Grid.Row="0" Grid.Column="5"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,0,1"
+            <Border Grid.Row="0" Grid.Column="5" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="금" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="금" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="SemiBold"/>
             </Border>
 
             <!-- 교시 열 (1~7교시) -->
-            <Border Grid.Row="1" Grid.Column="0"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="1" Grid.Column="0" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="Medium"/>
             </Border>
 
-            <Border Grid.Row="2" Grid.Column="0"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="2" Grid.Column="0" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="Medium"/>
             </Border>
 
             <Border Grid.Row="3" Grid.Column="0" Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="Medium"/>
             </Border>
 
-            <Border Grid.Row="4" Grid.Column="0"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="4" Grid.Column="0" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="4" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="4" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="Medium"/>
             </Border>
 
-            <Border Grid.Row="5" Grid.Column="0"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="5" Grid.Column="0" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="5" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="5" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="Medium"/>
             </Border>
 
-            <Border Grid.Row="6" Grid.Column="0"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,1"
+            <Border Grid.Row="6" Grid.Column="0" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="6" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="6" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="Medium"/>
             </Border>
 
-            <Border Grid.Row="7" Grid.Column="0"  Padding="4"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                        BorderThickness="0,0,1,0"
+            <Border Grid.Row="7" Grid.Column="0" Padding="4"
                         Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="7" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                <TextBlock Text="7" HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="12" FontWeight="Medium"/>
             </Border>
 

@@ -90,7 +90,8 @@ namespace NewSchool.Helpers
                 return new string[1, 1];
 
             int rowCount = rows.Count;
-            int colCount = rows[0].Count;
+            // 모든 행에서 최대 열 수 계산 (행마다 열 수가 다를 수 있음)
+            int colCount = rows.Max(r => r.Count);
 
             // 1-based 인덱스를 위해 +1 크기로 생성
             string[,] result = new string[rowCount + 1, colCount + 1];
@@ -101,8 +102,11 @@ namespace NewSchool.Helpers
                 int col = 0;
                 foreach (var cell in rowData.Values)
                 {
-                    // 1-based 인덱스로 저장
-                    result[row + 1, col + 1] = cell?.ToString() ?? string.Empty;
+                    if (col < colCount) // 배열 범위 보호
+                    {
+                        // 1-based 인덱스로 저장
+                        result[row + 1, col + 1] = cell?.ToString() ?? string.Empty;
+                    }
                     col++;
                 }
             }
@@ -165,7 +169,8 @@ namespace NewSchool.Helpers
                 return new object[1, 1];
 
             int rowCount = rows.Count;
-            int colCount = rows[0].Count;
+            // 모든 행에서 최대 열 수 계산
+            int colCount = rows.Max(r => r.Count);
 
             object[,] result = new object[rowCount + 1, colCount + 1];
 
@@ -175,7 +180,10 @@ namespace NewSchool.Helpers
                 int col = 0;
                 foreach (var cell in rowData.Values)
                 {
-                    result[row + 1, col + 1] = cell ?? string.Empty;
+                    if (col < colCount) // 배열 범위 보호
+                    {
+                        result[row + 1, col + 1] = cell ?? string.Empty;
+                    }
                     col++;
                 }
             }
@@ -385,7 +393,7 @@ namespace NewSchool.Helpers
         public static string CreateStudentTemplate(string? filePath = null)
         {
             string outputPath = filePath ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                Settings.UserDataPath, "Exports",
                 $"학생명단_템플릿_{DateTime.Now:yyyyMMdd}.xlsx");
 
             var template = new List<Dictionary<string, object>>

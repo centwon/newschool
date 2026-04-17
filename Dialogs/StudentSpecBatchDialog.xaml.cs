@@ -40,8 +40,13 @@ public sealed partial class StudentSpecBatchDialog : Window
     /// <summary>StudentID → StudentSpecial 캐시 (메모리)</summary>
     private readonly Dictionary<string, StudentSpecial> _specCache = new();
 
+    /// <summary>StudentID → 누가기록 DraftSummary 캐시</summary>
+    private readonly Dictionary<string, List<string>> _logDraftCache = new();
+
     /// <summary>변경된 StudentID 집합</summary>
     private readonly HashSet<string> _modifiedIds = new();
+
+    private bool _isRefPanelOpen;
 
     public ObservableCollection<Course> Courses { get; } = new();
 
@@ -72,8 +77,16 @@ public sealed partial class StudentSpecBatchDialog : Window
         InitializeTypeComboBox(defaultType);
         InitializeStudentList();
 
-        _ = LoadStudentsAsync();
-        _ = LoadCoursesAsync();
+        _ = LoadStudentsAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
+        _ = LoadCoursesAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     #endregion
@@ -237,6 +250,12 @@ public sealed partial class StudentSpecBatchDialog : Window
 
         UpdateByteInfo();
         UpdateProgress();
+
+        // 누가기록 참조 로드
+        if (_isRefPanelOpen)
+        {
+            await LoadLogDraftsAsync(student.StudentID);
+        }
     }
 
     /// <summary>
@@ -284,7 +303,11 @@ public sealed partial class StudentSpecBatchDialog : Window
         // 현재 학생 다시 로드
         if (_currentStudent != null)
         {
-            _ = ReloadCurrentStudentAsync();
+            _ = ReloadCurrentStudentAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
     }
 
@@ -298,7 +321,11 @@ public sealed partial class StudentSpecBatchDialog : Window
 
         if (_currentStudent != null)
         {
-            _ = ReloadCurrentStudentAsync();
+            _ = ReloadCurrentStudentAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
     }
 
@@ -306,6 +333,7 @@ public sealed partial class StudentSpecBatchDialog : Window
     {
         _specCache.Clear();
         _modifiedIds.Clear();
+        _logDraftCache.Clear();
         _currentOriginalContent = string.Empty;
     }
 
@@ -451,7 +479,10 @@ public sealed partial class StudentSpecBatchDialog : Window
         {
             await Windows.System.Launcher.LaunchUriAsync(new Uri("https://nara-speller.co.kr/speller"));
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] 맞춤법 검사기 열기 실패: {ex.Message}");
+        }
     }
 
     #endregion
@@ -494,4 +525,159 @@ public sealed partial class StudentSpecBatchDialog : Window
     }
 
     #endregion
+
+    #region 누가기록 참조 & 초안 자동 생성
+
+    /// <summary>
+    /// 참조 패널 토글
+    /// </summary>
+    private async void BtnToggleRef_Click(object sender, RoutedEventArgs e)
+    {
+        _isRefPanelOpen = BtnToggleRef.IsChecked == true;
+
+        if (_isRefPanelOpen)
+        {
+            RowRef.Height = new GridLength(200);
+
+            if (_currentStudent != null)
+            {
+                await LoadLogDraftsAsync(_currentStudent.StudentID);
+            }
+        }
+        else
+        {
+            RowRef.Height = new GridLength(0);
+        }
+    }
+
+    /// <summary>
+    /// 학생의 누가기록 DraftSummary 로드
+    /// </summary>
+    private async Task LoadLogDraftsAsync(string studentId)
+    {
+        try
+        {
+            if (!_logDraftCache.TryGetValue(studentId, out var drafts))
+            {
+                using var logService = new StudentLogService();
+                var logs = await logService.GetStudentLogsAsync(studentId, _year);
+
+                // 현재 선택된 영역에 맞는 로그만 필터링
+                if (!string.IsNullOrEmpty(_selectedType) && _selectedType != "전체")
+                {
+                    if (Enum.TryParse<LogCategory>(_selectedType, out var cat))
+                    {
+                        logs = logs.Where(l => l.Category == cat).ToList();
+                    }
+                }
+
+                drafts = logs
+                    .Where(l => !string.IsNullOrWhiteSpace(l.DraftSummary))
+                    .Select(l => l.DraftSummary!)
+                    .ToList();
+
+                _logDraftCache[studentId] = drafts;
+            }
+
+            if (drafts.Count > 0)
+            {
+                TxtLogReference.Text = string.Join("\n\n", drafts.Select((d, i) => $"[{i + 1}] {d}"));
+                TxtLogReference.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+            }
+            else
+            {
+                TxtLogReference.Text = "해당 영역의 누가기록 초안이 없습니다.";
+                TxtLogReference.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+            }
+        }
+        catch (Exception ex)
+        {
+            TxtLogReference.Text = $"누가기록 로드 실패: {ex.Message}";
+            Debug.WriteLine($"[StudentSpecBatchDialog] 누가기록 로드 실패: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 초안 자동 생성 — 누가기록 DraftSummary를 병합하여 Content에 채움
+    /// </summary>
+    private async void BtnAutoGenerate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentStudent == null)
+        {
+            TxtSaveStatus.Text = "학생을 먼저 선택하세요.";
+            return;
+        }
+
+        // 이미 내용이 있으면 확인
+        if (!string.IsNullOrWhiteSpace(TxtContent.Text))
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "초안 자동 생성",
+                Content = "기존 내용이 있습니다. 기존 내용 뒤에 추가할까요?",
+                PrimaryButtonText = "뒤에 추가",
+                SecondaryButtonText = "덮어쓰기",
+                CloseButtonText = "취소",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.None) return;
+
+            var draft = await GenerateDraftAsync(_currentStudent.StudentID);
+            if (string.IsNullOrEmpty(draft))
+            {
+                TxtSaveStatus.Text = "생성할 초안이 없습니다.";
+                return;
+            }
+
+            if (result == ContentDialogResult.Primary)
+            {
+                // 뒤에 추가
+                TxtContent.Text = string.IsNullOrWhiteSpace(TxtContent.Text)
+                    ? draft
+                    : TxtContent.Text.TrimEnd() + " " + draft;
+            }
+            else
+            {
+                // 덮어쓰기
+                TxtContent.Text = draft;
+            }
+        }
+        else
+        {
+            var draft = await GenerateDraftAsync(_currentStudent.StudentID);
+            if (string.IsNullOrEmpty(draft))
+            {
+                TxtSaveStatus.Text = "생성할 초안이 없습니다.";
+                return;
+            }
+            TxtContent.Text = draft;
+        }
+
+        TxtSaveStatus.Text = "초안이 생성되었습니다. 내용을 확인 후 저장하세요.";
+    }
+
+    /// <summary>
+    /// 누가기록 DraftSummary를 병합하여 하나의 문장으로 생성
+    /// </summary>
+    private async Task<string> GenerateDraftAsync(string studentId)
+    {
+        // 캐시가 없으면 로드
+        if (!_logDraftCache.TryGetValue(studentId, out var drafts))
+        {
+            await LoadLogDraftsAsync(studentId);
+            _logDraftCache.TryGetValue(studentId, out drafts);
+        }
+
+        if (drafts == null || drafts.Count == 0)
+            return string.Empty;
+
+        // 각 초안을 공백으로 병합
+        return string.Join(" ", drafts);
+    }
+
+    #endregion
 }
+

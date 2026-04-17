@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 using System.Threading.Tasks;
+using NewSchool.Logging;
 
 namespace NewSchool.Board.Repositories
 {
@@ -40,7 +42,7 @@ namespace NewSchool.Board.Repositories
 
                 // ✅ WAL 모드 활성화 (동시 읽기/쓰기 개선)
                 using var cmd = Connection.CreateCommand();
-                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
                 cmd.ExecuteNonQuery();
 
                 LogDebug($"{GetType().Name} 연결 열림 (WAL 모드)");
@@ -218,13 +220,64 @@ namespace NewSchool.Board.Repositories
 
         #endregion
 
+        #region Reader Column Caching
+
+        /// <summary>
+        /// SqliteDataReader 컬럼 인덱스 캐싱
+        /// GetOrdinal 반복 호출 제거로 성능 향상
+        /// </summary>
+        protected sealed class ReaderColumnCache
+        {
+            private readonly Dictionary<string, int> _ordinals;
+
+            public ReaderColumnCache(int estimatedColumns = 16)
+            {
+                _ordinals = new Dictionary<string, int>(estimatedColumns, StringComparer.OrdinalIgnoreCase);
+            }
+
+            public void Initialize(SqliteDataReader reader)
+            {
+                _ordinals.Clear();
+                for (int i = 0; i < reader.FieldCount; i++)
+                    _ordinals[reader.GetName(i)] = i;
+            }
+
+            public int GetOrdinal(string columnName) => _ordinals[columnName];
+
+            public bool TryGetOrdinal(string columnName, out int ordinal)
+                => _ordinals.TryGetValue(columnName, out ordinal);
+        }
+
+        /// <summary>
+        /// 캐시된 컬럼 인덱스로 리스트 조회 실행
+        /// </summary>
+        protected async Task<List<T>> ExecuteListAsync<T>(
+            SqliteCommand cmd,
+            Func<SqliteDataReader, ReaderColumnCache, T> mapper)
+        {
+            var list = new List<T>();
+            var cache = new ReaderColumnCache();
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            cache.Initialize(reader);
+
+            while (await reader.ReadAsync())
+                list.Add(mapper(reader, cache));
+
+            return list;
+        }
+
+        #endregion
+
         #region Logging
 
+        [Conditional("DEBUG")]
         protected void LogDebug(string message)
         {
             Debug.WriteLine($"[DEBUG] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
         }
 
+        [Conditional("DEBUG")]
         protected void LogInfo(string message)
         {
             Debug.WriteLine($"[INFO] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
@@ -233,6 +286,7 @@ namespace NewSchool.Board.Repositories
         protected void LogWarning(string message)
         {
             Debug.WriteLine($"[WARNING] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+            FileLogger.Instance.Warning($"[{GetType().Name}] {message}");
         }
 
         protected void LogError(string message, Exception? ex = null)
@@ -244,6 +298,7 @@ namespace NewSchool.Board.Repositories
                 Debug.WriteLine($"  Message: {ex.Message}");
                 Debug.WriteLine($"  StackTrace: {ex.StackTrace}");
             }
+            FileLogger.Instance.Error($"[{GetType().Name}] {message}", ex);
         }
 
         #endregion

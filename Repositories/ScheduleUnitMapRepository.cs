@@ -278,8 +278,8 @@ public class ScheduleUnitMapRepository : BaseRepository
     public async Task<bool> ExistsAsync(int scheduleId, int courseSectionId)
     {
         const string query = @"
-            SELECT COUNT(*) FROM ScheduleUnitMap 
-            WHERE ScheduleId = @ScheduleId AND CourseSectionId = @CourseSectionId";
+            SELECT EXISTS(SELECT 1 FROM ScheduleUnitMap
+            WHERE ScheduleId = @ScheduleId AND CourseSectionId = @CourseSectionId)";
 
         try
         {
@@ -288,7 +288,7 @@ public class ScheduleUnitMapRepository : BaseRepository
             cmd.Parameters.AddWithValue("@CourseSectionId", courseSectionId);
 
             var result = await cmd.ExecuteScalarAsync();
-            return Convert.ToInt32(result) > 0;
+            return Convert.ToInt32(result) == 1;
         }
         catch (Exception ex)
         {

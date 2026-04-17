@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="NewSchool.Pages.PageSeats"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -10,150 +10,172 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Margin="0" SizeChanged="GridBody_SizeChanged">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="48"/>
-            <RowDefinition x:Name="RowBody" Height="*"/>
-        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition x:Name="ColLeft" Width="200"/>
             <ColumnDefinition x:Name="ColBody" Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- 상단 헤더 (학년/학급 선택) -->
-        <StackPanel Grid.Row="0" Grid.Column="0" 
-                    Orientation="Horizontal" 
-                    Spacing="8" 
-                    Padding="2">
-            <ComboBox x:Name="CBoxGrade" 
-                      PlaceholderText="학년"
-                      MinWidth="100"
-                      SelectionChanged="CBoxGrade_SelectionChanged"/>
-            <ComboBox x:Name="CBoxRooms" 
-                      PlaceholderText="학급"
-                      MinWidth="100"
-                      SelectionChanged="CBoxRooms_SelectionChanged"/>
-        </StackPanel>
-
-        <!-- 좌측 학생 목록 -->
-        <Border Grid.Row="1" Grid.Column="0" 
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="0,0,1,0"
-                Padding="8"
-                MinWidth="200">
-            <controls:ListStudent x:Name="StudentList"
-                                  ViewMode="NumName"
-                                  ShowCheckBox="False"/>
-        </Border>
-
-        <!-- 상단 툴바 -->
-        <Grid Grid.Row="0" Grid.Column="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- 선택된 학생 정보 표시 -->
-            <InfoBar x:Name="SelectedStudentInfoBar"
-                     Grid.Row="0"
-                     Grid.ColumnSpan="3"
-                     Severity="Informational"
-                     IsOpen="False"
-                     IsClosable="True"
-                     Margin="8,8,8,4">
-                <InfoBar.Title>학생 선택됨</InfoBar.Title>
-                <InfoBar.Message>좌석을 클릭하여 배치하세요</InfoBar.Message>
-            </InfoBar>
-
-            <!-- 배열 설정 -->
-            <Border Grid.Row="1"
-                    Grid.Column="0"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="4"
-                    Padding="12,4"
-                    Margin="2">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="배열 :" 
-                              VerticalAlignment="Center"/>
-                    <ComboBox x:Name="CBoxJul" 
-                              PlaceholderText="줄"
-                              MinWidth="80"
-                              SelectionChanged="CBoxJul_SelectionChanged"/>
-                    <ComboBox x:Name="CBoxJJak" 
-                              PlaceholderText="짝"
-                              MinWidth="80"
-                              SelectionChanged="CBoxJJak_SelectionChanged"/>
-                </StackPanel>
-            </Border>
-
-            <!-- 우측 버튼들 -->
-            <StackPanel Grid.Row="1"
-                       Grid.Column="2" 
-                       Orientation="Horizontal" 
-                       Spacing="8"
-                       Padding="8"
-                       HorizontalAlignment="Right">
-                <CheckBox x:Name="ChkViewPhoto" 
-                         Content="사진 표시"
-                         Click="ChkViewPhoto_Click"/>
-                <Button x:Name="BtnInit" 
-                       Content="초기화"
-                       Click="BtnInit_Click"/>
-                <Button x:Name="BtnArrange" 
-                       Content="자동배정"
-                       Style="{StaticResource AccentButtonStyle}"
-                       Click="BtnArrange_Click"/>
-                <Button x:Name="BtnPrint" 
-                       Click="BtnPrint_Click"
-                       ToolTipService.ToolTip="인쇄">
-                    <FontIcon Glyph="&#xE749;" FontSize="16"/>
-                </Button>
-            </StackPanel>
-        </Grid>
-
-        <!-- 좌석 배치 영역 -->
-        <Grid Grid.Row="1" Grid.Column="1" 
-              Background="{ThemeResource LayerFillColorDefaultBrush}"
-              Padding="16">
+        <!-- ══ 좌측: 학년반 필터 + 학생 목록 (단일 블록) ══ -->
+        <Grid Grid.Column="0"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="0,0,1,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="48"/>
             </Grid.RowDefinitions>
 
-            <!-- 설명 입력 -->
-            <TextBox x:Name="TboxMessage" 
-                     Grid.Row="0"
-                     PlaceholderText="설명 입력..."
-                     Margin="0,0,0,8"/>
+            <!-- 학년/반 필터: 학생 목록 바로 위에 밀착 -->
+            <StackPanel Grid.Row="0"
+                        Orientation="Horizontal"
+                        Spacing="4"
+                        Padding="8,8,8,6">
+                <ComboBox x:Name="CBoxGrade"
+                          PlaceholderText="학년"
+                          MinWidth="82"
+                          SelectionChanged="CBoxGrade_SelectionChanged"/>
+                <ComboBox x:Name="CBoxRooms"
+                          PlaceholderText="학급"
+                          MinWidth="82"
+                          SelectionChanged="CBoxRooms_SelectionChanged"/>
+            </StackPanel>
 
-            <!-- 좌석 배치 Canvas -->
-            <Canvas x:Name="Room" 
-                    Grid.Row="1"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    AllowDrop="True"
-                    DragOver="Room_DragOver"
-                    Drop="Room_Drop"/>
+            <!-- 학생 목록 (헤더 "번호 이름" 포함) -->
+            <controls:ListStudent Grid.Row="1"
+                                  x:Name="StudentList"
+                                  ViewMode="NumName"
+                                  ShowCheckBox="False"
+                                  Margin="8,0,8,8"/>
+        </Grid>
 
-            <!-- 교탁 -->
-            <Border Grid.Row="2"
-                    Background="{ThemeResource AccentFillColorDefaultBrush}"
-                    CornerRadius="4"
-                    Padding="16,8"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Top"
-                    Margin="0,8,0,0">
-                <TextBlock x:Name="TBTable" 
-                          Text="교탁"
-                          FontSize="16"
-                          FontWeight="Bold"
-                          Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
-            </Border>
+        <!-- ══ 우측 ══ -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition x:Name="RowBody" Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 우측 헤더: 제목 + 배열 + 버튼 + 설명 -->
+            <Grid Grid.Row="0" Padding="12,8,12,6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Row 0: ● 자리 배정 + 배열 + 버튼들 -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- ● 자리 배정 -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="BtnExclusion"
+                                Click="BtnExclusion_Click"
+                                ToolTipService.ToolTip="짝 설정 (분리/고정)"
+                                Padding="2"
+                                MinWidth="0" MinHeight="0"
+                                BorderThickness="0"
+                                Background="Transparent">
+                            <TextBlock Text="●" FontSize="10"
+                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
+                        </Button>
+                        <TextBlock Text="자리 배정"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   Margin="2,0,16,0"/>
+                    </StackPanel>
+
+                    <!-- 배열 설정: NumberBox + 짝 체크 + 도트 패턴 -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                VerticalAlignment="Center">
+                        <NumberBox x:Name="NBoxJul"
+                                   Value="5" Minimum="2" Maximum="8"
+                                   SpinButtonPlacementMode="Compact"
+                                   Width="110" Height="32"
+                                   SmallChange="1" LargeChange="1"
+                                   ValueChanged="NBoxJul_ValueChanged"/>
+                        <CheckBox x:Name="ChkJJak"
+                                  Content="짝"
+                                  IsChecked="False"
+                                  Click="ChkJJak_Click"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,2,0"/>
+                        <TextBlock x:Name="TxtDotPattern"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Left"
+                                   FontSize="11"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   FontFamily="Consolas"/>
+                    </StackPanel>
+
+                    <!-- 우측 버튼들 -->
+                    <StackPanel Grid.Column="3"
+                                Orientation="Horizontal" Spacing="6"
+                                VerticalAlignment="Center">
+                        <CheckBox x:Name="ChkViewPhoto"
+                                  Content="사진 표시"
+                                  Click="ChkViewPhoto_Click"/>
+                        <Button x:Name="BtnInit" Content="초기화"
+                                Click="BtnInit_Click"/>
+                        <Button x:Name="BtnArrange" Content="자동배정"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Click="BtnArrange_Click"/>
+                        <Button x:Name="BtnPrint"
+                                Click="BtnPrint_Click"
+                                ToolTipService.ToolTip="인쇄">
+                            <FontIcon Glyph="&#xE749;" FontSize="14"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Row 1: 설명 입력 (바닥이 좌측 "번호 이름" 헤더 바닥과 일치) -->
+                <TextBox x:Name="TboxMessage"
+                         Grid.Row="1"
+                         PlaceholderText="설명 입력..."
+                         Margin="0,6,0,0"
+                         Height="32" FontSize="12"/>
+            </Grid>
+
+            <!-- InfoBar (좌석 위 오버레이) -->
+            <InfoBar x:Name="SelectedStudentInfoBar"
+                     Grid.Row="1"
+                     Severity="Informational"
+                     IsOpen="False"
+                     IsClosable="True"
+                     VerticalAlignment="Top"
+                     Margin="12,4,12,0"/>
+
+            <!-- 우측 본문: 좌석 Canvas + 교탁 -->
+            <Grid Grid.Row="1"
+                  Background="{ThemeResource LayerFillColorDefaultBrush}"
+                  Padding="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="48"/>
+                </Grid.RowDefinitions>
+
+                <Canvas x:Name="Room"
+                        Grid.Row="0"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        AllowDrop="True"
+                        DragOver="Room_DragOver"
+                        Drop="Room_Drop"/>
+
+                <Border Grid.Row="1"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        CornerRadius="4"
+                        Padding="16,8"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Margin="0,8,0,0">
+                    <TextBlock x:Name="TBTable"
+                               Text="교탁" FontSize="16" FontWeight="Bold"
+                               Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Page>

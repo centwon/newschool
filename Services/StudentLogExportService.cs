@@ -13,6 +13,14 @@ namespace NewSchool.Services;
 /// </summary>
 public class StudentLogExportService
 {
+    private static string GetOutputDir()
+    {
+        var dir = Path.Combine(Settings.UserDataPath, "Exports");
+        if (!Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+        return dir;
+    }
+
     /// <summary>
     /// 누가기록 엑셀 내보내기
     /// </summary>
@@ -27,18 +35,7 @@ public class StudentLogExportService
 
         // 엑셀 파일 경로 생성
         var fileName = $"누가기록_{grade}학년{classNo}반_{number}번_{studentVm.Name}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-        var filePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "NewSchool",
-            "Exports",
-            fileName);
-
-        // 디렉토리가 없으면 생성
-        var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        var filePath = Path.Combine(GetOutputDir(), fileName);
 
         // 카테고리별로 그룹화
         var groupedLogs = logs.GroupBy(l => l.Category)
@@ -113,44 +110,37 @@ public class StudentLogExportService
 
         return summary;
     }
+    /// <summary>
     /// StudentLogViewModel 리스트를 엑셀 내보내기용 DTO 리스트로 변환합니다.
-    /// Native AOT 호환성을 위해 dynamic 대신 정적 DTO를 사용합니다.
+    /// 개인 출력용 (학생 정보는 ViewModel의 InitializeAsync 호출 전제)
     /// </summary>
     public List<LogExportDto> CreateAllLogsSheet(List<StudentLogViewModel> logs)
     {
         return logs.Select(logVm =>
         {
-            // StudentLog 모델 객체 전체에 접근
-            // (DraftSummary는 StudnentLog 모델에만 Computed Property로 정의되어 있음)
-            // 주의: StudnentLog는 ViewModel에 정의된 속성명입니다.
             var model = logVm.StudentLog;
 
             return new LogExportDto
             {
-                // 1. 학생 정보 (ViewModel에서 직접 접근)
-                학년 = logVm.Grade.ToString(), // ViewModel Grade 속성
-                반 = logVm.Class.ToString(),   // ViewModel Class 속성
-                번호 = logVm.Number.ToString(), // ViewModel Number 속성
-                이름 = logVm.Name,             // ViewModel Name 속성
-
-                // 2. 기록 정보 (ViewModel 속성 직접 사용)
-                날짜 = logVm.DateString,       // ViewModel의 Computed Property 사용 (yyyy-MM-dd)
+                학년 = logVm.Grade.ToString(),
+                반 = logVm.Class.ToString(),
+                번호 = logVm.Number.ToString(),
+                이름 = logVm.Name,
+                날짜 = logVm.DateString,
                 학기 = logVm.Semester,
                 카테고리 = logVm.Category.ToString(),
                 과목 = logVm.SubjectName ?? string.Empty,
                 활동명 = logVm.ActivityName ?? string.Empty,
+                기록 = logVm.Log ?? string.Empty,
                 주제 = logVm.Topic ?? string.Empty,
                 활동내용 = logVm.Description ?? string.Empty,
                 역할 = logVm.Role ?? string.Empty,
                 기른능력 = logVm.SkillDeveloped ?? string.Empty,
                 장점 = logVm.StrengthShown ?? string.Empty,
                 성취 = logVm.ResultOrOutcome ?? string.Empty,
-                기록 = logVm.Log ?? string.Empty,
                 태그 = logVm.Tag ?? string.Empty,
                 중요 = logVm.IsImportant ? "★" : string.Empty,
-
-                // 3. 학생부초안 (StudnentLog 모델의 Computed Property 접근)
-                학생부초안 = model.DraftSummary ?? string.Empty // StudentLog 모델에서 가져옴
+                학생부초안 = model.HasStructuredData() ? model.DraftSummary : string.Empty
             };
         }).ToList();
     }
@@ -273,6 +263,60 @@ public class StudentLogExportService
                 }).Cast<object>().ToList();
         }
     }
+    /// <summary>
+    /// 학급 전체 누가기록을 하나의 엑셀 파일로 내보내기
+    /// </summary>
+    public string ExportClassLogsToExcel(
+        int year, int grade, int classNo,
+        List<(StudentCardViewModel Student, List<StudentLogViewModel> Logs)> studentLogs)
+    {
+        var fileName = $"누가기록_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var filePath = Path.Combine(GetOutputDir(), fileName);
+
+        // 학생 정보를 포함한 DTO 리스트 생성
+        var allDtos = new List<LogExportDto>();
+        foreach (var (studentVm, logs) in studentLogs)
+        {
+            var sGrade = studentVm.Enrollment?.Grade ?? grade;
+            var sClass = studentVm.Enrollment?.Class ?? classNo;
+            var sNumber = studentVm.Enrollment?.Number ?? 0;
+            var sName = studentVm.Name ?? string.Empty;
+
+            foreach (var logVm in logs)
+            {
+                var model = logVm.StudentLog;
+                allDtos.Add(new LogExportDto
+                {
+                    학년 = sGrade.ToString(),
+                    반 = sClass.ToString(),
+                    번호 = sNumber.ToString(),
+                    이름 = sName,
+                    날짜 = logVm.DateString,
+                    학기 = logVm.Semester,
+                    카테고리 = logVm.Category.ToString(),
+                    과목 = logVm.SubjectName ?? string.Empty,
+                    활동명 = logVm.ActivityName ?? string.Empty,
+                    기록 = logVm.Log ?? string.Empty,
+                    주제 = logVm.Topic ?? string.Empty,
+                    활동내용 = logVm.Description ?? string.Empty,
+                    역할 = logVm.Role ?? string.Empty,
+                    기른능력 = logVm.SkillDeveloped ?? string.Empty,
+                    장점 = logVm.StrengthShown ?? string.Empty,
+                    성취 = logVm.ResultOrOutcome ?? string.Empty,
+                    태그 = logVm.Tag ?? string.Empty,
+                    중요 = logVm.IsImportant ? "★" : string.Empty,
+                    학생부초안 = model.HasStructuredData() ? model.DraftSummary : string.Empty
+                });
+            }
+        }
+
+        var sheets = new Dictionary<string, object>();
+        sheets.Add("전체", allDtos);
+
+        MiniExcel.SaveAs(filePath, sheets);
+        return filePath;
+    }
+
     /// <summary>카테고리별 시트명</summary>
     private string GetSheetName(LogCategory category)
     {
@@ -292,29 +336,29 @@ public class StudentLogExportService
 }
 public record LogExportDto
 {
-    // 학생 정보 (ViewModel에서 가져오는 조인된 데이터)
-    public string 학년 { get; init; } =string.Empty;
+    // 학생 정보
+    public string 학년 { get; init; } = string.Empty;
     public string 반 { get; init; } = string.Empty;
     public string 번호 { get; init; } = string.Empty;
     public string 이름 { get; init; } = string.Empty;
 
-    // 기록 정보 (StudentLogViewModel의 속성들)
+    // 기록 정보
     public string 날짜 { get; init; } = string.Empty;
     public int 학기 { get; init; }
     public string 카테고리 { get; init; } = string.Empty;
     public string 과목 { get; init; } = string.Empty;
     public string 활동명 { get; init; } = string.Empty;
+    public string 기록 { get; init; } = string.Empty;
     public string 주제 { get; init; } = string.Empty;
     public string 활동내용 { get; init; } = string.Empty;
     public string 역할 { get; init; } = string.Empty;
     public string 기른능력 { get; init; } = string.Empty;
     public string 장점 { get; init; } = string.Empty;
     public string 성취 { get; init; } = string.Empty;
-    public string 기록 { get; init; } = string.Empty;
     public string 태그 { get; init; } = string.Empty;
     public string 중요 { get; init; } = string.Empty;
 
-    // StudentLog 모델의 Computed Property
+    // 구조화된 데이터가 있을 때만 생성
     public string 학생부초안 { get; init; } = string.Empty;
 }
 public record SummaryExportDto

@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
 using NewSchool.Board.Services;
 using NewSchool.Controls;
+using NewSchool.Models;
 
 namespace NewSchool.Board.Dialogs;
 
@@ -181,7 +182,7 @@ public sealed partial class MemoEditDialog : ContentDialog
         {
             return tag;
         }
-        return "업무";
+        return CategoryNames.Lesson;
     }
 
     /// <summary>

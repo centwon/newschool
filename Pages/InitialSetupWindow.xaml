@@ -32,8 +32,8 @@
 
             <!-- 1단계: 학교 검색 -->
             <StackPanel Spacing="12">
-                <TextBlock Text="1단계: 학교 정보" 
-                           FontSize="16" 
+                <TextBlock Text="1단계: 학교 정보"
+                           FontSize="16"
                            FontWeight="SemiBold"/>
 
                 <Border Background="{ThemeResource LayerFillColorDefaultBrush}"

@@ -49,7 +49,7 @@ public class EnrollmentService : IDisposable
         }
 
         // 배정 실행
-        enrollment.Status = "재학";
+        enrollment.Status = EnrollmentStatus.Enrolled;
         enrollment.CreatedAt = DateTime.Now;
         enrollment.UpdatedAt = DateTime.Now;
 
@@ -72,7 +72,7 @@ public class EnrollmentService : IDisposable
             foreach (var enrollment in enrollments)
             {
                 ValidateEnrollment(enrollment);
-                enrollment.Status = "재학";
+                enrollment.Status = EnrollmentStatus.Enrolled;
                 enrollment.CreatedAt = DateTime.Now;
                 enrollment.UpdatedAt = DateTime.Now;
 
@@ -100,8 +100,8 @@ public class EnrollmentService : IDisposable
     public async Task<int> PromoteStudentsAsync(string schoolCode, int fromYear, int fromGrade)
     {
         // 진급 대상 학생 조회 (2학기 재학생)
-        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, fromYear, fromGrade);
-        var activeStudents = students.Where(e => e.Status == "재학").ToList();
+        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, fromYear, 2, fromGrade);
+        var activeStudents = students.Where(e => e.Status == EnrollmentStatus.Enrolled).ToList();
 
         if (activeStudents.Count == 0)
             return 0;
@@ -134,7 +134,7 @@ public class EnrollmentService : IDisposable
                     Grade = nextGrade,
                     Class = oldEnrollment.Class, // 같은 반 유지 (필요시 수정)
                     Number = oldEnrollment.Number, // 같은 번호 유지 (필요시 수정)
-                    Status = "재학",
+                    Status = EnrollmentStatus.Enrolled,
                     //TeacherID = oldEnrollment.TeacherID, // 담임 변경 필요시 나중에 수정
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now
@@ -169,7 +169,7 @@ public class EnrollmentService : IDisposable
             throw new InvalidOperationException($"존재하지 않는 학적입니다: {enrollmentNo}");
         }
 
-        if (enrollment.Status != "재학")
+        if (enrollment.Status != EnrollmentStatus.Enrolled)
         {
             throw new InvalidOperationException($"재학 중인 학생만 전출 가능합니다. 현재 상태: {enrollment.Status}");
         }
@@ -216,8 +216,8 @@ public class EnrollmentService : IDisposable
     public async Task<int> GraduateAsync(string schoolCode, int year, int grade)
     {
         // 졸업 대상 학생 조회 (2학기 재학생)
-        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, year, grade);
-        var activeStudents = students.Where(e => e.Status == "재학").ToList();
+        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, year, 2, grade);
+        var activeStudents = students.Where(e => e.Status == EnrollmentStatus.Enrolled).ToList();
 
         if (activeStudents.Count == 0)
             return 0;
@@ -254,7 +254,7 @@ public class EnrollmentService : IDisposable
         if (enrollment == null)
             return false;
 
-        enrollment.Status = "졸업";
+        enrollment.Status = EnrollmentStatus.Graduated;
         enrollment.GraduationDate = (graduationDate ?? DateTime.Now).ToString("yyyy-MM-dd");
         enrollment.UpdatedAt = DateTime.Now;
 

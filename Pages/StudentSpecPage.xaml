@@ -5,7 +5,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:NewSchool.Controls"
-    mc:Ignorable="d">
+    mc:Ignorable="d"
+    Unloaded="Page_Unloaded">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -60,11 +61,11 @@
             </StackPanel>
 
             <!-- 버튼 영역 -->
-            <StackPanel Grid.Column="1" 
-                        Orientation="Horizontal" 
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
                         Spacing="8"
                         Margin="16,0,0,0">
-                
+
                 <!-- 저장 -->
                 <Button x:Name="BtnSave"
                         ToolTipService.ToolTip="선택한 항목 저장"
@@ -80,7 +81,7 @@
 
                 <!-- 삭제 -->
                 <Button x:Name="BtnDelete"
-                        ToolTipService.ToolTip="선택한 항목 삭제"
+                        ToolTipService.ToolTip="선택한 항목 삭제 (DB에서 완전 삭제)"
                         Click="OnDeleteClick">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <FontIcon Glyph="&#xE74D;" FontSize="16"/>
@@ -91,26 +92,16 @@
                     </Button.KeyboardAccelerators>
                 </Button>
 
-                <!-- 인쇄 -->
-                <Button x:Name="BtnPrint"
-                        ToolTipService.ToolTip="선택한 항목 인쇄"
-                        Click="OnPrintClick">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <FontIcon Glyph="&#xE749;" FontSize="16"/>
-                        <TextBlock Text="인쇄"/>
-                    </StackPanel>
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="P" Modifiers="Control"/>
-                    </Button.KeyboardAccelerators>
-                </Button>
+                <!-- 구분선 -->
+                <Border Width="1" Height="24" VerticalAlignment="Center"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
 
                 <!-- 폰트 크기 -->
                 <Button x:Name="BtnFontSize"
                         ToolTipService.ToolTip="글자 크기 조절"
                         Click="OnFontSizeClick">
                     <FontIcon Glyph="&#xE8E9;" FontSize="16"/>
-                    
-                    <!-- Flyout을 AttachedFlyout로 변경 -->
+
                     <FlyoutBase.AttachedFlyout>
                         <Flyout x:Name="FontSizeFlyout" Placement="Bottom">
                             <Grid Width="200" Height="150">
@@ -120,7 +111,7 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" 
+                                <TextBlock Grid.Row="0"
                                            Text="글자 크기"
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,8"/>
@@ -145,6 +136,30 @@
                             </Grid>
                         </Flyout>
                     </FlyoutBase.AttachedFlyout>
+                </Button>
+
+                <!-- 구분선 -->
+                <Border Width="1" Height="24" VerticalAlignment="Center"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                <!-- 일괄 입력 -->
+                <Button x:Name="BtnBatchInput"
+                        ToolTipService.ToolTip="학급 전체 학생의 특기사항을 한 화면에서 편집"
+                        Click="OnBatchInputClick">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xE70F;" FontSize="16"/>
+                        <TextBlock Text="일괄 입력"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 일괄 출력 -->
+                <Button x:Name="BtnBatchExport"
+                        ToolTipService.ToolTip="학급 전체 학생부를 PDF 또는 엑셀로 일괄 출력"
+                        Click="OnBatchExportClick">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xEA90;" FontSize="16"/>
+                        <TextBlock Text="일괄 출력"/>
+                    </StackPanel>
                 </Button>
             </StackPanel>
         </Grid>

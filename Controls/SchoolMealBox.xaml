@@ -82,21 +82,32 @@
             </Grid>
 
             <!-- 급식 목록 -->
-            <ScrollViewer Grid.Row="1" 
-                          Padding="12,8,12,12" 
+            <ScrollViewer Grid.Row="1"
+                          Padding="12,8,12,12"
                           MaxHeight="300"
                           VerticalScrollBarVisibility="Auto">
                 <ItemsRepeater x:Name="MealsRepeater">
                     <ItemsRepeater.Layout>
-                        <StackLayout Spacing="12"/>
+                        <StackLayout Spacing="10"/>
                     </ItemsRepeater.Layout>
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="model:SchoolMeal">
-                            <TextBlock Text="{x:Bind DisplayText}"
-                                       TextWrapping="Wrap"
-                                       FontSize="12"
-                                       Margin="8,4"
-                                       Padding="4"/>
+                            <StackPanel Spacing="4" Margin="4,0">
+                                <!-- 식사 유형 헤더 (조식/중식/석식) -->
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{x:Bind MealIcon}" FontSize="13"/>
+                                    <TextBlock Text="{x:Bind MMEAL_SC_NM}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                </StackPanel>
+                                <!-- 메뉴 목록 -->
+                                <TextBlock Text="{x:Bind MenuText}"
+                                           TextWrapping="Wrap"
+                                           FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Margin="22,0,0,0"/>
+                            </StackPanel>
                         </DataTemplate>
                     </ItemsRepeater.ItemTemplate>
                 </ItemsRepeater>

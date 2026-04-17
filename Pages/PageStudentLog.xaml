@@ -45,37 +45,29 @@
 
             <!-- 액션 버튼 패널 -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                <CheckBox x:Name="ChkShowSpec" 
-                          Content="학생부 기록 보기" 
+                <CheckBox x:Name="ChkShowSpec"
+                          Content="학생부 기록 보기"
                           VerticalAlignment="Center"
                           FontWeight="SemiBold"
-                          IsChecked="False" 
+                          IsChecked="False"
                           Click="ChkShowSpec_Click"
                           Visibility="Collapsed"/>
 
                 <AppBarSeparator Margin="8,0"/>
 
-                <Button x:Name="BtnNewActLog" 
-                        Click="BtnNewActLog_Click" 
-                        ToolTipService.ToolTip="추가">
+                <!-- 그룹1: 개인 기록 편집 -->
+                <Button x:Name="BtnNewActLog"
+                        Click="BtnNewActLog_Click"
+                        ToolTipService.ToolTip="새 기록 추가">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE710;" FontSize="16"/>
                         <TextBlock Text="추가" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnEditLog" 
-                        Click="BtnEditLog_Click" 
-                        ToolTipService.ToolTip="선택된 기록 전체 편집">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE70F;" FontSize="16"/>
-                        <TextBlock Text="편집" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
-                <Button x:Name="BtnSaveActLog" 
-                        Click="BtnSaveActLog_Click" 
-                        ToolTipService.ToolTip="저장"
+                <Button x:Name="BtnSaveActLog"
+                        Click="BtnSaveActLog_Click"
+                        ToolTipService.ToolTip="목록에서 수정한 내용을 저장"
                         Style="{ThemeResource AccentButtonStyle}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE74E;" FontSize="16"/>
@@ -83,16 +75,39 @@
                     </StackPanel>
                 </Button>
 
-                <AppBarSeparator/>
-
-                <Button x:Name="BtnPrint" 
-                        Click="BtnPrint_Click" 
-                        ToolTipService.ToolTip="인쇄">
-                    <FontIcon Glyph="&#xE749;" FontSize="16"/>
+                <Button x:Name="BtnEditLog"
+                        Click="BtnEditLog_Click"
+                        ToolTipService.ToolTip="선택한 기록을 대화상자에서 상세 편집">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE70F;" FontSize="16"/>
+                        <TextBlock Text="상세" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnFontResize" 
-                        Click="BtnFontResize_Click" 
+                <Button x:Name="BtnPrint"
+                        Click="BtnPrint_Click"
+                        ToolTipService.ToolTip="선택한 학생의 기록을 PDF로 인쇄">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE749;" FontSize="16"/>
+                        <TextBlock Text="인쇄" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="BtnDelActLog"
+                        Click="BtnDelActLog_Click"
+                        ToolTipService.ToolTip="선택한 기록 삭제">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE74D;" FontSize="16"/>
+                        <TextBlock Text="삭제" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 구분선 -->
+                <AppBarSeparator/>
+
+                <!-- 그룹2: 글꼴 크기 -->
+                <Button x:Name="BtnFontResize"
+                        Click="BtnFontResize_Click"
                         ToolTipService.ToolTip="글자 크기 변경">
                     <FontIcon Glyph="&#xE8E9;" FontSize="16"/>
                     <Button.Flyout>
@@ -108,38 +123,38 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock x:Name="TbMax" 
-                                           Grid.Row="0" 
-                                           Grid.Column="0" 
-                                           VerticalAlignment="Top" 
-                                           FontSize="9" 
+                                <TextBlock x:Name="TbMax"
+                                           Grid.Row="0"
+                                           Grid.Column="0"
+                                           VerticalAlignment="Top"
+                                           FontSize="9"
                                            HorizontalAlignment="Right"
                                            Margin="0,0,8,0"/>
 
-                                <TextBlock x:Name="TbSize" 
-                                           Grid.Row="1" 
-                                           Grid.Column="0" 
+                                <TextBlock x:Name="TbSize"
+                                           Grid.Row="1"
+                                           Grid.Column="0"
                                            VerticalAlignment="Center"
                                            FontWeight="Bold"
                                            Margin="0,0,8,0"/>
 
-                                <TextBlock x:Name="TbMin" 
-                                           Grid.Row="2" 
-                                           Grid.Column="0" 
-                                           VerticalAlignment="Bottom" 
-                                           FontSize="10" 
+                                <TextBlock x:Name="TbMin"
+                                           Grid.Row="2"
+                                           Grid.Column="0"
+                                           VerticalAlignment="Bottom"
+                                           FontSize="10"
                                            HorizontalAlignment="Right"
                                            Margin="0,0,8,0"/>
 
-                                <Slider x:Name="SldFontSize" 
-                                        Grid.Row="0" 
-                                        Grid.Column="1" 
+                                <Slider x:Name="SldFontSize"
+                                        Grid.Row="0"
+                                        Grid.Column="1"
                                         Grid.RowSpan="3"
-                                        Orientation="Vertical" 
-                                        Minimum="6" 
-                                        Maximum="30" 
+                                        Orientation="Vertical"
+                                        Minimum="6"
+                                        Maximum="30"
                                         Value="12"
-                                        TickPlacement="Outside" 
+                                        TickPlacement="Outside"
                                         TickFrequency="2"
                                         ValueChanged="SldFontSize_ValueChanged"
                                         PointerWheelChanged="SldFontSize_PointerWheelChanged"/>
@@ -148,20 +163,21 @@
                     </Button.Flyout>
                 </Button>
 
+                <!-- 구분선 -->
                 <AppBarSeparator/>
 
-                <Button x:Name="BtnAddLogAll" 
-                        Content="일괄입력" 
-                        Click="BtnAddLogAll_Click"/>
+                <!-- 그룹3: 일괄 작업 (전체 학생 대상) -->
+                <Button x:Name="BtnAddLogAll"
+                        Content="일괄 입력"
+                        Click="BtnAddLogAll_Click"
+                        ToolTipService.ToolTip="여러 학생의 기록을 한번에 입력"/>
 
-                <AppBarSeparator/>
-
-                <Button x:Name="BtnDelActLog" 
-                        Click="BtnDelActLog_Click" 
-                        ToolTipService.ToolTip="삭제">
+                <Button x:Name="BtnBatchExport"
+                        Click="BtnBatchExport_Click"
+                        ToolTipService.ToolTip="현재 학급 전체 학생의 기록을 일괄 출력">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE74D;" FontSize="16"/>
-                        <TextBlock Text="삭제" VerticalAlignment="Center"/>
+                        <FontIcon Glyph="&#xEA90;" FontSize="16"/>
+                        <TextBlock Text="일괄 출력" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </StackPanel>

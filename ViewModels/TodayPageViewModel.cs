@@ -207,7 +207,7 @@ public class TodayPageViewModel : INotifyPropertyChanged
         try
         {
             Debug.WriteLine($"[TodayPageViewModel] 급식 정보 로드 시작 - 날짜: {DateTime.Today:yyyy-MM-dd}");
-            var meals = await Functions.GetSchoolMealsAsync(DateTime.Today);
+            var meals = await Functions.GetSchoolMealsAsync(DateTime.Today, mmealScCode: "");
             Debug.WriteLine($"[TodayPageViewModel] 급식 정보 API 응답 - 개수: {meals?.Count ?? 0}");
 
             if (meals != null && meals.Count > 0)

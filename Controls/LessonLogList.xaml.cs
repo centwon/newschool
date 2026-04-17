@@ -51,6 +51,13 @@ public sealed partial class LessonLogList : UserControl
         this.InitializeComponent();
         _service = new LessonLogService();
         LvLessonLogs.ItemsSource = LessonLogs;
+        this.Unloaded += LessonLogList_Unloaded;
+    }
+
+    private void LessonLogList_Unloaded(object sender, RoutedEventArgs e)
+    {
+        _service?.Dispose();
+        _service = null;
     }
 
     #region Public Methods
@@ -89,6 +96,9 @@ public sealed partial class LessonLogList : UserControl
         try
         {
             ShowLoading(true);
+
+            // 벌크 로딩: ItemsSource 해제 → 데이터 변경 → 재연결 (N번 레이아웃 방지)
+            LvLessonLogs.ItemsSource = null;
             LessonLogs.Clear();
 
             System.Collections.Generic.List<LessonLog> logs;
@@ -108,6 +118,8 @@ public sealed partial class LessonLogList : UserControl
             {
                 LessonLogs.Add(log);
             }
+
+            LvLessonLogs.ItemsSource = LessonLogs;
 
             UpdateEmptyState();
         }

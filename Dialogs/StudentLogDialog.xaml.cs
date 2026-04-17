@@ -37,6 +37,7 @@ public sealed partial class StudentLogDialog : Window
     private List<StudentLog> _logs = new();
     private bool _isSingleStudentMode;
     private bool _isInitializing = true;
+    private string? _pendingStudentId; // 생성자에서 비동기 로드 대신 Loaded에서 처리
 
     public ObservableCollection<Course> Courses { get; } = new();
     public ObservableCollection<Club> Clubs { get; } = new();
@@ -70,14 +71,63 @@ public sealed partial class StudentLogDialog : Window
         ColStudentList.Width = new GridLength(0);
         ListStudents.Visibility = Visibility.Collapsed;
 
-        using var svc = new StudentService(SchoolDatabase.DbPath);
-        var task = svc.GetBasicInfoAsync(log.StudentID);
-        task.Wait();
-        var student = task.Result;
-        TxtStudentInfo.Text = student != null ? $"학생: {student.Name}" : "학생 정보 없음";
+        _pendingStudentId = log.StudentID;
+        TxtStudentInfo.Text = "학생 정보 로드 중...";
 
         LogBox.LoadLog(log);
         Title = $"{log.Category} 기록 편집";
+
+        this.Activated += OnActivatedOnce;
+    }
+
+    private async void OnActivatedOnce(object sender, WindowActivatedEventArgs e)
+    {
+        this.Activated -= OnActivatedOnce;
+        if (_pendingStudentId != null)
+        {
+            var studentId = _pendingStudentId;
+            _pendingStudentId = null;
+            try
+            {
+                using var svc = new StudentService(SchoolDatabase.DbPath);
+                var student = await svc.GetBasicInfoAsync(studentId);
+                TxtStudentInfo.Text = student != null ? $"학생: {student.Name}" : "학생 정보 없음";
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[StudentLogDialog] 학생 정보 로드 실패: {ex.Message}");
+                TxtStudentInfo.Text = "학생 정보 없음";
+            }
+        }
+        _isInitializing = false;
+    }
+
+    /// <summary>
+    /// 1-b. 단일 학생 - 새 기록 작성
+    /// </summary>
+    public StudentLogDialog(Enrollment student, int year, int semester)
+    {
+        this.InitializeComponent();
+
+        _isSingleStudentMode = true;
+        _year = year;
+        _semester = semester;
+
+        InitializeCommon();
+        HideAllFilters();
+
+        ColStudentList.Width = new GridLength(0);
+        ListStudents.Visibility = Visibility.Collapsed;
+
+        TxtStudentInfo.Text = $"학생: {student.Name} ({student.Grade}학년 {student.Class}반 {student.Number}번)";
+
+        LogBox.CreateNew(
+            studentId: student.StudentID,
+            teacherId: Settings.User.Value,
+            year: year,
+            semester: semester);
+
+        Title = $"학생 기록 작성 — {student.Name}";
         _isInitializing = false;
     }
 
@@ -106,7 +156,11 @@ public sealed partial class StudentLogDialog : Window
         LogBox.LockYearSemester();
         LogBox.HideStudentInfo();
 
-        _ = LoadClassStudentsAsync(year, semester, grade, classNum);
+        _ = LoadClassStudentsAsync(year, semester, grade, classNum).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[StudentLogDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
 
         Title = $"{category} 기록 일괄 입력 — {year}학년도 {grade}학년 {classNum}반";
         _isInitializing = false;
@@ -139,7 +193,11 @@ public sealed partial class StudentLogDialog : Window
         TxtStudentInfo.Text = $"{year}학년도 {semester}학기";
         Title = $"교과활동 기록 일괄 입력 — {year}학년도";
 
-        _ = InitCourseAsync(year, semester, teacherId);
+        _ = InitCourseAsync(year, semester, teacherId).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[StudentLogDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     /// <summary>
@@ -169,7 +227,11 @@ public sealed partial class StudentLogDialog : Window
         TxtStudentInfo.Text = $"{year}학년도 {semester}학기";
         Title = $"동아리활동 기록 일괄 입력 — {year}학년도";
 
-        _ = InitClubAsync(year, schoolCode);
+        _ = InitClubAsync(year, schoolCode).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[StudentLogDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     #endregion
@@ -385,7 +447,11 @@ public sealed partial class StudentLogDialog : Window
         // 학년/반 필터가 보이면 학년 목록 채우기
         if (showGradeClass && CBoxGrade.Items.Count == 0)
         {
-            _ = FillGradeComboAsync();
+            _ = FillGradeComboAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    System.Diagnostics.Debug.WriteLine($"[StudentLogDialog] {t.Exception?.InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
     }
 

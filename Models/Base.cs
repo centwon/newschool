@@ -39,6 +39,25 @@ public sealed partial class SchoolMeal
     /// </summary>
     public string DisplayText => $"{MMEAL_SC_NM}: {DDISH_NM.Replace("\r\n", ", ").Replace("\n", ", ").Replace("\r", ", ")}";
 
+    /// <summary>
+    /// 식사 유형별 아이콘
+    /// </summary>
+    public string MealIcon => MMEAL_SC_NM switch
+    {
+        "조식" => "🌅",
+        "중식" => "☀️",
+        "석식" => "🌙",
+        _ => "🍽️"
+    };
+
+    /// <summary>
+    /// 메뉴 텍스트 (줄바꿈 → 쉼표 구분)
+    /// </summary>
+    public string MenuText => DDISH_NM
+        .Replace("\r\n", ", ")
+        .Replace("\n", ", ")
+        .Replace("\r", ", ");
+
     //5	    MMEAL_SC_CODE 식사코드
     //8	    MLSV_FGR 급식인원수
     //10	    ORPLC_INFO 원산지정보

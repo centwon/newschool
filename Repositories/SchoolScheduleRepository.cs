@@ -57,6 +57,7 @@ namespace NewSchool.Repositories
 
         /// <summary>
         /// 여러 학사일정 일괄 생성 (중복 체크)
+        /// 일괄 SELECT로 기존 키 조회 → 메모리에서 필터 → 배치 INSERT
         /// </summary>
         public async Task<int> CreateBulkAsync(List<SchoolSchedule> schedules)
         {
@@ -67,19 +68,43 @@ namespace NewSchool.Repositories
             {
                 return await ExecuteInTransactionAsync(async () =>
                 {
+                    // 1. 기존 키(학교코드+날짜+행사명) 일괄 조회
+                    var existingKeys = new HashSet<string>(StringComparer.Ordinal);
+                    var schoolCodes = new HashSet<string>();
+                    foreach (var s in schedules)
+                        schoolCodes.Add(s.SD_SCHUL_CODE ?? string.Empty);
+
+                    foreach (var code in schoolCodes)
+                    {
+                        const string selectQuery = @"
+                            SELECT SD_SCHUL_CODE, AA_YMD, EVENT_NM
+                            FROM SchoolSchedule
+                            WHERE SD_SCHUL_CODE = @SchoolCode AND IsDeleted = 0";
+
+                        using var selectCmd = CreateCommand(selectQuery);
+                        selectCmd.Parameters.AddWithValue("@SchoolCode", code);
+                        using var reader = await selectCmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                            var key = $"{reader.GetString(0)}|{reader.GetString(1)}|{reader.GetString(2)}";
+                            existingKeys.Add(key);
+                        }
+                    }
+
+                    // 2. 중복 필터링 후 배치 INSERT
                     int count = 0;
                     foreach (var schedule in schedules)
                     {
-                        // 중복 체크: 학교코드 + 날짜 + 행사명이 같은 항목이 있는지 확인
-                        if (!await IsDuplicateAsync(schedule))
-                        {
-                            await CreateAsync(schedule);
-                            count++;
-                        }
-                        else
+                        var key = $"{schedule.SD_SCHUL_CODE ?? ""}|{schedule.AA_YMD:yyyyMMdd}|{schedule.EVENT_NM ?? ""}";
+                        if (existingKeys.Contains(key))
                         {
                             LogInfo($"중복 학사일정 건너뜀: {schedule.AA_YMD:yyyy-MM-dd} - {schedule.EVENT_NM}");
+                            continue;
                         }
+
+                        await CreateAsync(schedule);
+                        existingKeys.Add(key); // 같은 배치 내 중복 방지
+                        count++;
                     }
                     return count;
                 });
@@ -97,11 +122,11 @@ namespace NewSchool.Repositories
         private async Task<bool> IsDuplicateAsync(SchoolSchedule schedule)
         {
             const string query = @"
-                SELECT COUNT(*) FROM SchoolSchedule 
-                WHERE SD_SCHUL_CODE = @SchoolCode 
-                AND AA_YMD = @Date 
-                AND EVENT_NM = @EventName 
-                AND IsDeleted = 0";
+                SELECT EXISTS(SELECT 1 FROM SchoolSchedule
+                WHERE SD_SCHUL_CODE = @SchoolCode
+                AND AA_YMD = @Date
+                AND EVENT_NM = @EventName
+                AND IsDeleted = 0)";
 
             try
             {
@@ -111,7 +136,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@EventName", schedule.EVENT_NM ?? string.Empty);
 
                 var result = await cmd.ExecuteScalarAsync();
-                return Convert.ToInt32(result) > 0;
+                return Convert.ToInt32(result) == 1;
             }
             catch (Exception ex)
             {

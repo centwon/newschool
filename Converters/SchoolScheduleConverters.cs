@@ -11,13 +11,12 @@ namespace NewSchool.Converters;
 /// </summary>
 public partial class BoolToVacationColorConverter : IValueConverter
 {
+    private static readonly SolidColorBrush RedBrush = new(Colors.Red);
+    private static readonly SolidColorBrush BlackBrush = new(Colors.Black);
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is bool isVacation && isVacation)
-        {
-            return new SolidColorBrush(Colors.Red);
-        }
-        return new SolidColorBrush(Colors.Black);
+        return value is bool isVacation && isVacation ? RedBrush : BlackBrush;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)
@@ -31,13 +30,12 @@ public partial class BoolToVacationColorConverter : IValueConverter
 /// </summary>
 public partial class BoolToTodayBackgroundConverter : IValueConverter
 {
+    private static readonly SolidColorBrush TodayBrush = new(ColorHelper.FromArgb(255, 255, 182, 193));
+    private static readonly SolidColorBrush DefaultBrush = new(ColorHelper.FromArgb(255, 240, 240, 240));
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is bool isToday && isToday)
-        {
-            return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 255, 182, 193)); // LightPink
-        }
-        return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 240, 240, 240)); // SubtleFillColorSecondary
+        return value is bool isToday && isToday ? TodayBrush : DefaultBrush;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)

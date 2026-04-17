@@ -52,7 +52,11 @@ public sealed partial class LessonLogEditDialog : ContentDialog
 
         Title = "수업 기록 추가";
         InitializeControls(defaultPeriod);
-        _ = LoadSectionsAsync();
+        _ = LoadSectionsAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[LessonLogEditDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     /// <summary>
@@ -74,7 +78,11 @@ public sealed partial class LessonLogEditDialog : ContentDialog
         Title = "수업 기록 수정";
         InitializeControls(null);
         LoadLessonLogData();
-        _ = LoadSectionsAsync();
+        _ = LoadSectionsAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[LessonLogEditDialog] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     /// <summary>

@@ -19,7 +19,7 @@ namespace NewSchool.Models
         private int _semester = 1;
         private string _date = string.Empty;
         private int _period = 0;
-        private string _status = "출석";
+        private string _status = AttendanceStatus.Present;
         private string _reason = string.Empty;
         private string _teacherId = string.Empty;
         private string _memo = string.Empty;
@@ -154,7 +154,7 @@ namespace NewSchool.Models
         /// </summary>
         public bool IsAbsent()
         {
-            return Status == "결석" || Status == "결과" || Status == "질병";
+            return Status == AttendanceStatus.Absent || Status == AttendanceStatus.Excused || Status == AttendanceStatus.Illness;
         }
 
         /// <summary>
@@ -162,7 +162,7 @@ namespace NewSchool.Models
         /// </summary>
         public bool IsTardy()
         {
-            return Status == "지각" || Status == "조퇴";
+            return Status == AttendanceStatus.Tardy || Status == AttendanceStatus.EarlyLeave;
         }
 
         /// <summary>
@@ -170,7 +170,7 @@ namespace NewSchool.Models
         /// </summary>
         public bool IsPresent()
         {
-            return Status == "출석";
+            return Status == AttendanceStatus.Present;
         }
 
         /// <summary>

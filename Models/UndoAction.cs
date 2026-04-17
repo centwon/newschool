@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace NewSchool.Models;
 
@@ -87,7 +88,7 @@ public class UndoAction
     #region Data Serialization
 
     /// <summary>
-    /// 작업 데이터 가져오기
+    /// 작업 데이터 가져오기 (AOT 안전 — 비제네릭 오버로드 사용)
     /// </summary>
     public T? GetData<T>() where T : class
     {
@@ -96,7 +97,7 @@ public class UndoAction
 
         try
         {
-            return JsonSerializer.Deserialize<T>(ActionData);
+            return JsonSerializer.Deserialize(ActionData, typeof(T), UndoActionJsonContext.Default) as T;
         }
         catch
         {
@@ -105,14 +106,25 @@ public class UndoAction
     }
 
     /// <summary>
-    /// 작업 데이터 설정
+    /// 작업 데이터 설정 (AOT 안전)
     /// </summary>
     public void SetData<T>(T data) where T : class
     {
-        ActionData = JsonSerializer.Serialize(data);
+        ActionData = JsonSerializer.Serialize(data, typeof(T), UndoActionJsonContext.Default);
     }
 
     #endregion
+}
+
+/// <summary>
+/// UndoAction 직렬화용 JsonSerializerContext (AOT/Trimming 호환)
+/// </summary>
+[JsonSerializable(typeof(ShiftActionData))]
+[JsonSerializable(typeof(ScheduleActionData))]
+[JsonSerializable(typeof(BulkGenerateActionData))]
+[JsonSerializable(typeof(MergeActionData))]
+internal partial class UndoActionJsonContext : JsonSerializerContext
+{
 }
 
 /// <summary>

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
@@ -8,9 +8,14 @@
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
+    <Version>1.0.4</Version>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <!-- ==========================================
+       빌드 제외 항목
+       ========================================== -->
   <ItemGroup>
     <Compile Remove="Board\FileItemBox.xaml.cs" />
     <Compile Remove="Board\ListViewer.xaml.cs" />
@@ -34,6 +39,7 @@
     <None Remove="Controls\StudentCard.xaml" />
     <None Remove="Dialogs\InitialSetupDialog.xaml" />
     <None Remove="Dialogs\SchoolSearchDialog.xaml" />
+    <None Remove="nul" />
     <None Remove="Pages\AddStudentsPage.xaml" />
     <None Remove="Pages\StudentInfoExportPage.xaml" />
     <None Remove="Pages\StudentManagementPage.xaml" />
@@ -49,6 +55,10 @@
     <Page Remove="Board\PostBox.xaml" />
     <Page Remove="Board\PostFileListBox.xaml" />
   </ItemGroup>
+
+  <!-- ==========================================
+       Content 파일 (앱 리소스)
+       ========================================== -->
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
@@ -59,8 +69,11 @@
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
   </ItemGroup>
 
-  <!-- Jodit Editor - Virtual Host Mapping용 Content 파일 -->
+  <!-- WebView2 Content 파일 (Jodit Editor + 도움말) -->
   <ItemGroup>
+    <Content Include="Assets\help.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Assets\Jodit\editor.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -68,6 +81,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Jodit\jodit.fat.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Jodit\purify.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="newschool.ico" />
@@ -94,78 +110,104 @@
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
+
+  <!-- ==========================================
+       NuGet 패키지
+       ========================================== -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
-    <PackageReference Include="MiniExcel" Version="1.42.0" />
-    <PackageReference Include="QuestPDF" Version="2026.2.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1721" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260317003" />
+    <PackageReference Include="MiniExcel" Version="1.43.0" />
+    <PackageReference Include="QuestPDF" Version="2026.2.4" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
     <PackageReference Include="SQLitePCLRaw.core" Version="3.0.2" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.3" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.5" />
   </ItemGroup>
+
+  <!-- ==========================================
+       XAML 컴파일 설정 (Page Update)
+       ========================================== -->
+
+  <!-- 모든 XAML 소스 파일 출력 디렉토리 복사 방지 (.xbf 컴파일 버전만 필요) -->
   <ItemGroup>
-    <Page Update="MainWindow.xaml">
+    <Page Update="**\*.xaml">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <ApplicationDefinition Update="App.xaml">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </ApplicationDefinition>
   </ItemGroup>
+
+  <!-- XAML Generator 설정 -->
   <ItemGroup>
     <Page Update="Board\Controls\PostFileListBox.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Board\Controls\FileItemBox.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Board\Pages\PostEditPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Board\Pages\PostDetailPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Board\Pages\PostListPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Board\CommentBox.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Scheduler\UnifiedItemDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Scheduler\DayCell.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Scheduler\Kcalendar.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Controls\JoditEditor.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Controls\MonthPicker.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Dialogs\SchoolSearchDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="SettingsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Pages\StudentManagementPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Pages\InitialSetupWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Dialogs\InitialSetupDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Pages\AddStudentsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Pages\TodayPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Pages\StudentInfoExportPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Scheduler\KAgendaControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Controls\SchoolMealBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Controls\StudentCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Pages\ProgressMatrixPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
@@ -191,65 +233,88 @@
     <ApplicationManifest></ApplicationManifest>
     <ApplicationIcon>newschool.ico</ApplicationIcon>
     <PackageIcon>newschool.png</PackageIcon>
+    <!-- Release 게시 시 PDB 제외 (123MB 절약) -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
   </PropertyGroup>
+
+  <!-- ==========================================
+       게시 시 불필요한 파일 출력 제외
+       ========================================== -->
   <ItemGroup>
-    <Page Update="Dialogs\SchoolSearchDialog.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
+    <!-- 문서 파일 (.md) 제외 — 개발용 문서, 배포 불필요 -->
+    <Content Remove="**\*.md" />
+    <None Remove="**\*.md" />
+
+    <!-- Docs 디렉토리 전체 제외 -->
+    <Content Remove="Docs\**" />
+    <None Remove="Docs\**" />
+
+    <!-- .gitignore 제외 -->
+    <Content Remove=".gitignore" />
+    <None Remove=".gitignore" />
+
+    <!-- Inno Setup 스크립트 출력 제외 -->
+    <Content Remove="installer.iss" />
+    <None Remove="installer.iss" />
+
+    <!-- Properties 디렉토리 출력 제외 (launchSettings, PublishProfiles) -->
+    <Content Remove="Properties\launchSettings.json" />
+    <Content Remove="Properties\PublishProfiles\**" />
+    <None Update="Properties\launchSettings.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Update="Properties\PublishProfiles\**">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+
+    <!-- app.manifest 출력 제외 -->
+    <None Update="app.manifest">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
+
+  <!-- QuestPDF LatoFont 출력 제외 (~12MB 절약, 코드에서 미사용) -->
+  <Target Name="RemoveQuestPdfLaToFont" BeforeTargets="AssignTargetPaths">
+    <ItemGroup>
+      <None Remove="@(None)" Condition="'%(None.Link)' != '' and $([System.String]::new('%(None.Link)').StartsWith('LatoFont'))" />
+    </ItemGroup>
+  </Target>
+
+  <!-- 게시 폴더에 복사 방지 -->
   <ItemGroup>
-    <Page Update="SettingsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
+    <Content Remove="installer.iss" />
+    <Content Remove="prerequisites\**" />
+    <None Remove="installer.iss" />
+    <None Remove="prerequisites\**" />
   </ItemGroup>
-  <ItemGroup>
-    <Page Update="Pages\StudentManagementPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Pages\InitialSetupWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Dialogs\InitialSetupDialog.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Pages\AddStudentsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Pages\TodayPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Pages\StudentInfoExportPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Scheduler\KAgendaControl.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Controls\SchoolMealBox.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Controls\StudentCard.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Pages\ProgressMatrixPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
+
+  <!-- 게시 후 불필요 파일/폴더 정리 -->
+  <Target Name="CleanPublishOutput" AfterTargets="Publish">
+    <ItemGroup>
+      <_PublishXamlFiles Include="$(PublishDir)**\*.xaml" />
+      <_PublishPdbFiles Include="$(PublishDir)**\*.pdb" />
+      <_PublishManifestFiles Include="$(PublishDir)app.manifest" />
+      <_PublishGitignoreFiles Include="$(PublishDir).gitignore" />
+      <_PublishPropertiesFiles Include="$(PublishDir)Properties\**\*" />
+      <_PublishInstallerFiles Include="$(PublishDir)Installer\**\*" />
+      <_PublishPrereqFiles Include="$(PublishDir)prerequisites\**\*" />
+    </ItemGroup>
+    <Delete Files="@(_PublishXamlFiles)" />
+    <Delete Files="@(_PublishPdbFiles)" />
+    <Delete Files="@(_PublishManifestFiles)" />
+    <Delete Files="@(_PublishGitignoreFiles)" />
+    <Delete Files="@(_PublishPropertiesFiles)" />
+    <Delete Files="@(_PublishInstallerFiles)" />
+    <Delete Files="@(_PublishPrereqFiles)" />
+    <RemoveDir Directories="$(PublishDir)Properties" />
+    <RemoveDir Directories="$(PublishDir)Pages" />
+    <RemoveDir Directories="$(PublishDir)Controls" />
+    <RemoveDir Directories="$(PublishDir)Dialogs" />
+    <RemoveDir Directories="$(PublishDir)Board" />
+    <RemoveDir Directories="$(PublishDir)Scheduler" />
+    <RemoveDir Directories="$(PublishDir)Installer" />
+    <RemoveDir Directories="$(PublishDir)prerequisites" />
+    <Message Text="[CleanPublishOutput] 불필요 파일/폴더 정리 완료" Importance="high" />
+  </Target>
 </Project>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -9,6 +10,7 @@ using NewSchool.Pages;
 using NewSchool.Scheduler;
 using Windows.Media.Miracast;
 using WinRT.Interop;
+using NewSchool.Services;
 
 namespace NewSchool;
 
@@ -93,11 +95,14 @@ private void SetAppIcon()
     /// <summary>
     /// NavigationView 아이템 선택 이벤트
     /// </summary>
-    private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
+    private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         if (args.InvokedItemContainer is NavigationViewItem item)
         {
             string tag = item.Tag?.ToString() ?? "";
+
+            // 메뉴 네비게이션 시 BackStack 정리 (메모리 절약)
+            WorkFrame.BackStack.Clear();
 
             // 태그에 따라 페이지 네비게이션
             switch (tag)
@@ -126,6 +131,16 @@ private void SetAppIcon()
 
                 case "Seats":
                     WorkFrame.Navigate(typeof(PageSeats));
+                    break;
+                case "ClassBoard":
+                    // 학급 게시판
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Category = "학급",
+                        Title = "학급 게시판",
+                        AllowCategoryChange = false,
+                        ShowSubjectFilter = true
+                    });
                     break;
                 case "StudentInfoExport":
                     WorkFrame.Navigate(typeof(StudentInfoExportPage));
@@ -163,37 +178,59 @@ private void SetAppIcon()
                     WorkFrame.Navigate(typeof(ClassTimetableManagementPage));
                     break;
 
-                    // 동아리
-                case "ClubHome":
-                    // 동아리 홈
-                    WorkFrame.Navigate(typeof(ClubHomePage));
-                    break;
-
                 case "ClubActivity":
                     // 동아리 활동 기록
                     WorkFrame.Navigate(typeof(ClubActivityPage));
                     break;
 
+                case "LessonBoard":
+                    // 수업 게시판
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Category = "수업",
+                        Title = "수업 게시판",
+                        AllowCategoryChange = false,
+                        ShowSubjectFilter = true
+                    });
+                    break;
                 case "ClubManagement":
                     // 동아리 관리
                     WorkFrame.Navigate(typeof(ClubManagementPage));
                     break;
+                case "WorkBoard":
+                    // 업무 게시판
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Category = "업무",
+                        Title = "업무 게시판",
+                        AllowCategoryChange = false,
+                        ShowSubjectFilter = true
+                    });
+                    break;
                     //archive
                 case "Archive":
-                    WorkFrame.Navigate(typeof(PostListPage));
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Title = "아카이브",
+                        AllowCategoryChange = true,
+                        ShowSubjectFilter = true
+                    });
                     break;
-                case "Settings_General":
-                    // 일반 설정
+                case "Settings_School":
+                    // 학교 설정
                     WorkFrame.Navigate(typeof(SettingsPage));
                     break;
-
+                case "Settings_SchoolSchedule":
+                    // 학사일정 관리
+                    WorkFrame.Navigate(typeof(SchoolScheduleManagementPage));
+                    break;
                 case "Settings_Student":
-                    // 학생 관리 페이지
+                    // 학생 관리
                     WorkFrame.Navigate(typeof(StudentManagementPage));
                     break;
-                case "Settings_SchoolSchedule":
-                    // 학상일정 관리 페이지
-                    WorkFrame.Navigate(typeof(SchoolScheduleManagementPage));
+                case "Settings_App":
+                    // 앱 설정
+                    WorkFrame.Navigate(typeof(AppSettingsPage));
                     break;
                 case "LessonHome":
                     WorkFrame.Navigate(typeof(LessonHomePage));
@@ -201,9 +238,109 @@ private void SetAppIcon()
                 case "SchoolWork":
                     WorkFrame.Navigate(typeof(PageSchoolWork));
                     break;
+                case "Help":
+                    WorkFrame.Navigate(typeof(HelpPage));
+                    break;
+                case "CheckUpdate":
+                    await CheckForUpdateAsync();
+                    break;
                 default:
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// 업데이트 확인 (ContentDialog로 결과 표시)
+    /// </summary>
+    private async Task CheckForUpdateAsync()
+    {
+        // 확인 중 다이얼로그
+        var progressDialog = new ContentDialog
+        {
+            Title = "업데이트 확인",
+            Content = new StackPanel
+            {
+                Spacing = 12,
+                Children =
+                {
+                    new ProgressRing { IsActive = true, Width = 32, Height = 32 },
+                    new TextBlock { Text = "업데이트를 확인하고 있습니다...", HorizontalAlignment = HorizontalAlignment.Center }
+                }
+            },
+            XamlRoot = this.Content.XamlRoot
+        };
+
+        // 비동기로 업데이트 확인 시작
+        var checkTask = UpdateService.CheckForUpdateAsync();
+
+        // ProgressDialog를 잠깐 표시했다가 결과 나오면 닫기
+        _ = progressDialog.ShowAsync();
+        var result = await checkTask;
+        progressDialog.Hide();
+
+        // 결과 다이얼로그
+        if (!result.IsSuccess)
+        {
+            var errorDialog = new ContentDialog
+            {
+                Title = "업데이트 확인 실패",
+                Content = result.ErrorMessage,
+                CloseButtonText = "확인",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await errorDialog.ShowAsync();
+            return;
+        }
+
+        var info = result.Info!;
+        if (info.IsUpdateAvailable)
+        {
+            var updateContent = new StackPanel { Spacing = 8 };
+            updateContent.Children.Add(new TextBlock
+            {
+                Text = $"새 버전이 있습니다: v{info.LatestVersion.ToString(3)}",
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+
+            if (!string.IsNullOrEmpty(info.ReleaseName))
+                updateContent.Children.Add(new TextBlock { Text = info.ReleaseName });
+
+            if (!string.IsNullOrEmpty(info.ReleaseNotes))
+                updateContent.Children.Add(new TextBlock
+                {
+                    Text = info.ReleaseNotes,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 400
+                });
+
+            var updateDialog = new ContentDialog
+            {
+                Title = "업데이트 가능",
+                Content = updateContent,
+                PrimaryButtonText = "다운로드",
+                CloseButtonText = "나중에",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            if (await updateDialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                if (!string.IsNullOrEmpty(info.DownloadUrl))
+                {
+                    await Windows.System.Launcher.LaunchUriAsync(new Uri(info.DownloadUrl));
+                }
+            }
+        }
+        else
+        {
+            var upToDateDialog = new ContentDialog
+            {
+                Title = "업데이트 확인",
+                Content = $"현재 최신 버전(v{UpdateService.CurrentVersion.ToString(3)})을 사용하고 있습니다.",
+                CloseButtonText = "확인",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await upToDateDialog.ShowAsync();
         }
     }
 

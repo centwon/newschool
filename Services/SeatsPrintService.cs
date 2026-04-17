@@ -1,4 +1,4 @@
-﻿using NewSchool.Controls;
+using NewSchool.Controls;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -11,13 +11,21 @@ namespace NewSchool.Services;
 
 /// <summary>
 /// 좌석배정표 PDF 생성 서비스
-/// A4 1장 고정 출력, 학생 표시: 이름(번호)
+/// A4 1장 고정, 좌석은 용지 하단 기준 배치
 /// </summary>
 public class SeatsPrintService
 {
-    /// <summary>
-    /// 좌석배정표 PDF 생성
-    /// </summary>
+    // A4: 595 × 842pt, margin 30 each → 가용: 535 × 782pt
+    private const float PageWidth = 535f;
+    private const float PageHeight = 782f;
+
+    // 고정 영역 높이
+    private const float HeaderHeight = 32f;   // 제목 + 구분선
+    private const float DeskHeight = 40f;     // 교탁 박스
+    private const float DeskGap = 10f;        // 좌석↔교탁 간격
+    private const float FooterHeight = 22f;   // 출력일시
+    private const float AisleWidth = 10f;     // 줄 사이 통로 너비
+
     public string GenerateSeatsPdf(
         List<PhotoCard> cards,
         int grade,
@@ -30,43 +38,74 @@ public class SeatsPrintService
         QuestPDF.Settings.License = LicenseType.Community;
 
         var fileName = $"좌석배정표_{grade}학년{classRoom}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "NewSchool", "Prints", fileName);
+        var printsDir = Path.Combine(Settings.UserDataPath, "Prints");
+        if (!Directory.Exists(printsDir))
+            Directory.CreateDirectory(printsDir);
+        var filePath = Path.Combine(printsDir, fileName);
 
-        var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            Directory.CreateDirectory(directory);
-
-        // 좌석 그리드 크기 계산
+        // 그리드 크기
         int totalCols = jul * jjak;
         int totalRows = cards.Count > 0
             ? (int)Math.Ceiling((double)cards.Count / totalCols)
             : 1;
 
-        // A4 사용 가능 영역 (margin 30 × 2 = 60 제외)
-        // A4: 595 × 842pt → 가용: 535 × 782pt
-        // 헤더 ~40pt, 메시지 ~40pt, 교탁 ~50pt, 여백 ~30pt → 좌석 영역 ~620pt
-        float availableHeight = showPhoto ? 620f : 640f;
-        float availableWidth = 535f;
+        // 메시지 높이
+        float messageHeight = string.IsNullOrWhiteSpace(message) ? 0f : 32f;
 
-        // 셀 크기 동적 계산 (1장에 맞추기)
-        float cellWidth = availableWidth / totalCols;
-        float cellHeight = availableHeight / (totalRows + 0.5f); // 교탁 공간 포함
+        // 줄 사이 통로 반영한 셀 너비
+        int aisleCount = jul > 1 ? jul - 1 : 0;
+        float totalAisleWidth = aisleCount * AisleWidth;
+        float cellWidth = (PageWidth - totalAisleWidth) / totalCols;
 
-        // 폰트 크기 동적 계산
-        float nameFontSize = Math.Min(Math.Max(cellWidth / 5f, 8f), 14f);
-        float numFontSize = nameFontSize * 0.8f;
+        // ── 셀 높이: 사진/텍스트 기준 적정 크기 → 나머지는 상단 여백 ──
+        float seatAreaMax = PageHeight - HeaderHeight - messageHeight - DeskGap - DeskHeight - FooterHeight;
+        float photoWidth = 0, photoHeight = 0;
+        float cellHeight;
+        float nameFontSize;
 
         if (showPhoto)
         {
-            cellHeight = Math.Min(cellHeight, 120f);
-            nameFontSize = Math.Min(nameFontSize, 10f);
+            float cellPad = 4f;
+            float nameH = 20f;     // 이름 높이 (패딩 포함)
+            float rowGap = 12f;    // 앞뒤 학생 행간 간격
+            float photoMaxW = cellWidth - cellPad;
+
+            // 셀 너비 기준 3:4 비율 사진 + 이름 + 행간 = 적정 셀 높이
+            float idealCellH = photoMaxW * 4f / 3f + nameH + cellPad + rowGap;
+
+            // 페이지 초과 방지: 적정 높이 vs 최대 가용 중 작은 값
+            cellHeight = Math.Min(idealCellH, seatAreaMax / totalRows);
+
+            float photoAreaH = cellHeight - nameH - cellPad;
+            float photoAreaW = cellWidth - cellPad;
+
+            // 3:4 비율로 셀 내 최대 크기
+            if (photoAreaW * 4f / 3f <= photoAreaH)
+            {
+                photoWidth = photoAreaW;
+                photoHeight = photoAreaW * 4f / 3f;
+            }
+            else
+            {
+                photoHeight = photoAreaH;
+                photoWidth = photoAreaH * 3f / 4f;
+            }
+
+            photoWidth = Math.Max(photoWidth, 15f);
+            photoHeight = Math.Max(photoHeight, 20f);
+            nameFontSize = Math.Min(Math.Max(cellWidth / 8f, 7f), 11f);
         }
         else
         {
-            cellHeight = Math.Min(cellHeight, 50f);
+            cellHeight = Math.Min(seatAreaMax / totalRows, 45f);
+            nameFontSize = Math.Min(Math.Max(cellWidth / 5f, 8f), 14f);
         }
+
+        // ── 상단 여백 = 나머지 공간 (좌석을 교탁 쪽으로 모음) ──
+        float seatsTotal = cellHeight * totalRows;
+        float topPadding = PageHeight - HeaderHeight - messageHeight
+                           - seatsTotal - DeskGap - DeskHeight - FooterHeight;
+        topPadding = Math.Max(topPadding, 0f);
 
         Document.Create(container =>
         {
@@ -76,163 +115,163 @@ public class SeatsPrintService
                 page.Margin(30);
                 page.PageColor(Colors.White);
 
-                page.Header().Element(c => ComposeHeader(c, grade, classRoom));
+                // ── 헤더 ──
+                page.Header().Height(HeaderHeight).Element(c =>
+                {
+                    c.Column(col =>
+                    {
+                        col.Item().AlignCenter()
+                            .Text($"{grade}학년 {classRoom}반 좌석배정표")
+                            .FontSize(18).Bold().FontColor(Colors.Blue.Darken3);
+                        col.Item().PaddingTop(2)
+                            .LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten2);
+                    });
+                });
 
-                page.Content().Element(content =>
-                    ComposeContent(content, cards, jul, jjak, totalRows, totalCols,
-                        message, showPhoto, cellHeight, nameFontSize, numFontSize));
+                // ── 푸터 ──
+                page.Footer().Height(FooterHeight).Element(c =>
+                {
+                    c.Column(col =>
+                    {
+                        col.Item().LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten2);
+                        col.Item().PaddingTop(2).AlignCenter()
+                            .Text($"출력일시: {DateTime.Now:yyyy년 MM월 dd일 HH:mm}")
+                            .FontSize(8).FontColor(Colors.Grey.Darken1);
+                    });
+                });
 
-                page.Footer().Element(ComposeFooter);
+                // ── 본문 ──
+                page.Content().Column(column =>
+                {
+                    // 메시지
+                    if (!string.IsNullOrWhiteSpace(message))
+                    {
+                        column.Item().Height(messageHeight)
+                            .Border(0.5f).BorderColor(Colors.Grey.Lighten2)
+                            .Background(Colors.Grey.Lighten4)
+                            .Padding(5)
+                            .AlignMiddle()
+                            .Text(message).FontSize(9);
+                    }
+
+                    // 상단 여백 → 좌석을 하단으로 밀어냄
+                    if (topPadding > 0)
+                        column.Item().Height(topPadding);
+
+                    // 좌석 테이블 (줄 사이 통로 포함)
+                    column.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(cols =>
+                        {
+                            for (int g = 0; g < jul; g++)
+                            {
+                                for (int j = 0; j < jjak; j++)
+                                    cols.RelativeColumn();
+                                if (g < jul - 1)
+                                    cols.ConstantColumn(AisleWidth); // 통로
+                            }
+                        });
+
+                        // 뒤에서 앞으로 (교실 좌석 순서)
+                        for (int row = totalRows - 1; row >= 0; row--)
+                        {
+                            // 줄: 오른쪽→왼쪽 (교실 뒤에서 본 시점)
+                            for (int g = jul - 1; g >= 0; g--)
+                            {
+                                // 짝: 같은 줄 내 좌석
+                                for (int j = jjak - 1; j >= 0; j--)
+                                {
+                                    int col = g * jjak + j;
+                                    var card = cards.FirstOrDefault(c => c.Row == row && c.Col == col);
+                                    table.Cell().Height(cellHeight)
+                                        .Element(cell => RenderSeatCell(cell, card, showPhoto,
+                                            photoWidth, photoHeight, nameFontSize));
+                                }
+                                // 통로 셀 (마지막 줄 제외)
+                                if (g > 0)
+                                    table.Cell().Height(cellHeight);
+                            }
+                        }
+                    });
+
+                    // 교탁
+                    column.Item().Height(DeskGap);
+                    column.Item().Height(DeskHeight).AlignCenter()
+                        .Width(150).Height(DeskHeight)
+                        .Border(1.5f).BorderColor(Colors.Blue.Medium)
+                        .Background(Colors.Blue.Lighten4)
+                        .AlignMiddle().AlignCenter()
+                        .Text("교 탁")
+                        .FontSize(13).Bold().FontColor(Colors.Blue.Darken2);
+                });
             });
         }).GeneratePdf(filePath);
 
         return filePath;
     }
 
-    private void ComposeHeader(IContainer container, int grade, int classRoom)
+    private void RenderSeatCell(IContainer container, PhotoCard? card,
+        bool showPhoto, float photoW, float photoH, float fontSize)
     {
-        container.Column(column =>
-        {
-            column.Item().AlignCenter()
-                .Text($"{grade}학년 {classRoom}반 좌석배정표")
-                .FontSize(20).Bold().FontColor(Colors.Blue.Darken3);
+        // 미표시 좌석
+        if (card != null && card.IsHidden)
+            return;
 
-            column.Item().PaddingTop(3)
-                .LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
-        });
-    }
-
-    private void ComposeFooter(IContainer container)
-    {
-        container.Column(column =>
-        {
-            column.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
-            column.Item().PaddingTop(3).AlignCenter()
-                .Text($"출력일시: {DateTime.Now:yyyy년 MM월 dd일 HH:mm}")
-                .FontSize(9).FontColor(Colors.Grey.Darken1);
-        });
-    }
-
-    private void ComposeContent(IContainer container, List<PhotoCard> cards,
-        int jul, int jjak, int totalRows, int totalCols,
-        string message, bool showPhoto,
-        float cellHeight, float nameFontSize, float numFontSize)
-    {
-        container.Column(column =>
-        {
-            // 설명란 (간결하게)
-            if (!string.IsNullOrWhiteSpace(message))
-            {
-                column.Item().PaddingBottom(8)
-                    .Border(0.5f).BorderColor(Colors.Grey.Lighten2)
-                    .Background(Colors.Grey.Lighten4)
-                    .Padding(6)
-                    .Text(message).FontSize(9);
-            }
-
-            // 좌석 배치 테이블
-            column.Item().PaddingTop(8).Element(content =>
-                ComposeSeatsTable(content, cards, jul, jjak, totalRows, totalCols,
-                    showPhoto, cellHeight, nameFontSize, numFontSize));
-
-            // 교탁
-            column.Item().PaddingTop(12).AlignCenter()
-                .Width(160).Height(36)
-                .Border(1.5f).BorderColor(Colors.Blue.Medium)
-                .Background(Colors.Blue.Lighten4)
-                .AlignMiddle().AlignCenter()
-                .Text("교 탁")
-                .FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
-        });
-    }
-
-    private void ComposeSeatsTable(IContainer container, List<PhotoCard> cards,
-        int jul, int jjak, int totalRows, int totalCols,
-        bool showPhoto, float cellHeight, float nameFontSize, float numFontSize)
-    {
-        container.Table(table =>
-        {
-            table.ColumnsDefinition(columns =>
-            {
-                for (int i = 0; i < totalCols; i++)
-                    columns.RelativeColumn();
-            });
-
-            // 뒤에서 앞으로 (교실 좌석 순서)
-            for (int row = totalRows - 1; row >= 0; row--)
-            {
-                for (int col = totalCols - 1; col >= 0; col--)
-                {
-                    var card = cards.FirstOrDefault(c => c.Row == row && c.Col == col);
-
-                    table.Cell()
-                        .Border(0.5f).BorderColor(Colors.Grey.Medium)
-                        .Height(cellHeight)
-                        .Element(cell => ComposeSeatCell(cell, card, showPhoto, nameFontSize, numFontSize));
-                }
-            }
-        });
-    }
-
-    private void ComposeSeatCell(IContainer container, PhotoCard? card,
-        bool showPhoto, float nameFontSize, float numFontSize)
-    {
+        // 미사용 좌석
         if (card == null || card.IsUnUsed)
         {
-            // 미사용 좌석
-            container.Background(Colors.Grey.Lighten3)
-                .AlignMiddle().AlignCenter()
+            container.AlignMiddle().AlignCenter()
                 .Text("×").FontSize(12).FontColor(Colors.Grey.Darken1);
             return;
         }
 
+        // 빈 좌석 (학생 미배정)
         if (card.StudentData == null)
-        {
-            // 빈 좌석
-            container.Background(Colors.White);
             return;
-        }
 
         var student = card.StudentData;
-        var bgColor = card.IsFixed ? Colors.Yellow.Lighten3 : Colors.White;
-        var fixedMark = card.IsFixed ? " 📌" : "";
+        var pin = card.IsFixed ? " 📌" : "";
+        var label = $"{student.Name}({student.Number}){pin}";
 
         if (showPhoto)
         {
-            // 사진 포함 모드: 사진 + 이름(번호) 1줄
-            container.Background(bgColor).Padding(2)
+            container.AlignCenter().AlignBottom()
                 .Column(col =>
                 {
                     // 사진
-                    if (!string.IsNullOrEmpty(student.PhotoPath) && File.Exists(student.PhotoPath))
-                    {
-                        col.Item().AlignCenter()
-                            .Width(50).Height(65)
-                            .Image(student.PhotoPath).FitArea();
-                    }
-                    else
-                    {
-                        col.Item().AlignCenter()
-                            .Width(50).Height(65)
-                            .Border(0.5f).BorderColor(Colors.Grey.Lighten1)
-                            .Background(Colors.Grey.Lighten3)
-                            .AlignMiddle().AlignCenter()
-                            .Text("👤").FontSize(20);
-                    }
+                    col.Item().AlignCenter()
+                        .Width(photoW).Height(photoH)
+                        .Element(photo =>
+                        {
+                            if (!string.IsNullOrEmpty(student.PhotoPath) && File.Exists(student.PhotoPath))
+                            {
+                                photo.Image(student.PhotoPath).FitArea();
+                            }
+                            else
+                            {
+                                photo.Border(0.5f).BorderColor(Colors.Grey.Lighten1)
+                                    .Background(Colors.Grey.Lighten3)
+                                    .AlignMiddle().AlignCenter()
+                                    .Text("👤").FontSize(Math.Max(photoH * 0.25f, 10f));
+                            }
+                        });
 
-                    // 이름(번호)
-                    col.Item().AlignCenter().PaddingTop(2)
-                        .Text($"{student.Name}({student.Number}){fixedMark}")
-                        .FontSize(numFontSize).Bold().FontColor(Colors.Black);
+                    // 이름: 사진 너비에 맞춘 가는 테두리 박스
+                    col.Item().AlignCenter()
+                        .Width(photoW)
+                        .Border(0.3f).BorderColor(Colors.Grey.Medium)
+                        .PaddingVertical(3)
+                        .AlignCenter()
+                        .Text(label).FontSize(fontSize).Bold().FontColor(Colors.Black);
                 });
         }
         else
         {
-            // 텍스트만 모드: 이름(번호) 한 줄로 컴팩트 표시
-            container.Background(bgColor)
-                .AlignMiddle().AlignCenter()
-                .Text($"{student.Name}({student.Number}){fixedMark}")
-                .FontSize(nameFontSize).Bold().FontColor(Colors.Black);
+            // 텍스트 모드: 이름만 가는 테두리
+            container.AlignMiddle().AlignCenter()
+                .Border(0.3f).BorderColor(Colors.Grey.Medium)
+                .PaddingVertical(2).PaddingHorizontal(4)
+                .Text(label).FontSize(fontSize).Bold().FontColor(Colors.Black);
         }
     }
 }

@@ -49,14 +49,14 @@ namespace NewSchool.ViewModels
         public bool IsLoading
         {
             get => _isLoading;
-            set { _isLoading = value; OnPropertyChanged(); }
+            set { if (_isLoading == value) return; _isLoading = value; OnPropertyChanged(); }
         }
 
         private string _loadingMessage = string.Empty;
         public string LoadingMessage
         {
             get => _loadingMessage;
-            set { _loadingMessage = value; OnPropertyChanged(); }
+            set { if (_loadingMessage == value) return; _loadingMessage = value; OnPropertyChanged(); }
         }
 
         private Course? _selectedCourse;
@@ -70,7 +70,11 @@ namespace NewSchool.ViewModels
                     _selectedCourse = value;
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(HasSelectedCourse));
-                    _ = OnCourseSelectedAsync();
+                    _ = OnCourseSelectedAsync().ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            System.Diagnostics.Debug.WriteLine($"[AnnualLessonPlanViewModel] {t.Exception?.InnerException?.Message}");
+                    }, TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
         }
@@ -88,7 +92,11 @@ namespace NewSchool.ViewModels
                     _selectedTargetClass = value;
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(HasSelectedTargetClass));
-                    _ = OnTargetClassSelectedAsync();
+                    _ = OnTargetClassSelectedAsync().ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            System.Diagnostics.Debug.WriteLine($"[AnnualLessonPlanViewModel] {t.Exception?.InnerException?.Message}");
+                    }, TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
         }
@@ -101,6 +109,7 @@ namespace NewSchool.ViewModels
             get => _currentPlan;
             set
             {
+                if (_currentPlan == value) return;
                 _currentPlan = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasCurrentPlan));
@@ -114,7 +123,7 @@ namespace NewSchool.ViewModels
         public int CurrentStep
         {
             get => _currentStep;
-            set { _currentStep = value; OnPropertyChanged(); }
+            set { if (_currentStep == value) return; _currentStep = value; OnPropertyChanged(); }
         }
 
         // 통계
@@ -122,28 +131,28 @@ namespace NewSchool.ViewModels
         public int TotalAutoCalculatedHours
         {
             get => _totalAutoCalculatedHours;
-            set { _totalAutoCalculatedHours = value; OnPropertyChanged(); }
+            set { if (_totalAutoCalculatedHours == value) return; _totalAutoCalculatedHours = value; OnPropertyChanged(); }
         }
 
         private int _totalPlannedHours;
         public int TotalPlannedHours
         {
             get => _totalPlannedHours;
-            set { _totalPlannedHours = value; OnPropertyChanged(); }
+            set { if (_totalPlannedHours == value) return; _totalPlannedHours = value; OnPropertyChanged(); }
         }
 
         private int _totalUnitHours;
         public int TotalUnitHours
         {
             get => _totalUnitHours;
-            set { _totalUnitHours = value; OnPropertyChanged(); }
+            set { if (_totalUnitHours == value) return; _totalUnitHours = value; OnPropertyChanged(); }
         }
 
         private int _totalWeeks;
         public int TotalWeeks
         {
             get => _totalWeeks;
-            set { _totalWeeks = value; OnPropertyChanged(); }
+            set { if (_totalWeeks == value) return; _totalWeeks = value; OnPropertyChanged(); }
         }
 
         public bool CanConfirm => HasCurrentPlan &&
@@ -159,14 +168,14 @@ namespace NewSchool.ViewModels
         public DateTime SemesterStart
         {
             get => _semesterStart;
-            set { _semesterStart = value; OnPropertyChanged(); }
+            set { if (_semesterStart == value) return; _semesterStart = value; OnPropertyChanged(); }
         }
 
         private DateTime _semesterEnd;
         public DateTime SemesterEnd
         {
             get => _semesterEnd;
-            set { _semesterEnd = value; OnPropertyChanged(); }
+            set { if (_semesterEnd == value) return; _semesterEnd = value; OnPropertyChanged(); }
         }
 
         #endregion

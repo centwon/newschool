@@ -1,10 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using NewSchool.Board.Pages;
+using Microsoft.UI.Xaml.Media;
 using NewSchool.Controls;
 using NewSchool.Dialogs;
 using NewSchool.Models;
@@ -13,22 +17,18 @@ using NewSchool.Services;
 namespace NewSchool.Pages;
 
 /// <summary>
-/// 수업 홈 페이지
-/// - 좌측: 과목/강의실 필터 + 학생 명렬
-/// - 상단: 수업 기록 리스트 + 시간표
-/// - 하단: 수업 자료실 (PostListPage 내장)
+/// 수업 홈 페이지 (대시보드형)
+/// - 좌측: 시간표 + 메모 + 할일
+/// - 우측: 오늘의 수업 + 최근 수업 기록
 /// </summary>
 public sealed partial class LessonHomePage : Page
 {
     #region Fields
 
     private List<Course> _courses = [];
-    private Course? _selectedCourse;
-    private string _selectedRoom = string.Empty;
 
-    // 자료실 (PostListPage 내장)
-    private const string MaterialCategory = "수업";  // ← "수업자료"에서 "수업"으로 변경
-    private PostListPage? _postListPage;
+    // 오늘의 수업
+    private readonly ObservableCollection<TodayLessonItem> _todayLessons = [];
 
     #endregion
 
@@ -37,6 +37,7 @@ public sealed partial class LessonHomePage : Page
     public LessonHomePage()
     {
         InitializeComponent();
+        TodayLessonRepeater.ItemsSource = _todayLessons;
         Loaded += LessonHomePage_Loaded;
     }
 
@@ -46,35 +47,128 @@ public sealed partial class LessonHomePage : Page
 
     private async void LessonHomePage_Loaded(object sender, RoutedEventArgs e)
     {
+        // 페이지 헤더 날짜 표시
+        TxtPageDate.Text = DateTime.Today.ToString("yyyy년 M월 d일 (ddd)");
+
         await LoadCoursesAsync();
+        await LoadTodayLessonsAsync();
+        await LoadLessonLogsAsync();
         await LoadTimetableAsync();
         await LoadLessonTasksAsync();
-        InitMaterialFrame();
-    }
-
-    /// <summary>
-    /// 자료실 Frame 초기화 (PostListPage 내장)
-    /// </summary>
-    private void InitMaterialFrame()
-    {
-        MaterialFrame.Navigate(typeof(PostListPage), new PostListPageParameter
-        {
-            Category = MaterialCategory,
-            Subject = _selectedCourse?.Subject ?? string.Empty,
-            ViewMode = Board.Models.BoardViewMode.Card,
-            AllowCategoryChange = false,
-            AllowViewModeChange = true,
-            IsEmbedded = true
-        });
-        _postListPage = MaterialFrame.Content as PostListPage;
     }
 
     #endregion
 
-    #region 과목/강의실/학생 로드
+    #region 오늘의 수업
 
     /// <summary>
-    /// 교사의 과목 목록 로드
+    /// 오늘의 수업 목록 로드
+    /// </summary>
+    private async Task LoadTodayLessonsAsync()
+    {
+        try
+        {
+            // 1. 오늘 예정된 수업 (시간표 기반)
+            using var lessonSvc = new LessonService();
+            var todayLessons = await lessonSvc.GetTodayLessonsAsync();
+
+            // 2. 과목 정보 (Subject 매핑)
+            var courseDict = new Dictionary<int, Course>();
+            foreach (var c in _courses)
+            {
+                courseDict[c.No] = c;
+            }
+
+            // 3. 오늘 이미 작성된 기록
+            using var logSvc = new LessonLogService();
+            var todayLogs = await logSvc.GetTodayLessonsAsync();
+
+            // 4. 현재 교시
+            int currentPeriod = LessonLogService.GetCurrentPeriod();
+
+            // 5. TodayLessonItem 빌드
+            _todayLessons.Clear();
+            foreach (var lesson in todayLessons.OrderBy(l => l.Period))
+            {
+                if (lesson.IsCancelled) continue;
+
+                var subject = courseDict.TryGetValue(lesson.Course, out var course)
+                    ? course.Subject : "";
+
+                // 매칭 기록 찾기: 같은 교시 + 같은 학급
+                var matchedLog = todayLogs.FirstOrDefault(log =>
+                    log.Period == lesson.Period &&
+                    log.Grade == lesson.Grade &&
+                    log.Class == lesson.Class);
+
+                _todayLessons.Add(new TodayLessonItem(lesson, subject, lesson.Course, matchedLog, currentPeriod));
+            }
+
+            // 요약 텍스트
+            int total = _todayLessons.Count;
+            int completed = _todayLessons.Count(i => i.IsCompleted);
+            TxtTodaySummary.Text = total > 0 ? $"{total}시간 중 {completed}건 기록" : "";
+            TxtNoLessons.Visibility = total == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            Debug.WriteLine($"[LessonHomePage] 오늘의 수업: {total}건, 기록 완료: {completed}건");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[LessonHomePage] 오늘의 수업 로드 실패: {ex.Message}");
+            TxtNoLessons.Text = "수업 정보를 불러올 수 없습니다.";
+            TxtNoLessons.Visibility = Visibility.Visible;
+        }
+    }
+
+    /// <summary>
+    /// 오늘의 수업 아이템 클릭 (기록 작성/편집)
+    /// </summary>
+    private async void TodayLessonItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not TodayLessonItem item) return;
+
+        ContentDialog dialog;
+
+        if (item.ExistingLog != null)
+        {
+            // 기존 기록 편집
+            dialog = new LessonLogEditDialog(item.ExistingLog, item.CourseNo)
+            {
+                XamlRoot = XamlRoot
+            };
+        }
+        else
+        {
+            // 새 기록 생성
+            dialog = new LessonLogEditDialog(
+                Settings.User.Value,
+                item.Subject,
+                item.Lesson.Room,
+                item.Lesson.Grade,
+                item.Lesson.Class,
+                item.CourseNo,
+                item.Lesson.Period)
+            {
+                XamlRoot = XamlRoot
+            };
+        }
+
+        _ = await dialog.ShowAsync();
+
+        var editDialog = (LessonLogEditDialog)dialog;
+        if (editDialog.IsDeleted || editDialog.ResultLog != null)
+        {
+            await LoadTodayLessonsAsync();
+            await LoadLessonLogsAsync();
+        }
+    }
+
+    #endregion
+
+    #region 과목 로드 (오늘의 수업 Subject 매핑용)
+
+    /// <summary>
+    /// 교사의 과목 목록 로드 (Course → Subject 매핑용)
     /// </summary>
     private async Task LoadCoursesAsync()
     {
@@ -82,15 +176,6 @@ public sealed partial class LessonHomePage : Page
         {
             using var courseService = new CourseService();
             _courses = await courseService.GetMyCoursesAsync();
-
-            // "전체" 옵션 추가
-            var allCourse = new Course { No = 0, Subject = "전체" };
-            var items = new List<Course> { allCourse };
-            items.AddRange(_courses);
-
-            CBoxSubject.ItemsSource = items;
-            CBoxSubject.SelectedIndex = 0;
-
             Debug.WriteLine($"[LessonHomePage] 과목 로드 완료: {_courses.Count}개");
         }
         catch (Exception ex)
@@ -99,120 +184,10 @@ public sealed partial class LessonHomePage : Page
         }
     }
 
-    /// <summary>
-    /// 과목 선택 변경
-    /// </summary>
-    private async void CBoxSubject_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (CBoxSubject.SelectedItem is not Course course) return;
-
-        _selectedCourse = course.No > 0 ? course : null;
-
-        // 강의실 목록 로드
-        LoadRooms();
-
-        // 수업 기록 로드
-        await LoadLessonLogsAsync();
-
-        // 자료실 Subject 변경
-        await UpdateMaterialSubjectAsync();
-    }
-
-    /// <summary>
-    /// 자료실 Subject 변경
-    /// </summary>
-    private async Task UpdateMaterialSubjectAsync()
-    {
-        if (_postListPage != null)
-        {
-            var subject = _selectedCourse?.Subject ?? string.Empty;
-            await _postListPage.SetSubjectAsync(subject);
-        }
-    }
-
-    /// <summary>
-    /// 강의실(학급) 목록 로드
-    /// </summary>
-    private void LoadRooms()
-    {
-        if (_selectedCourse == null || _selectedCourse.RoomList.Count == 0)
-        {
-            CBoxRoom.ItemsSource = null;
-            _selectedRoom = string.Empty;
-            TxtStudentCount.Text = string.Empty;
-            return;
-        }
-
-        var rooms = new List<string> { "전체" };
-        rooms.AddRange(_selectedCourse.RoomList);
-        CBoxRoom.ItemsSource = rooms;
-        CBoxRoom.SelectedIndex = 0;
-    }
-
-    /// <summary>
-    /// 강의실 선택 변경
-    /// </summary>
-    private async void CBoxRoom_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (CBoxRoom.SelectedItem is not string room) return;
-
-        _selectedRoom = room == "전체" ? string.Empty : room;
-
-        // 학생 로드 (학급 형식인 경우만)
-        await LoadStudentsAsync();
-
-        // 수업 기록 로드
-        await LoadLessonLogsAsync();
-    }
-
-    /// <summary>
-    /// 학생 목록 로드
-    /// </summary>
-    private async Task LoadStudentsAsync()
-    {
-        if (string.IsNullOrEmpty(_selectedRoom))
-        {
-            TxtStudentCount.Text = string.Empty;
-            return;
-        }
-
-        // "학년-반" 형식 파싱
-        var parts = _selectedRoom.Split('-');
-        if (parts.Length != 2 ||
-            !int.TryParse(parts[0], out var grade) ||
-            !int.TryParse(parts[1], out var classNum))
-        {
-            TxtStudentCount.Text = string.Empty;
-            return;
-        }
-
-        try
-        {
-            using var enrollmentService = new EnrollmentService();
-            var enrollments = await enrollmentService.GetClassRosterAsync(
-                Settings.SchoolCode.Value,
-                Settings.WorkYear.Value,
-                grade,
-                classNum
-            );
-
-            TxtStudentCount.Text = $"({enrollments.Count}명)";
-            Debug.WriteLine($"[LessonHomePage] 학생 로드: {grade}-{classNum}, {enrollments.Count}명");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[LessonHomePage] 학생 로드 실패: {ex.Message}");
-            TxtStudentCount.Text = string.Empty;
-        }
-    }
-
     #endregion
 
     #region 시간표 로드
 
-    /// <summary>
-    /// 시간표 로드
-    /// </summary>
     private async Task LoadTimetableAsync()
     {
         try
@@ -230,14 +205,12 @@ public sealed partial class LessonHomePage : Page
 
     #region 할일 목록
 
-    /// <summary>
-    /// 수업 카테고리 할일 로드
-    /// </summary>
     private async Task LoadLessonTasksAsync()
     {
         try
         {
-            await LessonTaskList.LoadPendingAndFutureAsync();
+            // 미완료 할일 + 향후 14일만 표시
+            await LessonTaskList.LoadByDateRangeAsync(DateTime.Today, days: 14, showCompleted: false);
             Debug.WriteLine("[LessonHomePage] 수업 할일 로드 완료");
         }
         catch (Exception ex)
@@ -251,18 +224,15 @@ public sealed partial class LessonHomePage : Page
     #region 수업 기록
 
     /// <summary>
-    /// 수업 기록 로드
+    /// 최근 수업 기록 로드 (전체 — 필터 없음)
     /// </summary>
     private async Task LoadLessonLogsAsync()
     {
-        var subject = _selectedCourse?.Subject ?? string.Empty;
-        var room = _selectedRoom;
-
-        await LessonLogList.LoadAsync(subject, room);
+        await LessonLogList.LoadAsync();
     }
 
     /// <summary>
-    /// 수업 기록 선택됨 - Dialog로 편집
+    /// 수업 기록 선택됨 → 편집 다이얼로그
     /// </summary>
     private async void LessonLogList_LessonSelected(object sender, LessonLog lessonLog)
     {
@@ -272,29 +242,24 @@ public sealed partial class LessonHomePage : Page
         };
         _ = await dialog.ShowAsync();
 
-        // 삭제된 경우 또는 저장된 경우 새로고침
         if (dialog.IsDeleted || dialog.ResultLog != null)
         {
             await LoadLessonLogsAsync();
+            await LoadTodayLessonsAsync();
         }
     }
 
     /// <summary>
-    /// 수업 기록 추가 요청 - Dialog로 추가
+    /// 수업 기록 추가 요청 → 다이얼로그 (과목 미지정)
     /// </summary>
     private async void LessonLogList_AddRequested(object sender, EventArgs e)
     {
-        if (_selectedCourse == null || _selectedCourse.No == 0)
-        {
-            await MessageBox.ShowAsync("과목을 먼저 선택해주세요.", "알림");
-            return;
-        }
-
+        // 과목 필터 없으므로 기본 과목으로 생성
+        var subject = _courses.Count > 0 ? _courses[0].Subject : "";
         var dialog = new LessonLogEditDialog(
             Settings.User.Value,
-            _selectedCourse.Subject,
-            _selectedRoom
-        )
+            subject,
+            string.Empty)
         {
             XamlRoot = XamlRoot
         };
@@ -303,8 +268,87 @@ public sealed partial class LessonHomePage : Page
         if (dialog.ResultLog != null)
         {
             await LoadLessonLogsAsync();
+            await LoadTodayLessonsAsync();
         }
     }
 
     #endregion
+}
+
+/// <summary>
+/// 오늘의 수업 아이템 (XAML 바인딩용)
+/// </summary>
+internal sealed class TodayLessonItem
+{
+    // 원본 데이터
+    public Lesson Lesson { get; }
+    public string Subject { get; }
+    public int CourseNo { get; }
+    public LessonLog? ExistingLog { get; }
+    public int CurrentPeriod { get; }
+
+    // 계산 프로퍼티
+    public bool IsCompleted => ExistingLog != null;
+    public bool IsCurrent => !IsCompleted && Lesson.Period == CurrentPeriod;
+
+    // 바인딩용 프로퍼티
+    public string PeriodText => $"{Lesson.Period}교시";
+    public string ClassDisplay => Lesson.ClassDisplay;
+    public string TopicText => ExistingLog?.Topic ?? "";
+    public Visibility HasTopic => IsCompleted && !string.IsNullOrWhiteSpace(ExistingLog?.Topic)
+        ? Visibility.Visible : Visibility.Collapsed;
+
+    // 교시 스타일
+    public Windows.UI.Text.FontWeight PeriodFontWeight => IsCurrent ? FontWeights.SemiBold : FontWeights.Normal;
+    public Brush PeriodForeground => IsCurrent
+        ? (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
+        : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+
+    // 과목 스타일
+    public Brush SubjectForeground => IsCompleted
+        ? (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+        : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+
+    // 행 배경
+    public Brush RowBackground => IsCurrent
+        ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x15, 0x42, 0x85, 0xF4))
+        : new SolidColorBrush(Colors.Transparent);
+
+    // 상태 버튼
+    public string StatusText => IsCompleted ? "완료" : IsCurrent ? "기록" : "예정";
+
+    public Brush StatusForeground
+    {
+        get
+        {
+            if (IsCompleted)
+                return new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x0F, 0x9D, 0x58));
+            if (IsCurrent)
+                return new SolidColorBrush(Colors.White);
+            return (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        }
+    }
+
+    public Brush StatusBackground
+    {
+        get
+        {
+            if (IsCompleted)
+                return new SolidColorBrush(Windows.UI.Color.FromArgb(0x15, 0x0F, 0x9D, 0x58));
+            if (IsCurrent)
+                return (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            return new SolidColorBrush(Colors.Transparent);
+        }
+    }
+
+    public Thickness StatusBorderThickness => IsCompleted ? new(0) : IsCurrent ? new(0) : new(1);
+
+    public TodayLessonItem(Lesson lesson, string subject, int courseNo, LessonLog? existingLog, int currentPeriod)
+    {
+        Lesson = lesson;
+        Subject = subject;
+        CourseNo = courseNo;
+        ExistingLog = existingLog;
+        CurrentPeriod = currentPeriod;
+    }
 }

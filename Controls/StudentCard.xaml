@@ -44,12 +44,12 @@
                 <!-- 왼쪽: 기본 정보 입력 -->
                 <Grid Grid.Column="0" RowSpacing="4" ColumnSpacing="6" Margin="0,0,12,0">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="65"/>
+                        <ColumnDefinition Width="2*"/>
                         <ColumnDefinition Width="55"/>
-                        <ColumnDefinition Width="130"/>
-                        <ColumnDefinition Width="50"/>
-                        <ColumnDefinition Width="70"/>
-                        <ColumnDefinition Width="70"/>
-                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -130,11 +130,11 @@
                     <TextBlock Text="보호자 정보" Style="{StaticResource SectionHeaderStyle}" Margin="0,0,0,4"/>
                     <Grid RowSpacing="4" ColumnSpacing="6">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="55"/>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="45"/>
                             <ColumnDefinition Width="65"/>
+                            <ColumnDefinition Width="120"/>
                             <ColumnDefinition Width="45"/>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="50"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
@@ -155,9 +155,9 @@
                     <TextBlock Text="가족 정보" Style="{StaticResource SectionHeaderStyle}"/>
                     <Grid RowSpacing="4" ColumnSpacing="6">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="55"/>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="45"/>
+                            <ColumnDefinition Width="65"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="50"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
@@ -193,9 +193,9 @@
                     <TextBlock Text="진로 및 관심사" Style="{StaticResource SectionHeaderStyle}"/>
                     <Grid RowSpacing="4" ColumnSpacing="6">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="65"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="65"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
@@ -220,9 +220,9 @@
                     <TextBlock Text="건강 정보" Style="{StaticResource SectionHeaderStyle}"/>
                     <Grid RowSpacing="4" ColumnSpacing="6">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="65"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="65"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>

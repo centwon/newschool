@@ -26,7 +26,6 @@ public sealed partial class LessonActivityPage : Page
     private Course? _selectedCourse;
     private string? _selectedRoom;
     private Enrollment? _selectedStudent;
-    private LogCategory _category = LogCategory.교과활동;
 
     /// <summary>과목 목록</summary>
     public ObservableCollection<Course> Courses { get; } = new();
@@ -60,6 +59,8 @@ public sealed partial class LessonActivityPage : Page
 
         // LogListViewer 초기 설정 — 교과활동 모드
         LogList.Category = LogCategory.교과활동;
+
+        SetupStudentContextMenu();
     }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
@@ -141,41 +142,24 @@ public sealed partial class LessonActivityPage : Page
         {
             List<Enrollment> students;
 
-            if (_selectedCourse.IsClassType)
+            if (_selectedRoom != null && _selectedRoom != "전체")
             {
-                // Class 유형: 해당 학년 전체 학급 학생 (강의실 필터 적용)
+                // 특정 강의실 선택: CourseEnrollment.Room으로 필터
+                students = await LoadStudentsByRoomFilterAsync(_selectedRoom);
+            }
+            else if (_selectedCourse.IsClassType)
+            {
+                // 학급 공통 + 전체: 해당 학년 전체 학생
                 using var enrollmentService = new EnrollmentService();
-                
-                if (_selectedRoom != null && _selectedRoom != "전체")
-                {
-                    // 특정 강의실 → 강의실명에서 반 번호 추출 시도
-                    // 또는 CourseEnrollment 사용
-                    students = await LoadStudentsByRoomAsync();
-                }
-                else
-                {
-                    // 전체: 해당 학년 전체
-                    var allStudents = new List<Enrollment>();
-                    for (int classNum = 1; classNum <= 15; classNum++)
-                    {
-                        try
-                        {
-                            var roster = await enrollmentService.GetClassRosterAsync(
-                                Settings.SchoolCode.Value,
-                                Settings.WorkYear.Value,
-                                _selectedCourse.Grade,
-                                classNum
-                            );
-                            allStudents.AddRange(roster);
-                        }
-                        catch { }
-                    }
-                    students = allStudents;
-                }
+                students = await enrollmentService.GetEnrollmentsAsync(
+                    Settings.SchoolCode.Value,
+                    Settings.WorkYear.Value,
+                    0,
+                    _selectedCourse.Grade);
             }
             else
             {
-                // Selective/Club 유형: CourseEnrollment에서 학생 목록 가져오기
+                // Selective/Club + 전체: CourseEnrollment 기반
                 students = await LoadStudentsByCourseEnrollmentAsync();
             }
 
@@ -231,13 +215,36 @@ public sealed partial class LessonActivityPage : Page
     }
 
     /// <summary>
-    /// 강의실별 학생 로드 (Class 유형)
+    /// 강의실(Room)별 학생 로드 — CourseEnrollment.Room 필터
     /// </summary>
-    private async Task<List<Enrollment>> LoadStudentsByRoomAsync()
+    private async Task<List<Enrollment>> LoadStudentsByRoomFilterAsync(string room)
     {
-        // 강의실명이 "1반", "2반" 형태인 경우 파싱
-        // 또는 CourseEnrollment 사용
-        return await LoadStudentsByCourseEnrollmentAsync();
+        if (_selectedCourse == null) return new List<Enrollment>();
+
+        using var enrollmentRepo = new CourseEnrollmentRepository(SchoolDatabase.DbPath);
+        var courseEnrollments = await enrollmentRepo.GetByCourseAsync(_selectedCourse.No);
+
+        // Room 필터 적용
+        var filtered = courseEnrollments
+            .Where(ce => ce.Room == room)
+            .ToList();
+
+        if (filtered.Count == 0)
+            return new List<Enrollment>();
+
+        using var enrollmentService = new EnrollmentService();
+        var students = new List<Enrollment>();
+
+        foreach (var ce in filtered)
+        {
+            var enrollment = await enrollmentService.GetCurrentEnrollmentAsync(ce.StudentID);
+            if (enrollment != null)
+            {
+                students.Add(enrollment);
+            }
+        }
+
+        return students;
     }
 
     /// <summary>
@@ -566,7 +573,79 @@ public sealed partial class LessonActivityPage : Page
 
     #endregion
 
+    #region 컨텍스트 메뉴
+
+    /// <summary>학생 목록 우클릭 컨텍스트 메뉴 설정</summary>
+    private void SetupStudentContextMenu()
+    {
+        var menu = new MenuFlyout();
+
+        var miAddLog = new MenuFlyoutItem
+        {
+            Text = "누가기록 작성",
+            Icon = new FontIcon { Glyph = "\uE70F" }
+        };
+        miAddLog.Click += ContextMenu_AddLog_Click;
+
+        var miViewInfo = new MenuFlyoutItem
+        {
+            Text = "학생 정보 보기",
+            Icon = new FontIcon { Glyph = "\uE77B" }
+        };
+        miViewInfo.Click += ContextMenu_ViewStudentInfo_Click;
+
+        menu.Items.Add(miAddLog);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(miViewInfo);
+
+        StudentList.ItemContextFlyout = menu;
+    }
+
+    private async void ContextMenu_AddLog_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null || _selectedCourse == null) return;
+
+        var logDialog = new StudentLogDialog(
+            student,
+            Settings.WorkYear.Value,
+            Settings.WorkSemester.Value);
+        logDialog.Closed += async (s, args) =>
+        {
+            await LoadLogsAsync();
+        };
+        logDialog.Activate();
+    }
+
+    private async void ContextMenu_ViewStudentInfo_Click(object sender, RoutedEventArgs e)
+    {
+        var student = StudentList.SelectedStudent;
+        if (student == null) return;
+
+        var card = new StudentCard();
+        await card.LoadStudentAsync(student.StudentID);
+
+        var dialog = new ContentDialog
+        {
+            Title = $"{student.Name} — 학생 정보",
+            Content = card,
+            CloseButtonText = "닫기",
+            XamlRoot = this.XamlRoot,
+            MinWidth = 700,
+            MaxHeight = 600
+        };
+
+        await dialog.ShowAsync();
+    }
+
+    #endregion
+
     #region Helper Methods
+
+    private void Page_Unloaded(object sender, RoutedEventArgs e)
+    {
+        StudentList.StudentSelected -= OnStudentSelected;
+    }
 
     /// <summary>
     /// InfoBar 표시

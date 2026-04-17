@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
 using NewSchool.Models;
 using NewSchool.Services;
 
@@ -14,7 +15,7 @@ namespace NewSchool.ViewModels
     /// StudentLog + Student 정보 조합
     /// LogListViewer 컨트롤에서 사용
     /// </summary>
-    public class StudentLogViewModel : INotifyPropertyChanged
+    public class StudentLogViewModel : INotifyPropertyChanged, IDisposable
     {
         #region Fields
 
@@ -123,6 +124,75 @@ namespace NewSchool.ViewModels
         {
             get => _isLoading;
             private set => SetProperty(ref _isLoading, value);
+        }
+
+        #endregion
+
+        #region Properties - Column Visibility (x:Bind용)
+
+        private Visibility _yearColumnVisibility = Visibility.Visible;
+        private Visibility _semesterColumnVisibility = Visibility.Visible;
+        private Visibility _categoryColumnVisibility = Visibility.Visible;
+        private Visibility _subjectColumnVisibility = Visibility.Visible;
+        private Visibility _gradeColumnVisibility = Visibility.Visible;
+        private Visibility _classColumnVisibility = Visibility.Visible;
+        private Visibility _numberColumnVisibility = Visibility.Visible;
+        private Visibility _nameColumnVisibility = Visibility.Visible;
+
+        /// <summary>학년도 컬럼 표시 여부</summary>
+        public Visibility YearColumnVisibility
+        {
+            get => _yearColumnVisibility;
+            set => SetProperty(ref _yearColumnVisibility, value);
+        }
+
+        /// <summary>학기 컬럼 표시 여부</summary>
+        public Visibility SemesterColumnVisibility
+        {
+            get => _semesterColumnVisibility;
+            set => SetProperty(ref _semesterColumnVisibility, value);
+        }
+
+        /// <summary>카테고리 컬럼 표시 여부</summary>
+        public Visibility CategoryColumnVisibility
+        {
+            get => _categoryColumnVisibility;
+            set => SetProperty(ref _categoryColumnVisibility, value);
+        }
+
+        /// <summary>과목 컬럼 표시 여부</summary>
+        public Visibility SubjectColumnVisibility
+        {
+            get => _subjectColumnVisibility;
+            set => SetProperty(ref _subjectColumnVisibility, value);
+        }
+
+        /// <summary>학년 컬럼 표시 여부</summary>
+        public Visibility GradeColumnVisibility
+        {
+            get => _gradeColumnVisibility;
+            set => SetProperty(ref _gradeColumnVisibility, value);
+        }
+
+        /// <summary>반 컬럼 표시 여부</summary>
+        public Visibility ClassColumnVisibility
+        {
+            get => _classColumnVisibility;
+            set => SetProperty(ref _classColumnVisibility, value);
+        }
+
+        /// <summary>번호 컬럼 표시 여부</summary>
+        public Visibility NumberColumnVisibility
+        {
+            get => _numberColumnVisibility;
+            set => SetProperty(ref _numberColumnVisibility, value);
+        }
+
+        /// <summary>이름 컬럼 표시 여부</summary>
+        public Visibility NameColumnVisibility
+        {
+            get => _nameColumnVisibility;
+            set => SetProperty(ref _nameColumnVisibility, value);
         }
 
         #endregion
@@ -243,12 +313,13 @@ namespace NewSchool.ViewModels
         /// <summary>작성일</summary>
         public DateTimeOffset Date
         {
-            get => _studentlog.Date.ToUniversalTime();
+            get => new DateTimeOffset(_studentlog.Date);
             set
             {
-                if (_studentlog.Date != value)
+                var localDate = value.LocalDateTime;
+                if (_studentlog.Date != localDate)
                 {
-                    _studentlog.Date = value.LocalDateTime;
+                    _studentlog.Date = localDate;
                     OnPropertyChanged(nameof(Date));
                     OnPropertyChanged(nameof(DateString));
                 }
@@ -510,15 +581,6 @@ namespace NewSchool.ViewModels
 
         #region Computed Properties
 
-        ///// <summary>NEIS 바이트 수 (한글 3바이트, 영문/숫자 1바이트)</summary>
-        //public int LogByteCount => CalculateNeisByte(Log);
-
-        ///// <summary>글자 수</summary>
-        //public int LogCharCount => Log?.Length ?? 0;
-
-        ///// <summary>바이트 정보 표시용</summary>
-        //public string LogByteInfo => $"{LogByteCount} Byte / {LogCharCount} 자";
-
         /// <summary>날짜 표시용 (yyyy-MM-dd)</summary>
         public string DateString => Date.ToString("yyyy-MM-dd");
 
@@ -587,34 +649,15 @@ namespace NewSchool.ViewModels
             OnPropertyChanged(nameof(ResultOrOutcome));
         }
 
-        /// <summary>
-        /// NEIS 바이트 계산 (한글 3바이트, 영문/숫자/기호 1바이트)
-        /// </summary>
-        private int CalculateNeisByte(string? text)
-        {
-            if (string.IsNullOrEmpty(text))
-                return 0;
+        #endregion
 
-            int byteCount = 0;
-            foreach (char c in text)
-            {
-                // 한글 범위: AC00-D7A3 (가-힣)
-                if (c >= 0xAC00 && c <= 0xD7A3)
-                {
-                    byteCount += 3;
-                }
-                // 한자 및 기타 유니코드 문자 (2바이트 이상)
-                else if (c >= 0x3000)
-                {
-                    byteCount += 3;
-                }
-                // ASCII 범위 (영문, 숫자, 기호)
-                else
-                {
-                    byteCount += 1;
-                }
-            }
-            return byteCount;
+        #region IDisposable
+
+        public void Dispose()
+        {
+            _logService?.Dispose();
+            _enrollmentService?.Dispose();
+            _studentService?.Dispose();
         }
 
         #endregion

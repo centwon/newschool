@@ -17,6 +17,7 @@ public sealed partial class PostDetailPage : Page
     public PostDetailViewModel ViewModel { get; }
     private int _postNo;
     private StorageFile? _commentAttachedFile;
+    private PostListPageParameter? _boardParameter;
 
     public PostDetailPage()
     {
@@ -29,10 +30,19 @@ public sealed partial class PostDetailPage : Page
     {
         base.OnNavigatedTo(e);
 
-        if (e.Parameter is int postNo)
+        if (e.Parameter is PostDetailPageParameter param)
+        {
+            _postNo = param.PostNo;
+            _boardParameter = param.BoardParameter;
+        }
+        else if (e.Parameter is int postNo)
         {
             _postNo = postNo;
-            await ViewModel.LoadPostAsync(postNo);
+        }
+
+        if (_postNo > 0)
+        {
+            await ViewModel.LoadPostAsync(_postNo);
 
             if (ViewModel.Post != null)
             {
@@ -40,15 +50,39 @@ public sealed partial class PostDetailPage : Page
                 ContentViewer.Text = ViewModel.Post.Content;
 
                 using var service = Board.CreateService();
-                var files = await service.GetPostFilesByPostAsync(postNo);
-                DetailFileListBox.LoadFiles(files, ViewModel.Post.Category, readOnly: true);
+                var files = await service.GetPostFilesByPostAsync(_postNo);
+                if (files != null && files.Count > 0)
+                {
+                    DetailFileListBox.LoadFiles(files, ViewModel.Post.Category, readOnly: true);
+                    DetailFileListBox.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                }
             }
         }
     }
 
     private void EditButton_Click(object sender, RoutedEventArgs e)
     {
-        Frame.Navigate(typeof(PostEditPage), _postNo);
+        // 게시판 컨텍스트를 PostEditPage에 전달
+        Frame.Navigate(typeof(PostEditPage), new PostEditPageParameter
+        {
+            PostNo = _postNo,
+            DefaultCategory = _boardParameter?.Category,
+            AllowCategoryChange = _boardParameter?.AllowCategoryChange ?? true
+        });
+    }
+
+    private async void PrintButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.Post == null) return;
+
+        try
+        {
+            await ContentViewer.PrintAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowErrorAsync($"인쇄 중 오류가 발생했습니다.\n{ex.Message}");
+        }
     }
 
     private async void DeleteButton_Click(object sender, RoutedEventArgs e)
@@ -124,13 +158,57 @@ public sealed partial class PostDetailPage : Page
     }
 
     /// <summary>
-    /// 댓글 작성
+    /// 댓글 작성 / 수정
     /// </summary>
     private async void AddCommentButton_Click(object sender, RoutedEventArgs e)
     {
-        await ViewModel.AddCommentAsync(_commentAttachedFile);
+        if (ViewModel.IsEditing)
+        {
+            await ViewModel.UpdateCommentAsync();
+            ResetCommentUI();
+        }
+        else
+        {
+            await ViewModel.AddCommentAsync(_commentAttachedFile);
 
-        // 파일 첨부 UI 초기화
+            // 파일 첨부 UI 초기화
+            _commentAttachedFile = null;
+            CommentFileInfoBorder.Visibility = Visibility.Collapsed;
+            CommentRemoveFileButton.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>
+    /// 댓글 수정 시작
+    /// </summary>
+    private void EditCommentButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is Comment comment)
+        {
+            ViewModel.StartEdit(comment);
+
+            AddCommentButton.Content = "수정 완료";
+            CancelEditButton.Visibility = Visibility.Visible;
+
+            // TextBox에 포커스
+            NewCommentTextBox.Focus(FocusState.Programmatic);
+        }
+    }
+
+    /// <summary>
+    /// 댓글 수정 취소
+    /// </summary>
+    private void CancelEditButton_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.CancelEdit();
+        ResetCommentUI();
+    }
+
+    private void ResetCommentUI()
+    {
+        AddCommentButton.Content = "댓글 작성";
+        CancelEditButton.Visibility = Visibility.Collapsed;
+
         _commentAttachedFile = null;
         CommentFileInfoBorder.Visibility = Visibility.Collapsed;
         CommentRemoveFileButton.Visibility = Visibility.Collapsed;

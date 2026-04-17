@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -55,10 +56,6 @@ public sealed partial class PostListPage : Page
         this.NavigationCacheMode = NavigationCacheMode.Enabled;
 
         ViewModel = new PostListViewModel();
-
-        // PropertyChanged 이벤트로 수동 UI 업데이트
-        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
-
         this.DataContext = ViewModel;
 
         Debug.WriteLine("ViewModel 및 이벤트 설정 완료");
@@ -125,10 +122,20 @@ public sealed partial class PostListPage : Page
         });
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+    }
+
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
         Debug.WriteLine($"OnNavigatedTo 시작 - NavigationMode={e.NavigationMode}");
+
+        // NavigationCacheMode=Enabled 시 중복 구독 방지: 항상 재구독
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
         // Back 네비게이션: 상태 유지, 데이터만 새로고침
         if (e.NavigationMode == NavigationMode.Back)
@@ -149,8 +156,8 @@ public sealed partial class PostListPage : Page
         PostsRepeater.ItemsSource = ViewModel.Posts;
         Debug.WriteLine($"초기 ItemsSource 설정: Count={ViewModel.Posts.Count}");
 
-        // 초기 카테고리 설정
-        if (!IsEmbedded)
+        // 초기 카테고리 설정 (카테고리 변경 가능한 경우에만)
+        if (!IsEmbedded && (_parameter == null || _parameter.AllowCategoryChange))
         {
             InitializeCategories();
         }
@@ -332,21 +339,44 @@ public sealed partial class PostListPage : Page
     /// <summary>
     /// Subject 필터 초기화
     /// </summary>
+    // 카테고리별 기본 제안 토픽
+    private static readonly Dictionary<string, List<string>> _defaultTopics = new()
+    {
+        ["학급"] = new() { "통계", "학급 자료", "학생 자료", "학급 안내" },
+        ["수업"] = new() { "통계", "수업 자료", "과제" },
+        ["동아리"] = new() { "통계", "동아리 자료", "활동 안내" },
+    };
+
     private async void InitializeSubjectFilter()
     {
         SubjectFilterComboBox.Items.Clear();
         SubjectFilterComboBox.Items.Add("전체");
 
+        var addedSubjects = new HashSet<string>();
+
         try
         {
             var category = _parameter?.Category ?? "";
+
+            // 기본 제안 토픽 먼저 추가
+            if (_defaultTopics.TryGetValue(category, out var defaults))
+            {
+                foreach (var topic in defaults)
+                {
+                    SubjectFilterComboBox.Items.Add(topic);
+                    addedSubjects.Add(topic);
+                }
+            }
+
+            // DB에서 기존 주제 로드 (중복 제거)
             using var service = Board.CreateService();
             var subjects = await service.GetSubjectsAsync(category);
             foreach (var subject in subjects)
             {
-                if (!string.IsNullOrEmpty(subject))
+                if (!string.IsNullOrEmpty(subject) && !addedSubjects.Contains(subject))
                 {
                     SubjectFilterComboBox.Items.Add(subject);
+                    addedSubjects.Add(subject);
                 }
             }
         }
@@ -395,6 +425,24 @@ public sealed partial class PostListPage : Page
         var category = CategoryComboBox.SelectedItem?.ToString() ?? string.Empty;
         ViewModel.SelectedCategory = (category == "전체") ? string.Empty : category;
 
+        // 카테고리 선택 시 주제 필터 갱신 및 표시
+        if (!string.IsNullOrEmpty(ViewModel.SelectedCategory))
+        {
+            if (_parameter == null)
+                _parameter = new PostListPageParameter { Category = ViewModel.SelectedCategory };
+            else
+                _parameter.Category = ViewModel.SelectedCategory;
+
+            SubjectFilterComboBox.Visibility = Visibility.Visible;
+            InitializeSubjectFilter();
+        }
+        else
+        {
+            // "전체" 선택 시 주제 필터 숨김
+            SubjectFilterComboBox.Visibility = Visibility.Collapsed;
+            ViewModel.SelectedSubject = string.Empty;
+        }
+
         await ViewModel.LoadPostsAsync();
     }
 
@@ -405,7 +453,12 @@ public sealed partial class PostListPage : Page
     {
         if (sender is Button button && button.Tag is ViewModels.PostItemViewModel postItem)
         {
-            Frame.Navigate(typeof(PostDetailPage), postItem.No);
+            // 게시판 컨텍스트(카테고리 고정 등)를 함께 전달
+            Frame.Navigate(typeof(PostDetailPage), new PostDetailPageParameter
+            {
+                PostNo = postItem.No,
+                BoardParameter = _parameter
+            });
         }
     }
 

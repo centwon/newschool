@@ -57,6 +57,12 @@ public sealed partial class AddStudentsPage : Page
         TxtClass.Text = "1";
     }
 
+    private void OnBackClick(object sender, RoutedEventArgs e)
+    {
+        if (this.Frame != null && this.Frame.CanGoBack)
+            this.Frame.GoBack();
+    }
+
     #region Excel에서 학생 추가
 
     /// <summary>
@@ -210,8 +216,8 @@ public sealed partial class AddStudentsPage : Page
         // 데이터 행 처리 (1-based 인덱스)
         for (int row = titleRow + 1; row < rowCount; row++)
         {
-            // 번호 (1-based)
-            if (!int.TryParse(sheetData[row, numberCol], out int number) || number < 1)
+            // 번호 ("1번", "1" 등 처리)
+            if (!TryParseNumberFromText(sheetData[row, numberCol], out int number) || number < 1)
                 continue;
 
             // 이름 (1-based)
@@ -219,22 +225,22 @@ public sealed partial class AddStudentsPage : Page
             if (string.IsNullOrWhiteSpace(name))
                 continue;
 
-            // 학년
+            // 학년 ("1학년", "1" 등 처리)
             int grade = defaultGrade;
             if (gradeCol != -1)
             {
-                if (int.TryParse(sheetData[row, gradeCol], out int g) && g >= 1 && g <= 3)
+                if (TryParseNumberFromText(sheetData[row, gradeCol], out int g) && g >= 1 && g <= 6)
                     grade = g;
                 else if (defaultGrade == 0)
                     grade = await GetGradeInputAsync($"학생 '{name}'의 학년 정보를 입력하세요.");
             }
             if (grade == 0) continue;
 
-            // 학급
+            // 학급 ("1반", "1" 등 처리)
             int cls = defaultClass;
             if (classCol != -1)
             {
-                if (int.TryParse(sheetData[row, classCol], out int c) && c >= 1)
+                if (TryParseNumberFromText(sheetData[row, classCol], out int c) && c >= 1)
                     cls = c;
                 else if (defaultClass == 0)
                     cls = await GetClassInputAsync($"학생 '{name}'의 학급 정보를 입력하세요.");
@@ -480,6 +486,34 @@ public sealed partial class AddStudentsPage : Page
             {
                 NewStudents.Remove(student);
             }
+        }
+    }
+
+    /// <summary>
+    /// 전체 선택
+    /// </summary>
+    private void ChkSelectAll_Checked(object sender, RoutedEventArgs e)
+    {
+        foreach (var s in NewStudents) s.IsSelected = true;
+    }
+
+    /// <summary>
+    /// 전체 선택 해제
+    /// </summary>
+    private void ChkSelectAll_Unchecked(object sender, RoutedEventArgs e)
+    {
+        foreach (var s in NewStudents) s.IsSelected = false;
+    }
+
+    /// <summary>
+    /// 선택 항목 삭제
+    /// </summary>
+    private void BtnRemoveSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = NewStudents.Where(s => s.IsSelected).ToList();
+        foreach (var s in selected)
+        {
+            NewStudents.Remove(s);
         }
     }
 
@@ -796,6 +830,24 @@ public sealed partial class AddStudentsPage : Page
     }
 
     /// <summary>
+    /// 텍스트에서 숫자 추출 ("1학년" → 1, "3반" → 3, "1" → 1)
+    /// </summary>
+    private static bool TryParseNumberFromText(string? text, out int result)
+    {
+        result = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        text = text.Trim();
+
+        // 순수 숫자인 경우
+        if (int.TryParse(text, out result)) return true;
+
+        // 숫자 부분만 추출 ("1학년" → "1", "3반" → "3")
+        var digits = new string(text.Where(char.IsDigit).ToArray());
+        return !string.IsNullOrEmpty(digits) && int.TryParse(digits, out result);
+    }
+
+    /// <summary>
     /// 학년 입력 받기 (UI 스레드에서 실행)
     /// </summary>
     private async Task<int> GetGradeInputAsync(string message)
@@ -890,7 +942,7 @@ public sealed partial class AddStudentsPage : Page
 /// <summary>
 /// 학생 추가 ViewModel
 /// </summary>
-public class StudentAddViewModel : NotifyPropertyChangedBase
+public partial class StudentAddViewModel : NotifyPropertyChangedBase
 {
     private string _studentId = string.Empty;
     private int _year;
@@ -936,4 +988,11 @@ public class StudentAddViewModel : NotifyPropertyChangedBase
     }
 
     public string ClassInfo => $"{Year}학년도 {Grade}학년 {Class}반 {Number}번";
+
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
 }

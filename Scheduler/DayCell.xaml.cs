@@ -233,6 +233,9 @@ public sealed partial class DayCell : UserControl
 
     #endregion
 
+    /// <summary>일정/할일 변경 시 부모 캘린더에 전체 새로고침 요청</summary>
+    public event EventHandler? CellChanged;
+
     #region Fields
     private readonly SolidColorBrush _normalBrush;
     private readonly SolidColorBrush _holidayBrush;
@@ -240,6 +243,8 @@ public sealed partial class DayCell : UserControl
     private readonly SolidColorBrush _sundayBrush;
     private readonly SolidColorBrush _vacationBrush;
     private readonly SolidColorBrush _taskHoverBrush;
+    private readonly SolidColorBrush _whiteBrush;
+    private readonly SolidColorBrush _transparentBrush;
 
     private bool _isInitialized = false;
     private DayInfo? _pendingDayInfo;
@@ -267,13 +272,15 @@ public sealed partial class DayCell : UserControl
     {
         this.InitializeComponent();
 
-        // 색상 초기화
+        // 색상 초기화 (인스턴스 브러시 — DependencyObject로 static 불가)
         _normalBrush = new SolidColorBrush(Colors.Black);
         _holidayBrush = new SolidColorBrush(Color.FromArgb(255, 255, 68, 68));
         _saturdayBrush = new SolidColorBrush(Color.FromArgb(255, 68, 68, 255));
         _sundayBrush = new SolidColorBrush(Color.FromArgb(255, 255, 68, 68));
         _vacationBrush = new SolidColorBrush(Color.FromArgb(255, 255, 165, 0));
         _taskHoverBrush = new SolidColorBrush(Color.FromArgb(255, 230, 244, 255));
+        _whiteBrush = new SolidColorBrush(Colors.White);
+        _transparentBrush = new SolidColorBrush(Colors.Transparent);
 
         // Loaded 이벤트에서 초기화
         this.Loaded += DayCell_Loaded;
@@ -366,19 +373,16 @@ public sealed partial class DayCell : UserControl
             }
 
             // ✅ Service를 통한 비동기 업데이트
-            await Task.Run(async () =>
+            try
             {
-                try
-                {
-                    using var service = Scheduler.CreateService();
-                    await service.UpdateTaskAsync(task);
-                    Debug.WriteLine($"[DayCell] 작업 상태 업데이트 완료: {task.No}");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[DayCell] 작업 상태 업데이트 오류: {ex.Message}");
-                }
-            });
+                using var service = Scheduler.CreateService();
+                await service.UpdateTaskAsync(task);
+                Debug.WriteLine($"[DayCell] 작업 상태 업데이트 완료: {task.No}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DayCell] 작업 상태 업데이트 오류: {ex.Message}");
+            }
 
             // 표시 업데이트 (필요시)
             if (Dayinfo != null)
@@ -406,13 +410,8 @@ public sealed partial class DayCell : UserControl
 
             if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
             {
-                var ev = dialog.ResultEvent;
-                if (ev.ItemType == "task" && ev.Start.Date == Dayinfo.Date.Date)
-                    Dayinfo.Tasks?.Add(ev);
-                else if (ev.ItemType != "task" && ev.Start.Date == Dayinfo.Date.Date)
-                    Dayinfo.Events?.Add(ev);
-
-                await UpdateDayDisplayAsync(Dayinfo);
+                // DB에서 전체 새로고침 (반복 생성, 다일 일정 등 반영)
+                CellChanged?.Invoke(this, EventArgs.Empty);
             }
         }
         catch (Exception ex)
@@ -434,21 +433,11 @@ public sealed partial class DayCell : UserControl
             };
             var result = await dialog.ShowAsync();
 
-            if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
+            if (result == ContentDialogResult.Primary || result == ContentDialogResult.Secondary)
             {
-                var tasks = Dayinfo?.Tasks;
-                if (tasks != null)
-                {
-                    var idx = tasks.IndexOf(clickedTask);
-                    if (idx >= 0) tasks[idx] = dialog.ResultEvent;
-                }
+                // DB에서 전체 새로고침 (날짜 변경, 삭제, 반복 생성 등 반영)
+                CellChanged?.Invoke(this, EventArgs.Empty);
             }
-            else if (result == ContentDialogResult.Secondary)
-            {
-                Dayinfo?.Tasks?.Remove(clickedTask);
-            }
-
-            if (Dayinfo != null) await UpdateDayDisplayAsync(Dayinfo);
         }
         catch (Exception ex)
         {
@@ -637,12 +626,23 @@ public sealed partial class DayCell : UserControl
                     : Visibility.Visible;
             }
 
-            // 오늘 날짜 강조
+            // 오늘 날짜 강조: 원형 배지 + 셀 배경
             if (TodayHighlight != null)
             {
                 TodayHighlight.Visibility = dayInfo.IsToday
                     ? Visibility.Visible
                     : Visibility.Collapsed;
+            }
+            if (TodayCircle != null)
+            {
+                TodayCircle.Visibility = dayInfo.IsToday
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+                // 오늘이면 날짜 텍스트를 흰색으로
+                if (dayInfo.IsToday && LbDate != null)
+                {
+                    LbDate.Foreground = _whiteBrush;
+                }
             }
         }
         catch (Exception ex)
@@ -678,10 +678,12 @@ public sealed partial class DayCell : UserControl
                 targetBrush = _normalBrush;
             }
 
-            // 색상 적용
+            // 색상 적용 (오늘 날짜는 원형 배지 위 흰색 유지)
             if (LbDate != null)
             {
-                LbDate.Foreground = targetBrush;
+                LbDate.Foreground = dayInfo.IsToday
+                    ? _whiteBrush
+                    : targetBrush;
             }
             if (TbDateName != null)
             {
@@ -787,6 +789,20 @@ public sealed partial class DayCell : UserControl
     #endregion
 
     #region Event Handlers
+
+    // 셀 호버 효과
+    private void BrdBase_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (HoverHighlight != null)
+            HoverHighlight.Opacity = 1;
+    }
+
+    private void BrdBase_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (HoverHighlight != null)
+            HoverHighlight.Opacity = 0;
+    }
+
     private void TaskItem_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid grid) grid.Background = _taskHoverBrush;
@@ -794,7 +810,7 @@ public sealed partial class DayCell : UserControl
 
     private void TaskItem_PointerExited(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is Grid grid) grid.Background = new SolidColorBrush(Colors.Transparent);
+        if (sender is Grid grid) grid.Background = _transparentBrush;
     }
 
     public async void OnCellDoubleClick()
@@ -815,22 +831,11 @@ public sealed partial class DayCell : UserControl
             };
             var result = await dialog.ShowAsync();
 
-            if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
+            if (result == ContentDialogResult.Primary || result == ContentDialogResult.Secondary)
             {
-                var ev = dialog.ResultEvent;
-                var events = Dayinfo?.Events;
-                if (events != null)
-                {
-                    var idx = events.IndexOf(clickedEvent);
-                    if (idx >= 0) events[idx] = ev;
-                }
+                // DB에서 전체 새로고침 (날짜 변경, 삭제, 다일 일정 등 반영)
+                CellChanged?.Invoke(this, EventArgs.Empty);
             }
-            else if (result == ContentDialogResult.Secondary)
-            {
-                Dayinfo?.Events?.Remove(clickedEvent);
-            }
-
-            if (Dayinfo != null) await UpdateDayDisplayAsync(Dayinfo);
         }
         catch (Exception ex)
         {

@@ -1,8 +1,10 @@
 ﻿using System;
+using System.IO;
 using Microsoft.UI.Xaml;
 using SQLitePCL;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using NewSchool.Logging;
 using NewSchool.Pages;
 using NewSchool.Controls;
 using NewSchool.Google;
@@ -16,6 +18,7 @@ public partial class App : Application
 {
     private Window? _window;
     public static Window? MainWindow;
+    private static GoogleSyncService? _googleSyncService;
 
     public App()
     {
@@ -32,30 +35,45 @@ public partial class App : Application
                 Debug.WriteLine($"[App] ★ InnerException: {e.Exception.InnerException.Message}");
                 Debug.WriteLine($"[App] ★ InnerStackTrace: {e.Exception.InnerException.StackTrace}");
             }
+
+            // 파일 로그에 기록
+            FileLogger.Instance.Critical($"[App] UnhandledException: {e.Exception.GetType().Name}", e.Exception);
         };
     }
 
     protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        // 0. 최초 실행 여부 확인 (Settings.db가 없으면 최초 실행)
+        bool isFirstRun = !File.Exists(Path.Combine(Settings.UserDataPath, "Settings.db"));
+
         // 1. Settings 초기화
         Settings.Initialize();
         Debug.WriteLine("[App] Settings 초기화 완료");
 
-        // 2. DB 초기화
-        if (!Settings.Board_Inited.Value)
+        // 1-1. 저장된 로그 레벨 적용
+        var logLevel = Settings.LogLevel.Value switch
         {
-            await NewSchool.Board.Board.InitAsync();
-            Debug.WriteLine("[App] Board 데이터베이스 초기화 완료");
-        }
-        // 3. scheduler 초기화 — 항상 실행 (신규 테이블 자동 반영)
-        await NewSchool.Scheduler.Scheduler.InitAsync();
-        Debug.WriteLine("[App] Scheduler 데이터베이스 초기화 완료");
+            "Debug" => Logging.LogLevel.Debug,
+            "Info" => Logging.LogLevel.Info,
+            "Warning" => Logging.LogLevel.Warning,
+            "Error" => Logging.LogLevel.Error,
+            _ => Logging.LogLevel.Info
+        };
+        FileLogger.Instance.SetMinimumLevel(logLevel);
+        Debug.WriteLine($"[App] 로그 레벨: {logLevel}");
 
-        if (!Settings.School_Inited.Value)
-        {
-            await NewSchool.SchoolDatabase.InitAsync();
-            Debug.WriteLine("[App] School 데이터베이스 초기화 완료");
-        }
+        // 2. DB 초기화 (독립적인 3개 DB를 병렬 초기화)
+        await Task.WhenAll(
+            NewSchool.Board.Board.InitAsync(),
+            NewSchool.Scheduler.Scheduler.InitAsync(),
+            NewSchool.SchoolDatabase.InitAsync()
+        );
+        Debug.WriteLine("[App] 데이터베이스 초기화 완료 (Board, Scheduler, School)");
+
+        // 3-1. 자동 백업 (필요 시)
+        var backupResult = Settings.RunAutoBackupIfNeeded();
+        if (backupResult != null)
+            Debug.WriteLine($"[App] 자동 백업 완료: {backupResult}");
 
         // 4. 초기 설정 확인
         if (string.IsNullOrEmpty(Settings.SchoolCode.Value))
@@ -96,13 +114,22 @@ public partial class App : Application
         _window = new MainWindow();
         MainWindow = _window;
         MessageBox.Initialize(_window);
+        _window.Closed += (s, e) =>
+        {
+            _googleSyncService?.Dispose();
+            _googleSyncService = null;
+        };
         _window.Activate();
 
         Debug.WriteLine("[App] 앱 시작 완료");
         PrintSettings();
 
         // Google Calendar 시작 시 동기화 (비동기, fire-and-forget)
-        _ = TryStartGoogleSyncAsync();
+        _ = TryStartGoogleSyncAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.WriteLine($"[App] Google sync failed: {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     /// <summary>
@@ -128,8 +155,9 @@ public partial class App : Application
             Debug.WriteLine("[App] Google 토큰 유효 — 동기화 시작");
 
             var apiClient = new GoogleCalendarApiClient(authService);
-            var syncService = new GoogleSyncService(authService, apiClient);
-            var result = await syncService.SyncAllAsync();
+            _googleSyncService?.Dispose();
+            _googleSyncService = new GoogleSyncService(authService, apiClient);
+            var result = await _googleSyncService.SyncAllAsync();
 
             Debug.WriteLine($"[App] Google 시작 동기화 완료: {result.Summary}");
 
@@ -138,13 +166,13 @@ public partial class App : Application
             {
                 int intervalMinutes = Settings.GoogleSyncIntervalMinutes.Value;
                 if (intervalMinutes < 5) intervalMinutes = 15;
-                syncService.StartPeriodicSync(TimeSpan.FromMinutes(intervalMinutes));
+                _googleSyncService.StartPeriodicSync(TimeSpan.FromMinutes(intervalMinutes));
                 Debug.WriteLine($"[App] Google 자동 동기화 시작: {intervalMinutes}분 간격");
-                // 참고: syncService를 Dispose하지 않음 — 앱 수명 동안 유지
             }
             else
             {
-                syncService.Dispose();
+                _googleSyncService.Dispose();
+                _googleSyncService = null;
             }
         }
         catch (Exception ex)
@@ -160,8 +188,12 @@ public partial class App : Application
     {
         Debug.WriteLine("========================================");
         Debug.WriteLine("[App] 현재 설정 정보:");
+        Debug.WriteLine($"  - 데이터 경로: {Settings.UserDataPath}");
+        Debug.WriteLine($"  - 포터블 모드: {Settings.IsPortableMode}");
+        Debug.WriteLine($"  - School DB: {SchoolDatabase.DbPath}");
+        Debug.WriteLine($"  - School DB 존재: {File.Exists(SchoolDatabase.DbPath)}");
         Debug.WriteLine($"  - 학교명: {Settings.SchoolName.Value}");
-        Debug.WriteLine($"  - 학교코드: {Settings.SchoolCode.Value}");
+        Debug.WriteLine($"  - 학교코드: '{Settings.SchoolCode.Value}'");
         Debug.WriteLine($"  - 사용자: {Settings.UserName.Value} ({Settings.User.Value})");
         Debug.WriteLine($"  - 학년도/학기: {Settings.WorkYear.Value}년 {Settings.WorkSemester.Value}학기");
         Debug.WriteLine($"  - 담임반: {Settings.HomeGrade.Value}학년 {Settings.HomeRoom.Value}반");

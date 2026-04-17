@@ -42,7 +42,7 @@ namespace NewSchool.Repositories
                 var result = await cmd.ExecuteScalarAsync();
                 teacher.No = Convert.ToInt32(result);
 
-                LogInfo($"교사 생성 완료: No={teacher.No}, TeacherID={teacher.TeacherID}, Name={teacher.Name}");
+                LogInfo($"교사 생성 완료: No={teacher.No}");
                 return teacher.No;
             }
             catch (Exception ex)

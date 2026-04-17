@@ -12,6 +12,7 @@ using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using NewSchool.Board.Pages;
 using NewSchool.Board.Services;
+using NewSchool.Collections;
 using Windows.Storage;
 
 namespace NewSchool.Board.ViewModels;
@@ -22,8 +23,8 @@ public class PostDetailViewModel : INotifyPropertyChanged
 {
     private readonly BoardService _service;
     private Post? _post;
-    private ObservableCollection<Comment> _comments;
-    private ObservableCollection<PostFile> _files;
+    private OptimizedObservableCollection<Comment> _comments;
+    private OptimizedObservableCollection<PostFile> _files;
     private bool _isLoading;
     private string _newCommentContent = "";
 
@@ -38,10 +39,16 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             _post = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SubjectVisibility));
         }
     }
 
-    public ObservableCollection<Comment> Comments
+    public Visibility SubjectVisibility =>
+        Post != null && !string.IsNullOrEmpty(Post.Subject)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    public OptimizedObservableCollection<Comment> Comments
     {
         get => _comments;
         set
@@ -51,7 +58,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
         }
     }
 
-    public ObservableCollection<PostFile> Files
+    public OptimizedObservableCollection<PostFile> Files
     {
         get => _files;
         set
@@ -81,6 +88,20 @@ public class PostDetailViewModel : INotifyPropertyChanged
         }
     }
 
+    private Comment? _editingComment;
+    public Comment? EditingComment
+    {
+        get => _editingComment;
+        private set
+        {
+            _editingComment = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsEditing));
+        }
+    }
+
+    public bool IsEditing => EditingComment != null;
+
     #endregion
 
     #region Commands
@@ -94,8 +115,8 @@ public class PostDetailViewModel : INotifyPropertyChanged
     public PostDetailViewModel()
     {
         _service = Board.CreateService();
-        _comments = new ObservableCollection<Comment>();
-        _files = new ObservableCollection<PostFile>();
+        _comments = new OptimizedObservableCollection<Comment>();
+        _files = new OptimizedObservableCollection<PostFile>();
 
         LoadPostCommand = new RelayCommand<int>(async (postNo) => await LoadPostAsync(postNo));
         AddCommentCommand = new RelayCommand(async () => await AddCommentAsync());
@@ -138,11 +159,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             var comments = await _service.GetCommentsByPostAsync(postNo);
 
-            Comments.Clear();
-            foreach (var comment in comments)
-            {
-                Comments.Add(comment);
-            }
+            Comments.ReplaceAll(comments);
 
             Debug.WriteLine($"댓글 로드 완료: {Comments.Count}개");
         }
@@ -158,11 +175,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             var files = await _service.GetPostFilesByPostAsync(postNo);
 
-            Files.Clear();
-            foreach (var file in files)
-            {
-                Files.Add(file);
-            }
+            Files.ReplaceAll(files);
 
             Debug.WriteLine($"파일 로드 완료: {Files.Count}개");
         }
@@ -225,6 +238,46 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             Debug.WriteLine($"댓글 삭제 실패: {ex.Message}");
         }
+    }
+
+    public void StartEdit(Comment comment)
+    {
+        EditingComment = comment;
+        NewCommentContent = comment.Content;
+    }
+
+    public async Task UpdateCommentAsync()
+    {
+        if (EditingComment == null || string.IsNullOrWhiteSpace(NewCommentContent))
+            return;
+
+        try
+        {
+            EditingComment.Content = NewCommentContent;
+            bool success = await _service.UpdateCommentAsync(EditingComment);
+
+            if (success)
+            {
+                Debug.WriteLine($"댓글 수정 완료: No={EditingComment.No}");
+                // ObservableCollection 내의 객체를 직접 수정했으므로 UI 갱신을 위해 목록 다시 로드
+                if (Post != null)
+                    await LoadCommentsAsync(Post.No);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"댓글 수정 실패: {ex.Message}");
+        }
+        finally
+        {
+            CancelEdit();
+        }
+    }
+
+    public void CancelEdit()
+    {
+        EditingComment = null;
+        NewCommentContent = "";
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

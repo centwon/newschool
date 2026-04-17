@@ -378,12 +378,12 @@
                                                TextWrapping="Wrap"/>
                                     <ItemsControl x:Name="TimetableItemsControl">
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
+                                            <DataTemplate x:DataType="x:String">
                                                 <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                                         CornerRadius="4"
                                                         Padding="8,4"
                                                         Margin="0,2">
-                                                    <TextBlock Text="{Binding}" FontSize="11"/>
+                                                    <TextBlock Text="{x:Bind}" FontSize="11"/>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -778,6 +778,7 @@
                                                             <ColumnDefinition Width="80"/>
                                                             <ColumnDefinition Width="45"/>
                                                             <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
@@ -796,21 +797,29 @@
                                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                                    VerticalAlignment="Center"/>
 
+                                                        <!-- 강의실 (전체 보기 시) -->
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{x:Bind RoomDisplay}"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                                   VerticalAlignment="Center"/>
+
                                                         <!-- 유형 아이콘 -->
-                                                        <FontIcon Grid.Column="2"
+                                                        <FontIcon Grid.Column="3"
                                                                   Glyph="{x:Bind TypeIcon}"
                                                                   FontSize="12"
                                                                   VerticalAlignment="Center"/>
 
                                                         <!-- 단원명 -->
-                                                        <TextBlock Grid.Column="3"
+                                                        <TextBlock Grid.Column="4"
                                                                    Text="{x:Bind SectionName}"
                                                                    FontSize="13"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    VerticalAlignment="Center"/>
 
                                                         <!-- 진도 (1/3) -->
-                                                        <TextBlock Grid.Column="4"
+                                                        <TextBlock Grid.Column="5"
                                                                    Text="{x:Bind ProgressDisplay}"
                                                                    FontSize="11"
                                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"

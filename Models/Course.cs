@@ -130,22 +130,22 @@ public partial class Course : NotifyPropertyChangedBase, IEntity, IYearSemesterE
     /// <summary>
     /// 유효한 수업 유형 (빈값은 "Class"로 간주)
     /// </summary>
-    public string EffectiveType => string.IsNullOrEmpty(Type) ? "Class" : Type;
+    public string EffectiveType => string.IsNullOrEmpty(Type) ? CourseTypes.Class : Type;
 
     /// <summary>
     /// 학급 공통 수업 여부 (Class 또는 빈값)
     /// </summary>
-    public bool IsClassType => EffectiveType == "Class";
+    public bool IsClassType => EffectiveType == CourseTypes.Class;
 
     /// <summary>
     /// 선택 과목 여부
     /// </summary>
-    public bool IsSelectiveType => EffectiveType == "Selective";
+    public bool IsSelectiveType => EffectiveType == CourseTypes.Selective;
 
     /// <summary>
     /// 동아리 여부
     /// </summary>
-    public bool IsClubType => EffectiveType == "Club";
+    public bool IsClubType => EffectiveType == CourseTypes.Club;
 
     /// <summary>
     /// 수강생 자동 등록 대상 여부
@@ -164,9 +164,9 @@ public partial class Course : NotifyPropertyChangedBase, IEntity, IYearSemesterE
     /// </summary>
     public string TypeDisplay => EffectiveType switch
     {
-        "Class" => "학급 공통",
-        "Selective" => "선택 과목",
-        "Club" => "동아리",
+        CourseTypes.Class => "학급 공통",
+        CourseTypes.Selective => "선택 과목",
+        CourseTypes.Club => "동아리",
         _ => EffectiveType
     };
 

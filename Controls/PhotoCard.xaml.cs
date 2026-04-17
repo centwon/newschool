@@ -57,6 +57,19 @@ namespace NewSchool.Controls
             }
         }
 
+        // 미표시 좌석 (인쇄 시 비표시)
+        private bool _isHidden;
+        public bool IsHidden
+        {
+            get => _isHidden;
+            set
+            {
+                _isHidden = value;
+                SetHiddenStyle(value);
+                HiddenChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
         // 지정 좌석 (고정)
         private bool _isFixed;
         public bool IsFixed
@@ -89,6 +102,7 @@ namespace NewSchool.Controls
         public event EventHandler<StudentCardEventArgs>? StudentChanged;
         public event EventHandler? UnUsedChanged;
         public event EventHandler? FixedChanged;
+        public event EventHandler? HiddenChanged;
 
         #endregion
 
@@ -175,7 +189,11 @@ namespace NewSchool.Controls
                 TBName.Text = $"{data.Name}({data.Number})";
                 if (_isShowPhoto)
                 {
-                    _ = LoadPhotoAsync(data.PhotoPath);
+                    _ = LoadPhotoAsync(data.PhotoPath).ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            System.Diagnostics.Debug.WriteLine($"[PhotoCard] {t.Exception?.InnerException?.Message}");
+                    }, TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
         }
@@ -202,7 +220,11 @@ namespace NewSchool.Controls
 
                 if (_studentData != null && !string.IsNullOrEmpty(_studentData.PhotoPath))
                 {
-                    _ = LoadPhotoAsync(_studentData.PhotoPath);
+                    _ = LoadPhotoAsync(_studentData.PhotoPath).ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            System.Diagnostics.Debug.WriteLine($"[PhotoCard] {t.Exception?.InnerException?.Message}");
+                    }, TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
             else
@@ -311,6 +333,11 @@ namespace NewSchool.Controls
             }
         }
 
+        private void SetHiddenStyle(bool value)
+        {
+            this.Opacity = value ? 0.35 : 1.0;
+        }
+
         #endregion
 
         #region Event Handlers - Context Menu
@@ -335,6 +362,14 @@ namespace NewSchool.Controls
                     menuItem.IsChecked = false;
                 }
                 IsFixed = menuItem.IsChecked;
+            }
+        }
+
+        private void MenuSeatHidden_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is ToggleMenuFlyoutItem menuItem)
+            {
+                IsHidden = menuItem.IsChecked;
             }
         }
 

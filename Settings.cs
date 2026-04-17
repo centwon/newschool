@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
+using System.Linq;
 using Microsoft.Data.Sqlite;
 
 namespace NewSchool;
@@ -74,6 +75,90 @@ public class SettingProperty<T>
 /// </summary>
 public static class Settings
 {
+    /// <summary>
+    /// 데이터 경로 (앱 시작 시 1회 결정, 이후 불변)
+    /// </summary>
+    public static string UserDataPath { get; } = ResolveDataPath();
+
+    /// <summary>
+    /// 포터블 모드 여부
+    /// </summary>
+    public static bool IsPortableMode { get; } = !UserDataPath.Equals(
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "NewSchool"),
+        StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 데이터 폴더 경로 (UserDataPath와 동일)
+    /// </summary>
+    public static string DataDirectory => UserDataPath;
+
+    /// <summary>
+    /// 데이터 경로 결정 로직:
+    /// 1. exe 옆에 Settings.db → 포터블
+    /// 2. %USERPROFILE%\NewSchool\Settings.db → 사용자 폴더
+    /// 3. 최초 실행: 시스템 경로이거나 쓰기 불가 → 사용자 폴더, 그 외 → 포터블
+    /// </summary>
+    private static string ResolveDataPath()
+    {
+        var exeDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var userPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "NewSchool");
+
+        // 1. exe 옆에 Settings.db 있으면 포터블
+        if (File.Exists(Path.Combine(exeDir, "Settings.db")))
+            return exeDir;
+
+        // 2. 사용자 폴더에 Settings.db 있으면 사용자 폴더
+        if (File.Exists(Path.Combine(userPath, "Settings.db")))
+            return userPath;
+
+        // 3. 최초 실행 — 경로 + 쓰기 권한으로 판단
+        if (IsSystemPath(exeDir) || !IsWritable(exeDir))
+            return userPath;
+
+        return exeDir; // 포터블
+    }
+
+    /// <summary>
+    /// Program Files, WindowsApps, 개발 빌드 경로 등 포터블 대상이 아닌 경로인지 확인
+    /// </summary>
+    private static bool IsSystemPath(string path)
+    {
+        var normalized = path.Replace('/', '\\').TrimEnd('\\').ToUpperInvariant();
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles).ToUpperInvariant();
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86).ToUpperInvariant();
+        var windowsApps = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft", "WindowsApps").ToUpperInvariant();
+
+        // 시스템 설치 경로
+        if (normalized.StartsWith(programFiles)
+            || normalized.StartsWith(programFilesX86)
+            || normalized.StartsWith(windowsApps))
+            return true;
+
+        // 개발 빌드 경로 (bin\Debug, bin\Release, bin\x64\ 등)
+        if (normalized.Contains(@"\BIN\DEBUG\") || normalized.Contains(@"\BIN\RELEASE\")
+            || normalized.Contains(@"\OBJ\"))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// 해당 폴더에 쓰기 가능한지 테스트
+    /// </summary>
+    private static bool IsWritable(string path)
+    {
+        try
+        {
+            var testFile = Path.Combine(path, $".newschool_write_test_{Guid.NewGuid():N}");
+            File.WriteAllText(testFile, "");
+            File.Delete(testFile);
+            return true;
+        }
+        catch { return false; }
+    }
+
     // Scheduler 관련 설정
     public static SettingProperty<string> SchedulerDB { get; private set; } = null!;
     public static SettingProperty<bool> Scheduler_Inited { get; private set; } = null!;
@@ -137,9 +222,19 @@ public static class Settings
     /// </summary>
     public static SettingProperty<int> DefaultPageSize { get; private set; } = null!;
     /// <summary>
+    /// Windows 시작 시 자동 실행
+    /// </summary>
+    public static SettingProperty<bool> StartWithWindows { get; private set; } = null!;
+
+    /// <summary>
     /// 자동 백업 활성화
     /// </summary>
     public static SettingProperty<bool> AutoBackup { get; private set; } = null!;
+
+    /// <summary>
+    /// 마지막 백업 시간 (ISO8601)
+    /// </summary>
+    public static SettingProperty<string> LastBackupTime { get; private set; } = null!;
     /// <summary>
     /// 자동 백업 간격 (일)
     /// </summary>
@@ -243,9 +338,19 @@ public static class Settings
 
 
         /// <summary>
+        /// Windows 시작 시 자동 실행
+        /// </summary>
+        StartWithWindows = new SettingProperty<bool>("StartWithWindows", false, bool.Parse, b => b.ToString().ToLower());
+
+        /// <summary>
         /// 자동 백업 활성화
         /// </summary>
         AutoBackup = new SettingProperty<bool>("AutoBackup", false, bool.Parse, b => b.ToString().ToLower());
+
+        /// <summary>
+        /// 마지막 백업 시간
+        /// </summary>
+        LastBackupTime = new SettingProperty<string>("LastBackupTime", string.Empty, s => s, s => s);
 
     /// <summary>
     /// 자동 백업 간격 (일)
@@ -321,7 +426,9 @@ public static class Settings
         NeisApiKey.Reload();
         WorkSemester.Reload();
         TopMost.Reload();
+        StartWithWindows.Reload();
         AutoBackup.Reload();
+        LastBackupTime.Reload();
         UserName.Reload();
         IsNeisEventDownloaded.Reload();
 
@@ -360,24 +467,183 @@ public static class Settings
     }
 
     /// <summary>
-    /// 설정 백업
+    /// 전체 데이터 백업 (Settings.db + 모든 DB)
     /// </summary>
-    public static string? Backup() => SettingsDb.Backup();
+    public static string? Backup()
+    {
+        try
+        {
+            var backupDir = Path.Combine(UserDataPath, "Backups",
+                $"backup_{DateTime.Now:yyyyMMdd_HHmmss}");
+            Directory.CreateDirectory(backupDir);
+
+            // UserDataPath의 모든 .db 파일 (Settings.db, school.db, scheduler.db, board.db 등)
+            foreach (var dbFile in Directory.GetFiles(UserDataPath, "*.db"))
+            {
+                var fileName = Path.GetFileName(dbFile);
+                File.Copy(dbFile, Path.Combine(backupDir, fileName), true);
+            }
+
+            LastBackupTime.Set(DateTime.Now.ToString("o"));
+            CleanupOldBackups();
+
+            System.Diagnostics.Debug.WriteLine($"[Settings] 백업 완료: {backupDir}");
+            return backupDir;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] 백업 오류: {ex.Message}");
+            return null;
+        }
+    }
 
     /// <summary>
-    /// 설정 복원
+    /// 백업 폴더에서 전체 복원
     /// </summary>
-    public static bool Restore(string backupPath)
+    public static bool Restore(string backupDirOrFile)
     {
-        bool success = SettingsDb.Restore(backupPath);
-        if (success) LoadAll();
-        return success;
+        try
+        {
+            // 단일 파일이면 기존 Settings.db 복원 (하위호환)
+            if (File.Exists(backupDirOrFile) && backupDirOrFile.EndsWith(".db"))
+            {
+                bool success = SettingsDb.Restore(backupDirOrFile);
+                if (success) LoadAll();
+                return success;
+            }
+
+            // 폴더 복원
+            if (!Directory.Exists(backupDirOrFile)) return false;
+
+            var dbFiles = Directory.GetFiles(backupDirOrFile, "*.db");
+            foreach (var dbFile in dbFiles)
+            {
+                var fileName = Path.GetFileName(dbFile);
+                if (fileName.Equals("Settings.db", StringComparison.OrdinalIgnoreCase))
+                {
+                    SettingsDb.Restore(dbFile);
+                }
+                else
+                {
+                    // UserDataPath에 복원
+                    Directory.CreateDirectory(UserDataPath);
+                    File.Copy(dbFile, Path.Combine(UserDataPath, fileName), true);
+                }
+            }
+
+            LoadAll();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] 복원 오류: {ex.Message}");
+            return false;
+        }
     }
+
+    /// <summary>
+    /// 자동 백업 필요 여부 확인 및 실행
+    /// </summary>
+    public static string? RunAutoBackupIfNeeded()
+    {
+        if (!AutoBackup.Value) return null;
+
+        var lastBackup = LastBackupTime.Value;
+        if (!string.IsNullOrEmpty(lastBackup) && DateTime.TryParse(lastBackup, out var lastTime))
+        {
+            var interval = TimeSpan.FromDays(AutoBackupIntervalDays.Value);
+            if (DateTime.Now - lastTime < interval) return null;
+        }
+
+        return Backup();
+    }
+
+    /// <summary>
+    /// 오래된 백업 정리 (BackupRetentionCount 초과분 삭제)
+    /// </summary>
+    private static void CleanupOldBackups()
+    {
+        try
+        {
+            var backupsRoot = Path.Combine(UserDataPath, "Backups");
+            if (!Directory.Exists(backupsRoot)) return;
+
+            var dirs = Directory.GetDirectories(backupsRoot, "backup_*")
+                .OrderByDescending(d => d)
+                .ToArray();
+
+            var retainCount = BackupRetentionCount.Value;
+            for (int i = retainCount; i < dirs.Length; i++)
+            {
+                Directory.Delete(dirs[i], true);
+                System.Diagnostics.Debug.WriteLine($"[Settings] 오래된 백업 삭제: {dirs[i]}");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] 백업 정리 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 백업 폴더 경로
+    /// </summary>
+    public static string BackupDirectory => Path.Combine(UserDataPath, "Backups");
 
     /// <summary>
     /// 디버그 출력
     /// </summary>
     public static void PrintAll() => SettingsDb.PrintAllSettings();
+
+    #region Windows 자동 시작
+
+    private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    private const string AppRegistryName = "NewSchool";
+
+    /// <summary>
+    /// Windows 시작 시 자동 실행 설정/해제
+    /// </summary>
+    public static void SetStartWithWindows(bool enable)
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(StartupRegistryKey, true);
+            if (key == null) return;
+
+            if (enable)
+            {
+                var exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrEmpty(exePath))
+                    key.SetValue(AppRegistryName, $"\"{exePath}\"");
+            }
+            else
+            {
+                key.DeleteValue(AppRegistryName, false);
+            }
+
+            StartWithWindows.Value = enable;
+            System.Diagnostics.Debug.WriteLine($"[Settings] StartWithWindows = {enable}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] 자동 시작 설정 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 현재 레지스트리에 자동 시작이 등록되어 있는지 확인
+    /// </summary>
+    public static bool IsStartWithWindowsRegistered()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(StartupRegistryKey);
+            return key?.GetValue(AppRegistryName) != null;
+        }
+        catch { return false; }
+    }
+
+    #endregion
 }
 
 /// <summary>
@@ -393,7 +659,9 @@ internal static class SettingsDb
 
     static SettingsDb()
     {
-        DbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Settings.db");
+        var dataDir = Settings.UserDataPath;
+        Directory.CreateDirectory(dataDir);
+        DbPath = Path.Combine(dataDir, "Settings.db");
         ConnectionString = $"Data Source={DbPath};Cache=Shared";
     }
 

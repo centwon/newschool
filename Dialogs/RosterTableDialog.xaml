@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="NewSchool.Dialogs.RosterTableDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:NewSchool.Models"
+    Title="명렬표 삽입"
+    PrimaryButtonText="삽입"
+    CloseButtonText="취소"
+    DefaultButton="Primary"
+    PrimaryButtonClick="OnPrimaryButtonClick">
+
+    <StackPanel Spacing="16" MinWidth="450">
+        <!-- 제목 -->
+        <StackPanel Spacing="4">
+            <TextBlock Text="표 제목" FontWeight="SemiBold"/>
+            <TextBox x:Name="TableTitleBox"
+                     PlaceholderText="예: 가정통신문 취합"
+                     MaxLength="100"/>
+        </StackPanel>
+
+        <!-- 대상 선택 -->
+        <StackPanel Spacing="4">
+            <TextBlock Text="대상" FontWeight="SemiBold"/>
+            <ComboBox x:Name="ScopeComboBox"
+                      HorizontalAlignment="Stretch"
+                      SelectionChanged="ScopeComboBox_SelectionChanged">
+                <ComboBoxItem Content="학급" Tag="Class" IsSelected="True"/>
+                <ComboBoxItem Content="수업" Tag="Course"/>
+                <ComboBoxItem Content="동아리" Tag="Club"/>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- 학급 선택 (Class scope) -->
+        <StackPanel x:Name="ClassPanel" Spacing="8">
+            <StackPanel Spacing="4">
+                <TextBlock Text="학년 / 반" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <NumberBox x:Name="GradeBox"
+                               Minimum="1" Maximum="6"
+                               SpinButtonPlacementMode="Compact"
+                               Header=""
+                               MinWidth="100"
+                               ValueChanged="GradeBox_ValueChanged"/>
+                    <TextBlock Text="학년" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="ClassComboBox"
+                              MinWidth="120"
+                              PlaceholderText="반 선택"
+                              SelectionChanged="ClassComboBox_SelectionChanged"/>
+                </StackPanel>
+            </StackPanel>
+            <StackPanel x:Name="ClassLayoutPanel" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="레이아웃" FontWeight="SemiBold"/>
+                <RadioButtons x:Name="ClassLayoutRadio" SelectedIndex="0">
+                    <RadioButton Content="세로 (반별 구분)" Tag="Vertical"/>
+                    <RadioButton Content="가로 (반별 칼럼)" Tag="Horizontal"/>
+                </RadioButtons>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- 수업 선택 (Course scope) -->
+        <StackPanel x:Name="CoursePanel" Spacing="4" Visibility="Collapsed">
+            <TextBlock Text="수업 선택" FontWeight="SemiBold"/>
+            <ComboBox x:Name="CourseComboBox"
+                      HorizontalAlignment="Stretch"
+                      PlaceholderText="수업을 선택하세요"
+                      SelectionChanged="CourseComboBox_SelectionChanged">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:Course">
+                        <TextBlock Text="{x:Bind DisplayName}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <ComboBox x:Name="RoomComboBox"
+                      HorizontalAlignment="Stretch"
+                      PlaceholderText="강의실을 선택하세요"
+                      Margin="0,4,0,0"
+                      Visibility="Collapsed"
+                      SelectionChanged="RoomComboBox_SelectionChanged"/>
+            <StackPanel x:Name="CourseLayoutPanel" Spacing="4" Visibility="Collapsed" Margin="0,4,0,0">
+                <TextBlock Text="레이아웃" FontWeight="SemiBold"/>
+                <RadioButtons x:Name="CourseLayoutRadio" SelectedIndex="0">
+                    <RadioButton Content="세로 (강의실별 구분)" Tag="Vertical"/>
+                    <RadioButton Content="가로 (강의실별 칼럼)" Tag="Horizontal"/>
+                </RadioButtons>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- 동아리 선택 (Club scope) -->
+        <StackPanel x:Name="ClubPanel" Spacing="4" Visibility="Collapsed">
+            <TextBlock Text="동아리 선택" FontWeight="SemiBold"/>
+            <ComboBox x:Name="ClubComboBox"
+                      HorizontalAlignment="Stretch"
+                      PlaceholderText="동아리를 선택하세요">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:Club">
+                        <TextBlock Text="{x:Bind ClubName}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- 컬럼 헤더 -->
+        <StackPanel Spacing="4">
+            <TextBlock Text="컬럼 (쉼표로 구분)" FontWeight="SemiBold"/>
+            <TextBox x:Name="ColumnsBox"
+                     PlaceholderText="예: 건강조사, 행정정보, 교육과정, 비고"
+                     MaxLength="500"/>
+        </StackPanel>
+
+        <!-- 안내 -->
+        <InfoBar x:Name="InfoMessage"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Severity="Error"/>
+    </StackPanel>
+</ContentDialog>

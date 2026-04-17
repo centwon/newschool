@@ -96,11 +96,7 @@ namespace NewSchool.Board.Repositories
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@Post", postNo);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    files.Add(MapPostFile(reader));
-                }
+                files = await ExecuteListAsync(cmd, MapPostFile);
 
                 LogInfo($"PostFile 목록 조회 완료: Post={postNo}, Count={files.Count}");
                 return files;
@@ -199,18 +195,34 @@ namespace NewSchool.Board.Repositories
         #region Helper Methods
 
         /// <summary>
-        /// SqliteDataReader를 PostFile로 매핑 (Native AOT 호환)
+        /// SqliteDataReader를 PostFile로 매핑 (캐시된 컬럼 인덱스 사용)
+        /// </summary>
+        private PostFile MapPostFile(SqliteDataReader reader, ReaderColumnCache cache)
+        {
+            var noOrd = cache.GetOrdinal("No");
+            var postOrd = cache.GetOrdinal("Post");
+            var dtOrd = cache.GetOrdinal("DateTime");
+            var nameOrd = cache.GetOrdinal("FileName");
+            var sizeOrd = cache.GetOrdinal("FileSize");
+
+            return new PostFile
+            {
+                No = reader.GetInt32(noOrd),
+                Post = reader.GetInt32(postOrd),
+                DateTime = DateTimeHelper.FromDateString(reader.GetString(dtOrd)),
+                FileName = reader.GetString(nameOrd),
+                FileSize = reader.GetInt32(sizeOrd)
+            };
+        }
+
+        /// <summary>
+        /// 비캐시 오버로드 (단일 행 조회용)
         /// </summary>
         private PostFile MapPostFile(SqliteDataReader reader)
         {
-            return new PostFile
-            {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                Post = reader.GetInt32(reader.GetOrdinal("Post")),
-                DateTime = DateTimeHelper.FromDateString(reader.GetString(reader.GetOrdinal("DateTime"))),
-                FileName = reader.GetString(reader.GetOrdinal("FileName")),
-                FileSize = reader.GetInt32(reader.GetOrdinal("FileSize"))
-            };
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);
+            return MapPostFile(reader, cache);
         }
 
         #endregion

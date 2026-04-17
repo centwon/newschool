@@ -94,9 +94,24 @@
                             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                     BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                                     BorderThickness="0,0,0,1"
-                                    Padding="8,8">
+                                    Padding="0"
+                                    Tag="{x:Bind}"
+                                    Tapped="OnRowTapped">
 
-                                <Grid x:Name="DataRowGrid" Loaded="OnDataRowGridLoaded">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 선택 표시 바 -->
+                                    <Border x:Name="SelectionIndicator"
+                                            Grid.Column="0"
+                                            Width="3"
+                                            Background="Transparent"
+                                            VerticalAlignment="Stretch"/>
+
+                                <Grid Grid.Column="1" x:Name="DataRowGrid" Padding="8,8" Loaded="OnDataRowGridLoaded">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="24"/>
                                         <ColumnDefinition Width="60"/>
@@ -123,7 +138,7 @@
                                     <!-- 학년도 -->
                                     <TextBlock Grid.Column="1"
                                                Text="{x:Bind Year}"
-                                               Visibility="{Binding ElementName=TxtYearHeader, Path=Visibility}"
+                                               Visibility="{x:Bind YearColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Top"
                                                HorizontalAlignment="Center"
                                                FontSize="12"
@@ -132,7 +147,7 @@
                                     <!-- 학기 -->
                                     <TextBlock Grid.Column="2"
                                                Text="{x:Bind Semester}"
-                                               Visibility="{Binding ElementName=TxtSemesterHeader, Path=Visibility}"
+                                               Visibility="{x:Bind SemesterColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Top"
                                                HorizontalAlignment="Center"
                                                FontSize="12"
@@ -214,6 +229,7 @@
                                     <!-- 주제 -->
                                     <TextBox Grid.Column="10"
                                              Text="{x:Bind Topic, Mode=TwoWay}"
+                                             Tag="{x:Bind}"
                                              VerticalAlignment="Top"
                                              FontSize="12"
                                              PlaceholderText="주제"
@@ -229,6 +245,7 @@
 
                                         <TextBox Grid.Row="0"
                                                  Text="{x:Bind Log, Mode=TwoWay}"
+                                                 Tag="{x:Bind}"
                                                  AcceptsReturn="True"
                                                  TextWrapping="Wrap"
                                                  MinHeight="60"
@@ -245,6 +262,7 @@
                                                    HorizontalAlignment="Right"
                                                    Margin="0,4,0,0"/>-->
                                     </Grid>
+                                </Grid>
                                 </Grid>
                             </Border>
                         </DataTemplate>
