@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using NewSchool.Models;
@@ -462,5 +463,81 @@ public class StudentCardPrintService
         {
             QuestPDF.Settings.FontDiscoveryPaths.Add(fontsPath);
         }
+    }
+
+    // ── 학급 전체 학생카드 PDF (통합 내보내기) ──
+    /// <summary>
+    /// 학급 전체 학생카드를 단일 PDF로 생성 (학생당 1 페이지 세트).
+    /// FileSavePicker 미사용 — 고정 경로에 저장.
+    /// </summary>
+    public async Task<string?> GenerateClassCardsPdfFromDbAsync(int year, int grade, int classNo)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+        ConfigureKoreanFont();
+
+        var students = await LoadClassStudentsAsync(year, grade, classNo);
+        if (students.Count == 0) return null;
+
+        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+        var fileName = $"학생카드_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+        var filePath = Path.Combine(dir, fileName);
+
+        await Task.Run(() =>
+        {
+            Document.Create(container =>
+            {
+                foreach (var vm in students)
+                {
+                    var g = vm.Enrollment?.Grade ?? grade;
+                    var c = vm.Enrollment?.Class ?? classNo;
+                    var n = vm.Enrollment?.Number ?? 0;
+                    var y = vm.Enrollment?.Year ?? year;
+
+                    container.Page(page =>
+                    {
+                        page.Size(PageSizes.A4);
+                        page.Margin(30);
+                        page.PageColor(Colors.White);
+                        page.Header().Element(hc => ComposeHeader(hc, y, g, c, n));
+                        page.Content().Element(cc => ComposeContent(cc, vm, includeDetailInfo: true, studentLogs: null));
+                        page.Footer().Element(ComposeFooter);
+                    });
+                }
+            }).GeneratePdf(filePath);
+        });
+
+        return filePath;
+    }
+
+    /// <summary>
+    /// 학급 전체 학생카드 DB 로드 (Enrollment + Student + StudentDetail).
+    /// </summary>
+    internal static async Task<List<StudentCardViewModel>> LoadClassStudentsAsync(int year, int grade, int classNo)
+    {
+        string schoolCode = Settings.SchoolCode.Value;
+        using var enrollmentService = new EnrollmentService();
+        var enrollments = await enrollmentService.GetClassRosterAsync(schoolCode, year, grade, classNo);
+        if (enrollments.Count == 0) return new List<StudentCardViewModel>();
+
+        var ids = enrollments.Select(e => e.StudentID).ToList();
+        using var studentService = new StudentService(SchoolDatabase.DbPath);
+        var students = (await studentService.GetStudentsByIdsAsync(ids))
+            .ToDictionary(s => s.StudentID, s => s);
+
+        using var detailService = new StudentDetailService(SchoolDatabase.DbPath);
+        var details = (await detailService.GetByStudentIdsAsync(ids))
+            .ToDictionary(d => d.StudentID, d => d);
+
+        var list = new List<StudentCardViewModel>();
+        foreach (var e in enrollments.OrderBy(x => x.Number))
+        {
+            students.TryGetValue(e.StudentID, out var st);
+            details.TryGetValue(e.StudentID, out var d);
+            var vm = new StudentCardViewModel();
+            vm.LoadFromModels(e, st, d);
+            list.Add(vm);
+        }
+        return list;
     }
 }

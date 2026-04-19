@@ -347,4 +347,87 @@ public class HtmlExportService
     }
 
     #endregion
+
+    #region 학생카드 (학급 일괄)
+
+    /// <summary>학급 전체 학생카드 HTML 문자열 생성 (학생당 1 섹션).</summary>
+    public string BuildClassCardsHtml(
+        int year, int grade, int classNo,
+        List<StudentCardViewModel> students)
+    {
+        var sb = new StringBuilder(BuildHtmlHeader($"학생카드 - {grade}학년 {classNo}반"));
+        sb.AppendLine($"<h1>{year}학년도 학생 카드</h1>");
+        sb.AppendLine($"<div class=\"meta\">{grade}학년 {classNo}반 · 총 {students.Count}명</div>");
+
+        foreach (var vm in students)
+        {
+            AppendStudentCardSection(sb, vm, year, grade, classNo);
+        }
+
+        sb.Append(BuildHtmlFooter());
+        return sb.ToString();
+    }
+
+    /// <summary>학급 전체 학생카드 HTML 파일 저장.</summary>
+    public string ExportClassCardsToHtml(
+        int year, int grade, int classNo,
+        List<StudentCardViewModel> students)
+    {
+        var fileName = $"학생카드_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var html = BuildClassCardsHtml(year, grade, classNo, students);
+        File.WriteAllText(filePath, html, Encoding.UTF8);
+        return filePath;
+    }
+
+    private static void AppendStudentCardSection(
+        StringBuilder sb, StudentCardViewModel vm, int year, int grade, int classNo)
+    {
+        var s = vm.Student;
+        var d = vm.Detail;
+        var e = vm.Enrollment;
+        var number = e?.Number ?? 0;
+        var name = vm.Name;
+
+        sb.AppendLine($"<h2>{number}번 · {E(name)}</h2>");
+        sb.AppendLine("<table>");
+        sb.AppendLine("<tbody>");
+        Row(sb, "학번", s?.StudentID, "성별", s?.Sex);
+        Row(sb, "생년월일", s?.BirthDate?.ToString("yyyy-MM-dd"), "연락처", s?.Phone);
+        Row(sb, "주소", s?.Address, "이메일", s?.Email);
+        if (d != null)
+        {
+            Row(sb, "아버지", $"{d.FatherName} {d.FatherPhone}".Trim(), "직업", d.FatherJob);
+            Row(sb, "어머니", $"{d.MotherName} {d.MotherPhone}".Trim(), "직업", d.MotherJob);
+            if (!string.IsNullOrWhiteSpace(d.GuardianName))
+                Row(sb, "보호자", $"{d.GuardianName} {d.GuardianPhone} ({d.GuardianRelation})".Trim(), string.Empty, string.Empty);
+            if (!string.IsNullOrWhiteSpace(d.HealthInfo) || !string.IsNullOrWhiteSpace(d.Allergies))
+                Row(sb, "건강", d.HealthInfo, "알레르기", d.Allergies);
+            if (!string.IsNullOrWhiteSpace(d.CareerGoal) || !string.IsNullOrWhiteSpace(d.Interests))
+                Row(sb, "진로", d.CareerGoal, "관심사", d.Interests);
+            if (!string.IsNullOrWhiteSpace(d.SpecialNeeds))
+                FullRow(sb, "특이사항", d.SpecialNeeds);
+        }
+        if (!string.IsNullOrWhiteSpace(s?.Memo))
+            FullRow(sb, "메모", s.Memo);
+        sb.AppendLine("</tbody></table>");
+    }
+
+    private static void Row(StringBuilder sb, string l1, string? v1, string l2, string? v2)
+    {
+        sb.Append("<tr>");
+        sb.Append($"<th style=\"width:80px\">{E(l1)}</th><td style=\"width:35%\">{E(v1)}</td>");
+        sb.Append($"<th style=\"width:80px\">{E(l2)}</th><td>{E(v2)}</td>");
+        sb.AppendLine("</tr>");
+    }
+
+    private static void FullRow(StringBuilder sb, string label, string? value)
+    {
+        sb.Append("<tr>");
+        sb.Append($"<th style=\"width:80px\">{E(label)}</th>");
+        sb.Append($"<td colspan=\"3\">{E(value)}</td>");
+        sb.AppendLine("</tr>");
+    }
+
+    #endregion
 }

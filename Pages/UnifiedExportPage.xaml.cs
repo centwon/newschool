@@ -140,6 +140,7 @@ public sealed partial class UnifiedExportPage : Page
     {
         if (RbStudentSpec.IsChecked == true) return UnifiedExportService.DataType.StudentSpec;
         if (RbSeats.IsChecked == true) return UnifiedExportService.DataType.Seats;
+        if (RbStudentCard?.IsChecked == true) return UnifiedExportService.DataType.StudentCard;
         return UnifiedExportService.DataType.StudentLog;
     }
 
@@ -152,9 +153,11 @@ public sealed partial class UnifiedExportPage : Page
         if (RbFmtExcel == null) return;
 
         bool isSeats = RbSeats?.IsChecked == true;
-        RbFmtExcel.IsEnabled = !isSeats;
+        bool isCard = RbStudentCard?.IsChecked == true;
+        bool excelDisabled = isSeats || isCard;
+        RbFmtExcel.IsEnabled = !excelDisabled;
 
-        if (isSeats && RbFmtExcel.IsChecked == true)
+        if (excelDisabled && RbFmtExcel.IsChecked == true)
         {
             RbFmtExcel.IsChecked = false;
             RbFmtPdf.IsChecked = true;

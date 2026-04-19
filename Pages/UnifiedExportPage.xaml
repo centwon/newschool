@@ -44,6 +44,10 @@
                                  Content="좌석배정"
                                  GroupName="DataType"
                                  Checked="DataType_Checked"/>
+                    <RadioButton x:Name="RbStudentCard"
+                                 Content="학생카드"
+                                 GroupName="DataType"
+                                 Checked="DataType_Checked"/>
                 </StackPanel>
             </StackPanel>
         </Border>

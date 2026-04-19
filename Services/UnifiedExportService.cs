@@ -17,7 +17,8 @@ public class UnifiedExportService
     {
         StudentLog,   // 누가기록
         StudentSpec,  // 학생부 특기사항
-        Seats         // 좌석배정 (PDF/HTML 전용)
+        Seats,        // 좌석배정 (PDF/HTML 전용)
+        StudentCard   // 학생카드 (PDF/HTML 전용)
     }
 
     public enum ExportFormat
@@ -40,6 +41,7 @@ public class UnifiedExportService
             DataType.StudentLog => await ExportClassLogsAsync(format, year, grade, classNo),
             DataType.StudentSpec => await ExportClassSpecsAsync(format, year, grade, classNo),
             DataType.Seats => await ExportClassSeatsAsync(format, year, grade, classNo),
+            DataType.StudentCard => await ExportClassCardsAsync(format, year, grade, classNo),
             _ => null
         };
     }
@@ -72,6 +74,13 @@ public class UnifiedExportService
                 return await new SeatsPrintService()
                     .BuildSeatsHtmlFromDbAsync(year, grade, classNo);
             }
+            case DataType.StudentCard:
+            {
+                var data = await StudentCardPrintService.LoadClassStudentsAsync(year, grade, classNo);
+                if (data.Count == 0) return null;
+                return new HtmlExportService()
+                    .BuildClassCardsHtml(year, grade, classNo, data);
+            }
             default:
                 return null;
         }
@@ -89,6 +98,28 @@ public class UnifiedExportService
             ExportFormat.Html => await service.GenerateSeatsHtmlFromDbAsync(year, grade, classNo),
             _ => null
         };
+    }
+
+    #endregion
+
+    #region 학생카드 (PDF/HTML 전용)
+
+    private static async Task<string?> ExportClassCardsAsync(
+        ExportFormat format, int year, int grade, int classNo)
+    {
+        if (format == ExportFormat.Pdf)
+        {
+            return await new StudentCardPrintService()
+                .GenerateClassCardsPdfFromDbAsync(year, grade, classNo);
+        }
+        if (format == ExportFormat.Html)
+        {
+            var data = await StudentCardPrintService.LoadClassStudentsAsync(year, grade, classNo);
+            if (data.Count == 0) return null;
+            return new HtmlExportService()
+                .ExportClassCardsToHtml(year, grade, classNo, data);
+        }
+        return null;
     }
 
     #endregion

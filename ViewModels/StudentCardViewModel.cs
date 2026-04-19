@@ -203,6 +203,24 @@ public class StudentCardViewModel : NotifyPropertyChangedBase, IDisposable
     }
 
     /// <summary>
+    /// Enrollment + Student + StudentDetail 일괄 초기화 (학급 배치 내보내기용).
+    /// DB 호출 없이 미리 로드한 모델들을 주입한다.
+    /// </summary>
+    public void LoadFromModels(Enrollment enrollment, Student? student, StudentDetail? detail)
+    {
+        Student = student ?? new Student
+        {
+            StudentID = enrollment.StudentID,
+            Name = enrollment.Name,
+            Sex = enrollment.Sex,
+            Photo = enrollment.Photo
+        };
+        Enrollment = enrollment;
+        if (detail != null) Detail = detail;
+        IsChanged = false;
+    }
+
+    /// <summary>
     /// 학생 정보 로드 (Student + StudentDetail + Enrollment)
     /// </summary>
     public async Task LoadStudentAsync(string studentId)
