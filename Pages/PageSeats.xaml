@@ -74,7 +74,7 @@
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="BtnExclusion"
                                 Click="BtnExclusion_Click"
-                                ToolTipService.ToolTip="짝 설정 (분리/고정)"
+                                ToolTipService.ToolTip="배치 옵션 (이력/속성/짝제약/방식)"
                                 Padding="2"
                                 MinWidth="0" MinHeight="0"
                                 BorderThickness="0"
@@ -123,6 +123,16 @@
                         <Button x:Name="BtnArrange" Content="자동배정"
                                 Style="{StaticResource AccentButtonStyle}"
                                 Click="BtnArrange_Click"/>
+                        <Button x:Name="BtnSave"
+                                Click="BtnSave_Click"
+                                ToolTipService.ToolTip="저장">
+                            <FontIcon Glyph="&#xE74E;" FontSize="14"/>
+                        </Button>
+                        <ToggleButton x:Name="BtnLock"
+                                Click="BtnLock_Click"
+                                ToolTipService.ToolTip="배치 잠금 (드래그·재배치 금지)">
+                            <FontIcon Glyph="&#xE72E;" FontSize="14"/>
+                        </ToggleButton>
                         <Button x:Name="BtnPrint"
                                 Click="BtnPrint_Click"
                                 ToolTipService.ToolTip="인쇄">

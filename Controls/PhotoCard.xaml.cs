@@ -53,6 +53,7 @@ namespace NewSchool.Controls
             {
                 _isUnUsed = value;
                 SetUnUsedStyle(value);
+                if (MenuSeatDisable != null) MenuSeatDisable.IsChecked = value;
                 UnUsedChanged?.Invoke(this, new EventArgs());
             }
         }
@@ -66,6 +67,7 @@ namespace NewSchool.Controls
             {
                 _isHidden = value;
                 SetHiddenStyle(value);
+                if (MenuSeatHidden != null) MenuSeatHidden.IsChecked = value;
                 HiddenChanged?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -78,6 +80,7 @@ namespace NewSchool.Controls
             set
             {
                 _isFixed = value;
+                if (MenuSeatFixed != null) MenuSeatFixed.IsChecked = value;
                 FixedChanged?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -390,6 +393,9 @@ namespace NewSchool.Controls
         public int Class { get; set; }
         public string PhotoPath { get; set; } = string.Empty;
 
+        /// <summary>성별 ("남"/"여") — 남녀 교차 짝 옵션용</summary>
+        public string Sex { get; set; } = string.Empty;
+
         /// <summary>
         /// Enrollment + Student에서 생성
         /// </summary>
@@ -402,7 +408,8 @@ namespace NewSchool.Controls
                 Number = enrollment.Number,
                 Grade = enrollment.Grade,
                 Class = enrollment.Class,
-                PhotoPath = student.Photo
+                PhotoPath = student.Photo,
+                Sex = student.Sex ?? string.Empty
             };
         }
     }
