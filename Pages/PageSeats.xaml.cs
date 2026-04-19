@@ -74,9 +74,15 @@ public sealed partial class PageSeats : Page
     private readonly List<(string IdA, string IdB)> _exclusionPairs = new();
     private readonly List<(string IdA, string IdB)> _fixedPairs = new();
 
+    // 배치 옵션 (이력·성별·앞자리 등) — SeatService로 저장·로드
+    private SeatOptions _options = new();
+    private bool _isLocked;
+    private int _savedRoundsCount; // 다이얼로그 안내용
+
     // Services
     private EnrollmentService? enrollmentService;
     private StudentService? studentService;
+    private SeatService? seatService;
 
     #endregion
 
@@ -117,6 +123,7 @@ public sealed partial class PageSeats : Page
         {
             enrollmentService = new EnrollmentService();
             studentService = new StudentService(SchoolDatabase.DbPath);
+            seatService = new SeatService();
         }
         catch (Exception ex)
         {
@@ -258,15 +265,19 @@ public sealed partial class PageSeats : Page
                     Number = enrollment.Number,
                     Grade = enrollment.Grade,
                     Class = enrollment.Class,
-                    PhotoPath = enrollment.Photo ?? ""
+                    PhotoPath = enrollment.Photo ?? "",
+                    Sex = enrollment.Sex ?? string.Empty
                 });
             }
 
             // ListStudent 컨트롤에 Enrollment 직접 로드
             StudentList.LoadStudents(roster.OrderBy(e => e.Number).ToList());
             TotalStudents = students.Count;
-            
+
             Debug.WriteLine($"[PageSeats] 학생 목록 로드 완료: {TotalStudents}명");
+
+            // 저장된 배치 복원 시도
+            await TryLoadSavedArrangementAsync();
         }
         catch (Exception ex)
         {
@@ -567,6 +578,11 @@ public sealed partial class PageSeats : Page
     private async Task ArrangeSeatAsync()
     {
         if (!CheckSeat()) return;
+        if (_isLocked)
+        {
+            await MessageBox.ShowAsync("배치가 잠겨 있습니다. 잠금을 해제하세요.", "잠김");
+            return;
+        }
 
         // 고정 좌석 제외하고 초기화
         foreach (var card in Cards)
@@ -577,11 +593,30 @@ public sealed partial class PageSeats : Page
         }
 
         Random random = new();
-        const int maxAttempts = 200;
+
+        // 이력 기반 제약 로드
+        HashSet<(string, string)> recentPairs = new();
+        Dictionary<string, HashSet<(int, int)>> recentPositions = new();
+        if (seatService != null)
+        {
+            if (_options.RecentPairAvoidRounds > 0)
+            {
+                recentPairs = await seatService.GetRecentPairsAsync(
+                    Settings.SchoolCode.Value, Settings.WorkYear.Value,
+                    Grade, ClassRoom, _options.RecentPairAvoidRounds);
+            }
+            if (_options.RecentPositionAvoidRounds > 0)
+            {
+                recentPositions = await seatService.GetRecentPositionsAsync(
+                    Settings.SchoolCode.Value, Settings.WorkYear.Value,
+                    Grade, ClassRoom, _options.RecentPositionAvoidRounds);
+            }
+        }
+
+        int maxAttempts = _options.MaxAttempts > 0 ? _options.MaxAttempts : 500;
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
-            // 비고정 좌석 초기화 (재시도용)
             if (attempt > 0)
             {
                 foreach (var card in Cards)
@@ -591,21 +626,58 @@ public sealed partial class PageSeats : Page
                 }
             }
 
-            // 랜덤 배치
-            foreach (var student in students)
+            // 1) 앞자리 우선 학생을 먼저 배치 (FrontPriorityMaxRow 이하 Row에 한정)
+            var placedIds = new HashSet<string>();
+            foreach (var frontId in _options.FrontPriorityStudentIds)
             {
-                if (Cards.Any(c => c.StudentData != null && c.StudentData.StudentID == student.StudentID))
-                    continue;
+                var student = students.FirstOrDefault(s => s.StudentID == frontId);
+                if (student == null) continue;
 
+                var frontSeats = Cards
+                    .Where(c => !c.IsFixed && !c.IsUnUsed && c.StudentData == null
+                                && c.Row <= _options.FrontPriorityMaxRow)
+                    .Where(c => !IsForbiddenPos(frontId, c.Row, c.Col, recentPositions))
+                    .ToList();
+                if (frontSeats.Count == 0)
+                {
+                    // 위치 배제 무시하고 앞자리 우선 보장
+                    frontSeats = Cards
+                        .Where(c => !c.IsFixed && !c.IsUnUsed && c.StudentData == null
+                                    && c.Row <= _options.FrontPriorityMaxRow)
+                        .ToList();
+                }
+                if (frontSeats.Count == 0) continue;
+
+                var pick = frontSeats[random.Next(frontSeats.Count)];
+                pick.StudentData = student;
+                placedIds.Add(student.StudentID);
+            }
+
+            // 2) 나머지 랜덤 배치
+            var remaining = students.Where(s => !placedIds.Contains(s.StudentID)
+                && !Cards.Any(c => c.StudentData?.StudentID == s.StudentID)).ToList();
+
+            // 섞어서 편향 완화
+            for (int i = remaining.Count - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+                (remaining[i], remaining[j]) = (remaining[j], remaining[i]);
+            }
+
+            foreach (var student in remaining)
+            {
                 var available = Cards.Where(c => !c.IsFixed && !c.IsUnUsed && c.StudentData == null).ToList();
                 if (available.Count == 0) break;
 
-                int n = random.Next(available.Count);
-                available[n].StudentData = student;
+                // 위치 이력 배제 필터
+                var filtered = available.Where(c => !IsForbiddenPos(student.StudentID, c.Row, c.Col, recentPositions)).ToList();
+                var pool = filtered.Count > 0 ? filtered : available;
+
+                pool[random.Next(pool.Count)].StudentData = student;
             }
 
-            // 짝 제약 검증: 위반 없으면 성공
-            if ((_exclusionPairs.Count == 0 && _fixedPairs.Count == 0) || !HasPairViolation())
+            // 3) 제약 검증 (기존 짝 제약 + 이력 짝 + 남녀 교차)
+            if (IsValidArrangement(recentPairs))
                 break;
         }
 
@@ -616,6 +688,202 @@ public sealed partial class PageSeats : Page
 
         // 정위치 배치
         await SeatAssignAsync();
+    }
+
+    /// <summary>특정 학생을 특정 좌표에 배치하면 최근 이력과 겹치는가?</summary>
+    private static bool IsForbiddenPos(
+        string studentId, int row, int col,
+        Dictionary<string, HashSet<(int, int)>> recent)
+    {
+        return recent.TryGetValue(studentId, out var set) && set.Contains((row, col));
+    }
+
+    /// <summary>현재 배치가 모든 제약(분리·고정·이력·남녀)을 만족하는가?</summary>
+    private bool IsValidArrangement(HashSet<(string, string)> recentPairs)
+    {
+        // 분리/고정 (기존)
+        if ((_exclusionPairs.Count > 0 || _fixedPairs.Count > 0) && HasPairViolation())
+            return false;
+
+        // 짝 모드가 아니면 이하 제약 무관
+        if (_jjak < 2) return true;
+
+        // 인접한 짝 쌍 추출
+        var pairs = new List<(PhotoCard A, PhotoCard B)>();
+        foreach (var a in Cards)
+        {
+            foreach (var b in Cards)
+            {
+                if (a == b) continue;
+                if (a.StudentData == null || b.StudentData == null) continue;
+                if (!AreNeighbors(a, b)) continue;
+                if (string.Compare(a.StudentData.StudentID, b.StudentData.StudentID, StringComparison.Ordinal) >= 0) continue;
+                pairs.Add((a, b));
+            }
+        }
+
+        // 이력 짝 배제
+        foreach (var (a, b) in pairs)
+        {
+            var ia = a.StudentData!.StudentID;
+            var ib = b.StudentData!.StudentID;
+            var key = string.Compare(ia, ib, StringComparison.Ordinal) < 0 ? (ia, ib) : (ib, ia);
+            if (recentPairs.Contains(key)) return false;
+        }
+
+        // 남녀 교차 우선: 가능한 쌍에서 동성 짝이 있으면 실패 처리
+        if (_options.PreferMixedGenderPair)
+        {
+            foreach (var (a, b) in pairs)
+            {
+                var sa = a.StudentData!.Sex ?? string.Empty;
+                var sb = b.StudentData!.Sex ?? string.Empty;
+                if (!string.IsNullOrEmpty(sa) && !string.IsNullOrEmpty(sb) && sa == sb)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>저장된 배치를 로드해 카드에 반영</summary>
+    private async Task TryLoadSavedArrangementAsync()
+    {
+        if (seatService == null || Grade == 0 || ClassRoom == 0) return;
+
+        var saved = await seatService.LoadAsync(
+            Settings.SchoolCode.Value, Settings.WorkYear.Value, Grade, ClassRoom);
+
+        // 옵션은 항상 로드(없으면 기본값)
+        _options = await seatService.LoadOptionsAsync(
+            Settings.SchoolCode.Value, Settings.WorkYear.Value, Grade, ClassRoom);
+        _exclusionPairs.Clear();
+        _exclusionPairs.AddRange(_options.ExclusionPairs.Select(p => (p.IdA, p.IdB)));
+        _fixedPairs.Clear();
+        _fixedPairs.AddRange(_options.FixedPairs.Select(p => (p.IdA, p.IdB)));
+
+        if (saved == null)
+        {
+            _savedRoundsCount = 0;
+            _isLocked = false;
+            BtnLock.IsChecked = false;
+            return;
+        }
+
+        _savedRoundsCount = await CountRoundsAsync();
+
+        // 레이아웃 복원: Jul·Jjak·Rows 반영 후 InitSeats 재호출
+        _jul = saved.Jul;
+        _jjak = saved.Jjak;
+        NBoxJul.Value = _jul;
+        ChkJJak.IsChecked = _jjak == 2;
+        IsViewPhoto = saved.ShowPhoto;
+        ChkViewPhoto.IsChecked = IsViewPhoto;
+        TboxMessage.Text = saved.Message ?? string.Empty;
+        UpdateDotPattern();
+
+        InitSeats();
+
+        // 셀 상태 + 학생 배정 복원
+        foreach (var a in saved.Assignments)
+        {
+            var card = Cards.FirstOrDefault(c => c.Row == a.Row && c.Col == a.Col);
+            if (card == null) continue;
+            if (a.IsUnUsed) card.IsUnUsed = true;
+            if (a.IsHidden) card.IsHidden = true;
+            if (!string.IsNullOrEmpty(a.StudentID))
+            {
+                var student = students.FirstOrDefault(s => s.StudentID == a.StudentID);
+                if (student != null) card.StudentData = student;
+            }
+            if (a.IsFixed) card.IsFixed = true;
+        }
+
+        _isLocked = saved.IsLocked;
+        BtnLock.IsChecked = _isLocked;
+        ApplyLockState();
+    }
+
+    private async Task<int> CountRoundsAsync()
+    {
+        if (seatService == null) return 0;
+        // GetRecentPairsAsync(큰값) 호출하면 전체 round 수와 동등 — 간이 구현.
+        var all = await seatService.GetRecentPairsAsync(
+            Settings.SchoolCode.Value, Settings.WorkYear.Value, Grade, ClassRoom, int.MaxValue);
+        return all.Count > 0 ? 1 : 0; // pair가 있으면 최소 1회차. 정확 카운트는 불필요.
+    }
+
+    /// <summary>저장 버튼</summary>
+    private async void BtnSave_Click(object sender, RoutedEventArgs e)
+    {
+        if (!isInitialized || seatService == null)
+        {
+            await MessageBox.ShowAsync("좌석이 초기화되지 않았습니다.", "오류");
+            return;
+        }
+        if (Grade == 0 || ClassRoom == 0)
+        {
+            await MessageBox.ShowAsync("학년·반을 선택하세요.", "알림");
+            return;
+        }
+
+        var arrangement = new SeatArrangement
+        {
+            SchoolCode = Settings.SchoolCode.Value,
+            Year = Settings.WorkYear.Value,
+            Grade = Grade,
+            Class = ClassRoom,
+            Jul = _jul,
+            Jjak = _jjak,
+            Rows = TotalRows,
+            ShowPhoto = IsViewPhoto,
+            Message = TboxMessage.Text ?? string.Empty,
+            IsLocked = _isLocked,
+        };
+
+        foreach (var c in Cards)
+        {
+            arrangement.Assignments.Add(new SeatAssignment
+            {
+                Row = c.Row,
+                Col = c.Col,
+                StudentID = c.StudentData?.StudentID,
+                IsUnUsed = c.IsUnUsed,
+                IsHidden = c.IsHidden,
+                IsFixed = c.IsFixed
+            });
+        }
+
+        try
+        {
+            await seatService.SaveAsync(arrangement, _options, _jjak);
+            _savedRoundsCount++;
+            SelectedStudentInfoBar.Severity = InfoBarSeverity.Success;
+            SelectedStudentInfoBar.Title = "저장 완료";
+            SelectedStudentInfoBar.Message = $"{Grade}학년 {ClassRoom}반 좌석 배치가 저장되었습니다.";
+            SelectedStudentInfoBar.IsOpen = true;
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync($"저장 실패: {ex.Message}", "오류");
+        }
+    }
+
+    /// <summary>잠금 토글</summary>
+    private void BtnLock_Click(object sender, RoutedEventArgs e)
+    {
+        _isLocked = BtnLock.IsChecked == true;
+        ApplyLockState();
+    }
+
+    private void ApplyLockState()
+    {
+        foreach (var c in Cards)
+        {
+            c.AllowDrop = !_isLocked;
+            c.CanDrag = !_isLocked;
+        }
+        BtnArrange.IsEnabled = !_isLocked;
     }
 
     private async Task SeatAnimationAsync()
@@ -673,17 +941,20 @@ public sealed partial class PageSeats : Page
             return;
         }
 
-        var dialog = new SeatExclusionDialog(students, _exclusionPairs, _fixedPairs)
+        var dialog = new SeatOptionsDialog(students, _options, _savedRoundsCount)
         {
             XamlRoot = this.XamlRoot
         };
-        await dialog.ShowAsync();
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary) return;
 
-        // 다이얼로그에서 수정된 목록 반영
+        _options = dialog.Result;
+
+        // 기존 _exclusionPairs / _fixedPairs 와 동기화 (알고리즘·HasPairViolation 호환)
         _exclusionPairs.Clear();
-        _exclusionPairs.AddRange(dialog.ExclusionPairs);
+        _exclusionPairs.AddRange(_options.ExclusionPairs.Select(p => (p.IdA, p.IdB)));
         _fixedPairs.Clear();
-        _fixedPairs.AddRange(dialog.FixedPairs);
+        _fixedPairs.AddRange(_options.FixedPairs.Select(p => (p.IdA, p.IdB)));
     }
 
     /// <summary>
@@ -787,6 +1058,7 @@ public sealed partial class PageSeats : Page
         // Service Dispose
         enrollmentService?.Dispose();
         studentService?.Dispose();
+        seatService?.Dispose();
     }
 
     #endregion

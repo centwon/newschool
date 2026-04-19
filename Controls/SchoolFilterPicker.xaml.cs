@@ -495,10 +495,20 @@ public sealed partial class SchoolFilterPicker : UserControl
             _isUpdating = true;
             await InitializeGradeComboBoxAsync();
             await InitializeClassComboBoxAsync();
-            
-            // 기본값 선택
-            if (CBoxGrade.Items.Count > 0) CBoxGrade.SelectedIndex = 0;
-            if (CBoxClass.Items.Count > 0) CBoxClass.SelectedIndex = 0;
+
+            // 기본값 선택 (DependencyProperty도 같이 갱신)
+            if (CBoxGrade.Items.Count > 0)
+            {
+                CBoxGrade.SelectedIndex = 0;
+                if (CBoxGrade.SelectedItem is ComboBoxItem gi && gi.Tag is int g)
+                    SelectedGrade = g;
+            }
+            if (CBoxClass.Items.Count > 0)
+            {
+                CBoxClass.SelectedIndex = 0;
+                if (CBoxClass.SelectedItem is ComboBoxItem ci && ci.Tag is int c)
+                    SelectedClass = c;
+            }
             _isUpdating = false;
 
             RaiseSelectionChanged();
@@ -529,7 +539,12 @@ public sealed partial class SchoolFilterPicker : UserControl
             // 반 콤보 갱신
             _isUpdating = true;
             await InitializeClassComboBoxAsync();
-            if (CBoxClass.Items.Count > 0) CBoxClass.SelectedIndex = 0;
+            if (CBoxClass.Items.Count > 0)
+            {
+                CBoxClass.SelectedIndex = 0;
+                if (CBoxClass.SelectedItem is ComboBoxItem ci && ci.Tag is int c)
+                    SelectedClass = c;
+            }
             _isUpdating = false;
 
             RaiseSelectionChanged();

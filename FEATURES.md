@@ -201,7 +201,8 @@
 | `ClassDiaryService.cs` | 학급일지 |
 | `AttachmentService.cs` | 공통 첨부파일 (파일 복사/삭제 + DB 관리) |
 | `PhotoService.cs` | 사진 |
-| `SeatsPrintService.cs` | 자리배치 출력 |
+| `SeatsPrintService.cs` | 자리배치 PDF/HTML 출력 (DB 로드 오버로드 포함) |
+| `SeatService.cs` | 자리배치 저장/로드, 짝·위치 이력 누적 |
 | `ReportExportService.cs` | 리포트 내보내기 |
 
 ---
@@ -362,7 +363,7 @@
 | 학생 정보 | `Pages/PageStudentInfo.xaml`, `Services/StudentService.cs` |
 | 학생 기록 | `Pages/PageStudentLog.xaml`, `Services/StudentLogService.cs` |
 | 학생부 | `Pages/StudentSpecPage.xaml`, `Services/StudentSpecialService.cs` |
-| 자리 배정 | `Pages/PageSeats.xaml`, `Services/SeatsPrintService.cs` |
+| 자리 배정 | `Pages/PageSeats.xaml`, `Services/SeatService.cs`, `Services/SeatsPrintService.cs`, `Dialogs/SeatOptionsDialog.xaml` |
 | 시간표 | `Controls/TimetableControl.xaml`, `Services/TimetableService.cs` |
 | 수업 관리 | `Pages/CourseManagementPage.xaml`, `Services/CourseService.cs` |
 | 진도 관리 | `Pages/ProgressMatrixPage.xaml`, `Services/ProgressSyncService.cs` |
