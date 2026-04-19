@@ -28,6 +28,7 @@ tmpclaude-*
 
 # Secrets
 google_oauth.json
+Settings.Secrets.cs
 
 # Installer outputs & prerequisites
 installer_output/
