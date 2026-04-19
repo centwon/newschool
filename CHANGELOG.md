@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.0.5 (2026-04-19)
+
+### 좌석 배정 전면 개편
+- **DB 영속화**: 학급별 좌석 배치를 DB에 저장/복원 (`SeatService`, 4개 테이블)
+  - `SeatArrangement` — 학급별 배치 메타 (Jul/Jjak/Rows/사진표시/메시지/잠금/옵션)
+  - `SeatAssignment` — 좌석 셀 (Row/Col/StudentID/미사용/미표시/고정)
+  - `SeatHistory` — 짝 이력 (회차별 인접 학생 쌍)
+  - `SeatPosHistory` — 위치 이력 (회차별 학생-좌표)
+  - 학급 선택 시 저장된 배치 자동 복원 (`PageSeats.TryLoadSavedArrangementAsync`)
+- **옵션 다이얼로그** (`SeatOptionsDialog`, Pivot 4개 탭)
+  - **이력**: 최근 N회차 짝 배제 / 같은 자리 배제
+  - **속성**: 남녀 교차 짝 (짝 모드 우선), 앞자리 우선 학생(허용 범위 지정)
+  - **짝 제약**: 분리(🚫) · 고정(📌) 쌍 관리
+  - **방식**: 배치 시도 횟수 (100/500/1000/3000)
+  - 옵션은 `OptionsJson`으로 직렬화해 배치와 함께 저장 (AOT-safe `SeatOptionsJsonContext`)
+- **배치 알고리즘 개선** (`PageSeats.ArrangeSeatAsync`)
+  - 앞자리 우선 학생을 범위(Row 0~N) 내에 우선 배치
+  - 이력 기반 회피: 최근 짝/위치 기피
+  - 유효성 검증: 분리/고정 쌍, 최근 짝, 성별 교차를 만족할 때까지 재시도
+- **저장/잠금 버튼** (`PageSeats`)
+  - 💾 수동 저장 (회차 누적, 이력 기록)
+  - 🔒 배치 잠금 (드래그/재배치 금지)
+- **통합 내보내기 연동** (`UnifiedExportService`, `UnifiedExportPage`)
+  - `DataType.Seats` 추가 — 좌석배정은 PDF/HTML 전용 (Excel 자동 비활성화)
+  - `SeatsPrintService.GenerateSeatsPdfFromDbAsync` — DB에서 직접 로드해 PDF 생성
+  - `SeatsPrintService.GenerateSeatsHtmlFromDbAsync` / `BuildSeatsHtmlFromDbAsync` — HTML 파일/문자열 출력
+  - 렌더링 코어를 `SeatCellData` DTO로 리팩터링해 PhotoCard 비의존
+- **컨텍스트 메뉴 동기화 수정** (`PhotoCard`)
+  - 프로그램이 `IsUnUsed`/`IsFixed`/`IsHidden`을 설정할 때 우클릭 메뉴의 `ToggleMenuFlyoutItem.IsChecked`도 함께 갱신 → 복원된 배치에서 메뉴 상태 정상 표시
+
 ## v1.0.4 (2026-04-06)
 
 ### UI 개선

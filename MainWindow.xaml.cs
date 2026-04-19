@@ -145,6 +145,9 @@ private void SetAppIcon()
                 case "StudentInfoExport":
                     WorkFrame.Navigate(typeof(StudentInfoExportPage));
                     break;
+                case "UnifiedExport":
+                    WorkFrame.Navigate(typeof(UnifiedExportPage));
+                    break;
 
                 case "CourseManagement":
                     // 수업 관리 (신규)

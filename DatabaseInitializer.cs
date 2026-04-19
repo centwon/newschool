@@ -516,6 +516,89 @@ namespace NewSchool.Database
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("  ✓ SchoolSchedule 테이블 생성");
 
+            // ==========================================
+            // SeatArrangement 테이블 (학급별 좌석 배치 메타)
+            // 저장/복원/출력을 위한 레이아웃 정보
+            // ==========================================
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS SeatArrangement (
+                    No INTEGER PRIMARY KEY AUTOINCREMENT,
+                    SchoolCode TEXT NOT NULL,
+                    Year INTEGER NOT NULL,
+                    Grade INTEGER NOT NULL,
+                    Class INTEGER NOT NULL,
+                    Jul INTEGER NOT NULL,
+                    Jjak INTEGER NOT NULL,
+                    Rows INTEGER NOT NULL,
+                    ShowPhoto INTEGER DEFAULT 0,
+                    Message TEXT DEFAULT '',
+                    IsLocked INTEGER DEFAULT 0,
+                    OptionsJson TEXT DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    UpdatedAt TEXT NOT NULL,
+                    UNIQUE(SchoolCode, Year, Grade, Class)
+                );";
+            await cmd.ExecuteNonQueryAsync();
+            Debug.WriteLine("  ✓ SeatArrangement 테이블 생성");
+
+            // ==========================================
+            // SeatAssignment 테이블 (좌석별 학생 배정)
+            // Row/Col 좌표마다 한 학생 또는 미사용 플래그
+            // ==========================================
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS SeatAssignment (
+                    No INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ArrangementNo INTEGER NOT NULL,
+                    Row INTEGER NOT NULL,
+                    Col INTEGER NOT NULL,
+                    StudentID TEXT NULL,
+                    IsUnUsed INTEGER DEFAULT 0,
+                    IsHidden INTEGER DEFAULT 0,
+                    IsFixed INTEGER DEFAULT 0,
+                    FOREIGN KEY (ArrangementNo) REFERENCES SeatArrangement(No) ON DELETE CASCADE,
+                    UNIQUE(ArrangementNo, Row, Col)
+                );";
+            await cmd.ExecuteNonQueryAsync();
+            Debug.WriteLine("  ✓ SeatAssignment 테이블 생성");
+
+            // ==========================================
+            // SeatHistory 테이블 (짝 이력 — 지난 짝 배제용)
+            // 저장 시점마다 짝(인접 좌석) 관계를 기록
+            // ==========================================
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS SeatHistory (
+                    No INTEGER PRIMARY KEY AUTOINCREMENT,
+                    SchoolCode TEXT NOT NULL,
+                    Year INTEGER NOT NULL,
+                    Grade INTEGER NOT NULL,
+                    Class INTEGER NOT NULL,
+                    StudentID_A TEXT NOT NULL,
+                    StudentID_B TEXT NOT NULL,
+                    Round INTEGER NOT NULL,
+                    Kind TEXT NOT NULL DEFAULT 'Pair',
+                    SavedAt TEXT NOT NULL
+                );";
+            await cmd.ExecuteNonQueryAsync();
+            Debug.WriteLine("  ✓ SeatHistory 테이블 생성");
+
+            // ==========================================
+            // SeatPosHistory 테이블 (좌석 위치 이력 — 지난 자리 배제용)
+            // ==========================================
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS SeatPosHistory (
+                    No INTEGER PRIMARY KEY AUTOINCREMENT,
+                    SchoolCode TEXT NOT NULL,
+                    Year INTEGER NOT NULL,
+                    Grade INTEGER NOT NULL,
+                    Class INTEGER NOT NULL,
+                    StudentID TEXT NOT NULL,
+                    Row INTEGER NOT NULL,
+                    Col INTEGER NOT NULL,
+                    Round INTEGER NOT NULL,
+                    SavedAt TEXT NOT NULL
+                );";
+            await cmd.ExecuteNonQueryAsync();
+            Debug.WriteLine("  ✓ SeatPosHistory 테이블 생성");
 
             Debug.WriteLine("[DatabaseInitializer] 모든 테이블 생성 완료");
         }
@@ -619,6 +702,18 @@ namespace NewSchool.Database
                 CREATE INDEX IF NOT EXISTS idx_classdiary_date ON ClassDiary(Date);
                 CREATE INDEX IF NOT EXISTS idx_classdiary_teacher ON ClassDiary(TeacherID);
 
+                -- SeatArrangement / SeatAssignment 인덱스
+                CREATE INDEX IF NOT EXISTS idx_seatarr_class ON SeatArrangement(SchoolCode, Year, Grade, Class);
+                CREATE INDEX IF NOT EXISTS idx_seatassign_arr ON SeatAssignment(ArrangementNo);
+                CREATE INDEX IF NOT EXISTS idx_seatassign_student ON SeatAssignment(StudentID);
+
+                -- SeatHistory 인덱스 (짝 이력)
+                CREATE INDEX IF NOT EXISTS idx_seathistory_class ON SeatHistory(SchoolCode, Year, Grade, Class, Round DESC);
+                CREATE INDEX IF NOT EXISTS idx_seathistory_students ON SeatHistory(StudentID_A, StudentID_B);
+
+                -- SeatPosHistory 인덱스 (자리 이력)
+                CREATE INDEX IF NOT EXISTS idx_seatposhistory_class ON SeatPosHistory(SchoolCode, Year, Grade, Class, Round DESC);
+                CREATE INDEX IF NOT EXISTS idx_seatposhistory_student ON SeatPosHistory(StudentID);
             ";
 
             await cmd.ExecuteNonQueryAsync();

@@ -96,7 +96,11 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:www.nuget.org)",
       "WebFetch(domain:meetup.nhncloud.com)",
-      "WebFetch(domain:chiqueen.dev)"
+      "WebFetch(domain:chiqueen.dev)",
+      "Bash(where.exe gh:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(\"C:/Program Files/dotnet/dotnet.exe\" build -c Debug -v minimal)",
+      "Bash(dir Services\\\\SeatsPrintService.cs Services\\\\UnifiedExportService.cs Pages\\\\UnifiedExportPage*.*)"
     ]
   }
 }

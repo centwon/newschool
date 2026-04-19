@@ -88,9 +88,16 @@
                         </NavigationViewItem>
                         <NavigationViewItem
                             Tag="StudentInfoExport"
-                            Content="출력">
+                            Content="학생정보 출력">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE749;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem
+                            Tag="UnifiedExport"
+                            Content="통합 내보내기">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8E5;"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem
