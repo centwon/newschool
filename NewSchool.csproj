@@ -87,7 +87,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="newschool.ico" />
-    <Content Include="google_oauth.json" Condition="Exists('google_oauth.json')">
+    <Content Include="secrets.json" Condition="Exists('secrets.json')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

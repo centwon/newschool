@@ -307,7 +307,7 @@ public static class Settings
         SchoolName = new SettingProperty<string>("SchoolName", "", s => s, s => s);
         SchoolAddress = new SettingProperty<string>("SchoolAddress", "", s => s, s => s);
         ProvinceName = new SettingProperty<string>("ProvinceName", "", s => s, s => s);
-        NeisApiKey = new SettingProperty<string>("NeisApiKey", SecretKeys.NeisApiKey, s => s, s => s);
+        NeisApiKey = new SettingProperty<string>("NeisApiKey", NewSchool.Services.SecretsService.NeisApiKey, s => s, s => s);
         WorkSemester = new SettingProperty<int>("WorkSemester", 0, int.Parse, i => i.ToString());
         TopMost = new SettingProperty<bool>("TopMost", true, bool.Parse, b => b.ToString().ToLower());
         UserName = new SettingProperty<string>("UserName", "", s => s, s => s);

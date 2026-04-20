@@ -1,6 +1,21 @@
 # Changelog
 
-## v1.0.5 (2026-04-19)
+## v1.0.5 (2026-04-19 ~ 2026-04-20)
+
+### 통합 내보내기 — 학생카드 타입 추가 (2026-04-20)
+- `DataType.StudentCard` 추가 (PDF/HTML 전용, Excel 자동 비활성화)
+- `StudentCardPrintService.GenerateClassCardsPdfFromDbAsync` — 학급 전체를 단일 PDF(학생당 1 페이지)
+- `HtmlExportService.BuildClassCardsHtml` / `ExportClassCardsToHtml` — 학생당 1 섹션 구성(기본 정보·보호자·건강·진로)
+- `StudentCardViewModel.LoadFromModels` 공개 메서드 — DB 호출 없이 Enrollment + Student + StudentDetail 주입
+
+### 비밀 정보 관리 구조 개편 (2026-04-20)
+- **`secrets.json` 통합 도입** — Google OAuth + NEIS API key 를 하나의 파일로 관리 (`.gitignore`)
+- `SecretsService` — 런타임에 `AppContext.BaseDirectory/secrets.json` 로드, 없으면 빈 값
+- `secrets.template.json` 커밋 — 새 환경용 템플릿
+- 기존 `google_oauth.json` 제거, `GoogleAuthService.ClientId`/`ClientSecret` → `SecretsService` 경유
+- `Settings.NeisApiKey` 기본값 → `SecretsService.NeisApiKey` (런타임 주입)
+- 과거 커밋에 포함되어 있던 NEIS API 인증키 제거 — `git-filter-repo` 로 히스토리 재작성 및 force-push 완료
+- 설치 프로그램(`installer.iss`, `NewSchoolSetup.iss`) — `google_oauth.json` → `secrets.json`
 
 ### 좌석 배정 전면 개편
 - **DB 영속화**: 학급별 좌석 배치를 DB에 저장/복원 (`SeatService`, 4개 테이블)

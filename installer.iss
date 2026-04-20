@@ -62,7 +62,7 @@ Source: "{#PublishDir}\NewSchool.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PublishDir}\NewSchool.pri"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#PublishDir}\newschool.ico"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#PublishDir}\newschool.png"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "{#PublishDir}\google_oauth.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#PublishDir}\secrets.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; === DLL 파일 ===
 Source: "{#PublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion

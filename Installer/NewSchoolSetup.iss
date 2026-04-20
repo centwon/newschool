@@ -74,8 +74,8 @@ Source: "{#PublishDir}\*.winmd"; DestDir: "{app}"; Flags: ignoreversion
 ; === Assets 폴더 (아이콘, Jodit, 도움말) ===
 Source: "{#PublishDir}\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; === OAuth (존재할 때만) ===
-Source: "{#PublishDir}\google_oauth.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+; === Secrets (존재할 때만 — Google OAuth + NEIS API key) ===
+Source: "{#PublishDir}\secrets.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; === 런타임 부트스트래퍼 (임시 폴더에 설치용으로만 복사) ===
 Source: "prerequisites\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist

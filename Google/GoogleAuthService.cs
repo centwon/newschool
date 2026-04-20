@@ -27,32 +27,10 @@ public class GoogleAuthService : IDisposable
 
     // ──────────────────────────────────────────────────────────────
     // Google Cloud Console에서 발급받은 OAuth 2.0 인증 정보
-    // google_oauth.json 파일에서 로드 (git에 포함되지 않음)
+    // secrets.json 의 google_oauth 섹션에서 로드 (SecretsService, git 제외)
     // ──────────────────────────────────────────────────────────────
-    internal static readonly string ClientId;
-    internal static readonly string ClientSecret;
-
-    static GoogleAuthService()
-    {
-        var configPath = Path.Combine(AppContext.BaseDirectory, "google_oauth.json");
-        if (File.Exists(configPath))
-        {
-            try
-            {
-                var json = File.ReadAllText(configPath);
-                using var doc = JsonDocument.Parse(json);
-                ClientId = doc.RootElement.GetProperty("client_id").GetString() ?? "";
-                ClientSecret = doc.RootElement.GetProperty("client_secret").GetString() ?? "";
-                return;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[GoogleAuthService] OAuth 설정 파일 읽기 실패: {ex.Message}");
-            }
-        }
-        ClientId = "";
-        ClientSecret = "";
-    }
+    internal static string ClientId => Services.SecretsService.GoogleClientId;
+    internal static string ClientSecret => Services.SecretsService.GoogleClientSecret;
 
     private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
     private bool _disposed;

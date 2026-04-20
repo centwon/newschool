@@ -26,9 +26,8 @@ Data/
 # Claude Code temp files
 tmpclaude-*
 
-# Secrets
-google_oauth.json
-Settings.Secrets.cs
+# Secrets (통합 secrets.json — Google OAuth + NEIS API key)
+secrets.json
 
 # Installer outputs & prerequisites
 installer_output/
