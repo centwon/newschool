@@ -24,6 +24,7 @@
 | `StudentSpec` | `StudentSpecPage.xaml` | 학생부 관리 |
 | `Seats` | `PageSeats.xaml` | 자리 배정 |
 | `StudentInfoExport` | `StudentInfoExportPage.xaml` | 학생 정보 출력 |
+| `UnifiedExport` | `UnifiedExportPage.xaml` | 통합 내보내기 (누가기록·학생부·좌석배정·학생카드 × Excel/PDF/HTML) |
 | `Timetable_ClassManagement` | `ClassTimetableManagementPage.xaml` | 학급 시간표 관리 |
 
 ---
@@ -204,6 +205,9 @@
 | `SeatsPrintService.cs` | 자리배치 PDF/HTML 출력 (DB 로드 오버로드 포함) |
 | `SeatService.cs` | 자리배치 저장/로드, 짝·위치 이력 누적 |
 | `ReportExportService.cs` | 리포트 내보내기 |
+| `UnifiedExportService.cs` | 통합 내보내기 (누가기록·학생부·좌석배정·학생카드 × Excel/PDF/HTML) |
+| `HtmlExportService.cs` | 공통 HTML 내보내기 (누가기록·학생부·좌석배정·학생카드) |
+| `SecretsService.cs` | `secrets.json` 런타임 로더 (Google OAuth + NEIS API key 통합) |
 
 ---
 
@@ -372,3 +376,5 @@
 | 달력/일정 | `Scheduler/Kcalendar.xaml`, `Scheduler/SchedulerService.cs` |
 | 학급일지 | `Pages/ClassDiaryPage.xaml`, `Services/ClassDiaryService.cs` |
 | 학사일정 | `Pages/SchoolScheduleManagementPage.xaml`, `Services/SchoolScheduleService.cs` |
+| 통합 내보내기 | `Pages/UnifiedExportPage.xaml`, `Services/UnifiedExportService.cs`, `Services/HtmlExportService.cs` |
+| 비밀 정보(API 키) | `secrets.json` (.gitignore), `secrets.template.json`, `Services/SecretsService.cs` |
