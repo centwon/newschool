@@ -125,8 +125,11 @@
                                 Click="BtnArrange_Click"/>
                         <Button x:Name="BtnSave"
                                 Click="BtnSave_Click"
-                                ToolTipService.ToolTip="저장">
+                                ToolTipService.ToolTip="저장 (Ctrl+S)">
                             <FontIcon Glyph="&#xE74E;" FontSize="14"/>
+                            <Button.KeyboardAccelerators>
+                                <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                            </Button.KeyboardAccelerators>
                         </Button>
                         <ToggleButton x:Name="BtnLock"
                                 Click="BtnLock_Click"

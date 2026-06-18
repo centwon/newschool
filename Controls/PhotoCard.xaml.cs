@@ -23,6 +23,10 @@ namespace NewSchool.Controls
         public int Row { get; set; }
         public int Col { get; set; }
 
+        // 사진 비동기 로딩 경합 방지용 토큰 — 새 요청이 들어올 때마다 증가시켜
+        // 늦게 끝나는 이전 디코딩이 Photo.Source 를 덮어쓰지 못하게 한다
+        private int _photoLoadToken = 0;
+
         // 사진 표시 여부
         private bool _isShowPhoto = false;
         public bool IsShowPhoto
@@ -182,6 +186,9 @@ namespace NewSchool.Controls
 
         private void SetStudent(StudentCardData? data)
         {
+            // 이전 비동기 로딩이 끝나서 늦게 도착해도 무시되도록 토큰을 먼저 증가
+            int myToken = ++_photoLoadToken;
+
             if (data == null)
             {
                 Photo.Source = null;
@@ -192,11 +199,16 @@ namespace NewSchool.Controls
                 TBName.Text = $"{data.Name}({data.Number})";
                 if (_isShowPhoto)
                 {
-                    _ = LoadPhotoAsync(data.PhotoPath).ContinueWith(t =>
+                    _ = LoadPhotoAsync(data.PhotoPath, myToken).ContinueWith(t =>
                     {
                         if (t.IsFaulted)
                             System.Diagnostics.Debug.WriteLine($"[PhotoCard] {t.Exception?.InnerException?.Message}");
                     }, TaskContinuationOptions.OnlyOnFaulted);
+                }
+                else
+                {
+                    // 사진 비표시 모드에서도 잔여 이미지 제거
+                    Photo.Source = null;
                 }
             }
         }
@@ -223,7 +235,8 @@ namespace NewSchool.Controls
 
                 if (_studentData != null && !string.IsNullOrEmpty(_studentData.PhotoPath))
                 {
-                    _ = LoadPhotoAsync(_studentData.PhotoPath).ContinueWith(t =>
+                    int myToken = ++_photoLoadToken;
+                    _ = LoadPhotoAsync(_studentData.PhotoPath, myToken).ContinueWith(t =>
                     {
                         if (t.IsFaulted)
                             System.Diagnostics.Debug.WriteLine($"[PhotoCard] {t.Exception?.InnerException?.Message}");
@@ -242,11 +255,14 @@ namespace NewSchool.Controls
         /// 비동기 사진 로딩
         /// 메모리 최적화: DecodePixelWidth 설정으로 메모리 사용량 80% 감소
         /// </summary>
-        private async Task LoadPhotoAsync(string photoPath)
+        private async Task LoadPhotoAsync(string photoPath, int token)
         {
+            // 토큰이 최신이 아니면(이미 다른 학생으로 변경됨) 즉시 종료
+            if (token != _photoLoadToken) return;
+
             if (string.IsNullOrWhiteSpace(photoPath))
             {
-                Photo.Source = null;
+                if (token == _photoLoadToken) Photo.Source = null;
                 return;
             }
 
@@ -259,12 +275,13 @@ namespace NewSchool.Controls
 
                 if (!File.Exists(fullPath))
                 {
-                    Photo.Source = null;
+                    if (token == _photoLoadToken) Photo.Source = null;
                     return;
                 }
 
                 // WinUI 3 방식으로 이미지 로딩
                 StorageFile file = await StorageFile.GetFileFromPathAsync(fullPath);
+                if (token != _photoLoadToken) return; // 파일 열기 도중 학생 변경됨
 
                 BitmapImage bitmap = new();
 
@@ -276,15 +293,18 @@ namespace NewSchool.Controls
                 // Stream을 using으로 명시적으로 관리하여 즉시 해제
                 using (IRandomAccessStream stream = await file.OpenAsync(FileAccessMode.Read))
                 {
+                    if (token != _photoLoadToken) return; // 디코딩 직전 학생 변경됨
                     await bitmap.SetSourceAsync(stream);
                 }
 
+                // 디코딩 완료 시점에 한 번 더 검증 — 늦게 끝난 stale 응답이 최신 사진을 덮어쓰지 않도록
+                if (token != _photoLoadToken) return;
                 Photo.Source = bitmap;
             }
             catch (Exception)
             {
-                // 로딩 실패 시 기본 이미지 또는 null
-                Photo.Source = null;
+                // 로딩 실패 시 기본 이미지 또는 null (단, 토큰이 최신일 때만)
+                if (token == _photoLoadToken) Photo.Source = null;
             }
         }
 

@@ -45,8 +45,20 @@ internal sealed partial class JulNumberFormatter : INumberFormatter2, INumberPar
 /// 좌석 배치 페이지
 /// Enrollment 모델 직접 사용 (StudentListItemViewModel 제거)
 /// </summary>
-public sealed partial class PageSeats : Page
+public sealed partial class PageSeats : Page, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        enrollmentService?.Dispose();
+        studentService?.Dispose();
+        seatService?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     #region Fields
 
     private ObservableCollection<StudentCardData> students = new();
@@ -60,6 +72,8 @@ public sealed partial class PageSeats : Page
     private int Grade = 0;
     private int ClassRoom = 0;
     private bool isInitialized = false;
+    // 복원 중에는 CheckSeat() 경고 팝업을 억제 — 미사용 좌석 복원 루프 도중의 중간 상태 경고 방지
+    private bool _suppressSeatCheck = false;
 
     // 클릭 기반 배치를 위한 필드 - Enrollment 사용
     private Enrollment? _selectedStudentFromList = null;
@@ -300,6 +314,8 @@ public sealed partial class PageSeats : Page
         if (Room == null) return;
 
         IsViewPhoto = ChkViewPhoto.IsChecked == true;
+        // 기존 Card 이벤트 구독 해제 → 재호출 시 누수 방지
+        DetachCardEvents();
         Room.Children.Clear();
         Cards.Clear();
 
@@ -364,7 +380,7 @@ public sealed partial class PageSeats : Page
         TBTable.Text = $"{Grade}학년 {ClassRoom}반";
 
         isInitialized = true;
-        CheckSeat();
+        if (!_suppressSeatCheck) CheckSeat();
     }
 
     #endregion
@@ -525,7 +541,7 @@ public sealed partial class PageSeats : Page
         var card = sender as PhotoCard;
         if (card == null) return;
         TotalSeats += card.IsUnUsed ? -1 : 1;
-        CheckSeat();
+        if (!_suppressSeatCheck) CheckSeat();
     }
 
     private void Card_FixedChanged(object? sender, EventArgs e)
@@ -782,22 +798,35 @@ public sealed partial class PageSeats : Page
         TboxMessage.Text = saved.Message ?? string.Empty;
         UpdateDotPattern();
 
-        InitSeats();
-
-        // 셀 상태 + 학생 배정 복원
-        foreach (var a in saved.Assignments)
+        // 복원 중 CheckSeat 경고 억제 — InitSeats(전체좌석=학생수 불일치 시점) +
+        // 미사용 카드 루프(중간 상태)에서 잘못된 경고가 뜨는 것을 방지
+        _suppressSeatCheck = true;
+        try
         {
-            var card = Cards.FirstOrDefault(c => c.Row == a.Row && c.Col == a.Col);
-            if (card == null) continue;
-            if (a.IsUnUsed) card.IsUnUsed = true;
-            if (a.IsHidden) card.IsHidden = true;
-            if (!string.IsNullOrEmpty(a.StudentID))
+            InitSeats();
+
+            // 셀 상태 + 학생 배정 복원
+            foreach (var a in saved.Assignments)
             {
-                var student = students.FirstOrDefault(s => s.StudentID == a.StudentID);
-                if (student != null) card.StudentData = student;
+                var card = Cards.FirstOrDefault(c => c.Row == a.Row && c.Col == a.Col);
+                if (card == null) continue;
+                if (a.IsUnUsed) card.IsUnUsed = true;
+                if (a.IsHidden) card.IsHidden = true;
+                if (!string.IsNullOrEmpty(a.StudentID))
+                {
+                    var student = students.FirstOrDefault(s => s.StudentID == a.StudentID);
+                    if (student != null) card.StudentData = student;
+                }
+                if (a.IsFixed) card.IsFixed = true;
             }
-            if (a.IsFixed) card.IsFixed = true;
         }
+        finally
+        {
+            _suppressSeatCheck = false;
+        }
+
+        // 복원 완료 후 한 번만 검증 (미사용 좌석 반영된 최종 TotalSeats 기준)
+        CheckSeat();
 
         _isLocked = saved.IsLocked;
         BtnLock.IsChecked = _isLocked;
@@ -1021,10 +1050,14 @@ public sealed partial class PageSeats : Page
             return;
         }
 
+        var dialog = new Dialogs.SeatPrintOptionsDialog { XamlRoot = this.XamlRoot };
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary) return;
+
         try
         {
             var printService = new SeatsPrintService();
-            
+
             var pdfPath = printService.GenerateSeatsPdf(
                 Cards,
                 Grade,
@@ -1032,7 +1065,9 @@ public sealed partial class PageSeats : Page
                 _jul,
                 _jjak,
                 TboxMessage.Text,
-                IsViewPhoto);
+                IsViewPhoto,
+                dialog.Orientation,
+                dialog.IncludeRoster);
 
             // PDF를 시스템 기본 뷰어로 열기
             var uri = new Uri($"file:///{pdfPath.Replace("\\", "/")}");
@@ -1055,10 +1090,33 @@ public sealed partial class PageSeats : Page
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
+        // 자식 학생 리스트 선택 이벤트 해제
+        StudentList.StudentSelected -= StudentList_StudentSelected;
+
+        // Card 이벤트 구독 일괄 해제 (좌석×6개 이벤트 누적 누수 차단)
+        DetachCardEvents();
+
         // Service Dispose
         enrollmentService?.Dispose();
         studentService?.Dispose();
         seatService?.Dispose();
+    }
+
+    /// <summary>
+    /// 현재 Cards 목록의 모든 PhotoCard 에서 등록된 이벤트 구독을 해제한다.
+    /// InitSeats 재호출 / Page 언로드 시 호출.
+    /// </summary>
+    private void DetachCardEvents()
+    {
+        foreach (var card in Cards)
+        {
+            card.StudentChanged -= Card_StudentChanged;
+            card.UnUsedChanged  -= Card_UnUsedChanged;
+            card.FixedChanged   -= Card_FixedChanged;
+            card.DragOver       -= Card_DragOver;
+            card.Drop           -= Card_Drop;
+            card.Tapped         -= Card_Tapped;
+        }
     }
 
     #endregion

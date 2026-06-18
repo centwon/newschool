@@ -277,9 +277,19 @@ public sealed partial class RosterTableDialog : ContentDialog
                         ShowError("동아리를 선택하세요.");
                         return string.Empty;
                     }
-                    students = await LoadClubStudentsAsync(club.No);
-                    scopeLabel = $"{Settings.WorkYear.Value}학년도 {club.ClubName}";
-                    break;
+                    var clubStudents = await LoadClubStudentsDetailedAsync(club.No);
+                    if (clubStudents.Count == 0)
+                    {
+                        ShowError("학생이 없습니다.");
+                        return string.Empty;
+                    }
+                    var clubScope = $"{Settings.WorkYear.Value}학년도 {club.ClubName}";
+                    var clubRows = clubStudents
+                        .Select(s => (Lead: new[] { s.Grade.ToString(), s.Class.ToString() }, s.Number, s.Name))
+                        .ToList();
+                    return BuildGroupedVerticalTable(
+                        TableTitleBox.Text.Trim(), clubScope,
+                        new[] { "학년", "학급" }, clubRows, columns);
 
                 default:
                     return string.Empty;
@@ -321,9 +331,14 @@ public sealed partial class RosterTableDialog : ContentDialog
             kv => $"{grade}학년 {kv.Key}반",
             kv => kv.Value);
 
-        return layout == "Horizontal"
-            ? BuildGroupedHorizontalTable(title, scopeLabel, columns, groupMap)
-            : BuildGroupedVerticalTable(title, scopeLabel, columns, groupMap);
+        if (layout == "Horizontal")
+            return BuildGroupedHorizontalTable(title, scopeLabel, columns, groupMap);
+
+        // 세로: 학년은 scopeLabel 에 이미 표시되므로 반만 별도 칼럼으로
+        var rows = classMap
+            .SelectMany(kv => kv.Value.Select(s => (Lead: new[] { kv.Key.ToString() }, s.Number, s.Name)))
+            .ToList();
+        return BuildGroupedVerticalTable(title, scopeLabel, new[] { "학급" }, rows, columns);
     }
 
     private async Task<string> GenerateCourseGroupedTableAsync(List<string> columns)
@@ -334,9 +349,9 @@ public sealed partial class RosterTableDialog : ContentDialog
             return string.Empty;
         }
 
-        var roomMap = await LoadCourseStudentsByRoomAsync(course.No);
+        var detailedRooms = await LoadCourseStudentsByRoomDetailedAsync(course.No);
 
-        if (roomMap.Count == 0)
+        if (detailedRooms.Count == 0)
         {
             ShowError("수강생이 없습니다.");
             return string.Empty;
@@ -348,9 +363,21 @@ public sealed partial class RosterTableDialog : ContentDialog
         var layoutItem = CourseLayoutRadio.SelectedItem as RadioButton;
         var layout = layoutItem?.Tag?.ToString() ?? "Vertical";
 
-        return layout == "Horizontal"
-            ? BuildGroupedHorizontalTable(title, scopeLabel, columns, roomMap)
-            : BuildGroupedVerticalTable(title, scopeLabel, columns, roomMap);
+        if (layout == "Horizontal")
+        {
+            // 가로 레이아웃은 기존 (강의실별 번호/이름만)
+            var roomMap = detailedRooms.ToDictionary(
+                kv => kv.Key,
+                kv => kv.Value.Select(s => (s.Number, s.Name)).ToList());
+            return BuildGroupedHorizontalTable(title, scopeLabel, columns, roomMap);
+        }
+
+        // 세로: 강의실 | 학년 | 학급 | 번호 | 이름
+        var rows = detailedRooms
+            .SelectMany(kv => kv.Value
+                .Select(s => (Lead: new[] { kv.Key, s.Grade.ToString(), s.Class.ToString() }, s.Number, s.Name)))
+            .ToList();
+        return BuildGroupedVerticalTable(title, scopeLabel, new[] { "강의실", "학년", "학급" }, rows, columns);
     }
 
     #endregion
@@ -393,7 +420,49 @@ public sealed partial class RosterTableDialog : ContentDialog
     }
 
     /// <summary>
-    /// 수업의 학생을 강의실별로 그룹화하여 반환
+    /// 수업의 학생을 강의실별로 그룹화 — 학년/학급 포함.
+    /// </summary>
+    private async Task<Dictionary<string, List<(int Grade, int Class, int Number, string Name)>>>
+        LoadCourseStudentsByRoomDetailedAsync(int courseNo)
+    {
+        using var courseService = new CourseService();
+        var enrollments = await courseService.GetCourseEnrollmentsAsync(
+            Settings.SchoolCode, Settings.WorkYear.Value, Settings.WorkSemester.Value, courseNo);
+
+        var studentIds = enrollments.Select(e => e.StudentID).ToList();
+        using var enrollService = new EnrollmentService();
+        var allEnrollments = await enrollService.GetEnrollmentsAsync(
+            Settings.SchoolCode, Settings.WorkYear.Value);
+
+        var studentMap = allEnrollments
+            .Where(e => studentIds.Contains(e.StudentID))
+            .ToDictionary(e => e.StudentID, e => (e.Grade, e.Class, e.Number, e.Name));
+
+        var result = new Dictionary<string, List<(int Grade, int Class, int Number, string Name)>>();
+        foreach (var ce in enrollments.OrderBy(e => e.Room))
+        {
+            var room = string.IsNullOrWhiteSpace(ce.Room) ? "미지정" : ce.Room;
+            if (!result.ContainsKey(room))
+                result[room] = new();
+            if (studentMap.TryGetValue(ce.StudentID, out var s))
+                result[room].Add(s);
+        }
+
+        foreach (var list in result.Values)
+            list.Sort((a, b) =>
+            {
+                int c = a.Grade.CompareTo(b.Grade);
+                if (c != 0) return c;
+                c = a.Class.CompareTo(b.Class);
+                if (c != 0) return c;
+                return a.Number.CompareTo(b.Number);
+            });
+
+        return result;
+    }
+
+    /// <summary>
+    /// 수업의 학생을 강의실별로 그룹화하여 반환 (가로 레이아웃용 간이 버전)
     /// </summary>
     private async Task<Dictionary<string, List<(int Number, string Name)>>> LoadCourseStudentsByRoomAsync(int courseNo)
     {
@@ -455,6 +524,23 @@ public sealed partial class RosterTableDialog : ContentDialog
             .ToList();
     }
 
+    private async Task<List<(int Grade, int Class, int Number, string Name)>> LoadClubStudentsDetailedAsync(int clubNo)
+    {
+        using var clubRepo = new Repositories.ClubEnrollmentRepository(SchoolDatabase.DbPath);
+        var enrollments = await clubRepo.GetByClubAsync(clubNo);
+
+        var studentIds = enrollments.Select(e => e.StudentID).ToList();
+        using var enrollService = new EnrollmentService();
+        var allEnrollments = await enrollService.GetEnrollmentsAsync(
+            Settings.SchoolCode, Settings.WorkYear.Value);
+
+        return allEnrollments
+            .Where(e => studentIds.Contains(e.StudentID))
+            .OrderBy(e => e.Grade).ThenBy(e => e.Class).ThenBy(e => e.Number)
+            .Select(e => (e.Grade, e.Class, e.Number, e.Name))
+            .ToList();
+    }
+
     private async Task<List<(int Number, string Name)>> LoadClubStudentsAsync(int clubNo)
     {
         using var clubRepo = new Repositories.ClubEnrollmentRepository(SchoolDatabase.DbPath);
@@ -503,13 +589,15 @@ public sealed partial class RosterTableDialog : ContentDialog
     }
 
     /// <summary>
-    /// 그룹별 세로 레이아웃 (그룹별 구분)
+    /// 그룹별 세로 레이아웃 — 선행 칼럼(학급, 혹은 강의실·학급)을 별도 칼럼으로 표기 (엑셀 정렬 용이).
     /// </summary>
     private static string BuildGroupedVerticalTable(
-        string title, string scopeLabel, List<string> columns,
-        Dictionary<string, List<(int Number, string Name)>> groupMap)
+        string title, string scopeLabel,
+        string[] leadHeaders,
+        List<(string[] Lead, int Number, string Name)> rows,
+        List<string> columns)
     {
-        int totalCols = 2 + columns.Count;
+        int totalCols = leadHeaders.Length + 2 + columns.Count; // lead + 번호 + 이름 + 사용자칼럼
 
         var sb = new StringBuilder();
         sb.Append("<table border=\"1\" cellpadding=\"4\" cellspacing=\"0\" style=\"border-collapse:collapse; width:100%; text-align:center;\">");
@@ -519,12 +607,26 @@ public sealed partial class RosterTableDialog : ContentDialog
 
         sb.Append($"<tr><th colspan=\"{totalCols}\" style=\"font-size:13px; padding:6px; background:#f8f9fa; text-align:right;\">{Esc(scopeLabel)}</th></tr>");
 
-        foreach (var (groupName, students) in groupMap)
+        // 단일 헤더 행
+        sb.Append("<tr style=\"background:#d0e0f0;\">");
+        foreach (var h in leadHeaders)
+            sb.Append($"<th style=\"width:90px;\">{Esc(h)}</th>");
+        sb.Append("<th style=\"width:50px;\">번호</th>");
+        sb.Append("<th style=\"width:80px;\">이름</th>");
+        foreach (var col in columns)
+            sb.Append($"<th>{Esc(col)}</th>");
+        sb.Append("</tr>");
+
+        foreach (var (lead, number, name) in rows)
         {
-            sb.Append($"<tr><th colspan=\"{totalCols}\" style=\"font-size:14px; padding:6px; background:#fff3cd;\">{Esc(groupName)}</th></tr>");
-            AppendHeaderRow(sb, columns);
-            foreach (var (number, name) in students)
-                AppendStudentRow(sb, number, name, columns.Count);
+            sb.Append("<tr>");
+            foreach (var v in lead)
+                sb.Append($"<td>{Esc(v)}</td>");
+            sb.Append($"<td>{number}</td>");
+            sb.Append($"<td>{Esc(name)}</td>");
+            for (int i = 0; i < columns.Count; i++)
+                sb.Append("<td></td>");
+            sb.Append("</tr>");
         }
 
         sb.Append("</table>");
