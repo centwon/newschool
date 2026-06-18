@@ -137,7 +137,7 @@ public class CsvExportService
     /// RFC 4180: 쉼표/줄바꿈/따옴표 포함 시 전체를 따옴표로 감싸고 내부 따옴표는 두 개로.
     /// 선행 = - + @도 엑셀 CSV Injection 방지용으로 인용.
     /// </summary>
-    private static string Escape(string? value)
+    internal static string Escape(string? value)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
         bool needsQuote = value.IndexOfAny(new[] { ',', '"', '\r', '\n' }) >= 0;

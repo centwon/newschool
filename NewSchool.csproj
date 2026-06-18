@@ -13,6 +13,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- 테스트 프로젝트에 internal 멤버 노출 (CsvExportService.Escape 등) -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="NewSchool.Tests" />
+  </ItemGroup>
+
   <!-- ==========================================
        빌드 제외 항목
        ========================================== -->
@@ -21,6 +26,9 @@
     <Compile Remove="Board\ListViewer.xaml.cs" />
     <Compile Remove="Board\PostBox.xaml.cs" />
     <Compile Remove="Board\PostFileListBox.xaml.cs" />
+    <!-- 테스트 프로젝트는 별도 csproj 로 빌드되므로 메인 프로젝트의 implicit glob 에서 제외 -->
+    <Compile Remove="NewSchool.Tests\**\*.cs" />
+    <None Remove="NewSchool.Tests\**\*" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="Board\CommentBox.xaml" />
