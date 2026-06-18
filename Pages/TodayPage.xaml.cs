@@ -94,60 +94,32 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
         try
         {
-            // ⚡ 시간표 로드
-            try
+            // ⚡ 4개 로드를 병렬 실행 — 각각 독립적 DB/네트워크 호출이므로 순차 대기 불필요.
+            // 개별 실패는 각 Task 내부에서 삼켜 다른 로드에 영향 주지 않음.
+            async Task SafeLoadAsync(string name, Func<Task> load)
             {
-                await LecTimeTable.LoadMyScheduleAsync();
+                try
+                {
+                    await load();
 #if DEBUG
-                Debug.WriteLine("[TodayPage] ✓ 시간표 로드 완료");
+                    Debug.WriteLine($"[TodayPage] ✓ {name} 로드 완료");
 #endif
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TodayPage] ✗ 시간표 로드 실패: {ex.GetType().Name} - {ex.Message}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[TodayPage] ✗ {name} 로드 실패: {ex.GetType().Name} - {ex.Message}");
+                }
             }
 
-            // ⚡ 학사일정 로드
-            try
-            {
-                await ScheduleList.LoadSchedulesAsync(DateTime.Today, 28, true);
-#if DEBUG
-                Debug.WriteLine("[TodayPage] ✓ 학사일정 로드 완료");
-#endif
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TodayPage] ✗ 학사일정 로드 실패: {ex.GetType().Name} - {ex.Message}");
-            }
-
-            // ⚡ 통합 할 일 + 일정 로드
-            try
-            {
-                await AgendaList.LoadPendingAndFutureAsync();
-#if DEBUG
-                Debug.WriteLine("[TodayPage] ✓ 할 일/일정 로드 완료");
-#endif
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TodayPage] ✗ 할 일/일정 로드 실패: {ex.GetType().Name} - {ex.Message}");
-            }
-
-            // ⚡ 급식 정보 로드
-            try
-            {
-                await MealBox.LoadMealsAsync(DateTime.Today);
-#if DEBUG
-                Debug.WriteLine("[TodayPage] ✓ 급식 정보 로드 완료");
-#endif
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TodayPage] ✗ 급식 정보 로드 실패: {ex.GetType().Name} - {ex.Message}");
-            }
+            await Task.WhenAll(
+                SafeLoadAsync("시간표",    () => LecTimeTable.LoadMyScheduleAsync()),
+                SafeLoadAsync("학사일정", () => ScheduleList.LoadSchedulesAsync(DateTime.Today, 28, true)),
+                SafeLoadAsync("할 일/일정", () => AgendaList.LoadPendingAndFutureAsync()),
+                SafeLoadAsync("급식",      () => MealBox.LoadMealsAsync(DateTime.Today))
+            );
 
 #if DEBUG
-            Debug.WriteLine("[TodayPage] ⚡ 데이터 로드 완료");
+            Debug.WriteLine("[TodayPage] ⚡ 데이터 로드 완료(병렬)");
 #endif
         }
         catch (Exception ex)

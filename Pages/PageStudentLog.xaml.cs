@@ -20,8 +20,18 @@ namespace NewSchool.Pages;
 /// WPF PageLog를 WinUI3로 전환
 /// Enrollment 모델 직접 사용 (StudentListItemViewModel 제거)
 /// </summary>
-public sealed partial class PageStudentLog : Page
+public sealed partial class PageStudentLog : Page, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _logService?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     #region Fields
 
     private int _year;
@@ -64,6 +74,8 @@ public sealed partial class PageStudentLog : Page
         _logService = new StudentLogService();
 
         InitializeControls();
+
+        Unloaded += (_, _) => Dispose();
     }
 
     #endregion
@@ -185,12 +197,30 @@ public sealed partial class PageStudentLog : Page
             CourseNo = 0
         };
         var logDialog = new StudentLogDialog(newLog);
-        logDialog.Closed += async (s, args) =>
-        {
-            if (_selectedStudent != null)
-                await LoadLogsAsync();
-        };
+        logDialog.Closed += OnLogDialogClosedReload;
         logDialog.Activate();
+    }
+
+    // 다이얼로그가 닫힐 때 자기 이벤트를 해제하고 현재 학생 로그 재로드
+    // — 람다 대신 named method 를 써 GC 회수가 보장되도록 한 패턴
+    private async void OnLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    {
+        if (sender is Window w) w.Closed -= OnLogDialogClosedReload;
+        if (_selectedStudent != null)
+            await LoadLogsAsync();
+    }
+
+    private async void OnBatchLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    {
+        if (sender is Window w) w.Closed -= OnBatchLogDialogClosedReload;
+        if (_selectedStudent != null)
+            await LoadLogsAsync();
+    }
+
+    private async void OnPersonalLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    {
+        if (sender is Window w) w.Closed -= OnPersonalLogDialogClosedReload;
+        await LoadLogsAsync();
     }
 
     private async void BtnSaveActLog_Click(object sender, RoutedEventArgs e)
@@ -460,11 +490,7 @@ public sealed partial class PageStudentLog : Page
                 _grade,
                 _classroom);
 
-            dialog.Closed += async (s, args) =>
-            {
-                if (_selectedStudent != null)
-                    await LoadLogsAsync();
-            };
+            dialog.Closed += OnBatchLogDialogClosedReload;
             dialog.Activate();
         }
         catch (ArgumentException ex)
@@ -745,10 +771,7 @@ public sealed partial class PageStudentLog : Page
             student,
             _year,
             _semester);
-        logDialog.Closed += async (s, args) =>
-        {
-            await LoadLogsAsync();
-        };
+        logDialog.Closed += OnPersonalLogDialogClosedReload;
         logDialog.Activate();
     }
 

@@ -13,7 +13,7 @@ namespace NewSchool.Services;
 /// (SchoolCode, Year, Grade, Class)가 논리 키 — 학급별로 1개 배치가 현재값.
 /// 저장 시점마다 짝·위치 이력이 누적되어 "지난 짝 배제" 옵션에서 사용된다.
 /// </summary>
-public class SeatService : IDisposable
+public sealed class SeatService : IDisposable
 {
     private readonly SqliteConnection _connection;
     private bool _disposed;

@@ -20,7 +20,7 @@ namespace NewSchool.Services;
 /// SchoolSchedule Service
 /// 학사일정 비즈니스 로직 및 NEIS API 연동
 /// </summary>
-public class SchoolScheduleService : IDisposable
+public sealed class SchoolScheduleService : IDisposable
 {
     private readonly string _dbPath;
     private SchoolScheduleRepository? _repository;

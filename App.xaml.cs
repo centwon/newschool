@@ -3,6 +3,7 @@ using System.IO;
 using Microsoft.UI.Xaml;
 using SQLitePCL;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using NewSchool.Logging;
 using NewSchool.Pages;
@@ -38,6 +39,49 @@ public partial class App : Application
 
             // 파일 로그에 기록
             FileLogger.Instance.Critical($"[App] UnhandledException: {e.Exception.GetType().Name}", e.Exception);
+
+            // 사용자에게 알린 뒤 앱이 죽지 않도록 처리(e.Handled = true)
+            // 기존에는 조용히 로그만 남겨 사용자가 원인을 알 수 없었다
+            try
+            {
+                _ = Controls.UserErrorReporter.ReportAsync(
+                    "앱 실행",
+                    e.Exception,
+                    "예상치 못한 오류");
+                e.Handled = true;
+            }
+            catch (Exception reportEx)
+            {
+                Debug.WriteLine($"[App] 오류 알림 실패: {reportEx.Message}");
+            }
+        };
+
+        // async void / fire-and-forget Task에서 터진 예외를 포착
+        TaskScheduler.UnobservedTaskException += (sender, e) =>
+        {
+            Debug.WriteLine($"[App] ★ UnobservedTaskException: {e.Exception.GetType().Name} - {e.Exception.Message}");
+            FileLogger.Instance.Error("[App] UnobservedTaskException", e.Exception);
+            try
+            {
+                _ = Controls.UserErrorReporter.ReportAsync(
+                    "백그라운드 작업",
+                    e.Exception,
+                    "백그라운드 작업 오류");
+                e.SetObserved();
+            }
+            catch (Exception reportEx)
+            {
+                Debug.WriteLine($"[App] UnobservedTask 알림 실패: {reportEx.Message}");
+            }
+        };
+
+        // AppDomain 치명적 예외 (최종 안전망 — 앱 종료 직전 로그 기록만)
+        AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+        {
+            var ex = e.ExceptionObject as Exception;
+            FileLogger.Instance.Critical(
+                $"[AppDomain] UnhandledException (IsTerminating={e.IsTerminating})",
+                ex ?? new Exception("Unknown non-Exception object"));
         };
     }
 
@@ -70,10 +114,23 @@ public partial class App : Application
         );
         Debug.WriteLine("[App] 데이터베이스 초기화 완료 (Board, Scheduler, School)");
 
-        // 3-1. 자동 백업 (필요 시)
-        var backupResult = Settings.RunAutoBackupIfNeeded();
-        if (backupResult != null)
-            Debug.WriteLine($"[App] 자동 백업 완료: {backupResult}");
+        // 3-1. 자동 백업 (필요 시) — 백그라운드로 밀어 시작 시간 단축
+        //   File.Copy 동기 작업으로 1~3초 블로킹될 수 있어 fire-and-forget 으로 처리.
+        //   실패 시 FileLogger 및 전역 예외망이 포착하므로 별도 알림 생략.
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var backupResult = Settings.RunAutoBackupIfNeeded();
+                if (backupResult != null)
+                    Debug.WriteLine($"[App] 자동 백업 완료(백그라운드): {backupResult}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[App] 자동 백업 실패(백그라운드): {ex.Message}");
+                FileLogger.Instance.Error("[App] 자동 백업 실패", ex);
+            }
+        });
 
         // 4. 초기 설정 확인
         if (string.IsNullOrEmpty(Settings.SchoolCode.Value))

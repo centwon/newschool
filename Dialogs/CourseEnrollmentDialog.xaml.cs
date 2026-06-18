@@ -573,6 +573,7 @@ namespace NewSchool.Dialogs
             {
                 Debug.WriteLine($"[CourseEnrollmentDialog] 저장 실패: {ex.Message}");
                 args.Cancel = true;
+                await NewSchool.Controls.UserErrorReporter.ReportAsync("수강생 저장", ex);
             }
             finally
             {

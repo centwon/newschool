@@ -337,6 +337,7 @@ namespace NewSchool.Dialogs
             catch (Exception ex)
             {
                 Debug.WriteLine($"[MaterialEditDialog] 파일 업로드 실패: {ex.Message}");
+                await NewSchool.Controls.UserErrorReporter.ReportAsync("파일 업로드", ex);
             }
         }
 

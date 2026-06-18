@@ -14,7 +14,7 @@ namespace NewSchool.Services
     /// 교사별/학급별 시간표 조회 및 ViewModel 변환
     /// ⭐ Lesson 테이블로 통합
     /// </summary>
-    public class TimetableService : IDisposable
+    public sealed class TimetableService : IDisposable
     {
         private readonly string _dbPath;
         private bool _disposed;

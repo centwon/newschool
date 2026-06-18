@@ -378,15 +378,26 @@ public sealed partial class LessonActivityPage : Page
             _selectedCourse.No,
             Settings.User.Value);
 
-        dialog.Closed += async (s, args) =>
+        // 람다 캡처를 피하기 위해 dialog 를 지역 변수로 두고 명시적으로 닫기 핸들러 분리
+        var capturedDialog = dialog;
+        async void OnBatchDialogClosed(object s, Microsoft.UI.Xaml.WindowEventArgs args)
         {
-            if (dialog.IsSuccess)
+            capturedDialog.Closed -= OnBatchDialogClosed;
+            if (capturedDialog.IsSuccess)
             {
                 await LoadLogsAsync();
-                ShowInfoBar($"{dialog.SavedLogs.Count}건이 일괄 저장되었습니다.", InfoBarSeverity.Success);
+                ShowInfoBar($"{capturedDialog.SavedLogs.Count}건이 일괄 저장되었습니다.", InfoBarSeverity.Success);
             }
-        };
+        }
+        dialog.Closed += OnBatchDialogClosed;
         dialog.Activate();
+    }
+
+    // 다이얼로그 Closed → 로그 재로드 공용 핸들러 (자기 이벤트 해제)
+    private async void OnLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    {
+        if (sender is Window w) w.Closed -= OnLogDialogClosedReload;
+        await LoadLogsAsync();
     }
 
     /// <summary>
@@ -420,7 +431,7 @@ public sealed partial class LessonActivityPage : Page
         };
 
         var dialog = new StudentLogDialog(newLog);
-        dialog.Closed += async (s, args) => await LoadLogsAsync();
+        dialog.Closed += OnLogDialogClosedReload;
         dialog.Activate();
     }
 
@@ -610,10 +621,7 @@ public sealed partial class LessonActivityPage : Page
             student,
             Settings.WorkYear.Value,
             Settings.WorkSemester.Value);
-        logDialog.Closed += async (s, args) =>
-        {
-            await LoadLogsAsync();
-        };
+        logDialog.Closed += OnLogDialogClosedReload;
         logDialog.Activate();
     }
 

@@ -55,6 +55,15 @@ public class StudentLogService : IDisposable
     }
 
     /// <summary>
+    /// 여러 학생의 누가기록 일괄 조회 (N+1 해소)
+    /// </summary>
+    public async Task<Dictionary<string, List<StudentLog>>> GetStudentLogsBatchAsync(
+        IEnumerable<string> studentIds, int year, int semester = 0)
+    {
+        return await _repository.GetByStudentIdsAsync(studentIds, year, semester).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// 학생의 전체 누가기록 조회 (학년도/학기 무관)
     /// </summary>
     public async Task<List<StudentLog>> GetAllStudentLogsAsync(string studentId)

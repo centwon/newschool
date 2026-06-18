@@ -239,7 +239,12 @@
                 <Button x:Name="BtnSaveAll"
                         Content="전체 저장"
                         Style="{StaticResource AccentButtonStyle}"
-                        Click="BtnSaveAll_Click"/>
+                        Click="BtnSaveAll_Click"
+                        ToolTipService.ToolTip="전체 저장 (Ctrl+S)">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                    </Button.KeyboardAccelerators>
+                </Button>
                 <Button x:Name="BtnClose"
                         Content="닫기"
                         Click="BtnClose_Click"/>

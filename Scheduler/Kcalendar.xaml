@@ -9,7 +9,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Border BorderBrush="CornflowerBlue" BorderThickness="0.5" CornerRadius="5,5,5,5" Background="White">
+    <Border BorderBrush="CornflowerBlue" BorderThickness="0.5" CornerRadius="5,5,5,5"
+            Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid Margin="2,2,2,2">
             <Grid.RowDefinitions>
                 <RowDefinition x:Name="RowHeader" Height="32"/>
@@ -44,7 +45,7 @@
             </Border>
             <!-- 달력 body-->
             <!-- 달력 body - 기존 GridBody 부분 교체 -->
-            <Border Grid.Row="1" BorderBrush="#E0E0E0" BorderThickness="0.5" Margin="2,2,2,2">
+            <Border Grid.Row="1" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0.5" Margin="2,2,2,2">
                 <Grid x:Name="GridBody">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
@@ -66,25 +67,25 @@
                     </Grid.RowDefinitions>
 
                     <!-- 요일 헤더 - 오른쪽과 아래쪽 테두리만 -->
-                    <Border Grid.Column="0" Grid.Row="0" BorderBrush="#E0E0E0" BorderThickness="0,0,0.5,0.5" Padding="8">
+                    <Border Grid.Column="0" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
                         <TextBlock Text="일" Foreground="Red" FontSize="12" HorizontalTextAlignment="Center" />
                     </Border>
-                    <Border Grid.Column="1" Grid.Row="0" BorderBrush="#E0E0E0" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="월" Foreground="Black" FontSize="12" HorizontalTextAlignment="Center"/>
+                    <Border Grid.Column="1" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
+                        <TextBlock Text="월" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
                     </Border>
-                    <Border Grid.Column="2" Grid.Row="0" BorderBrush="#E0E0E0" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="화" Foreground="Black" FontSize="12" HorizontalTextAlignment="Center"/>
+                    <Border Grid.Column="2" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
+                        <TextBlock Text="화" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
                     </Border>
-                    <Border Grid.Column="3" Grid.Row="0" BorderBrush="#E0E0E0" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="수" Foreground="Black" FontSize="12" HorizontalTextAlignment="Center"/>
+                    <Border Grid.Column="3" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
+                        <TextBlock Text="수" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
                     </Border>
-                    <Border Grid.Column="4" Grid.Row="0" BorderBrush="#E0E0E0" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="목" Foreground="Black" FontSize="12" HorizontalTextAlignment="Center"/>
+                    <Border Grid.Column="4" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
+                        <TextBlock Text="목" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
                     </Border>
-                    <Border Grid.Column="5" Grid.Row="0" BorderBrush="#E0E0E0" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="금" Foreground="Black" FontSize="12" HorizontalTextAlignment="Center"/>
+                    <Border Grid.Column="5" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
+                        <TextBlock Text="금" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
                     </Border>
-                    <Border Grid.Column="6" Grid.Row="0" BorderBrush="#E0E0E0" BorderThickness="0,0,0,0.5" Padding="8">
+                    <Border Grid.Column="6" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0,0.5" Padding="8">
                         <TextBlock Text="토" Foreground="Blue" FontSize="12" HorizontalTextAlignment="Center"/>
                     </Border>
                 </Grid>

@@ -18,7 +18,7 @@ namespace NewSchool.Google;
 /// - Loopback redirect + PKCE 방식
 /// - 토큰 DPAPI 암호화 후 Settings.db에 저장
 /// </summary>
-public class GoogleAuthService : IDisposable
+public sealed class GoogleAuthService : IDisposable
 {
     private const string AuthEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
     private const string TokenEndpoint = "https://oauth2.googleapis.com/token";

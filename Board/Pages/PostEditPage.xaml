@@ -97,7 +97,12 @@
                     Content="저장"
                     Click="SaveButton_Click"
                     Style="{StaticResource AccentButtonStyle}"
-                    MinWidth="100"/>
+                    MinWidth="100"
+                    ToolTipService.ToolTip="저장 (Ctrl+S)">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                </Button.KeyboardAccelerators>
+            </Button>
         </Grid>
     </Grid>
 </Page>

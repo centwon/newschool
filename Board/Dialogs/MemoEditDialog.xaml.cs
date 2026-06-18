@@ -228,6 +228,7 @@ public sealed partial class MemoEditDialog : ContentDialog
         catch (Exception ex)
         {
             Debug.WriteLine($"[MemoEditDialog] 파일 저장 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 저장", ex);
             return null;
         }
     }

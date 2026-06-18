@@ -12,8 +12,19 @@ namespace NewSchool.Controls;
 /// 수업 기록 리스트 컨트롤
 /// 학급, 단원 표시 지원
 /// </summary>
-public sealed partial class LessonLogList : UserControl
+public sealed partial class LessonLogList : UserControl, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _service?.Dispose();
+        _service = null;
+        GC.SuppressFinalize(this);
+    }
+
     #region Fields
 
     private LessonLogService? _service;
@@ -56,8 +67,7 @@ public sealed partial class LessonLogList : UserControl
 
     private void LessonLogList_Unloaded(object sender, RoutedEventArgs e)
     {
-        _service?.Dispose();
-        _service = null;
+        Dispose();
     }
 
     #region Public Methods

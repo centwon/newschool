@@ -251,6 +251,7 @@ public sealed partial class CourseSectionDialog : ContentDialog
         catch (Exception ex)
         {
             Debug.WriteLine($"[CourseSectionDialog] 파일 선택 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("파일 선택", ex);
         }
     }
 

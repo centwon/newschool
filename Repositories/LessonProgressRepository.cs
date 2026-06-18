@@ -9,7 +9,7 @@ namespace NewSchool.Repositories;
 /// <summary>
 /// 진도 기록 저장소
 /// </summary>
-public class LessonProgressRepository : IDisposable
+public sealed class LessonProgressRepository : IDisposable
 {
     private readonly string _connectionString;
 
@@ -385,16 +385,6 @@ public class LessonProgressRepository : IDisposable
     {
         var progress = await GetOrCreateAsync(sectionId, room);
         progress.MarkAsSkipped(reason);
-        await UpdateAsync(progress);
-    }
-
-    /// <summary>
-    /// 결강 처리
-    /// </summary>
-    public async Task MarkAsCancelledAsync(int sectionId, string room, string? reason = null)
-    {
-        var progress = await GetOrCreateAsync(sectionId, room);
-        progress.MarkAsCancelled(reason);
         await UpdateAsync(progress);
     }
 

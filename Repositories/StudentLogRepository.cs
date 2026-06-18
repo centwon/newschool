@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
@@ -132,6 +133,68 @@ namespace NewSchool.Repositories
             {
                 System.Diagnostics.Debug.WriteLine($"[StudentLogRepository] GetByStudentAsync 오류: {ex.Message}");
                 LogError($"학생별 기록 조회 실패: StudentID={studentId}", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 여러 학생의 기록을 단일 쿼리로 일괄 조회 (N+1 해소)
+        /// StudentID → List&lt;StudentLog&gt; 딕셔너리로 반환
+        /// </summary>
+        public async Task<Dictionary<string, List<StudentLog>>> GetByStudentIdsAsync(
+            IEnumerable<string> studentIds, int year, int semester = 0)
+        {
+            var idList = studentIds?.Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList()
+                         ?? new List<string>();
+            var result = new Dictionary<string, List<StudentLog>>();
+            if (idList.Count == 0) return result;
+
+            // IN (@id0, @id1, ...) 파라미터 바인딩
+            var placeholders = string.Join(",", idList.Select((_, i) => $"@id{i}"));
+            string query = semester > 0
+                ? $@"SELECT * FROM StudentLog
+                     WHERE StudentID IN ({placeholders})
+                       AND Year = @Year
+                       AND Semester = @Semester
+                     ORDER BY Date DESC, Category"
+                : $@"SELECT * FROM StudentLog
+                     WHERE StudentID IN ({placeholders})
+                       AND Year = @Year
+                     ORDER BY Date DESC, Category";
+
+            try
+            {
+                using var cmd = CreateCommand(query);
+                for (int i = 0; i < idList.Count; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
+                }
+                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
+                if (semester > 0)
+                {
+                    cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
+                }
+
+                var logs = await ExecuteListAsync(cmd, MapStudentLog).ConfigureAwait(false);
+
+                // 빈 리스트로 초기화 (요청한 모든 학생에 대해 키 존재 보장)
+                foreach (var id in idList) result[id] = new List<StudentLog>();
+                foreach (var log in logs)
+                {
+                    if (!result.TryGetValue(log.StudentID, out var list))
+                    {
+                        list = new List<StudentLog>();
+                        result[log.StudentID] = list;
+                    }
+                    list.Add(log);
+                }
+
+                LogInfo($"학생 일괄 기록 조회 완료: 학생 {idList.Count}명, 기록 {logs.Count}건");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                LogError($"학생 일괄 기록 조회 실패: Count={idList.Count}", ex);
                 throw;
             }
         }

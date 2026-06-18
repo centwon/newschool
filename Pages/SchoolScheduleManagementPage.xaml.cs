@@ -29,8 +29,18 @@ namespace NewSchool.Pages;
 /// 4. 체크박스로 선택 후 일괄 저장/삭제
 /// 5. Excel 내보내기
 /// </summary>
-public sealed partial class SchoolScheduleManagementPage : Page
+public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _scheduleservice?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     //private readonly SchoolScheduleRepository _repository;
     private readonly SchoolScheduleService _scheduleservice;
     private readonly ObservableCollection<SchoolScheduleViewModel> _schedules = new();
@@ -49,6 +59,7 @@ public sealed partial class SchoolScheduleManagementPage : Page
         ScheduleList.ItemsSource = _schedules;
 
         this.Loaded += OnPageLoaded;
+        this.Unloaded += (_, _) => Dispose();
     }
 
     #region 초기화

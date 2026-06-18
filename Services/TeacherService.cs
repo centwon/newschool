@@ -13,7 +13,7 @@ namespace NewSchool.Services
     /// 교사 정보 + 근무 이력 통합 관리
     /// ⭐ CreateAsync, AddHistoryAsync 추가 (InitialSetupDialog 지원)
     /// </summary>
-    public class TeacherService : IDisposable
+    public sealed class TeacherService : IDisposable
     {
         private readonly string _dbPath;
         private bool _disposed;

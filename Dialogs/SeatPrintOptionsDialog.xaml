@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="NewSchool.Dialogs.SeatPrintOptionsDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="좌석배정표 인쇄 옵션"
+    PrimaryButtonText="인쇄"
+    CloseButtonText="취소"
+    DefaultButton="Primary">
+
+    <StackPanel Spacing="16" MinWidth="340">
+        <StackPanel Spacing="4">
+            <TextBlock Text="출력 방향" FontWeight="SemiBold"/>
+            <RadioButton x:Name="RbAuto" Content="자동 (좌석 가로/세로 비율에 따름)"
+                         GroupName="Orientation" IsChecked="True"/>
+            <RadioButton x:Name="RbPortrait" Content="세로" GroupName="Orientation"/>
+            <RadioButton x:Name="RbLandscape" Content="가로" GroupName="Orientation"/>
+        </StackPanel>
+
+        <CheckBox x:Name="ChkIncludeRoster"
+                  Content="학급 명렬표 포함 (번호·이름)"
+                  IsChecked="False"/>
+    </StackPanel>
+</ContentDialog>

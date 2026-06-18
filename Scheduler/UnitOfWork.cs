@@ -12,7 +12,7 @@ namespace NewSchool.Scheduler
     /// Unit of Work 패턴 - 단일 Connection + 단일 Transaction으로 원자성 보장
     /// ✅ Ktask → KEvent 통합: KtaskRepository 제거
     /// </summary>
-    public class UnitOfWork : IDisposable
+    public sealed class UnitOfWork : IDisposable
     {
         private readonly string _dbPath;
         private SqliteConnection? _connection;

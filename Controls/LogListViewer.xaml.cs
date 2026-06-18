@@ -487,16 +487,20 @@ public sealed partial class LogListViewer : UserControl
         if (log == null) return;
 
         var dialog = new StudentLogDialog(log);
-        dialog.Closed += (s, args) =>
+        var capturedVm = vm;
+        // 람다 대신 지역 named function 을 써 핸들러 체인에서 자기 제거
+        void OnEditDialogClosed(object s, Microsoft.UI.Xaml.WindowEventArgs args)
         {
+            dialog.Closed -= OnEditDialogClosed;
             if (dialog.IsSuccess && dialog.SavedLogs.Count > 0)
             {
                 var saved = dialog.SavedLogs[0];
-                vm.RefreshFromLog();
-                vm.IsSelected = false;
+                capturedVm.RefreshFromLog();
+                capturedVm.IsSelected = false;
                 LogEdited?.Invoke(this, saved);
             }
-        };
+        }
+        dialog.Closed += OnEditDialogClosed;
         dialog.Activate();
     }
 

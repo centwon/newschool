@@ -233,11 +233,15 @@ public sealed partial class ClassDiaryPage : Page
             Settings.WorkSemester.Value,
             _currentGrade,
             _currentClass);
-        logDialog.Closed += async (s, args) =>
-        {
-            await LoadDailyLogsAsync();
-        };
+        logDialog.Closed += OnLogDialogClosedReloadDaily;
         logDialog.Activate();
+    }
+
+    // 다이얼로그 Closed → 당일 로그 재로드 공용 핸들러 (자기 이벤트 해제)
+    private async void OnLogDialogClosedReloadDaily(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    {
+        if (sender is Window w) w.Closed -= OnLogDialogClosedReloadDaily;
+        await LoadDailyLogsAsync();
     }
 
     /// <summary>
@@ -266,10 +270,7 @@ public sealed partial class ClassDiaryPage : Page
             student,
             _currentYear,
             Settings.WorkSemester.Value);
-        logDialog.Closed += async (s, args) =>
-        {
-            await LoadDailyLogsAsync();
-        };
+        logDialog.Closed += OnLogDialogClosedReloadDaily;
         logDialog.Activate();
     }
 
@@ -351,18 +352,19 @@ public sealed partial class ClassDiaryPage : Page
             _currentGrade,
             _currentClass);
 
-        // 일지 선택 시 해당 날짜로 이동
-        listWin.DiarySelected += async (s, diary) =>
-        {
-            // 현재 일지 저장
-            await DiaryBox.SaveDiaryAsync();
-
-            // 선택된 날짜로 이동
-            DatePicker.Date = diary.Date;
-        };
+        // 일지 선택 시 해당 날짜로 이동 — 람다 대신 named method 로 구독
+        listWin.DiarySelected += OnDiarySelected;
+        listWin.Closed += (s, e) => listWin.DiarySelected -= OnDiarySelected;
 
         listWin.SetSize(1400, 800);
         listWin.ShowDialog();
+    }
+
+    private async void OnDiarySelected(object? sender, ClassDiaryViewModel diary)
+    {
+        // 현재 일지 저장 후 선택된 날짜로 이동
+        await DiaryBox.SaveDiaryAsync();
+        DatePicker.Date = diary.Date;
     }
 
     #endregion

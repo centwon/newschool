@@ -23,9 +23,10 @@
             <converters:BoolToStarConverter x:Key="BoolToStarConverter"/>
             <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter"/>
 
-            <!-- Global TextBox Style: Enable Drag-and-Drop -->
+            <!-- Global TextBox Style: Drag-and-Drop + 한글 IME 기본 -->
             <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
                 <Setter Property="helpers:TextBoxDropHelper.EnableTextDrop" Value="True"/>
+                <Setter Property="helpers:KoreanImeHelper.UseHangul" Value="True"/>
             </Style>
 
             <!-- Other app resources here -->

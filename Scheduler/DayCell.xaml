@@ -28,10 +28,10 @@
 
     <!-- 오른쪽과 아래쪽 테두리만 표시 (0,0,0.5,0.5) -->
     <Border x:Name="BrdBase"
-            BorderBrush="{StaticResource BorderColor}"
+            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
             BorderThickness="0,0,0.5,0.5"
             CornerRadius="0"
-            Background="White"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
             PointerEntered="BrdBase_PointerEntered"
             PointerExited="BrdBase_PointerExited">
 

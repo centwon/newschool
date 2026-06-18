@@ -77,6 +77,12 @@ public sealed partial class StudentSpecBatchDialog : Window
         InitializeTypeComboBox(defaultType);
         InitializeStudentList();
 
+        // Window 가 닫힐 때 이벤트 구독 해제 (메모리 누수 방지)
+        this.Closed += (s, e) =>
+        {
+            StudentList.StudentSelected -= OnStudentSelected;
+        };
+
         _ = LoadStudentsAsync().ContinueWith(t =>
         {
             if (t.IsFaulted)
@@ -434,6 +440,7 @@ public sealed partial class StudentSpecBatchDialog : Window
         catch (Exception ex)
         {
             TxtSaveStatus.Text = $"저장 실패: {ex.Message}";
+            await Controls.UserErrorReporter.ReportAsync("일괄 저장", ex);
         }
         finally
         {
@@ -482,6 +489,7 @@ public sealed partial class StudentSpecBatchDialog : Window
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[StudentSpecBatchDialog] 맞춤법 검사기 열기 실패: {ex.Message}");
+            await Controls.UserErrorReporter.ReportAsync("맞춤법 검사기 열기", ex);
         }
     }
 

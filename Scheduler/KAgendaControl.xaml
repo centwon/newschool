@@ -103,7 +103,8 @@
                                       ItemTemplate="{StaticResource ItemTemplate}"/>
     </UserControl.Resources>
 
-    <Border BorderBrush="CornflowerBlue" BorderThickness="1" CornerRadius="5" Background="White">
+    <Border BorderBrush="CornflowerBlue" BorderThickness="1" CornerRadius="5"
+            Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="36"/>

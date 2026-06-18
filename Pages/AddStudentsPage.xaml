@@ -306,7 +306,11 @@
                 <Button x:Name="BtnSave"
                        Style="{StaticResource AccentButtonStyle}"
                        Click="BtnSave_Click"
-                       IsEnabled="False">
+                       IsEnabled="False"
+                       ToolTipService.ToolTip="데이터베이스에 저장 (Ctrl+S)">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                    </Button.KeyboardAccelerators>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE74E;" FontSize="16"/>
                         <TextBlock Text="데이터베이스에 저장" VerticalAlignment="Center"/>

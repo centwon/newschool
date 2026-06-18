@@ -11,7 +11,7 @@ using Microsoft.Web.WebView2.Core;
 
 namespace NewSchool.Controls;
 
-public partial class JoditEditor : UserControl, INotifyPropertyChanged, IDisposable
+public sealed partial class JoditEditor : UserControl, INotifyPropertyChanged, IDisposable
 {
     private const string VirtualHostName = "jodit.local";
 

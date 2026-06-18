@@ -12,7 +12,7 @@ namespace NewSchool.Scheduler
     /// Scheduler Service - 비즈니스 로직 레이어
     /// ✅ Ktask → KEvent 통합 완료: 모든 task는 KEvent(ItemType="task")으로 관리
     /// </summary>
-    public class SchedulerService : IDisposable
+    public sealed class SchedulerService : IDisposable
     {
         private readonly string _dbPath;
         private KEventRepository? _keventRepo;

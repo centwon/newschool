@@ -1,6 +1,125 @@
 # Changelog
 
-## v1.0.5 (2026-04-19 ~ 2026-04-20)
+## v1.0.5 (2026-04-19 ~ 2026-04-22)
+
+### CA1063/CA1001 전수 해결 (2026-04-22)
+- **CA1063 — IDisposable 구현 패턴**: 22개 클래스를 `sealed` 로 전환
+  - Services 13개: `TeacherService`·`SchoolService`·`StudentDetailService`·`GoogleAuthService`·`GoogleSyncService`·`ClassDiaryService`·`SchedulerService`·`TimetableService`·`SchoolScheduleService`·`StudentSpecialService`·`EnrollmentService`·`StudentService`·`SeatService`
+  - Repositories 2개: `LessonProgressRepository`·`UndoHistoryRepository`
+  - Infrastructure 3개: `DatabaseInitializer`·`FileLogger`·`UnitOfWork`
+  - ViewModels 3개: `StudentLogViewModel`·`ClassDiaryViewModel`·`StudentCardViewModel` (`protected virtual OnPropertyChanged`/`SetProperty` → `private` 로 전환해 봉인 충돌 해결)
+  - Controls 1개: `JoditEditor` (UserControl sealed)
+- **CA1001 — IDisposable 필드 보유 타입**: 11개 클래스에 IDisposable 구현
+  - Pages 7개: `PageSeats`·`PageStudentInfo`·`PageStudentLog`·`SchoolScheduleManagementPage`·`StudentInfoExportPage`·`StudentManagementPage`·`StudentSpecPage` — `Dispose()` 에서 서비스 필드 해제, 생성자에서 `Unloaded += (_,_) => Dispose();` 훅업
+  - Controls 3개: `MemoBoard`·`ClassDiaryListWin`(Window·`Closed` 훅)·`LessonLogList`
+  - Singleton 1개: `Caching/CacheManager` — `_cleanupCts` 정리 책임 명확화, sealed
+- **editorconfig 정리**: CA1063/CA1001 을 `warning` 으로 승격(이전엔 전수 리팩토링 유예 주석), 빌드 경고 0 유지
+
+### 정적 분석 표준화 + Dead code 정리 (2026-04-22)
+- **`.editorconfig` 신설** (프로젝트 루트)
+  - C# 코드 스타일 규칙 고정 — `var` 사용, 식 본문 멤버, 패턴 매칭, `using` 선언, 파일 범위 네임스페이스
+  - 진단 severities 명시
+    - **warning**: CS8600~8618(null 가능성), CA1825(빈 배열), IDE0005(불필요 using)
+    - **suggestion**: CA1822(static 승격), IDE0051/0052/0060(미사용 멤버), IDE0090(new 간소화), CA1063·CA1001·CA2100(전수 리팩토링 전까지)
+    - **none**: CA1304~1310(CultureInfo — 한국어 고정 환경), CA1031(catch Exception — 프로젝트 정책), CA1848(LoggerMessage — FileLogger 구조상 과잉)
+  - 인코딩 CRLF/UTF-8, XAML/JSON 2칸, C# 4칸 일관성
+  - **빌드 경고 0 유지**(suggestion 은 IDE 에서만 표시)
+- **Dead code 2차 정리** — Helpers 계층 호출처 0건 메서드 일괄 제거
+  - `Helpers/ExcelReader.cs` (ExcelHelper) — 7개 제거: `GetData`, `ReadSheetAsObjectArray`(private 헬퍼), `ReadWithHeaders`, `GetSheetNames`, `ReadAsDataTable`, `WriteArray`, `CreateExcelStream(DataTable)`, `CreateExcelStream<T>`
+  - `Helpers/NeisHelper.cs` — 4개 제거: `GetAreaDisplayName`, `IsOverLimit`, `GetByteInfo`, `GetRemainingBytes`
+  - **총 11개 메서드** 제거, 유지되는 공개 API 는 주석으로 명시
+  - **제외 사항**: `Helpers/TextBoxDropHelper` 의 `GetEnableTextDrop`/`SetEnableTextDrop` 은 XAML attached property 프레임워크가 호출하므로 유지(초기 스캔 오탐)
+
+### 키보드 단축키 · 다크모드 일관성 (2026-04-21 UI 정리)
+- **Ctrl+S 표준화** — 저장 버튼 9곳에 `KeyboardAccelerator` 추가, 툴팁에 `(Ctrl+S)` 표기
+  - `Pages/PageStudentInfo` · `Pages/PageStudentLog` (BtnSaveActLog) · `Pages/LessonActivityPage` · `Pages/ClubActivityPage` · `Pages/PageSeats` · `Pages/AddStudentsPage` · `Pages/SchoolScheduleManagementPage` (BtnSaveSelected) · `Board/Pages/PostEditPage` (SaveButton) · `Dialogs/StudentSpecBatchDialog` (BtnSaveAll)
+  - 기존 적용 페이지(StudentManagementPage, StudentSpecPage) 합쳐 총 11곳에서 Ctrl+S 통일
+- **Ctrl+F 검색창 포커스** — `Page.KeyboardAccelerators` + `Invoked` 핸들러로 검색 TextBox `Focus(Keyboard)` + `SelectAll`
+  - `Board/Pages/PostListPage` → `SearchTextBox`
+  - `Board/ListViewer` → `TBoxSearch`
+- **다크모드 하드코딩 제거**
+  - `Scheduler/Kcalendar.xaml` — `Background="White"` / `Foreground="Black"` / `BorderBrush="#E0E0E0"` → `ThemeResource LayerFillColorDefaultBrush` · `TextFillColorPrimaryBrush` · `ControlStrokeColorDefaultBrush`
+  - `Scheduler/DayCell.xaml` — BrdBase `Background="White"` + `BorderBrush` → ThemeResource 로 전환
+  - `Scheduler/KAgendaControl.xaml` — 외곽 Border `Background="White"` 제거
+  - `Board/Controls/CommentBox.xaml` — UserControl `Background="White"` 제거
+  - `Controls/MonthPicker.xaml` — Flyout 그리드 `Background="White"` → `FlyoutPresenterBackground`
+  - `Board/ListViewer.xaml` — Page 배경 + 상/하/검색바(`#FFF8F8F8`), 테두리(`#E0E0E0`/`#F0F0F0`), 보조/삼차 텍스트(`#666666`/`#999999`) 를 모두 ThemeResource 로 일괄 치환 (13곳)
+- **유지 사항**: 인쇄용 HTML/PDF 서비스(`HtmlExportService`/`SeatsPrintService`/`StudentCardPrintService`/`StudentLogPrintService`)의 흰 배경·검은 글자는 **의도적 보존** — 종이 출력물은 항상 라이트
+
+### 이벤트 핸들러 람다 → named method 전환 (2026-04-21 마감)
+- **배경**: `dialog.Closed += async (s,args) => { ... await LoadLogsAsync(); }` 형태의 람다가 10여 곳에 분산돼 있었음. 다이얼로그가 GC 되기까지 페이지 메서드를 계속 캡처하고, 핸들러 체인에서 자기 자신을 떼어낼 수 없어 잠재적 누수·테스트 불가 코드였음
+- **대응**: 각 Page/Control 에 공용 named method(`OnLogDialogClosedReload`, `OnLogDialogClosedReloadDaily`, `OnLogDialogClosedReloadStudent` 등)를 추가하고 핸들러 내부에서 `sender.Closed -= ...` 로 자기 제거
+  - `Pages/PageStudentLog.xaml.cs` — 3건 (개별 추가, 일괄, 컨텍스트 메뉴)
+  - `Pages/PageStudentInfo.xaml.cs` — 1건 (학생 로그 재로드)
+  - `Pages/LessonActivityPage.xaml.cs` — 3건 (일괄+개별+컨텍스트). 일괄 다이얼로그는 `IsSuccess/SavedLogs` 참조가 필요해 지역 named function 사용
+  - `Pages/ClubActivityPage.xaml.cs` — 2건
+  - `Pages/ClassDiaryPage.xaml.cs` — 3건. `ClassDiaryListWin.DiarySelected` 람다도 `OnDiarySelected` 로 분리, `listWin.Closed` 에서 해제
+  - `Controls/LogListViewer.xaml.cs` — 편집 다이얼로그 1건 (지역 named function + `vm` 캡처 유지)
+- **효과**: 핸들러 체인 투명성 회복, 누수 경로 제거, 디버깅 시 스택 트레이스가 람다 메타명 대신 실제 메서드명으로 표시
+
+### 성능·메모리·가상화 개선 2차 (2026-04-21 심화)
+- **시작 시간 단축**
+  - `App.OnLaunched` 의 자동 백업(`Settings.RunAutoBackupIfNeeded`)을 `Task.Run` 으로 밀어 시작 경로 비차단 — 백업 주기 도래 시 체감되던 1~3초 블로킹 제거
+  - `TodayPage.Page_Loaded` 의 시간표·학사일정·할일/일정·급식 4종 로드를 `Task.WhenAll` 로 병렬화 (기존 순차) — 누적 400ms~1.2초 → 가장 느린 하나 시간으로 단축, 개별 실패는 `SafeLoadAsync` 로컬 함수로 격리
+- **메모리 누수 해소**
+  - `PageSeats` — `PhotoCard` 당 6개 이벤트(StudentChanged·UnUsedChanged·FixedChanged·DragOver·Drop·Tapped) 구독이 `InitSeats` 재호출 시마다 누적되던 문제 해결. `DetachCardEvents` 헬퍼 신설 → `InitSeats` 선두 + `Page_Unloaded` 에서 일괄 해제, `StudentList.StudentSelected` 도 해제
+  - `StudentSpecBatchDialog` — `this.Closed` 에서 `StudentList.StudentSelected -= OnStudentSelected` 추가, 다이얼로그 반복 열기 누수 차단
+- **ListView/ItemsRepeater 가상화 복구**
+  - `StudentManagementPage.xaml` — 구조를 `ScrollViewer > StackPanel > [Header + ItemsRepeater]` → `Grid(Auto + *) > [Header 고정 + ScrollViewer > ItemsRepeater]` 로 재구성. 수백 명 학생도 실 렌더 영역만 DOM 생성
+  - `Board/ListViewer.xaml` — 최상위 `ScrollViewer` 제거(내부 `PostsRepeater` 의 ScrollViewer 가상화를 무력화하던 이중 구조). 페이징·검색 행은 Grid RowDefinition 이 이미 `Auto` 라 레이아웃 동일
+- **Dead code 정리** — 호출처 0건 확인된 public 메서드 2건 제거
+  - `StudentRepository.DeleteByIdAsync` (물리 삭제; 사용처는 논리 삭제 `DeleteAsync` 만)
+  - `LessonProgressRepository.MarkAsCancelledAsync` (결강 처리; 형제 메서드 `MarkAsSkipped/Makeup` 만 호출됨)
+
+### 성능·안정성·내보내기 개선 (2026-04-21)
+- **TextBox 한글 IME 기본 입력** (`Helpers/KoreanImeHelper.cs` 신설)
+  - `App.xaml` 전역 `Style` 에 `helpers:KoreanImeHelper.UseHangul="True"` 첨부 속성 자동 적용 — 모든 `TextBox` 에 별도 설정 없이 한글 입력 활성
+  - `GotFocus` → `DispatcherQueue` 한 틱 지연 후 현재 IME 상태를 `ImmGetConversionStatus` 로 조회, 한글이 아니면 `SendInput(VK_IME_ON)` 으로 전환 (레거시 폴백 `VK_HANGUL`)
+  - **구현 포인트**: WinUI 3 TextBox 는 TSF(Text Services Framework) 로 입력을 처리하므로 `ImmSetConversionStatus` 는 호출이 수락(`ok=True`)되어도 실제로는 무시됨 — 가상 키 입력 시뮬레이션이 유일하게 동작하는 경로
+  - 이미 한글 상태면 skip, 영문 전환은 기존 한/영 키로 자유롭게
+- **사용자 행동 경로 silent catch 스윕** — 파일 업로드·저장 등 사용자가 명시적으로 트리거한 작업에서 `Debug.WriteLine` 만 남기던 예외 처리를 모두 `UserErrorReporter.ReportAsync` 알림으로 승격
+  - 대상: `StudentSpecBatchDialog` · `CourseEnrollmentDialog` · `CourseSectionDialog` · `PostEditPage` · `MemoEditDialog` · `MaterialEditDialog` · `MemoBoard(자동저장)`
+- **Google Calendar 일시 오류 재시도** (`GoogleCalendarApiClient.SendWithRetryAsync`)
+  - `HttpRequestException` · `TaskCanceledException`(네트워크 타임아웃) · HTTP 5xx 를 일시 오류로 간주, 지수 백오프(2·4·8초) 로 최대 3회 재시도
+  - 사용자 취소(`CancellationToken`) 는 즉시 전달, `MaxTransientRetries = 3` 통일
+  - 재시도 시 `CreateAuthRequestAsync` 로 새 요청 생성하여 HttpContent 재사용 문제 회피
+
+- **N+1 쿼리 해소** (`UnifiedExportService`)
+  - `StudentLogRepository.GetByStudentIdsAsync` / `StudentSpecialRepository.GetByStudentIdsAsync` 신설 — `WHERE StudentID IN (@id0,@id1,...)` 단일 쿼리로 학급 전체 일괄 조회, `Dictionary<StudentID, List<T>>` 반환
+  - `LoadClassLogsAsync`: 학생당 2쿼리 × N명 → **총 2쿼리**(1·2학기 일괄)로 축소
+  - `LoadClassSpecsAsync`: 학생당 1쿼리 × N명 → **총 1쿼리**로 축소
+  - 30명 학급 기준 DB 라운드트립 약 30배↓, 빈 리스트 기본값으로 키 존재 보장
+- **전역 예외 안전망** (`App.xaml.cs`)
+  - `Application.UnhandledException` 확장: 기존 Debug·FileLogger 로깅 유지 + 사용자 대화상자 알림 + `e.Handled = true`로 앱 강제 종료 방지
+  - `TaskScheduler.UnobservedTaskException` 포착 — `async void` / fire-and-forget Task에서 샌 예외도 사용자에 알림 후 `SetObserved()`
+  - `AppDomain.CurrentDomain.UnhandledException` — 최종 안전망(파일 로그)
+  - `Controls/UserErrorReporter.cs` 신설 — `ReportAsync(context, ex, title?)` 공용 헬퍼(자체 실패 방어)
+- **CSV 내보내기 + 클립보드 복사** (`UnifiedExportPage`)
+  - `Services/CsvExportService.cs` 신설 — UTF-8 BOM + RFC 4180 인용 + CSV Injection 방지(`=`,`+`,`-`,`@` 선행 인용)
+  - `UnifiedExportService.ExportFormat.Csv` 추가, 누가기록/학생부 분기 연결
+  - `BuildClassLogsCsvAsync` / `BuildClassSpecsCsvAsync` — 클립보드용 문자열 반환
+  - UI: "CSV (.csv)" 라디오 + "클립보드 복사" 버튼 — `Clipboard.SetContent(DataPackage)`로 엑셀·구글 시트 즉시 붙여넣기
+  - 좌석배정/학생카드 선택 시 CSV·Excel·클립보드 버튼 자동 비활성화
+
+### 좌석배정표 인쇄 옵션 강화 (2026-04-20)
+- **출력 방향 설정** (`SeatPrintOptionsDialog`)
+  - 자동 (좌석 가로 칸수 > 세로 칸수이면 가로 출력) · 세로 · 가로 선택
+  - `PrintOrientation` enum 추가 (`SeatsPrintService`)
+  - PDF: `PageSizes.A4.Landscape()` 분기, 가용 영역(535×782 ↔ 782×535) 스왑 후 셀 크기·상단 여백 재계산
+  - HTML: `@page { size: A4 landscape }` 조건부 출력
+- **학급 명렬표 삽입 옵션**
+  - 왼쪽 사이드바(82pt)에 번호·이름 2열 표, 헤더 `번호 | 이름`
+  - 모든 학생이 한 페이지에 들어가도록 행 높이·폰트(5~11pt) 자동 조정
+  - HTML: flex 레이아웃 (`.layout > .sidebar + .main`), `.main` 의 교탁은 column-flex 하단 정렬
+- **교탁 라벨 개선** — `"교 탁"` → `"{grade}학년 {classRoom}반"`
+
+### 게시판 명렬표 표 구조 개편 (2026-04-20)
+- **그룹 세로 레이아웃** (`RosterTableDialog.BuildGroupedVerticalTable`) — 그룹명을 별도 구분 행이 아닌 **칼럼**으로 이동해 엑셀 복사·정렬·필터 용이
+- **학급 전체**(학년 내): `학급 | 번호 | 이름 | 사용자칼럼...` (`1반`, `2반`)
+- **수업 전체**(강의실 그룹): `강의실 | 학년 | 학급 | 번호 | 이름 | ...` — 강의실 내 여러 학급 혼재 대응, 학년→학급→번호 순 정렬
+- **동아리**: `학년 | 학급 | 번호 | 이름 | ...` (학년·학급은 숫자만 표기)
+- `BuildGroupedVerticalTable` 시그니처를 `leadHeaders[]` + flat `rows` 로 일반화
+- `LoadCourseStudentsByRoomDetailedAsync`, `LoadClubStudentsDetailedAsync` 신설
 
 ### 통합 내보내기 — 학생카드 타입 추가 (2026-04-20)
 - `DataType.StudentCard` 추가 (PDF/HTML 전용, Excel 자동 비활성화)

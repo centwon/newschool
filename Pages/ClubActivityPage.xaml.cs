@@ -341,8 +341,15 @@ public sealed partial class ClubActivityPage : Page
         };
 
         var dialog = new StudentLogDialog(newLog);
-        dialog.Closed += async (s, args) => await LoadLogsAsync();
+        dialog.Closed += OnLogDialogClosedReload;
         dialog.Activate();
+    }
+
+    // 다이얼로그 Closed → 로그 재로드 공용 핸들러 (자기 이벤트 해제)
+    private async void OnLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    {
+        if (sender is Window w) w.Closed -= OnLogDialogClosedReload;
+        await LoadLogsAsync();
     }
 
     /// <summary>
@@ -530,10 +537,7 @@ public sealed partial class ClubActivityPage : Page
             student,
             Settings.WorkYear.Value,
             Settings.WorkSemester.Value);
-        logDialog.Closed += async (s, args) =>
-        {
-            await LoadLogsAsync();
-        };
+        logDialog.Closed += OnLogDialogClosedReload;
         logDialog.Activate();
     }
 

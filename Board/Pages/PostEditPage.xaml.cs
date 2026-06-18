@@ -472,6 +472,7 @@ public sealed partial class PostEditPage : Page
         catch (Exception ex)
         {
             Debug.WriteLine($"첨부파일 이동 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 이동", ex);
         }
     }
 
@@ -518,6 +519,7 @@ public sealed partial class PostEditPage : Page
         catch (Exception ex)
         {
             Debug.WriteLine($"파일 저장 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 저장", ex);
             return null;
         }
     }

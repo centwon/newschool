@@ -10,7 +10,7 @@ namespace NewSchool.Logging
     /// <summary>
     /// 파일 로거 - 비동기 로그 기록 (Native AOT 호환)
     /// </summary>
-    public class FileLogger : IDisposable
+    public sealed class FileLogger : IDisposable
     {
         private static readonly Lazy<FileLogger> _instance = new(() => new FileLogger());
         public static FileLogger Instance => _instance.Value;

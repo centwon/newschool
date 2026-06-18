@@ -13,6 +13,10 @@
         <converters:DateTimeToStringConverter x:Key="DateTimeConverter"/>
     </Page.Resources>
 
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="OnCtrlFInvoked"/>
+    </Page.KeyboardAccelerators>
+
     <Grid Padding="20" x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition x:Name="TitleRow" Height="Auto"/>

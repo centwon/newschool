@@ -164,9 +164,9 @@
                         </Style>
                     </Flyout.FlyoutPresenterStyle>
 
-                    <Grid x:Name="GridMonth" 
+                    <Grid x:Name="GridMonth"
                           Width="200"
-                          Background="White"
+                          Background="{ThemeResource FlyoutPresenterBackground}"
                           CornerRadius="12"
                           Padding="8"
                           KeyDown="GridMonth_KeyDown">

@@ -553,9 +553,20 @@ kbd {
 
   <h2>인쇄</h2>
   <div class="card">
-    <p>현재 배치도를 A4 1장 PDF로 출력합니다.</p>
+    <p>현재 배치도를 A4 1장 PDF로 출력합니다. 인쇄 버튼을 누르면 옵션 다이얼로그가 먼저 표시됩니다.</p>
     <ul>
-      <li>좌석+교탁이 용지 하단 기준으로 배치되며, 상단에 여백이 남습니다.</li>
+      <li><strong>출력 방향</strong>: 자동 / 세로 / 가로 선택
+        <ul>
+          <li>자동: 좌석 가로 칸수가 세로 칸수보다 크면 가로 출력으로 자동 전환</li>
+        </ul>
+      </li>
+      <li><strong>학급 명렬표 포함</strong>: 용지 왼쪽에 번호·이름 2열 표로 명렬표를 부착
+        <ul>
+          <li>학생 수에 맞춰 행 높이·폰트가 자동 조정되어 한 페이지에 들어갑니다.</li>
+          <li>교탁에 부착할 때 번호·이름을 한눈에 참조하기 좋습니다.</li>
+        </ul>
+      </li>
+      <li>좌석+교탁이 용지 하단 기준으로 배치되며, 교탁에는 <strong>학년·반</strong>이 표시됩니다.</li>
       <li><strong>사진 표시</strong> 체크 시 학생 사진이 3:4 비율로 최대 크기 표시됩니다.</li>
       <li>줄 사이에 통로 간격이 삽입되어 줄 구분이 명확합니다.</li>
       <li>설명 입력란에 메시지를 입력하면 인쇄물 상단에 표시됩니다.</li>
@@ -593,10 +604,18 @@ kbd {
     <p>학급/수업/동아리 학생 명단을 표 형태로 자동 생성하여 삽입합니다.</p>
     <ul>
       <li><strong>범위 선택</strong>: 학급, 수업(교과), 동아리 중 선택</li>
-      <li><strong>레이아웃</strong>: 세로형(구분별 그룹) / 가로형(구분별 열)</li>
+      <li><strong>레이아웃</strong>: 세로형 / 가로형 (학급·수업 전체 선택 시)</li>
       <li><strong>제목/열 머리글</strong> 커스터마이징 가능</li>
       <li>학생 번호/이름 자동 채움</li>
       <li>게시물 제목이 비어 있으면 표 제목으로 자동 설정</li>
+    </ul>
+
+    <p><strong>세로 레이아웃의 칼럼 구성</strong> — 그룹명을 별도 구분 행이 아닌 <em>칼럼</em>으로 배치하여 엑셀 붙여넣기 후 정렬/필터가 바로 가능합니다.</p>
+    <ul>
+      <li><strong>학급</strong>(단일): <code>번호 | 이름 | 사용자칼럼…</code></li>
+      <li><strong>학급 전체</strong>(학년 내): <code>학급 | 번호 | 이름 | …</code> (예: <code>1반</code>)</li>
+      <li><strong>수업 전체</strong>(강의실 그룹): <code>강의실 | 학년 | 학급 | 번호 | 이름 | …</code> — 한 강의실에 여러 학급이 섞여있을 때도 정렬 가능</li>
+      <li><strong>동아리</strong>: <code>학년 | 학급 | 번호 | 이름 | …</code> (학년·학급은 숫자만 표기)</li>
     </ul>
   </div>
 </div>
@@ -620,6 +639,35 @@ kbd {
     <li><strong>비상연락망</strong>: 보호자 연락처 포함 명단</li>
     <li><strong>학생카드</strong>: 사진, 기본 정보, 메모가 포함된 개인 카드</li>
   </ul>
+</div>
+
+<!-- ==================== 통합 내보내기 ==================== -->
+<div class="section" id="unified-export">
+  <h1>통합 내보내기</h1>
+  <p>학급 단위의 데이터(누가기록·학생부 특기사항·좌석배정·학생카드)를 다양한 형식으로 한 번에 내보냅니다.</p>
+
+  <h2>데이터 타입</h2>
+  <ul>
+    <li><strong>누가기록</strong> — 학급 전체 학생의 1·2학기 누가기록(Excel·PDF·HTML·CSV)</li>
+    <li><strong>학생부 특기사항</strong> — 학급 전체 학생부(Excel·PDF·HTML·CSV)</li>
+    <li><strong>좌석배정</strong> — 좌석배치도(PDF·HTML 전용)</li>
+    <li><strong>학생카드</strong> — 학생당 1페이지 카드(PDF·HTML 전용)</li>
+  </ul>
+
+  <h2>출력 형식</h2>
+  <ul>
+    <li><strong>Excel (.xlsx)</strong> — 다중 시트로 저장</li>
+    <li><strong>PDF (.pdf)</strong> — 인쇄 레이아웃</li>
+    <li><strong>HTML (.html)</strong> — 브라우저 열람, Ctrl+P로 PDF 저장</li>
+    <li><strong>CSV (.csv)</strong> — UTF-8 BOM + RFC 4180 인용 처리. 엑셀·구글 시트 호환, 표 데이터(누가기록·학생부)에만 해당</li>
+  </ul>
+
+  <h2>클립보드 복사</h2>
+  <p>"클립보드 복사" 버튼을 누르면 선택한 표 데이터가 CSV 형식으로 클립보드에 담겨 엑셀·구글 시트에 즉시 붙여넣기 할 수 있습니다.
+     좌석배정/학생카드는 표 형식이 아니라 이 버튼이 비활성화됩니다.</p>
+
+  <h2>성능</h2>
+  <p>학급 전체 조회는 학생별 개별 쿼리 대신 <em>단일 IN 쿼리 일괄 조회</em>로 처리되어, 30명 학급 기준 DB 왕복을 약 30배 줄입니다.</p>
 </div>
 
 <!-- ==================== 수업 관리 ==================== -->
@@ -873,6 +921,11 @@ kbd {
     <div class="tip">앱을 업데이트하거나 재설치해도 데이터는 그대로 유지됩니다. 다른 PC로 이동하려면 NewSchool 폴더를 통째로 복사하세요.</div>
   </div>
 
+  <h2>입력 편의</h2>
+  <ul>
+    <li><strong>한글 IME 자동 전환</strong> — 모든 입력란(TextBox)에 포커스가 잡히면 IME가 자동으로 한글 모드로 전환됩니다. 영문 입력이 필요하면 <kbd>한/영</kbd> 키를 누르세요(다음 입력 시 다시 한글로 돌아옵니다).</li>
+  </ul>
+
   <h2>효율적 사용법</h2>
 
   <h3>학기 초</h3>
@@ -950,6 +1003,7 @@ const tocData = [
     { title: '학급 게시판', id: 'class-board' },
     { title: '학급 시간표', id: 'class-timetable' },
     { title: '학생 정보 출력', id: 'info-export' },
+    { title: '통합 내보내기', id: 'unified-export' },
   ]},
   { title: '수업 관리', id: 'lesson-management', children: [
     { title: '수업 홈', id: 'lesson-home' },

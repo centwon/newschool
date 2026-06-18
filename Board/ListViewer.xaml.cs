@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Board.ViewModels;
@@ -19,6 +20,14 @@ public sealed partial class ListViewer : Page
     private string _initialSubject = string.Empty;
 
     public PostListViewModel ViewModel { get; }
+
+    // Ctrl+F → 검색창으로 포커스 + 텍스트 전체 선택
+    private void OnCtrlFInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        TBoxSearch.Focus(FocusState.Keyboard);
+        TBoxSearch.SelectAll();
+        args.Handled = true;
+    }
 
     public ListViewer()
     {

@@ -18,8 +18,18 @@ namespace NewSchool.Pages;
 /// 학생 정보 출력 페이지 (WinUI3 버전)
 /// SchoolFilterPicker 사용, Student/StudentDetail 모델 기반 출력항목
 /// </summary>
-public sealed partial class StudentInfoExportPage : Page
+public sealed partial class StudentInfoExportPage : Page, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _data?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     #region Fields
 
     private DataTable? _data;
@@ -31,6 +41,7 @@ public sealed partial class StudentInfoExportPage : Page
     public StudentInfoExportPage()
     {
         InitializeComponent();
+        Unloaded += (_, _) => Dispose();
     }
 
     #endregion

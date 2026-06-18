@@ -13,7 +13,7 @@ namespace NewSchool.Database
     /// ⭐ 외래키 문제 해결: TeacherID NULL 허용 + ON DELETE SET NULL
     /// ⭐ 시간표 시스템 재설계: Course, CourseSchedule, ClassTimetable 분리
     /// </summary>
-    public class DatabaseInitializer : IDisposable
+    public sealed class DatabaseInitializer : IDisposable
     {
         private readonly string _dbPath;
         private SqliteConnection? _connection;

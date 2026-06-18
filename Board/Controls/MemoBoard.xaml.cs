@@ -21,8 +21,23 @@ namespace NewSchool.Board.Controls;
 /// 나머지: 1줄 compact 요약
 /// JoditEditor 인스턴스는 1개만 유지하고, 확장 아이템에 reparent하여 재사용
 /// </summary>
-public sealed partial class MemoBoard : UserControl
+public sealed partial class MemoBoard : UserControl, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        if (_memoEditor != null)
+        {
+            _memoEditor.PropertyChanged -= MemoEditor_PropertyChanged;
+            _memoEditor.Dispose();
+            _memoEditor = null;
+        }
+        GC.SuppressFinalize(this);
+    }
+
     #region Fields
 
     private Post? _selectedPost;
@@ -147,13 +162,7 @@ public sealed partial class MemoBoard : UserControl
     {
         DetachEditor();
         DetachFileList();
-
-        if (_memoEditor != null)
-        {
-            _memoEditor.PropertyChanged -= MemoEditor_PropertyChanged;
-            _memoEditor.Dispose();
-            _memoEditor = null;
-        }
+        Dispose();
     }
 
     /// <summary>
@@ -737,6 +746,7 @@ public sealed partial class MemoBoard : UserControl
         catch (Exception ex)
         {
             Debug.WriteLine($"[MemoBoard] 자동 저장 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("메모 자동 저장", ex);
         }
     }
 

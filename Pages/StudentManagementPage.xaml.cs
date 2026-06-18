@@ -27,8 +27,18 @@ namespace NewSchool.Pages;
 /// 4. 학생 추가 페이지로 이동
 /// 5. 전체 선택/해제 기능
 /// </summary>
-public sealed partial class StudentManagementPage : Page
+public sealed partial class StudentManagementPage : Page, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _enrollmentService?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     private readonly EnrollmentService _enrollmentService;
     /// <summary>
     /// 학생 목록 (최적화됨)

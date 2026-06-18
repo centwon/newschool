@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Board.Services;
 using NewSchool.Board.ViewModels;
@@ -59,6 +60,14 @@ public sealed partial class PostListPage : Page
         this.DataContext = ViewModel;
 
         Debug.WriteLine("ViewModel 및 이벤트 설정 완료");
+    }
+
+    // Ctrl+F → 검색창으로 포커스 + 텍스트 전체 선택
+    private void OnCtrlFInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        SearchTextBox.Focus(FocusState.Keyboard);
+        SearchTextBox.SelectAll();
+        args.Handled = true;
     }
 
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

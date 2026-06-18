@@ -108,9 +108,14 @@
                         Content="➕ 수동 추가" 
                         Click="OnAddManualClick"/>
 
-                <Button x:Name="BtnSaveSelected" 
-                        Content="💾 저장" 
-                        Click="OnSaveSelectedClick"/>
+                <Button x:Name="BtnSaveSelected"
+                        Content="💾 저장"
+                        Click="OnSaveSelectedClick"
+                        ToolTipService.ToolTip="선택 저장 (Ctrl+S)">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                    </Button.KeyboardAccelerators>
+                </Button>
 
                 <Button x:Name="BtnDeleteSelected" 
                         Content="🗑️ 삭제" 

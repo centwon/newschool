@@ -181,10 +181,36 @@ public class GoogleCalendarApiClient
         return request;
     }
 
-    /// <summary>401 자동 재시도 + 429 백오프</summary>
+    /// <summary>401 자동 재시도 + 429/5xx 지수 백오프 + 네트워크 오류 재시도</summary>
     private async Task<HttpResponseMessage> SendWithRetryAsync(HttpRequestMessage request, int retryCount = 0)
     {
-        var response = await _httpClient.SendAsync(request);
+        const int MaxTransientRetries = 3;
+        HttpResponseMessage response;
+
+        try
+        {
+            response = await _httpClient.SendAsync(request);
+        }
+        catch (HttpRequestException httpEx) when (retryCount < MaxTransientRetries)
+        {
+            // 네트워크 오류(연결 실패/타임아웃 등) → 지수 백오프 재시도
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
+            Debug.WriteLine($"[GoogleCalAPI] 네트워크 오류 ({httpEx.Message}) — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
+            await Task.Delay(delay);
+            var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
+            if (request.Content != null) retryRequest.Content = request.Content;
+            return await SendWithRetryAsync(retryRequest, retryCount + 1);
+        }
+        catch (TaskCanceledException tcEx) when (retryCount < MaxTransientRetries && !tcEx.CancellationToken.IsCancellationRequested)
+        {
+            // HttpClient 자체 타임아웃 (CancellationToken 아닌 것만)
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
+            Debug.WriteLine($"[GoogleCalAPI] 타임아웃 — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
+            await Task.Delay(delay);
+            var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
+            if (request.Content != null) retryRequest.Content = request.Content;
+            return await SendWithRetryAsync(retryRequest, retryCount + 1);
+        }
 
         // 401 Unauthorized → 토큰 갱신 후 재시도
         if (response.StatusCode == HttpStatusCode.Unauthorized && retryCount < 1)
@@ -204,12 +230,25 @@ public class GoogleCalendarApiClient
         }
 
         // 429 Too Many Requests → 백오프
-        if (response.StatusCode == (HttpStatusCode)429 && retryCount < 3)
+        if (response.StatusCode == (HttpStatusCode)429 && retryCount < MaxTransientRetries)
         {
             var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
             Debug.WriteLine($"[GoogleCalAPI] 429 — {retryAfter.TotalSeconds}초 대기 후 재시도");
             await Task.Delay(retryAfter);
             var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
+            if (request.Content != null) retryRequest.Content = request.Content;
+            return await SendWithRetryAsync(retryRequest, retryCount + 1);
+        }
+
+        // 5xx 서버 오류 → 지수 백오프 재시도 (500, 502, 503, 504)
+        int sc = (int)response.StatusCode;
+        if (sc >= 500 && sc < 600 && retryCount < MaxTransientRetries)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
+            Debug.WriteLine($"[GoogleCalAPI] HTTP {sc} — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
+            await Task.Delay(delay);
+            var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
+            if (request.Content != null) retryRequest.Content = request.Content;
             return await SendWithRetryAsync(retryRequest, retryCount + 1);
         }
 

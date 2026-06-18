@@ -15,8 +15,18 @@ namespace NewSchool.Controls;
 /// <summary>
 /// 학급일지 목록 조회 다이얼로그
 /// </summary>
-public sealed partial class ClassDiaryListWin : Window
+public sealed partial class ClassDiaryListWin : Window, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _diaryService?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     #region Fields
 
     private readonly ClassDiaryService _diaryService;
@@ -190,7 +200,7 @@ public sealed partial class ClassDiaryListWin : Window
     /// </summary>
     private void OnWindowClosed(object sender, WindowEventArgs args)
     {
-        _diaryService?.Dispose();
+        Dispose();
     }
 
     #endregion

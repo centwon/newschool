@@ -11,7 +11,7 @@ namespace NewSchool.ViewModels;
 /// StudentCard용 간소화된 ViewModel
 /// 모델을 직접 노출하여 불필요한 래핑 제거
 /// </summary>
-public class StudentCardViewModel : NotifyPropertyChangedBase, IDisposable
+public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposable
 {
     #region Fields
 

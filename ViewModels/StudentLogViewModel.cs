@@ -15,7 +15,7 @@ namespace NewSchool.ViewModels
     /// StudentLog + Student 정보 조합
     /// LogListViewer 컨트롤에서 사용
     /// </summary>
-    public class StudentLogViewModel : INotifyPropertyChanged, IDisposable
+    public sealed class StudentLogViewModel : INotifyPropertyChanged, IDisposable
     {
         #region Fields
 
@@ -666,12 +666,12 @@ namespace NewSchool.ViewModels
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+        private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
             if (Equals(field, value))
                 return false;

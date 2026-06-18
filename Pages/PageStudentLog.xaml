@@ -67,12 +67,15 @@
 
                 <Button x:Name="BtnSaveActLog"
                         Click="BtnSaveActLog_Click"
-                        ToolTipService.ToolTip="목록에서 수정한 내용을 저장"
+                        ToolTipService.ToolTip="목록에서 수정한 내용을 저장 (Ctrl+S)"
                         Style="{ThemeResource AccentButtonStyle}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE74E;" FontSize="16"/>
                         <TextBlock Text="저장" VerticalAlignment="Center"/>
                     </StackPanel>
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                    </Button.KeyboardAccelerators>
                 </Button>
 
                 <Button x:Name="BtnEditLog"

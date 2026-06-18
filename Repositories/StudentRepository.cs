@@ -295,38 +295,6 @@ namespace NewSchool.Repositories
 
         #region Delete
         /// <summary>
-        /// ID로 학생 삭제 (비동기)
-        /// </summary>
-        public async Task<bool> DeleteByIdAsync(string studentId)
-        {
-            const string query = "DELETE FROM Student WHERE StudentID = @StudentID";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"학생 삭제 완료: ID={studentId} (CASCADE로 관련 데이터도 삭제됨)");
-                }
-                else
-                {
-                    LogWarning($"학생 삭제 실패 (존재하지 않음): ID={studentId}");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 삭제 실패: ID={studentId}", ex);
-                throw;
-            }
-        }
-        /// <summary>
         /// 학생 삭제 (논리 삭제)
         /// CASCADE로 Enrollment, StudentDetail도 자동 삭제됨
         /// </summary>

@@ -16,8 +16,19 @@ namespace NewSchool.Pages;
 /// <summary>
 /// StudentSpecPage - 학생부 특기사항 관리 페이지
 /// </summary>
-public sealed partial class StudentSpecPage : Page
+public sealed partial class StudentSpecPage : Page, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _specialService?.Dispose();
+        _enrollservice?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     #region Fields
 
     private LogCategory _selectedCategory = LogCategory.전체;
@@ -33,6 +44,7 @@ public sealed partial class StudentSpecPage : Page
     {
         this.InitializeComponent();
         InitializeFilters();
+        Unloaded += (_, _) => Dispose();
     }
 
     #endregion

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
@@ -110,6 +111,65 @@ namespace NewSchool.Repositories
             catch (Exception ex)
             {
                 LogError($"학생별 학생부 기록 조회 실패: StudentID={studentId}", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 여러 학생의 학생부 기록을 단일 쿼리로 일괄 조회 (N+1 해소)
+        /// StudentID → List&lt;StudentSpecial&gt; 딕셔너리로 반환
+        /// </summary>
+        public async Task<Dictionary<string, List<StudentSpecial>>> GetByStudentIdsAsync(
+            System.Collections.Generic.IEnumerable<string> studentIds, int year)
+        {
+            var idList = new List<string>();
+            var seen = new HashSet<string>();
+            if (studentIds != null)
+            {
+                foreach (var id in studentIds)
+                {
+                    if (!string.IsNullOrEmpty(id) && seen.Add(id)) idList.Add(id);
+                }
+            }
+
+            var result = new Dictionary<string, List<StudentSpecial>>();
+            if (idList.Count == 0) return result;
+
+            var placeholders = string.Join(",", idList.Select((_, i) => $"@id{i}"));
+            string query = $@"
+                SELECT * FROM StudentSpecial
+                WHERE StudentID IN ({placeholders})
+                  AND Year = @Year
+                ORDER BY Date DESC";
+
+            try
+            {
+                using var cmd = CreateCommand(query);
+                for (int i = 0; i < idList.Count; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
+                }
+                cmd.Parameters.AddWithValue("@Year", year);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                foreach (var id in idList) result[id] = new List<StudentSpecial>();
+                while (await reader.ReadAsync())
+                {
+                    var spec = MapStudentSpecial(reader);
+                    if (!result.TryGetValue(spec.StudentID, out var list))
+                    {
+                        list = new List<StudentSpecial>();
+                        result[spec.StudentID] = list;
+                    }
+                    list.Add(spec);
+                }
+
+                LogInfo($"학생부 일괄 조회 완료: 학생 {idList.Count}명");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                LogError($"학생부 일괄 조회 실패: Count={idList.Count}", ex);
                 throw;
             }
         }

@@ -10,7 +10,7 @@ namespace NewSchool.Services
     /// Student Service
     /// 학생 정보 통합 관리 (Student + Enrollment + StudentDetail)
     /// </summary>
-    public class StudentService : IDisposable
+    public sealed class StudentService : IDisposable
     {
         private readonly StudentRepository _studentRepo;
         private readonly EnrollmentRepository _enrollmentRepo;

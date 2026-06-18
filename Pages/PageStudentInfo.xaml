@@ -45,6 +45,9 @@
                     <Button.Resources>
                         <FontIcon x:Key="Icon" Glyph="&#xE74E;" FontSize="16"/>
                     </Button.Resources>
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                    </Button.KeyboardAccelerators>
                 </Button>
 
                 <Button x:Name="BtnPrint"

@@ -9,7 +9,7 @@ namespace NewSchool.Repositories;
 /// <summary>
 /// Undo/Redo 기록 저장소
 /// </summary>
-public class UndoHistoryRepository : IDisposable
+public sealed class UndoHistoryRepository : IDisposable
 {
     private readonly string _connectionString;
 

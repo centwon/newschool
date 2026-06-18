@@ -73,6 +73,10 @@
                                  Content="HTML (.html)"
                                  GroupName="Format"
                                  ToolTipService.ToolTip="브라우저로 열람 · Ctrl+P로 PDF 저장 가능"/>
+                    <RadioButton x:Name="RbFmtCsv"
+                                 Content="CSV (.csv)"
+                                 GroupName="Format"
+                                 ToolTipService.ToolTip="쉼표 구분 · 엑셀/구글 시트 호환 · UTF-8 BOM"/>
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -87,6 +91,11 @@
                     Content="내보내기"
                     Style="{ThemeResource AccentButtonStyle}"
                     Click="BtnExport_Click"
+                    MinWidth="120"/>
+            <Button x:Name="BtnCopyClipboard"
+                    Content="클립보드 복사"
+                    Click="BtnCopyClipboard_Click"
+                    ToolTipService.ToolTip="표 데이터를 TSV로 복사 · 엑셀/구글 시트에 바로 붙여넣기"
                     MinWidth="120"/>
             <ProgressRing x:Name="Busy"
                           Width="22" Height="22"

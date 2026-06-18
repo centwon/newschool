@@ -115,45 +115,52 @@
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                 </StackPanel>
 
-                <!-- 학생 목록 -->
-                <ScrollViewer x:Name="StudentListContainer" 
-                              Visibility="Visible" VerticalScrollMode="Enabled" 
-                              VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <!-- 헤더 -->
-                        <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                              Padding="12,8"
-                              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                              BorderThickness="0,0,0,1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="50"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="60"/>
-                                <ColumnDefinition Width="60"/>
-                                <ColumnDefinition Width="60"/>
-                                <ColumnDefinition Width="120"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                <!-- 학생 목록 (헤더 고정 + ItemsRepeater 만 ScrollViewer 안) -->
+                <!-- 가상화 유지를 위해 ScrollViewer 의 직속 자식은 ItemsRepeater 한 개뿐이어야 함 -->
+                <Grid x:Name="StudentListContainer" Visibility="Visible">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                            <CheckBox x:Name="ChkSelectAll" 
-                                      Grid.Column="0"
-                                      IsThreeState="True"
-                                      Click="OnSelectAllClick"
-                                      HorizontalAlignment="Left"
-                                      VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="학생ID" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="학년도" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="3" Text="학년" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="4" Text="반" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="5" Text="번호" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="6" Text="이름" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="7" Text="상태" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="8" Text="비고" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        </Grid>
+                    <!-- 헤더(고정) -->
+                    <Grid Grid.Row="0"
+                          Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                          Padding="12,8"
+                          BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                          BorderThickness="0,0,0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="50"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                        <!-- 학생 목록 ItemsRepeater -->
+                        <CheckBox x:Name="ChkSelectAll"
+                                  Grid.Column="0"
+                                  IsThreeState="True"
+                                  Click="OnSelectAllClick"
+                                  HorizontalAlignment="Left"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="학생ID" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="학년도" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="학년" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="반" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="번호" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="6" Text="이름" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="7" Text="상태" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="8" Text="비고" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- 학생 목록 (가상화) -->
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollMode="Enabled"
+                                  VerticalScrollBarVisibility="Auto">
                         <ItemsRepeater x:Name="StudentList" Margin="0">
                             <ItemsRepeater.Layout>
                                 <StackLayout Spacing="0"/>
@@ -232,8 +239,8 @@
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
-                    </StackPanel>
-                </ScrollViewer>
+                    </ScrollViewer>
+                </Grid>
             </Grid>
         </Border>
     </Grid>

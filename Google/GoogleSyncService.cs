@@ -17,7 +17,7 @@ namespace NewSchool.Google;
 /// ✅ Ktask 통합: extendedProperties로 IsDone/ItemType 동기화
 /// 충돌 시 last-write-wins
 /// </summary>
-public class GoogleSyncService : IDisposable
+public sealed class GoogleSyncService : IDisposable
 {
     private readonly GoogleCalendarApiClient _apiClient;
     private readonly GoogleAuthService _authService;

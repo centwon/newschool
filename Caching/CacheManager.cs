@@ -10,8 +10,19 @@ namespace NewSchool.Board.Caching
     /// <summary>
     /// 캐시 매니저 - 자주 조회되는 데이터 캐싱
     /// </summary>
-    public class CacheManager
+    public sealed class CacheManager : IDisposable
     {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _cleanupCts.Cancel();
+            _cleanupCts.Dispose();
+            GC.SuppressFinalize(this);
+        }
+
         private static readonly Lazy<CacheManager> _instance = new(() => new CacheManager());
         public static CacheManager Instance => _instance.Value;
 

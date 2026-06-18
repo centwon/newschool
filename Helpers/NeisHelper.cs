@@ -52,50 +52,7 @@ public static class NeisHelper
         };
     }
 
-    /// <summary>
-    /// 영역별 NEIS 명칭 반환
-    /// </summary>
-    public static string GetAreaDisplayName(string type)
-    {
-        return type switch
-        {
-            "교과활동" => "교과 세부능력 및 특기사항",
-            "개인별세특" => "개인별 세부능력 및 특기사항",
-            "자율활동" => "자율활동 특기사항",
-            "동아리활동" => "동아리활동 특기사항",
-            "진로활동" => "진로활동 특기사항",
-            "종합의견" => "행동특성 및 종합의견",
-            _ => type
-        };
-    }
-
-    /// <summary>
-    /// 바이트 수가 제한을 초과하는지 확인
-    /// </summary>
-    public static bool IsOverLimit(string text, string type)
-    {
-        int currentBytes = CountByte(text);
-        int maxBytes = GetMaxBytes(type);
-        return currentBytes > maxBytes;
-    }
-
-    /// <summary>
-    /// 바이트 정보 문자열 생성
-    /// </summary>
-    public static string GetByteInfo(string text, string type)
-    {
-        int currentBytes = CountByte(text);
-        int maxBytes = GetMaxBytes(type);
-        int charCount = text?.Length ?? 0;
-
-        return $"{currentBytes} / {maxBytes} Byte ({charCount}자)";
-    }
-
-    /// <summary>
-    /// 남은 바이트 수 반환
-    /// </summary>
-    public static int GetRemainingBytes(string text, string type)
-    {
-        return GetMaxBytes(type) - CountByte(text);
-    }
+    // 미사용 메서드 제거 (2026-04-22):
+    //   GetAreaDisplayName / IsOverLimit / GetByteInfo / GetRemainingBytes — 호출처 0건
+    //   유지되는 공개 API: CountByte, GetMaxBytes
 }

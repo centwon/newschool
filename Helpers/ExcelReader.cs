@@ -114,152 +114,9 @@ namespace NewSchool.Helpers
             return result;
         }
 
-        /// <summary>
-        /// object[,] 형식으로 읽기 (기존 GetData 메서드 호환)
-        /// </summary>
-        public static List<object[,]> GetData(string filePath, int? sheetNumber = null, string? sheetName = null)
-        {
-            var result = new List<object[,]>();
-
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException("Excel 파일을 찾을 수 없습니다.", filePath);
-
-            var sheetNames = MiniExcel.GetSheetNames(filePath);
-
-            // 특정 시트 번호
-            if (sheetNumber.HasValue)
-            {
-                int index = sheetNumber.Value - 1;
-                if (index >= 0 && index < sheetNames.Count)
-                {
-                    result.Add(ReadSheetAsObjectArray(filePath, sheetNames[index]));
-                }
-                return result;
-            }
-
-            // 특정 시트 이름
-            if (!string.IsNullOrWhiteSpace(sheetName))
-            {
-                if (sheetNames.Contains(sheetName))
-                {
-                    result.Add(ReadSheetAsObjectArray(filePath, sheetName));
-                }
-                return result;
-            }
-
-            // 모든 시트
-            foreach (var sheet in sheetNames)
-            {
-                result.Add(ReadSheetAsObjectArray(filePath, sheet));
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Excel 시트를 object[,] 배열로 읽기 (1-based)
-        /// </summary>
-        private static object[,] ReadSheetAsObjectArray(string filePath, string sheetName)
-        {
-            var rows = MiniExcel.Query(filePath, sheetName: sheetName, useHeaderRow: false)
-                .Cast<IDictionary<string, object>>()
-                .ToList();
-
-            if (rows.Count == 0)
-                return new object[1, 1];
-
-            int rowCount = rows.Count;
-            // 모든 행에서 최대 열 수 계산
-            int colCount = rows.Max(r => r.Count);
-
-            object[,] result = new object[rowCount + 1, colCount + 1];
-
-            for (int row = 0; row < rowCount; row++)
-            {
-                var rowData = rows[row];
-                int col = 0;
-                foreach (var cell in rowData.Values)
-                {
-                    if (col < colCount) // 배열 범위 보호
-                    {
-                        result[row + 1, col + 1] = cell ?? string.Empty;
-                    }
-                    col++;
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// 헤더와 함께 데이터 읽기
-        /// </summary>
-        public static List<Dictionary<string, object?>> ReadWithHeaders(string filePath, string? sheetName = null)
-        {
-            var result = new List<Dictionary<string, object?>>();
-
-            var rows = MiniExcel.Query(filePath, sheetName: sheetName, useHeaderRow: true);
-
-            foreach (var row in rows)
-            {
-                var dict = new Dictionary<string, object?>();
-                var rowDict = row as IDictionary<string, object>;
-
-                if (rowDict != null)
-                {
-                    foreach (var kvp in rowDict)
-                    {
-                        dict[kvp.Key] = kvp.Value;
-                    }
-                }
-
-                result.Add(dict);
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// 시트 이름 목록 가져오기
-        /// </summary>
-        public static List<string> GetSheetNames(string filePath)
-        {
-            return MiniExcel.GetSheetNames(filePath).ToList();
-        }
-
-        /// <summary>
-        /// DataTable로 읽기
-        /// </summary>
-        public static DataTable ReadAsDataTable(string filePath, string? sheetName = null)
-        {
-            var dt = new DataTable();
-
-            var rows = MiniExcel.Query(filePath, sheetName: sheetName, useHeaderRow: true)
-                .Cast<IDictionary<string, object>>()
-                .ToList();
-
-            if (rows.Count == 0)
-                return dt;
-
-            // 열 추가
-            foreach (var key in rows[0].Keys)
-            {
-                dt.Columns.Add(key);
-            }
-
-            // 행 추가
-            foreach (var row in rows)
-            {
-                var dataRow = dt.NewRow();
-                foreach (var kvp in row)
-                {
-                    dataRow[kvp.Key] = kvp.Value ?? DBNull.Value;
-                }
-                dt.Rows.Add(dataRow);
-            }
-
-            return dt;
-        }
+        // 미사용 메서드 제거 (2026-04-22): GetData, ReadSheetAsObjectArray,
+        //   ReadWithHeaders, GetSheetNames, ReadAsDataTable — 호출처 0건 확인
+        //   유지되는 공개 읽기 API: DataToText, DataToTextAsync
 
         #endregion
 
@@ -359,33 +216,7 @@ namespace NewSchool.Helpers
             return outputPath;
         }
 
-        /// <summary>
-        /// 2차원 배열을 Excel로 저장
-        /// </summary>
-        public static string WriteArray(object[,] data, string? filePath = null)
-        {
-            if (data == null || data.GetLength(0) == 0)
-                throw new ArgumentException("데이터가 비어있습니다.", nameof(data));
-
-            string outputPath = filePath ?? Path.Combine(Path.GetTempPath(), $"excel_{Guid.NewGuid()}.xlsx");
-
-            int rowCount = data.GetLength(0);
-            int colCount = data.GetLength(1);
-
-            var rows = new List<List<object>>();
-            for (int row = 0; row < rowCount; row++)
-            {
-                var rowData = new List<object>();
-                for (int col = 0; col < colCount; col++)
-                {
-                    rowData.Add(data[row, col]);
-                }
-                rows.Add(rowData);
-            }
-
-            MiniExcel.SaveAs(outputPath, rows);
-            return outputPath;
-        }
+        // 미사용 메서드 제거 (2026-04-22): WriteArray — 호출처 0건
 
         /// <summary>
         /// 학생 명단 템플릿 생성
@@ -444,39 +275,8 @@ namespace NewSchool.Helpers
             return outputPath;
         }
 
-        /// <summary>
-        /// MemoryStream으로 Excel 생성 (다운로드용)
-        /// </summary>
-        public static MemoryStream CreateExcelStream(DataTable data)
-        {
-            var stream = new MemoryStream();
-
-            var rows = new List<Dictionary<string, object>>();
-            foreach (DataRow row in data.Rows)
-            {
-                var rowData = new Dictionary<string, object>();
-                for (int i = 0; i < data.Columns.Count; i++)
-                {
-                    rowData[data.Columns[i].ColumnName] = row[i];
-                }
-                rows.Add(rowData);
-            }
-
-            MiniExcel.SaveAs(stream, rows);
-            stream.Position = 0;
-            return stream;
-        }
-
-        /// <summary>
-        /// 제네릭 리스트를 MemoryStream으로
-        /// </summary>
-        public static MemoryStream CreateExcelStream<T>(IEnumerable<T> data) where T : class
-        {
-            var stream = new MemoryStream();
-            MiniExcel.SaveAs(stream, data);
-            stream.Position = 0;
-            return stream;
-        }
+        // 미사용 메서드 제거 (2026-04-22): CreateExcelStream(DataTable),
+        //   CreateExcelStream<T>(IEnumerable<T>) — 호출처 0건
 
         #endregion
 

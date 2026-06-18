@@ -10,7 +10,7 @@ namespace NewSchool.Services
     /// StudentDetail Service (Repository 패턴 버전)
     /// 학생 상세 정보 비즈니스 로직 관리
     /// </summary>
-    public class StudentDetailService : IDisposable
+    public sealed class StudentDetailService : IDisposable
     {
         private readonly StudentDetailRepository _detailRepo;
         private readonly StudentRepository _studentRepo;

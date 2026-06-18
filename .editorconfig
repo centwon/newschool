@@ -1,0 +1,138 @@
+# NewSchool 코드 스타일 · 진단 규칙
+# WinUI 3 · .NET 10 · C# 12
+
+root = true
+
+###############################
+# 공통 (모든 파일)
+###############################
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+###############################
+# XML 계열
+###############################
+[*.{xml,xaml,csproj,props,targets,config,resx}]
+indent_size = 2
+
+###############################
+# JSON / YAML
+###############################
+[*.{json,yml,yaml}]
+indent_size = 2
+
+###############################
+# Markdown — 후행 공백 두 칸 개행 허용
+###############################
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2
+
+###############################
+# C# 코드 스타일
+###############################
+[*.cs]
+indent_size = 4
+
+# using 정렬
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# this. 사용 — 최소화
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+
+# var 사용 — 명시적 타입을 기본으로 두되 내장 타입은 var 허용
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# 식 본문 멤버
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+csharp_style_expression_bodied_lambdas = true:suggestion
+csharp_style_expression_bodied_local_functions = when_on_single_line:suggestion
+
+# null 체크 현대화
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+csharp_style_prefer_null_check_over_type_check = true:suggestion
+
+# 패턴 매칭 우선
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+
+# 인덱싱 · 범위
+csharp_style_prefer_range_operator = true:suggestion
+csharp_style_prefer_index_operator = true:suggestion
+
+# using 선언 / 파일 범위 네임스페이스
+csharp_style_prefer_using_declaration = true:suggestion
+csharp_style_namespace_declarations = file_scoped:warning
+
+# 기본 중괄호
+csharp_prefer_braces = when_multiline:suggestion
+
+# new() 사용
+csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
+
+###############################
+# 진단 severities — 현실적 수준
+#   - 프로덕션 품질: error
+#   - 사용자 영향 가능: warning
+#   - 스타일/제안: suggestion
+#   - 무의미/과민 반응: none
+###############################
+
+# --- 반드시 고쳐야 하는 것들 (error) ---
+dotnet_diagnostic.CS8600.severity = warning  # null 가능 타입에 null 리터럴 변환
+dotnet_diagnostic.CS8601.severity = warning  # null 가능 참조 대입
+dotnet_diagnostic.CS8602.severity = warning  # null 가능 역참조
+dotnet_diagnostic.CS8603.severity = warning  # null 가능 반환
+dotnet_diagnostic.CS8618.severity = warning  # null 초기화되지 않은 non-nullable
+
+# --- 보안·리소스 (warning 이상) ---
+dotnet_diagnostic.CA2007.severity = none     # ConfigureAwait — UI 앱이라 불필요
+# CA2100 — 내부 전용 동적 쿼리(컬럼명·테이블명 치환) 중심, 사용자 입력 경로 없음
+dotnet_diagnostic.CA2100.severity = suggestion  # SQL injection 검사 — 내부 전용 쿼리
+dotnet_diagnostic.CA2213.severity = suggestion  # IDisposable 멤버 Dispose 누락
+dotnet_diagnostic.CA2000.severity = suggestion  # 범위 벗어나기 전 Dispose — 오탐 많음
+dotnet_diagnostic.CA1063.severity = warning  # IDisposable 구현 패턴 — 2026-04-22 sealed 전수 전환 완료
+dotnet_diagnostic.CA1001.severity = warning  # IDisposable 필드 보유 타입 — 2026-04-22 Page/Control IDisposable 구현 완료
+
+# --- 성능 (suggestion) ---
+dotnet_diagnostic.CA1822.severity = suggestion  # 인스턴스를 안 쓰는 메서드 → static
+dotnet_diagnostic.CA1825.severity = warning     # 빈 배열 할당 — Array.Empty<T> 사용
+dotnet_diagnostic.CA1826.severity = suggestion  # Enumerable.Count() 대신 Length/Count
+dotnet_diagnostic.CA1829.severity = suggestion  # Count() 대신 Length
+dotnet_diagnostic.CA1834.severity = suggestion  # StringBuilder.Append(char) 사용
+
+# --- 스타일 / 명명 (suggestion) ---
+dotnet_diagnostic.IDE0005.severity = warning    # 불필요한 using
+dotnet_diagnostic.IDE0051.severity = suggestion # 미사용 private 멤버
+dotnet_diagnostic.IDE0052.severity = suggestion # 미사용 private 필드 할당
+dotnet_diagnostic.IDE0060.severity = suggestion # 미사용 매개변수
+dotnet_diagnostic.IDE0090.severity = suggestion # new() 간소화
+
+# --- 끈 주석을 남기는 관용 (none) ---
+dotnet_diagnostic.CA1031.severity = none     # catch (Exception) — 프로젝트 전역 정책상 허용
+dotnet_diagnostic.CA1304.severity = none     # CultureInfo 명시 — 학교 한국어 고정 환경
+dotnet_diagnostic.CA1305.severity = none     # IFormatProvider 명시 — 위와 동일
+dotnet_diagnostic.CA1307.severity = none     # StringComparison 명시
+dotnet_diagnostic.CA1308.severity = none     # ToLowerInvariant
+dotnet_diagnostic.CA1309.severity = none     # StringComparison Ordinal
+dotnet_diagnostic.CA1310.severity = none     # StringComparison 기본값
+dotnet_diagnostic.CA1848.severity = none     # LoggerMessage 대리자 — FileLogger 구조상 과잉
+dotnet_diagnostic.CA1051.severity = none     # public 필드 — DTO/레거시 수용
+dotnet_diagnostic.CA1062.severity = none     # public 진입점 null 검증 — 내부 앱
+dotnet_diagnostic.CA1716.severity = none     # 언어 예약어 식별자 — 한국어 도메인
+dotnet_diagnostic.CA1724.severity = none     # 네임스페이스/타입 이름 충돌 — 도메인명 우선

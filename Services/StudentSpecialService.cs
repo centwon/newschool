@@ -12,7 +12,7 @@ namespace NewSchool.Services;
 /// 학교생활기록부 특기사항 비즈니스 로직
 /// 마감(IsFinalized)된 기록은 수정/삭제가 거부됨
 /// </summary>
-public class StudentSpecialService : IDisposable
+public sealed class StudentSpecialService : IDisposable
 {
     private readonly StudentSpecialRepository _repository;
     private bool _disposed;
@@ -50,6 +50,15 @@ public class StudentSpecialService : IDisposable
             throw new ArgumentException("학생 ID가 필요합니다.", nameof(studentId));
 
         return await _repository.GetByStudentAsync(studentId, year);
+    }
+
+    /// <summary>
+    /// 여러 학생의 학생부 기록 일괄 조회 (N+1 해소)
+    /// </summary>
+    public async Task<Dictionary<string, List<StudentSpecial>>> GetByStudentIdsAsync(
+        IEnumerable<string> studentIds, int year)
+    {
+        return await _repository.GetByStudentIdsAsync(studentIds, year);
     }
 
     /// <summary>

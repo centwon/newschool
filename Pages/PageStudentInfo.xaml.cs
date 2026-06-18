@@ -26,8 +26,20 @@ namespace NewSchool.Pages;
 /// 학생 정보 관리 페이지
 /// 학생 목록 + StudentCard + 누가기록 통합
 /// </summary>
-public sealed partial class PageStudentInfo : Page
+public sealed partial class PageStudentInfo : Page, IDisposable
 {
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _enrollmentService?.Dispose();
+        _studentService?.Dispose();
+        _studentLogService?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     #region Fields
 
     private int _currentYear = Settings.WorkYear.Value;
@@ -1164,13 +1176,16 @@ public sealed partial class PageStudentInfo : Page
             student,
             _currentYear,
             Settings.WorkSemester.Value);
-        logDialog.Closed += async (s, args) =>
-        {
-            // 현재 학생의 누가기록 새로고침
-            if (_currentStudentId != null)
-                await LoadStudentLogsAsync(_currentStudentId);
-        };
+        logDialog.Closed += OnLogDialogClosedReloadStudent;
         logDialog.Activate();
+    }
+
+    // 다이얼로그 Closed 람다를 named method 로 분리 — 핸들러 체인에서 자기 제거
+    private async void OnLogDialogClosedReloadStudent(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    {
+        if (sender is Window w) w.Closed -= OnLogDialogClosedReloadStudent;
+        if (_currentStudentId != null)
+            await LoadStudentLogsAsync(_currentStudentId);
     }
 
     #endregion

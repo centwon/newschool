@@ -17,7 +17,7 @@ namespace NewSchool.ViewModels
     /// 학급 일지 ViewModel
     /// ClassDiary 모델을 UI 바인딩 가능하게 래핑
     /// </summary>
-    public class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
+    public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     {
         #region Fields
 
@@ -618,12 +618,12 @@ namespace NewSchool.ViewModels
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+        private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
             if (Equals(field, value))
                 return false;

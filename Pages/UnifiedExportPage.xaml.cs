@@ -75,9 +75,66 @@ public sealed partial class UnifiedExportPage : Page
         UnifiedExportService.ExportFormat format;
         if (RbFmtExcel.IsChecked == true) format = UnifiedExportService.ExportFormat.Excel;
         else if (RbFmtPdf.IsChecked == true) format = UnifiedExportService.ExportFormat.Pdf;
+        else if (RbFmtCsv?.IsChecked == true) format = UnifiedExportService.ExportFormat.Csv;
         else format = UnifiedExportService.ExportFormat.Html;
 
         await ExportAsync(dataType, format, year, grade, classNo);
+    }
+
+    /// <summary>
+    /// 누가기록/학생부 데이터를 CSV(TSV 대용)로 빌드해 클립보드에 복사한다.
+    /// 엑셀/구글 시트에 바로 붙여넣기 가능.
+    /// </summary>
+    private async void BtnCopyClipboard_Click(object sender, RoutedEventArgs e)
+    {
+        int year = SchoolFilter.SelectedYear;
+        int grade = SchoolFilter.SelectedGrade;
+        int classNo = SchoolFilter.SelectedClass;
+
+        if (year == 0 || grade == 0 || classNo == 0)
+        {
+            await MessageBox.ShowAsync("학년도, 학년, 반을 모두 선택해주세요.");
+            return;
+        }
+
+        var dataType = GetSelectedDataType();
+        if (dataType == UnifiedExportService.DataType.Seats ||
+            dataType == UnifiedExportService.DataType.StudentCard)
+        {
+            await MessageBox.ShowAsync(
+                "좌석배정/학생카드는 표 형태가 아니라 클립보드 복사를 지원하지 않습니다.\n" +
+                "누가기록 또는 학생부 특기사항을 선택해 주세요.",
+                "복사 불가");
+            return;
+        }
+
+        SetBusy(true, "데이터를 불러오는 중...");
+        try
+        {
+            var service = new UnifiedExportService();
+            string? csv = dataType == UnifiedExportService.DataType.StudentSpec
+                ? await service.BuildClassSpecsCsvAsync(year, grade, classNo)
+                : await service.BuildClassLogsCsvAsync(year, grade, classNo);
+
+            if (string.IsNullOrEmpty(csv))
+            {
+                SetBusy(false, "해당 조건에 맞는 데이터가 없습니다.");
+                return;
+            }
+
+            var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dp.SetText(csv);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+
+            int rowCount = 0;
+            foreach (var ch in csv) if (ch == '\n') rowCount++; // 헤더 포함
+            SetBusy(false, $"클립보드에 복사됨 ({rowCount}행)");
+        }
+        catch (Exception ex)
+        {
+            SetBusy(false, "");
+            await Controls.UserErrorReporter.ReportAsync("클립보드 복사", ex);
+        }
     }
 
     private async Task ExportAsync(
@@ -154,13 +211,16 @@ public sealed partial class UnifiedExportPage : Page
 
         bool isSeats = RbSeats?.IsChecked == true;
         bool isCard = RbStudentCard?.IsChecked == true;
-        bool excelDisabled = isSeats || isCard;
-        RbFmtExcel.IsEnabled = !excelDisabled;
+        bool tabularDisabled = isSeats || isCard;  // Excel/CSV는 표 데이터에만 해당
 
-        if (excelDisabled && RbFmtExcel.IsChecked == true)
+        RbFmtExcel.IsEnabled = !tabularDisabled;
+        if (RbFmtCsv != null) RbFmtCsv.IsEnabled = !tabularDisabled;
+        if (BtnCopyClipboard != null) BtnCopyClipboard.IsEnabled = !tabularDisabled;
+
+        if (tabularDisabled)
         {
-            RbFmtExcel.IsChecked = false;
-            RbFmtPdf.IsChecked = true;
+            if (RbFmtExcel.IsChecked == true) { RbFmtExcel.IsChecked = false; RbFmtPdf.IsChecked = true; }
+            if (RbFmtCsv?.IsChecked == true)  { RbFmtCsv.IsChecked  = false; RbFmtPdf.IsChecked = true; }
         }
     }
 

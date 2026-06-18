@@ -16,7 +16,7 @@ namespace NewSchool.Services
     /// 학급 일지 통합 관리 (출결, 메모, 알림장, 생활 기록)
     /// StudentLog와 연동하여 Life 필드 자동 생성
     /// </summary>
-    public class ClassDiaryService : IDisposable
+    public sealed class ClassDiaryService : IDisposable
     {
         private readonly ClassDiaryRepository _diaryRepo;
         private readonly StudentLogRepository _logRepo;

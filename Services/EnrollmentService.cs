@@ -11,7 +11,7 @@ namespace NewSchool.Services;
 /// Enrollment Service - A안의 핵심!
 /// 학적 관리 비즈니스 로직
 /// </summary>
-public class EnrollmentService : IDisposable
+public sealed class EnrollmentService : IDisposable
 {
     private readonly EnrollmentRepository _enrollmentRepo;
     private readonly StudentRepository _studentRepo;

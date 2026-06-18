@@ -12,7 +12,7 @@ namespace NewSchool.Services
     /// School Service
     /// 학교 정보 관리 및 통계
     /// </summary>
-    public class SchoolService : IDisposable
+    public sealed class SchoolService : IDisposable
     {
         private readonly string _dbPath;
         private bool _disposed;
