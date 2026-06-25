@@ -5,7 +5,7 @@
 ;      - MicrosoftEdgeWebview2Setup.exe
 ;        https://go.microsoft.com/fwlink/p/?LinkId=2124703
 ;      - WindowsAppRuntimeInstall-x64.exe
-;        https://aka.ms/windowsappsdk/1.8/latest/windowsappruntimeinstall-x64.exe
+;        https://aka.ms/windowsappsdk/2.2/latest/windowsappruntimeinstall-x64.exe
 ;   3. Inno Setup Compiler에서 이 파일 열기
 ;   4. Compile (Ctrl+F9) 실행
 ;   5. installer_output 폴더에 NewSchoolSetup_x.x.x.exe 생성됨
@@ -136,15 +136,15 @@ function NeedsWindowsAppRuntime: Boolean;
 var
   Version: string;
 begin
-  // Windows App SDK 1.x 런타임 패키지 확인
+  // Windows App SDK 2.x 런타임 패키지 확인 (2.x 부터 PFN 이 메이저 버전에 정렬: Microsoft.WindowsAppRuntime.2)
   Result := not RegQueryStringValue(HKLM,
-    'SOFTWARE\Microsoft\WinAppSDK\Versions\1.8',
+    'SOFTWARE\Microsoft\WinAppSDK\Versions\2.0',
     'PackageVersion', Version);
 
-  // 레지스트리에 없으면 패키지 폴더로 확인
+  // 레지스트리에 없으면 패키지 폴더로 확인 (신뢰 가능한 backstop)
   if Result then
   begin
-    Result := not DirExists(ExpandConstant('{commonpf}\WindowsApps\Microsoft.WindowsAppRuntime.1.8_*'));
+    Result := not DirExists(ExpandConstant('{commonpf}\WindowsApps\Microsoft.WindowsAppRuntime.2_*'));
   end;
 
   if Result then

@@ -129,7 +129,7 @@ var
 begin
   // WindowsAppRuntime 패키지가 등록되어 있는지 PowerShell로 확인
   Result := Exec('powershell.exe',
-    '-NoProfile -Command "if (Get-AppxPackage -Name ''Microsoft.WindowsAppRuntime.1.8'' -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"',
+    '-NoProfile -Command "if (Get-AppxPackage -Name ''Microsoft.WindowsAppRuntime.2'' -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"',
     '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
 end;
 
