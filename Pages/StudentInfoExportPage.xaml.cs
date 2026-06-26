@@ -27,6 +27,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
         if (_disposed) return;
         _disposed = true;
         _data?.Dispose();
+        PreviewEditor?.Dispose();   // 에디터 네이티브 메모리 해제
         GC.SuppressFinalize(this);
     }
 

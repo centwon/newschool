@@ -22,8 +22,9 @@ public sealed partial class MemoEditDialog : ContentDialog
         _post = post ?? throw new ArgumentNullException(nameof(post));
         
         InitializeComponent();
-        
+
         Loaded += MemoEditDialog_Loaded;
+        Closed += (_, _) => Editor.Dispose();   // 닫힐 때 에디터 네이티브 메모리 해제
     }
 
     private async void MemoEditDialog_Loaded(object sender, RoutedEventArgs e)

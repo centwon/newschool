@@ -41,6 +41,7 @@ public sealed partial class PostEditPage : Page
     public PostEditPage()
     {
         this.InitializeComponent();
+        Unloaded += (_, _) => ContentEditor?.Dispose();   // 페이지 이탈 시 에디터 해제
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)

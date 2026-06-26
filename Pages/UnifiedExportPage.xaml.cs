@@ -19,6 +19,7 @@ public sealed partial class UnifiedExportPage : Page
     public UnifiedExportPage()
     {
         InitializeComponent();
+        Unloaded += (_, _) => PreviewEditor?.Dispose();   // 페이지 이탈 시 에디터 해제
     }
 
     private async void BtnPreview_Click(object sender, RoutedEventArgs e)

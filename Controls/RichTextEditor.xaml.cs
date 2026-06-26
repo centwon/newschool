@@ -157,6 +157,11 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
         if (_disposed) return;
         _disposed = true;
         if (_view?.Editor != null)
+        {
             _view.Editor.TextChanged -= OnEditorTextChanged;
+            // 문서를 비워 네이티브 CanvasTextLayout 캐시 + 디코드된 GPU 이미지 비트맵을 즉시 해제
+            // (Clear → Document 교체 → ClearLayoutCache + ImageCache.Clear). 공유 D3D 디바이스는 유지.
+            try { _view.Editor.Clear(); } catch { /* 종료 경로, 무시 */ }
+        }
     }
 }

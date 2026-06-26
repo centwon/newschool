@@ -76,6 +76,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     {
         if (_isInitialized) return;
         Loaded -= OnLoaded;
+        Closed += (_, _) => { TxtTaskNotes.Dispose(); TxtEventNotes.Dispose(); };   // 닫힐 때 에디터 해제
 
         try
         {

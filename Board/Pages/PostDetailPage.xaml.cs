@@ -24,6 +24,7 @@ public sealed partial class PostDetailPage : Page
         this.InitializeComponent();
         ViewModel = new PostDetailViewModel();
         this.DataContext = ViewModel;
+        Unloaded += (_, _) => ContentViewer?.Dispose();   // 페이지 이탈 시 에디터 해제
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
