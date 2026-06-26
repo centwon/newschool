@@ -69,7 +69,7 @@
                  Margin="0,0,0,6"/>
 
         <!-- Row2: 내용 (Jodit HTML 에디터) -->
-        <appcontrols:JoditEditor x:Name="ContentEditor"
+        <appcontrols:RichTextEditor x:Name="ContentEditor"
                                  Grid.Row="2"
                                  Mode="Full"/>
 

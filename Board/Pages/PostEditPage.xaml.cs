@@ -305,13 +305,8 @@ public sealed partial class PostEditPage : Page
         var result = await dialog.ShowAsync();
         if (result == ContentDialogResult.Primary && !string.IsNullOrEmpty(dialog.GeneratedHtml))
         {
-            // JoditEditor에 HTML 테이블 삽입
-            var escaped = dialog.GeneratedHtml
-                .Replace("\\", "\\\\")
-                .Replace("'", "\\'")
-                .Replace("\n", "\\n")
-                .Replace("\r", "");
-            await ContentEditor.ExecuteScriptAsync($"editor.selection.insertHTML('{escaped}');");
+            // 에디터 캐럿 위치에 HTML 테이블 삽입 (네이티브 InsertHtml — JS escape 불필요)
+            ContentEditor.InsertHtml(dialog.GeneratedHtml);
 
             // 제목이 비어있으면 표 제목으로 자동 채움
             if (string.IsNullOrWhiteSpace(TitleTextBox.Text) && !string.IsNullOrEmpty(dialog.TableTitle))

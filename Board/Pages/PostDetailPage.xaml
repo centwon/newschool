@@ -108,7 +108,7 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <appcontrols:JoditEditor x:Name="ContentViewer"
+                <appcontrols:RichTextEditor x:Name="ContentViewer"
                                          Grid.Row="0"
                                          Mode="ReadOnly"/>
 

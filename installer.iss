@@ -2,8 +2,6 @@
 ; 사용법:
 ;   1. Visual Studio에서 게시(Publish) 실행
 ;   2. prerequisites 폴더에 런타임 설치 파일 다운로드:
-;      - MicrosoftEdgeWebview2Setup.exe
-;        https://go.microsoft.com/fwlink/p/?LinkId=2124703
 ;      - WindowsAppRuntimeInstall-x64.exe
 ;        https://aka.ms/windowsappsdk/2.2/latest/windowsappruntimeinstall-x64.exe
 ;   3. Inno Setup Compiler에서 이 파일 열기
@@ -67,11 +65,10 @@ Source: "{#PublishDir}\secrets.json"; DestDir: "{app}"; Flags: ignoreversion ski
 ; === DLL 파일 ===
 Source: "{#PublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 
-; === Assets 폴더 (Jodit, 도움말, 아이콘 등) ===
+; === Assets 폴더 (도움말 help.html, 아이콘 등) ===
 Source: "{#PublishDir}\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; === 런타임 부트스트래퍼 (임시 폴더, 설치 후 삭제) ===
-Source: "prerequisites\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall nocompression; Check: NeedsWebView2
 Source: "prerequisites\WindowsAppRuntimeInstall-x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall nocompression; Check: NeedsWindowsAppRuntime
 
 ; === 제외 목록 (아래 파일/폴더는 포함하지 않음) ===
@@ -97,8 +94,6 @@ Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 ; Windows App SDK 런타임 설치 (없을 때만)
 Filename: "{tmp}\WindowsAppRuntimeInstall-x64.exe"; Parameters: "--quiet"; StatusMsg: "Windows App SDK 런타임 설치 중..."; Check: NeedsWindowsAppRuntime; Flags: waituntilterminated
-; WebView2 런타임 설치 (없을 때만)
-Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "WebView2 런타임 설치 중..."; Check: NeedsWebView2; Flags: waituntilterminated
 ; 설치 완료 후 앱 실행 옵션
 Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName} 실행"; Flags: nowait postinstall skipifsilent
 
@@ -107,30 +102,6 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName} 실행"; Flags: no
 Type: filesandordirs; Name: "{app}"
 
 [Code]
-// WebView2 런타임 설치 여부 확인
-function NeedsWebView2: Boolean;
-var
-  Version: string;
-begin
-  // 시스템 전체 설치 확인
-  Result := not RegQueryStringValue(HKLM,
-    'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-    'pv', Version);
-
-  if Result then
-  begin
-    // 사용자별 설치 확인
-    Result := not RegQueryStringValue(HKCU,
-      'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-      'pv', Version);
-  end;
-
-  if Result then
-    Log('WebView2 런타임이 필요합니다.')
-  else
-    Log('WebView2 런타임 설치됨: ' + Version);
-end;
-
 // Windows App SDK 런타임 설치 여부 확인
 function NeedsWindowsAppRuntime: Boolean;
 var

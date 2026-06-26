@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
@@ -9,6 +10,8 @@ using NewSchool.Board.Pages;
 using NewSchool.Pages;
 using NewSchool.Scheduler;
 using Windows.Media.Miracast;
+using Windows.Storage;
+using Windows.System;
 using WinRT.Interop;
 using NewSchool.Services;
 
@@ -242,7 +245,7 @@ private void SetAppIcon()
                     WorkFrame.Navigate(typeof(PageSchoolWork));
                     break;
                 case "Help":
-                    WorkFrame.Navigate(typeof(HelpPage));
+                    await OpenHelpInBrowserAsync();
                     break;
                 case "CheckUpdate":
                     await CheckForUpdateAsync();
@@ -256,6 +259,29 @@ private void SetAppIcon()
     /// <summary>
     /// 업데이트 확인 (ContentDialog로 결과 표시)
     /// </summary>
+    /// <summary>
+    /// 도움말(help.html)을 기본 웹 브라우저로 연다. 앱 내 WebView2 호스팅을 제거하여
+    /// WebView2 런타임 의존을 없앴다 — help.html 은 Content 로 그대로 배포된다.
+    /// </summary>
+    private static async Task OpenHelpInBrowserAsync()
+    {
+        try
+        {
+            var helpPath = Path.Combine(AppContext.BaseDirectory, "Assets", "help.html");
+            if (!File.Exists(helpPath))
+            {
+                System.Diagnostics.Debug.WriteLine($"[Help] help.html 없음: {helpPath}");
+                return;
+            }
+            var file = await StorageFile.GetFileFromPathAsync(helpPath);
+            await Launcher.LaunchFileAsync(file);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Help] 브라우저 열기 실패: {ex.Message}");
+        }
+    }
+
     private async Task CheckForUpdateAsync()
     {
         // 확인 중 다이얼로그

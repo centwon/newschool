@@ -229,7 +229,7 @@
                         Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
                         MinHeight="150"
                         MaxHeight="300">
-                    <controls:JoditEditor x:Name="NoticeBox"
+                    <controls:RichTextEditor x:Name="NoticeBox"
                                           Mode="ReadOnly"/>
                 </Border>
             </Expander.Content>

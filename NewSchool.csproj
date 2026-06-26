@@ -41,7 +41,6 @@
     <None Remove="Board\Pages\PostListPage.xaml" />
     <None Remove="Board\PostBox.xaml" />
     <None Remove="Board\PostFileListBox.xaml" />
-    <None Remove="Controls\JoditEditor.xaml" />
     <None Remove="Controls\MonthPicker.xaml" />
     <None Remove="Controls\SchoolMealBox.xaml" />
     <None Remove="Controls\StudentCard.xaml" />
@@ -77,21 +76,9 @@
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
   </ItemGroup>
 
-  <!-- WebView2 Content 파일 (Jodit Editor + 도움말) -->
+  <!-- 도움말 HTML (기본 웹 브라우저로 열림 — WebView2 미사용) -->
   <ItemGroup>
     <Content Include="Assets\help.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Jodit\editor.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Jodit\jodit.fat.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Jodit\jodit.fat.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Jodit\purify.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="newschool.ico" />
@@ -131,6 +118,12 @@
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
     <PackageReference Include="SQLitePCLRaw.core" Version="3.0.2" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.7" />
+  </ItemGroup>
+
+  <!-- WinUIRichEditor: Jodit(WebView2) 대체용 Win2D 네이티브 리치에디터.
+       마이그레이션 중엔 ProjectReference 로 빠르게 반복 (API 유동적 + 본인 저장소). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\WinUIRichEditor\src\WinUIRichEditor\WinUIRichEditor.csproj" />
   </ItemGroup>
 
   <!-- ==========================================
@@ -174,9 +167,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="Scheduler\Kcalendar.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Controls\JoditEditor.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="Controls\MonthPicker.xaml">

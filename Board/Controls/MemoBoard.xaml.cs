@@ -52,8 +52,8 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     private ComboBox? _currentCBoxCategory;
     private TextBlock? _currentTxtTitle;
 
-    // JoditEditor 단일 인스턴스 (코드에서 생성, reparent하여 재사용)
-    private JoditEditor? _memoEditor;
+    // 리치에디터 단일 인스턴스 (코드에서 생성, reparent하여 재사용)
+    private RichTextEditor? _memoEditor;
     private Border? _editorPlaceholder;
 
     // 파일리스트 (메모 전환 시 교체)
@@ -138,10 +138,10 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             CBoxCategoryFilter.SelectedIndex = 0;
         }
 
-        // JoditEditor 단일 인스턴스 생성 (한 번만)
-        _memoEditor = new JoditEditor
+        // 리치에디터 단일 인스턴스 생성 (한 번만)
+        _memoEditor = new RichTextEditor
         {
-            Mode = JoditEditor.EditorMode.Simple,
+            Mode = RichTextEditor.EditorMode.Simple,
             MinHeight = 120
         };
         _memoEditor.PropertyChanged += MemoEditor_PropertyChanged;
@@ -838,7 +838,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     private void MemoEditor_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (_isUpdating) return;
-        if (e.PropertyName == nameof(JoditEditor.Text))
+        if (e.PropertyName == nameof(RichTextEditor.Text))
         {
             _isModified = true;
         }

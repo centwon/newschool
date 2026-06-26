@@ -4,9 +4,7 @@
 ; 사전 준비:
 ;   1. Visual Studio에서 게시(Publish) 실행
 ;   2. prerequisites\ 폴더에 다음 파일 배치:
-;      - MicrosoftEdgeWebview2Setup.exe  (WebView2 부트스트래퍼, ~2MB)
-;        다운로드: https://developer.microsoft.com/microsoft-edge/webview2/
-;      - WindowsAppRuntimeInstall.exe    (Windows App SDK 런타임, ~3MB)
+;      - WindowsAppRuntimeInstall-x64.exe (Windows App SDK 런타임, ~3MB)
 ;        다운로드: https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads
 ; ============================================================
 
@@ -78,7 +76,6 @@ Source: "{#PublishDir}\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion 
 Source: "{#PublishDir}\secrets.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; === 런타임 부트스트래퍼 (임시 폴더에 설치용으로만 복사) ===
-Source: "prerequisites\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
 Source: "prerequisites\WindowsAppRuntimeInstall-x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
 
 ; === 불필요 파일 명시적 제외 ===
@@ -100,28 +97,6 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName} 실행"; Flags: no
 Type: filesandordirs; Name: "{app}\Assets"
 
 [Code]
-// WebView2 Runtime 설치 여부 확인
-function IsWebView2Installed: Boolean;
-var
-  RegKey: String;
-  Version: String;
-begin
-  Result := False;
-  // 64비트 레지스트리 확인
-  RegKey := 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BEE-271A5914D3B2}';
-  if RegQueryStringValue(HKLM, RegKey, 'pv', Version) then
-  begin
-    Result := (Version <> '') and (Version <> '0.0.0.0');
-    Exit;
-  end;
-  // 사용자 레지스트리 확인
-  RegKey := 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BEE-271A5914D3B2}';
-  if RegQueryStringValue(HKCU, RegKey, 'pv', Version) then
-  begin
-    Result := (Version <> '') and (Version <> '0.0.0.0');
-  end;
-end;
-
 // Windows App SDK Runtime 설치 여부 확인
 function IsWindowsAppSDKInstalled: Boolean;
 var
@@ -139,20 +114,6 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    // WebView2 Runtime 설치
-    if not IsWebView2Installed then
-    begin
-      if FileExists(ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe')) then
-      begin
-        Log('WebView2 Runtime 설치 중...');
-        Exec(ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe'),
-          '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-        Log('WebView2 설치 결과: ' + IntToStr(ResultCode));
-      end;
-    end
-    else
-      Log('WebView2 Runtime 이미 설치됨');
-
     // Windows App SDK Runtime 설치
     if not IsWindowsAppSDKInstalled then
     begin

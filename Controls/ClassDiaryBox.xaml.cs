@@ -205,11 +205,11 @@ public sealed partial class ClassDiaryBox : UserControl
     /// </summary>
     private async void BtnNoticeEdit_Click(object sender, RoutedEventArgs e)
     {
-        // JoditEditorWin으로 전체 화면 편집
-        var editorWin = new JoditEditorWin(
+        // RichTextEditorWin 으로 전체 화면 편집
+        var editorWin = new RichTextEditorWin(
             "알림장 편집",
             BuildNoticeHeaderHtml() + "<br>" + NoticeBox.Text,
-            JoditEditor.EditorMode.Full);
+            RichTextEditor.EditorMode.Full);
 
         editorWin.SetSize(1000, 800);
 

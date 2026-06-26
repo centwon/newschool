@@ -140,7 +140,7 @@
                 CornerRadius="8"
                 Margin="0,8,0,0"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-            <controls:JoditEditor
+            <controls:RichTextEditor
                 x:Name="PreviewEditor"
                 Mode="ReadOnly"/>
         </Border>
