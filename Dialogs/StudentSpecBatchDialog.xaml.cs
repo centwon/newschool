@@ -501,7 +501,7 @@ public sealed partial class StudentSpecBatchDialog : Window
     {
         string text = TxtContent.Text ?? string.Empty;
         int currentBytes = NeisHelper.CountByte(text);
-        int maxBytes = NeisHelper.GetMaxBytes(_selectedType);
+        int maxBytes = Settings.GetSpecMaxBytes(_selectedType);   // 설정 오버라이드 우선
         int charCount = text.Length;
 
         TxtByteInfo.Text = $"{currentBytes} / {maxBytes} Byte ({charCount}자)";

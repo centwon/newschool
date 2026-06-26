@@ -36,6 +36,13 @@ public sealed partial class AppSettingsPage : Page
         EnableCacheToggle.IsOn = Settings.EnableCache.Value;
         DefaultPageSizeNumberBox.Value = Settings.DefaultPageSize.Value;
 
+        SpecBytes교과활동.Value = Settings.GetSpecMaxBytes("교과활동");
+        SpecBytes개인별세특.Value = Settings.GetSpecMaxBytes("개인별세특");
+        SpecBytes자율활동.Value = Settings.GetSpecMaxBytes("자율활동");
+        SpecBytes동아리활동.Value = Settings.GetSpecMaxBytes("동아리활동");
+        SpecBytes진로활동.Value = Settings.GetSpecMaxBytes("진로활동");
+        SpecBytes종합의견.Value = Settings.GetSpecMaxBytes("종합의견");
+
         AutoBackupToggle.IsOn = Settings.AutoBackup.Value;
         AutoBackupIntervalDaysNumberBox.Value = Settings.AutoBackupIntervalDays.Value;
         BackupRetentionCountNumberBox.Value = Settings.BackupRetentionCount.Value;
@@ -131,6 +138,17 @@ public sealed partial class AppSettingsPage : Page
         if (!_isInitialized) return;
         if (!double.IsNaN(args.NewValue))
             Settings.DefaultPageSize.Set((int)args.NewValue);
+    }
+
+    #endregion
+
+    #region 학생부 글자 제한
+
+    private void OnSpecByteChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (!_isInitialized) return;
+        if (sender.Tag is string type && !double.IsNaN(args.NewValue))
+            Settings.SetSpecByteOverride(type, (int)args.NewValue);
     }
 
     #endregion

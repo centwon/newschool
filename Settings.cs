@@ -193,6 +193,8 @@ public static class Settings
     public static SettingProperty<string> SchoolAddress { get; private set; } = null!;
     public static SettingProperty<string> ProvinceName { get; private set; } = null!;
     public static SettingProperty<string> NeisApiKey { get; private set; } = null!;
+    /// <summary>학생부 유형별 바이트 제한 오버라이드 ("유형=값;..." 형식, 빈 값=코드 기본값). 정책 변경 시 재빌드 없이 수정.</summary>
+    public static SettingProperty<string> SpecByteLimits { get; private set; } = null!;
     public static SettingProperty<int> WorkSemester { get; private set; } = null!;
     public static SettingProperty<bool> TopMost { get; private set; } = null!;
     public static SettingProperty<string> UserName { get; private set; } = null!;
@@ -308,6 +310,7 @@ public static class Settings
         SchoolAddress = new SettingProperty<string>("SchoolAddress", "", s => s, s => s);
         ProvinceName = new SettingProperty<string>("ProvinceName", "", s => s, s => s);
         NeisApiKey = new SettingProperty<string>("NeisApiKey", NewSchool.Services.SecretsService.NeisApiKey, s => s, s => s);
+        SpecByteLimits = new SettingProperty<string>("SpecByteLimits", "", s => s, s => s);
         WorkSemester = new SettingProperty<int>("WorkSemester", 0, int.Parse, i => i.ToString());
         TopMost = new SettingProperty<bool>("TopMost", true, bool.Parse, b => b.ToString().ToLower());
         UserName = new SettingProperty<string>("UserName", "", s => s, s => s);
@@ -424,6 +427,7 @@ public static class Settings
         SchoolAddress.Reload();
         ProvinceName.Reload();
         NeisApiKey.Reload();
+        SpecByteLimits.Reload();
         WorkSemester.Reload();
         TopMost.Reload();
         StartWithWindows.Reload();
@@ -455,6 +459,36 @@ public static class Settings
         WindowHeight.Reload();
 
 
+    }
+
+    /// <summary>
+    /// 학생부 유형의 유효 바이트 제한 — 설정 오버라이드 우선, 없으면 코드 기본값(<see cref="Helpers.NeisHelper.GetMaxBytes"/>).
+    /// </summary>
+    public static int GetSpecMaxBytes(string type)
+    {
+        foreach (var pair in (SpecByteLimits?.Value ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            int eq = pair.IndexOf('=');
+            if (eq > 0 && pair[..eq] == type && int.TryParse(pair[(eq + 1)..], out int v) && v > 0)
+                return v;
+        }
+        return Helpers.NeisHelper.GetMaxBytes(type);
+    }
+
+    /// <summary>학생부 유형의 바이트 제한 오버라이드 설정. 코드 기본값과 같으면 항목 제거(빈 값 유지).</summary>
+    public static void SetSpecByteOverride(string type, int value)
+    {
+        var map = new Dictionary<string, int>();
+        foreach (var pair in (SpecByteLimits?.Value ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            int eq = pair.IndexOf('=');
+            if (eq > 0 && int.TryParse(pair[(eq + 1)..], out int v)) map[pair[..eq]] = v;
+        }
+
+        if (value == Helpers.NeisHelper.GetMaxBytes(type)) map.Remove(type);  // 기본값이면 오버라이드 불필요
+        else map[type] = value;
+
+        SpecByteLimits?.Set(string.Join(';', map.Select(kv => $"{kv.Key}={kv.Value}")));
     }
 
     /// <summary>

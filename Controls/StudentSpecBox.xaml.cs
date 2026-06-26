@@ -294,7 +294,7 @@ public sealed partial class StudentSpecBox : UserControl
 
         // 바이트 계산
         int currentBytes = NeisHelper.CountByte(text);
-        int maxBytes = NeisHelper.GetMaxBytes(type);
+        int maxBytes = Settings.GetSpecMaxBytes(type);   // 설정 오버라이드 우선
         int charCount = text.Length;
 
         // 텍스트 업데이트

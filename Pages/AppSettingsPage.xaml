@@ -82,6 +82,37 @@
                     </Expander.Content>
                 </Expander>
 
+                <!-- 학생부 글자 제한 -->
+                <Expander Header="학생부 글자 제한(바이트)" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,0,0,8">
+                    <Expander.Content>
+                        <StackPanel Spacing="12" Padding="16">
+                            <TextBlock
+                                Text="NEIS 학생부 특기사항의 유형별 바이트 제한입니다. 교육부 정책이 바뀌면 여기서 수정하세요(재빌드 불필요). 한글 1자 = 보통 3바이트."
+                                TextWrapping="Wrap"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                            <NumberBox x:Name="SpecBytes교과활동" Header="교과활동(세특)" Tag="교과활동"
+                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
+                                       ValueChanged="OnSpecByteChanged"/>
+                            <NumberBox x:Name="SpecBytes개인별세특" Header="개인별 세특" Tag="개인별세특"
+                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
+                                       ValueChanged="OnSpecByteChanged"/>
+                            <NumberBox x:Name="SpecBytes자율활동" Header="자율활동" Tag="자율활동"
+                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
+                                       ValueChanged="OnSpecByteChanged"/>
+                            <NumberBox x:Name="SpecBytes동아리활동" Header="동아리활동" Tag="동아리활동"
+                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
+                                       ValueChanged="OnSpecByteChanged"/>
+                            <NumberBox x:Name="SpecBytes진로활동" Header="진로활동" Tag="진로활동"
+                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
+                                       ValueChanged="OnSpecByteChanged"/>
+                            <NumberBox x:Name="SpecBytes종합의견" Header="행동특성 및 종합의견" Tag="종합의견"
+                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
+                                       ValueChanged="OnSpecByteChanged"/>
+                        </StackPanel>
+                    </Expander.Content>
+                </Expander>
+
                 <!-- 백업 및 복원 -->
                 <Expander Header="백업 및 복원" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,0,0,8">
                     <Expander.Content>
