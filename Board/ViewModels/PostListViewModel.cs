@@ -526,7 +526,7 @@ public class PostItemViewModel : INotifyPropertyChanged
     public string Category => _post.Category;
     public string Subject => _post.Subject;
     public string Title => _post.Title;
-    public string Content => _post.Content;
+    public string Content => _post.PlainText;   // 미리보기·검색용 평문 (Content 는 .flow BLOB)
     public int RefNo => _post.RefNo;
     public int ReplyOrder => _post.ReplyOrder;
     public int Depth => _post.Depth;

@@ -75,7 +75,7 @@ public sealed partial class PostEditPage : Page
             {
                 _originalCategory = _post.Category;
                 TitleTextBox.Text = _post.Title;
-                ContentEditor.Text = _post.Content;
+                ContentEditor.LoadFlow(_post.Content);
 
                 // 카테고리 선택
                 if (!string.IsNullOrEmpty(_post.Category))
@@ -329,7 +329,8 @@ public sealed partial class PostEditPage : Page
             if (_post != null)
             {
                 _post.Title = TitleTextBox.Text;
-                _post.Content = ContentEditor.Text;
+                _post.Content = ContentEditor.GetFlowBytes();
+                _post.PlainText = ContentEditor.PlainText;
                 _post.Subject = SubjectComboBox.Text.Trim();
 
                 if (CategoryComboBox.SelectedItem is string selectedCategory)

@@ -324,7 +324,8 @@ namespace NewSchool.Board
                 Category TEXT DEFAULT '',
                 Subject TEXT DEFAULT '',
                 Title TEXT NOT NULL DEFAULT '',
-                Content TEXT DEFAULT '',
+                Content BLOB,
+                PlainText TEXT NOT NULL DEFAULT '',
                 RefNo INTEGER DEFAULT 0,
                 ReplyOrder INTEGER DEFAULT 0,
                 Depth INTEGER DEFAULT 0,
@@ -342,6 +343,18 @@ namespace NewSchool.Board
                 cmd.CommandText = "ALTER TABLE Post ADD COLUMN IsCompleted INTEGER DEFAULT 0";
                 await cmd.ExecuteNonQueryAsync();
                 Debug.WriteLine("[DatabaseInitializer] IsCompleted 컬럼 추가 완료");
+            }
+            catch (SqliteException)
+            {
+                // 이미 컬럼이 존재하는 경우 무시
+            }
+
+            // 검색용 평문 컬럼 추가 (Content 는 .flow BLOB 라 직접 검색 불가)
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Post ADD COLUMN PlainText TEXT NOT NULL DEFAULT ''";
+                await cmd.ExecuteNonQueryAsync();
+                Debug.WriteLine("[DatabaseInitializer] PlainText 컬럼 추가 완료");
             }
             catch (SqliteException)
             {

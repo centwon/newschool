@@ -22,9 +22,9 @@ namespace NewSchool.Board.Repositories
         {
             // ✅ INSERT와 SELECT를 한 쿼리로 결합
             const string query = @"
-        INSERT INTO Post (User, DateTime, Category, Subject, Title, Content, 
+        INSERT INTO Post (User, DateTime, Category, Subject, Title, Content, PlainText,
                          RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted)
-        VALUES (@User, @DateTime, @Category, @Subject, @Title, @Content,
+        VALUES (@User, @DateTime, @Category, @Subject, @Title, @Content, @PlainText,
                @RefNo, @ReplyOrder, @Depth, @ReadCount, @HasFile, @HasComment, @IsCompleted);
         SELECT last_insert_rowid();";
 
@@ -96,7 +96,7 @@ namespace NewSchool.Board.Repositories
 
             try
             {
-                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted FROM Post WHERE 1=1";
+                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted FROM Post WHERE 1=1";
                 using var cmd = CreateCommand(query);
 
                 // 카테고리 필터
@@ -118,7 +118,7 @@ namespace NewSchool.Board.Repositories
                 {
                     if (searchTitle && searchContent)
                     {
-                        query += " AND (Title LIKE @Search OR Content LIKE @Search)";
+                        query += " AND (Title LIKE @Search OR PlainText LIKE @Search)";
                     }
                     else if (searchTitle)
                     {
@@ -126,7 +126,7 @@ namespace NewSchool.Board.Repositories
                     }
                     else if (searchContent)
                     {
-                        query += " AND Content LIKE @Search";
+                        query += " AND PlainText LIKE @Search";
                     }
 
                     if (searchTitle || searchContent)
@@ -182,7 +182,7 @@ namespace NewSchool.Board.Repositories
 
             try
             {
-                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, COUNT(*) OVER() AS TotalCount FROM Post WHERE 1=1";
+                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, COUNT(*) OVER() AS TotalCount FROM Post WHERE 1=1";
                 using var cmd = CreateCommand(query);
 
                 // 카테고리 필터
@@ -204,7 +204,7 @@ namespace NewSchool.Board.Repositories
                 {
                     if (searchTitle && searchContent)
                     {
-                        query += " AND (Title LIKE @Search OR Content LIKE @Search)";
+                        query += " AND (Title LIKE @Search OR PlainText LIKE @Search)";
                     }
                     else if (searchTitle)
                     {
@@ -212,7 +212,7 @@ namespace NewSchool.Board.Repositories
                     }
                     else if (searchContent)
                     {
-                        query += " AND Content LIKE @Search";
+                        query += " AND PlainText LIKE @Search";
                     }
 
                     if (searchTitle || searchContent)
@@ -293,7 +293,7 @@ namespace NewSchool.Board.Repositories
                 {
                     if (searchTitle && searchContent)
                     {
-                        query += " AND (Title LIKE @Search OR Content LIKE @Search)";
+                        query += " AND (Title LIKE @Search OR PlainText LIKE @Search)";
                     }
                     else if (searchTitle)
                     {
@@ -301,7 +301,7 @@ namespace NewSchool.Board.Repositories
                     }
                     else if (searchContent)
                     {
-                        query += " AND Content LIKE @Search";
+                        query += " AND PlainText LIKE @Search";
                     }
 
                     if (searchTitle || searchContent)
@@ -333,7 +333,7 @@ namespace NewSchool.Board.Repositories
             const string query = @"
                 UPDATE Post SET
                     User = @User, DateTime = @DateTime, Category = @Category,
-                    Subject = @Subject, Title = @Title, Content = @Content,
+                    Subject = @Subject, Title = @Title, Content = @Content, PlainText = @PlainText,
                     RefNo = @RefNo, ReplyOrder = @ReplyOrder, Depth = @Depth,
                     ReadCount = @ReadCount, HasFile = @HasFile, HasComment = @HasComment,
                     IsCompleted = @IsCompleted
@@ -582,7 +582,8 @@ namespace NewSchool.Board.Repositories
             cmd.Parameters.AddWithValue("@Category", post.Category);
             cmd.Parameters.AddWithValue("@Subject", post.Subject);
             cmd.Parameters.AddWithValue("@Title", post.Title);
-            cmd.Parameters.AddWithValue("@Content", post.Content);
+            cmd.Parameters.Add("@Content", SqliteType.Blob).Value = (object?)post.Content ?? DBNull.Value;
+            cmd.Parameters.AddWithValue("@PlainText", post.PlainText ?? "");
             cmd.Parameters.Add("@RefNo", SqliteType.Integer).Value = post.RefNo;
             cmd.Parameters.Add("@ReplyOrder", SqliteType.Integer).Value = post.ReplyOrder;
             cmd.Parameters.Add("@Depth", SqliteType.Integer).Value = post.Depth;
@@ -619,7 +620,7 @@ namespace NewSchool.Board.Repositories
                 Category = reader.IsDBNull(catOrd) ? "" : reader.GetString(catOrd),
                 Subject = reader.IsDBNull(subOrd) ? "" : reader.GetString(subOrd),
                 Title = reader.GetString(titleOrd),
-                Content = reader.IsDBNull(contentOrd) ? "" : reader.GetString(contentOrd),
+                Content = reader.IsDBNull(contentOrd) ? [] : (byte[])reader.GetValue(contentOrd),
                 RefNo = reader.GetInt32(refOrd),
                 ReplyOrder = reader.GetInt32(replyOrd),
                 Depth = reader.GetInt32(depthOrd),
@@ -631,6 +632,10 @@ namespace NewSchool.Board.Repositories
             // IsCompleted 컬럼 (기존 DB 호환성)
             if (cache.TryGetOrdinal("IsCompleted", out var compOrd))
                 post.IsCompleted = !reader.IsDBNull(compOrd) && reader.GetInt32(compOrd) == 1;
+
+            // PlainText 컬럼 (검색용)
+            if (cache.TryGetOrdinal("PlainText", out var ptOrd))
+                post.PlainText = reader.IsDBNull(ptOrd) ? "" : reader.GetString(ptOrd);
 
             return post;
         }

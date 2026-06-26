@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
 using Windows.System;
 using WinUIRichEditor.Controls;
+using WinUIRichEditor.Formatters;
 
 namespace NewSchool.Controls;
 
@@ -29,6 +30,7 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
 
     private RichEditorView? _view;     // ShowToolbar=true 일 때만
     private RichEditor? _editor;       // 실제 편집면 (두 경우 모두)
+    private byte[]? _pendingFlow;      // Build 전에 LoadFlow 호출 시 보류 (Text DP 와 동일 패턴)
     private bool _isUpdatingFromEditor;
     private bool _disposed;
 
@@ -79,7 +81,9 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
 
         _editor.TextChanged += OnEditorTextChanged;
         ApplyMode(Mode);
-        ApplyText(Text);
+        // 보류된 flow 가 있으면 우선 적용(.flow 로드 경로), 없으면 Text(HTML) 적용
+        if (_pendingFlow != null) { ApplyFlow(_pendingFlow); _pendingFlow = null; }
+        else ApplyText(Text);
     }
 
     #region Dependency Properties
@@ -159,6 +163,34 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
 
     /// <summary>캐럿 위치에 HTML 삽입 (JoditEditor 의 editor.selection.insertHTML 대응).</summary>
     public void InsertHtml(string html) => _editor?.InsertHtml(html);
+
+    /// <summary>현재 문서를 .flow 패키지 바이트로 직렬화 (DB BLOB 저장용). 이미지는 원본 바이트로 압축 포함.</summary>
+    public byte[] GetFlowBytes()
+    {
+        if (_editor?.Document == null) return [];
+        using var ms = new MemoryStream();
+        DocumentPackage.Save(_editor.Document, ms);
+        return ms.ToArray();
+    }
+
+    /// <summary>.flow 패키지 바이트를 로드 (DB BLOB → 에디터). Build 전 호출 시 보류 후 적용.</summary>
+    public void LoadFlow(byte[]? bytes)
+    {
+        if (_editor == null) { _pendingFlow = bytes; return; }
+        ApplyFlow(bytes);
+    }
+
+    private void ApplyFlow(byte[]? bytes)
+    {
+        if (_editor == null) return;
+        if (bytes == null || bytes.Length == 0)
+        {
+            _editor.Clear();
+            return;
+        }
+        using var ms = new MemoryStream(bytes);
+        _editor.Document = DocumentPackage.Load(ms);
+    }
 
     /// <summary>
     /// 인쇄. WinUIRichEditor 는 시스템 인쇄 다이얼로그가 없어 PDF 로 렌더 후 기본 뷰어로 열어 인쇄하게 한다

@@ -47,8 +47,8 @@ public sealed partial class PostDetailPage : Page
 
             if (ViewModel.Post != null)
             {
-                // 내용을 JoditEditor에 설정
-                ContentViewer.Text = ViewModel.Post.Content;
+                // 내용(.flow)을 에디터에 로드
+                ContentViewer.LoadFlow(ViewModel.Post.Content);
 
                 using var service = Board.CreateService();
                 var files = await service.GetPostFilesByPostAsync(_postNo);

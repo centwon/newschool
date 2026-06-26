@@ -81,7 +81,7 @@ namespace NewSchool.Dialogs
             if (_post == null) return;
 
             TxtTitle.Text = _post.Title;
-            TxtContent.Text = _post.Content;
+            TxtContent.Text = _post.PlainText;   // 평문 표시 (Content 는 .flow BLOB)
 
             // 첨부파일 로드
             await LoadFilesAsync();
@@ -255,7 +255,8 @@ namespace NewSchool.Dialogs
                 {
                     // 수정
                     _post.Title = TxtTitle.Text.Trim();
-                    _post.Content = TxtContent.Text.Trim();
+                    _post.PlainText = TxtContent.Text.Trim();
+                    _post.Content = FlowText.FromPlainText(_post.PlainText);
 
                     postNo = await boardService.SavePostAsync(_post);
                 }
@@ -269,7 +270,8 @@ namespace NewSchool.Dialogs
                         Category = _category,
                         Subject = _subject,
                         Title = TxtTitle.Text.Trim(),
-                        Content = TxtContent.Text.Trim()
+                        PlainText = TxtContent.Text.Trim(),
+                        Content = FlowText.FromPlainText(TxtContent.Text.Trim())
                     };
 
                     postNo = await boardService.SavePostAsync(newPost);

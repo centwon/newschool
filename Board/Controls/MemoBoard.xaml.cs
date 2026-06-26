@@ -124,11 +124,11 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             ChkRecent.IsChecked = _recentPost.IsCompleted;     // 미완료만 로드되므로 항상 false
             SelectComboBoxByTag(CBoxRecentCategory, _recentPost.Category);
             TxtRecentTitle.Text = _recentPost.Title ?? "";
-            Editor.Text = _recentPost.Content ?? "";
+            Editor.LoadFlow(_recentPost.Content);
         }
         else
         {
-            Editor.Text = "";
+            Editor.LoadFlow(null);
         }
         _isUpdating = false;
         _isModified = false;
@@ -154,7 +154,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
                 Category = category,
                 Subject = "메모",
                 Title = "",
-                Content = ""
+                Content = []
             };
 
             using var service = Board.CreateService();
@@ -347,7 +347,8 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         try
         {
             _recentPost.Category = GetRecentCategory();
-            _recentPost.Content = Editor.Text;
+            _recentPost.Content = Editor.GetFlowBytes();
+            _recentPost.PlainText = Editor.PlainText;
 
             // 제목이 비어있을 때만 본문 첫 줄로 자동 생성 (기존 제목 보존)
             if (string.IsNullOrWhiteSpace(_recentPost.Title))

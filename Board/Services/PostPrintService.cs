@@ -99,8 +99,8 @@ public class PostPrintService
     {
         container.Column(col =>
         {
-            // 본문 (HTML 태그 제거)
-            col.Item().PaddingTop(12).Text(StripHtml(post.Content))
+            // 본문 (검색·인쇄용 평문)
+            col.Item().PaddingTop(12).Text(post.PlainText)
                 .FontSize(11)
                 .FontFamily("Malgun Gothic")
                 .LineHeight(1.6f);

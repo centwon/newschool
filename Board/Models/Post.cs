@@ -97,15 +97,31 @@ namespace NewSchool.Board
             }
         }
 
-        private string _content = string.Empty;
-        public string Content
+        private byte[] _content = [];
+        /// <summary>에디터 내용 (.flow 패키지 바이트). 검색은 <see cref="PlainText"/> 사용.</summary>
+        public byte[] Content
         {
             get => _content;
             set
             {
-                if (_content != value)
+                if (!ReferenceEquals(_content, value))
                 {
-                    _content = value;
+                    _content = value ?? [];
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _plainText = string.Empty;
+        /// <summary>검색·미리보기용 평문 (.flow Content 에서 추출).</summary>
+        public string PlainText
+        {
+            get => _plainText;
+            set
+            {
+                if (_plainText != value)
+                {
+                    _plainText = value;
                     OnPropertyChanged();
                 }
             }

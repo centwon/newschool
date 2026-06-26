@@ -47,7 +47,7 @@ public sealed partial class MemoEditDialog : ContentDialog
             TxtTitle.Text = _post.Title ?? "";
 
             // 에디터
-            Editor.Text = _post.Content ?? "";
+            Editor.LoadFlow(_post.Content);
 
             // 메타정보
             TxtMetadata.Text = $"작성일시: {_post.DateTime:yyyy-MM-dd HH:mm:ss}";
@@ -99,7 +99,8 @@ public sealed partial class MemoEditDialog : ContentDialog
             _post.IsCompleted = ChkCompleted.IsChecked == true;
             _post.Category = GetSelectedCategory();
             _post.Title = TxtTitle.Text;
-            _post.Content = Editor.Text;
+            _post.Content = Editor.GetFlowBytes();
+            _post.PlainText = Editor.PlainText;
             _post.DateTime = DateTime.Now;
 
             using var service = Board.CreateService();
