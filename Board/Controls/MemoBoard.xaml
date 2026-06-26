@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <UserControl
     x:Class="NewSchool.Board.Controls.MemoBoard"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -16,30 +16,23 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="36"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- 헤더 -->
+            <!-- 헤더: 제목 + 카테고리 필터 + 추가 -->
             <Border Grid.Row="0" BorderBrush="CornflowerBlue" BorderThickness="0,0,0,1"
                     Background="Lavender" CornerRadius="5,5,0,0">
-                <Grid Padding="6,2">
+                <Grid Padding="6,2" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock
-                        Text="&#x1F4DD; &#xBA54;&#xBAA8;"
-                        FontWeight="Bold"
-                        VerticalAlignment="Center"
-                        FontSize="14"/>
-
-                    <!-- 카테고리 필터 -->
-                    <ComboBox x:Name="CBoxCategoryFilter"
-                              Grid.Column="1"
-                              MinWidth="80"
-                              Margin="8,0,0,0"
+                    <TextBlock Text="&#x1F4DD; &#xBA54;&#xBAA8;" FontWeight="Bold"
+                               VerticalAlignment="Center" FontSize="14"/>
+                    <ComboBox x:Name="CBoxCategoryFilter" Grid.Column="1" MinWidth="80"
                               VerticalAlignment="Center"
                               SelectionChanged="CBoxCategoryFilter_SelectionChanged">
                         <ComboBoxItem Content="전체" Tag=""/>
@@ -48,51 +41,97 @@
                         <ComboBoxItem Content="업무" Tag="업무"/>
                         <ComboBoxItem Content="개인" Tag="개인"/>
                     </ComboBox>
-
-                    <Button x:Name="BtnAddMemo"
-                        Grid.Column="3"
-                        Click="BtnAddMemo_Click"
-                        Background="Transparent"
-                        Padding="6,2"
-                        ToolTipService.ToolTip="&#xC0C8; &#xBA54;&#xBAA8; &#xCD94;&#xAC00;">
+                    <Button x:Name="BtnAddMemo" Grid.Column="3" Click="BtnAddMemo_Click"
+                            Background="Transparent" Padding="6,2"
+                            ToolTipService.ToolTip="새 메모 추가">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <FontIcon Glyph="&#xE710;" FontSize="12"/>
-                            <TextBlock Text="&#xCD94;&#xAC00;" FontSize="12"/>
+                            <TextBlock Text="추가" FontSize="12"/>
                         </StackPanel>
                     </Button>
                 </Grid>
             </Border>
 
-            <!-- 메모 리스트 (compact + 인라인 확장) -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          Grid.Row="1"
-                          Padding="0">
-                <StackPanel x:Name="MemoPanel" Spacing="0"/>
+            <!-- 최근 메모: 고정 인라인 에디터 (첨부 없음) -->
+            <Grid x:Name="RecentPanel" Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- 최근 메모 헤더 -->
+                <Grid Grid.Row="0" Padding="12,6"
+                      Background="{ThemeResource SubtleFillColorSecondaryBrush}" ColumnSpacing="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox x:Name="ChkRecent" MinWidth="0" VerticalAlignment="Center"
+                              Click="ChkRecent_Click" ToolTipService.ToolTip="완료(숨김)"/>
+                    <ComboBox x:Name="CBoxRecentCategory" Grid.Column="1" MinWidth="80"
+                              VerticalAlignment="Center" Margin="0,0,8,0"
+                              SelectionChanged="CBoxRecentCategory_SelectionChanged">
+                        <ComboBoxItem Content="수업" Tag="수업"/>
+                        <ComboBoxItem Content="학급" Tag="학급"/>
+                        <ComboBoxItem Content="업무" Tag="업무"/>
+                        <ComboBoxItem Content="개인" Tag="개인"/>
+                    </ComboBox>
+                    <TextBlock x:Name="TxtRecentTitle" Grid.Column="2" VerticalAlignment="Center"
+                               FontSize="13" TextTrimming="CharacterEllipsis"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Button x:Name="BtnRecentOpenDialog" Grid.Column="3" Padding="8,4"
+                            Click="BtnRecentOpenDialog_Click" ToolTipService.ToolTip="새 창으로 열기 (제목·첨부)">
+                        <FontIcon Glyph="&#xE8A7;" FontSize="12"/>
+                    </Button>
+                    <Button x:Name="BtnRecentSave" Grid.Column="4" Padding="8,4" Margin="4,0,0,0"
+                            Click="BtnRecentSave_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE74E;" FontSize="12"/>
+                            <TextBlock Text="저장" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="BtnRecentDelete" Grid.Column="5" Padding="8,4" Margin="4,0,0,0"
+                            Background="Transparent" Click="BtnRecentDelete_Click"
+                            ToolTipService.ToolTip="삭제">
+                        <FontIcon Glyph="&#xE74D;" FontSize="12"/>
+                    </Button>
+                </Grid>
+
+                <!-- 에디터 (적당한 높이로 제한, 긴 메모는 내부 스크롤 → 목록 공간 확보) -->
+                <Border Grid.Row="1" Padding="4,4">
+                    <appcontrols:RichTextEditor x:Name="Editor"
+                                                Mode="Simple"
+                                                ShowToolbar="False"
+                                                MinHeight="120"
+                                                MaxHeight="220"/>
+                </Border>
+            </Grid>
+
+            <!-- 나머지 활성 메모: compact 목록 (클릭 → 다이얼로그 편집), 남은 공간 채움 -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="CompactPanel" Spacing="0"/>
             </ScrollViewer>
 
-            <!-- 빈 상태 표시 -->
-            <StackPanel x:Name="PanelEmpty"
-                        Grid.Row="1"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
+            <!-- 빈 상태 -->
+            <StackPanel x:Name="PanelEmpty" Grid.Row="2"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
                         Visibility="Collapsed">
-                <FontIcon Glyph="&#xE70B;"
-                          FontSize="32"
+                <FontIcon Glyph="&#xE70B;" FontSize="32"
                           Foreground="{ThemeResource TextFillColorDisabledBrush}"/>
-                <TextBlock Text="&#xBA54;&#xBAA8;&#xAC00; &#xC5C6;&#xC2B5;&#xB2C8;&#xB2E4;"
-                           FontSize="13"
+                <TextBlock Text="메모가 없습니다" FontSize="13"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Margin="0,8,0,0"/>
             </StackPanel>
 
-            <!-- 로딩 표시 -->
-            <ProgressRing x:Name="LoadingRing"
-                          Grid.Row="1"
-                          IsActive="False"
-                          Width="32"
-                          Height="32"
-                          HorizontalAlignment="Center"
-                          VerticalAlignment="Center"/>
+            <!-- 로딩 -->
+            <ProgressRing x:Name="LoadingRing" Grid.Row="2" IsActive="False"
+                          Width="32" Height="32"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Grid>
     </Border>
 </UserControl>
