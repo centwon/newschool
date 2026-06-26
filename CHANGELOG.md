@@ -1,6 +1,27 @@
 # Changelog
 
-## v1.0.6 (2026-06-18 ~ 2026-06-26)
+## v1.0.6 (2026-06-18 ~ 2026-06-27)
+
+### Post 콘텐츠 저장 .flow 전환 + 검색 평문 분리 (2026-06-27)
+- **에디터 내용을 WinUIRichEditor 네이티브 `.flow` 패키지(BLOB)로 저장** — 압축·무손실, 이미지는 base64 팽창 없이 원본 바이트
+  - 스키마: `Post.Content` TEXT → BLOB(.flow), `PlainText TEXT` 컬럼 신설(검색·미리보기·인쇄용)
+  - `Post.Content` 모델 `string` → `byte[]`, `PostRepository` BLOB I/O, 게시판 내용검색 `Content LIKE` → `PlainText LIKE`
+  - 어댑터에 `GetFlowBytes()`/`LoadFlow(byte[])` 추가, 소비처(메모·게시판·자료) 로드=flow·저장=flow+평문 전환
+  - `Controls/FlowText` — 평문→.flow 헬퍼(MaterialEditDialog 등 평문 입력용, 헤드리스 모델/포매터)
+  - 미배포 전제로 하위호환/스니핑 없이 .flow 전용. 기존 DB 변환은 별도 콘솔 툴 `MemoFlowMigrator`(저장소 외부)로 1회 수행
+  - 실측: 실 DB(이미지 포함 글) 변환 후 VACUUM 시 **3.89MB → 0.51MB(−87%)**
+- **할일/일정 다이얼로그(UnifiedItemDialog) 노트** → 리치에디터 대신 일반 멀티라인 `TextBox`(KEvent.Notes 는 평문 위주)
+
+### MemoBoard 재설계 — 최신 메모 고정 에디터 + compact 목록 (2026-06-27)
+- WebView2/Jodit 우회책이던 **단일 에디터 reparent 트릭 제거** (1062→465줄)
+- 인라인 = 가장 최근 활성 메모 1개 고정 편집(첨부 없음), 나머지 = compact 목록 → 클릭 시 다이얼로그 편집
+- 완료 체크 = 숨김(아카이브 조회), 정식 게시물 승격은 게시판에서 별도
+- `RichTextEditor.ShowToolbar` 옵션 추가: false=bare `RichEditor`(편집면만, 퀵잡용)/true=`RichEditorView`(툴바+크롬)
+- 메모 에디터는 bare 컨트롤 — HTML 붙여넣기·단축키 서식 유지하되 군더더기 UI 제거
+
+### 에디터 메모리 — 호스트 종료 시 즉시 해제 (2026-06-26)
+- `RichTextEditor.Dispose()` 가 `Clear()` 로 네이티브 CanvasTextLayout 캐시 + GPU 이미지 비트맵 결정적 반환(공유 D3D 디바이스는 유지)
+- 다이얼로그·페이지(MemoEditDialog·UnifiedItemDialog·Export·PostEdit/Detail) 닫힐 때 에디터 해제 연결
 
 ### 에디터 교체: Jodit(WebView2) → WinUIRichEditor(Win2D) + WebView2 완전 제거 (2026-06-26)
 - **WinUIRichEditor 도입** — 웹 기반 Jodit 에디터(WebView2 + ~900KB JS)를 네이티브 Win2D 리치에디터로 교체
