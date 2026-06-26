@@ -1,5 +1,37 @@
 # Changelog
 
+## v1.0.6 (2026-06-18 ~ 2026-06-26)
+
+### 에디터 교체: Jodit(WebView2) → WinUIRichEditor(Win2D) + WebView2 완전 제거 (2026-06-26)
+- **WinUIRichEditor 도입** — 웹 기반 Jodit 에디터(WebView2 + ~900KB JS)를 네이티브 Win2D 리치에디터로 교체
+  - `Controls/RichTextEditor` — `RichEditorView` 호스팅 어댑터(UserControl). 기존 `JoditEditor` 와 동일 공개 API
+    (`Text`/`Mode`/`PlainText`/`TextChanged`/`GetHtmlAsync`/`InsertHtml`/`PrintAsync`/`IsInitialized`/`IDisposable`) 로 드롭인 교체
+  - `Controls/RichTextEditorWin` — 구 `JoditEditorWin`(전체화면 편집 윈도우) 대체
+  - WinUIRichEditor 는 `ProjectReference` 로 참조(Win2D 1.4.0 추이 의존)
+  - **9개 사용처 전수 교체**: `MemoEditDialog`·`MemoBoard`(인라인 reparent)·`PostEditPage`(표삽입 `InsertHtml`)·
+    `PostDetailPage`·`ClassDiaryBox`·`StudentInfoExportPage`·`UnifiedExportPage`·`UnifiedItemDialog`(2)
+- **WebView2 의존 완전 제거**
+  - 도움말: `HelpPage`(WebView2) 제거 → `MainWindow.OpenHelpInBrowserAsync` 가 `help.html` 을 **기본 웹 브라우저**로 띄움
+    (`help.html` 은 Content 로 유지 — CSS·다크모드·TOC·JS 전부 실브라우저에서 동작)
+  - 설치 프로그램(`installer.iss`·`Installer/NewSchoolSetup.iss`): WebView2 부트스트래퍼 전부 제거 → 런타임 의존 소멸
+  - 제거 파일은 `NewSchool-archive/jodit-webview-20260626/` 에 별도 보관(`JoditEditor*`·`JoditEditorWin*`·`HelpPage*`·`Assets/Jodit/*`)
+- **인쇄 UX 변경**: WinUIRichEditor 는 시스템 인쇄 다이얼로그가 없어 `PrintAsync` 가 PDF 렌더 후 기본 뷰어로 열기(추후 PrintManager 검토)
+- 검증: 빌드 경고 0/오류 0, 앱 기동·Win2D 에디터 렌더·한글 입력·도움말 브라우저 열기 확인
+
+### Windows App SDK 1.8 → 2.2 업그레이드 (2026-06-26)
+- `NewSchool.csproj`·`NewSchool.Tests.csproj`: `Microsoft.WindowsAppSDK 1.8 → 2.2.0`, TFM `net10.0-windows10.0.19041.0 → 10.0.26100.0`
+  (`TargetPlatformMinVersion 17763` 유지)
+- 설치 프로그램: 런타임 패키지명 `Microsoft.WindowsAppRuntime.1.8 → Microsoft.WindowsAppRuntime.2`(2.x 부터 PFN 이 메이저 버전에 정렬),
+  레지스트리·다운로드 URL 갱신
+- breaking change 영향 없음 — 제거/변경은 대부분 AI/ML 영역(미사용), deprecated WinUI API(`Window.Current` 등)도 미사용(modern `DispatcherQueue`)
+
+### 테스트 프로젝트 신설 (2026-06-18)
+- `NewSchool.Tests` (xUnit 2.9.2) — `NeisHelper.CountByte/GetMaxBytes` 29건 + `CsvExportService.Escape` 21건 = **50 테스트 통과**
+- 실행: `dotnet test -p:Platform=x64 -p:RuntimeIdentifier=win-x64`. `CsvExportService.Escape` 를 internal 전환 + `InternalsVisibleTo`
+
+### 버그 수정 (2026-06-18)
+- 좌석 복원 시 미사용 경고 오발 수정, `PhotoCard` 비동기 경합 해소, 명렬표 숫자만 표기
+
 ## v1.0.5 (2026-04-19 ~ 2026-04-22)
 
 ### CA1063/CA1001 전수 해결 (2026-04-22)

@@ -1,6 +1,8 @@
 # NewSchool
 
-WinUI 3 · .NET 10 · SQLite 기반 교사용 학급 관리 프로그램.
+WinUI 3 (Windows App SDK 2.2) · .NET 10 · SQLite 기반 교사용 학급 관리 프로그램.
+
+리치 텍스트 편집은 네이티브 Win2D 에디터(WinUIRichEditor)를 사용하며, WebView2 의존이 없습니다.
 
 ## 주요 기능
 - 학생/학급 관리, 학생부 특기사항, 누가기록

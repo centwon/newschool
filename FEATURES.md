@@ -135,8 +135,8 @@
 | `SchoolFilterPicker.xaml` | 학교 필터 선택기 |
 | `SchoolMealBox.xaml` | 급식 정보 박스 |
 | `SchoolScheduleListControl.xaml` | 학사일정 목록 |
-| `JoditEditor.xaml` | 리치 텍스트 에디터 |
-| `JoditEditorWin.xaml` | 에디터 윈도우 |
+| `RichTextEditor.xaml` | 리치 텍스트 에디터 (WinUIRichEditor/Win2D 어댑터) |
+| `RichTextEditorWin.xaml` | 에디터 윈도우 (전체화면 편집) |
 | `AttachmentBox.xaml` | 공통 첨부파일 컨트롤 (파일 추가/삭제/열기) |
 
 ---
