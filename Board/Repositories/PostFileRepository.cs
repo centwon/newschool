@@ -26,9 +26,11 @@ namespace NewSchool.Board.Repositories
         /// </summary>
         public async Task<int> CreateAsync(PostFile postFile)
         {
+            // INSERT + SELECT 를 한 번에 실행 (왕복 1회)
             const string query = @"
                 INSERT INTO PostFile (Post, DateTime, FileName, FileSize)
-                VALUES (@Post, @DateTime, @FileName, @FileSize)";
+                VALUES (@Post, @DateTime, @FileName, @FileSize);
+                SELECT last_insert_rowid();";
 
             try
             {
@@ -38,10 +40,6 @@ namespace NewSchool.Board.Repositories
                 cmd.Parameters.AddWithValue("@FileName", postFile.FileName);
                 cmd.Parameters.AddWithValue("@FileSize", postFile.FileSize);
 
-                await cmd.ExecuteNonQueryAsync();
-
-                // 마지막 삽입 ID
-                cmd.CommandText = "SELECT last_insert_rowid()";
                 var result = await cmd.ExecuteScalarAsync();
                 postFile.No = Convert.ToInt32(result);
 

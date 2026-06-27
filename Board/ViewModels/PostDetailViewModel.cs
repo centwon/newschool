@@ -185,41 +185,6 @@ public class PostDetailViewModel : INotifyPropertyChanged
         }
     }
 
-    public async Task AddCommentAsync()
-    {
-        if (Post == null || string.IsNullOrWhiteSpace(NewCommentContent))
-            return;
-
-        try
-        {
-            var comment = new Comment
-            {
-                Post = Post.No,
-                User = "익명", // TODO: 실제 로그인 사용자명으로 변경
-                Content = NewCommentContent,
-                DateTime = DateTime.Now,
-                ReplyOrder = 0,
-                HasFile = false,
-                FileName = "",
-                FileSize = 0
-            };
-
-            int commentId = await _service.CreateCommentAsync(comment);
-
-            if (commentId > 0)
-            {
-                comment.No = commentId;
-                Comments.Insert(0, comment); // 최신 댓글을 맨 위에 추가
-                NewCommentContent = "";
-
-                Debug.WriteLine($"댓글 추가 완료: ID={commentId}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"댓글 추가 실패: {ex.Message}");
-        }
-    }
     public async Task DeleteCommentAsync(Comment? comment)
     {
         if (comment == null || Post == null) return;

@@ -31,7 +31,6 @@
     <None Remove="NewSchool.Tests\**\*" />
   </ItemGroup>
   <ItemGroup>
-    <None Remove="Board\CommentBox.xaml" />
     <None Remove="Board\Controls\FileItemBox.xaml" />
     <None Remove="Board\Controls\PostFileListBox.xaml" />
     <None Remove="Board\FileItemBox.xaml" />
@@ -155,9 +154,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="Board\Pages\PostListPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Board\CommentBox.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="Scheduler\UnifiedItemDialog.xaml">

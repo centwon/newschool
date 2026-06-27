@@ -26,19 +26,17 @@ namespace NewSchool.Board.Repositories
         /// </summary>
         public async Task<int> CreateAsync(Comment comment)
         {
+            // INSERT + SELECT 를 한 번에 실행 (왕복 1회)
             const string query = @"
-                                INSERT INTO Comment (Post, User, DateTime, ReplyOrder, Content, HasFile, FileName, FileSize)
-                                VALUES (@Post, @User, @DateTime, @ReplyOrder, @Content, @HasFile, @FileName, @FileSize)";
+                INSERT INTO Comment (Post, User, DateTime, ReplyOrder, Content, HasFile, FileName, FileSize)
+                VALUES (@Post, @User, @DateTime, @ReplyOrder, @Content, @HasFile, @FileName, @FileSize);
+                SELECT last_insert_rowid();";
 
             try
             {
                 using var cmd = CreateCommand(query);
                 AddCommentParameters(cmd, comment);
 
-                await cmd.ExecuteNonQueryAsync();
-
-                // 마지막 삽입 ID
-                cmd.CommandText = "SELECT last_insert_rowid()";
                 var result = await cmd.ExecuteScalarAsync();
                 comment.No = Convert.ToInt32(result);
 

@@ -139,7 +139,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             CompactPanel.Children.Add(BuildCompactItem(memo));
     }
 
-    public async Task CreateNewMemoAsync()
+    public Task CreateNewMemoAsync()
     {
         try
         {
@@ -157,17 +157,18 @@ public sealed partial class MemoBoard : UserControl, IDisposable
                 Content = []
             };
 
-            using var service = Board.CreateService();
-            post.No = await service.SavePostAsync(post);
-
+            // 빈 메모를 즉시 DB 에 저장하지 않는다(No=0, 메모리 보관).
+            // 사용자가 실제로 입력해 _isModified 가 되면 SaveRecentMemoAsync 가 그때 INSERT.
+            // → 입력 없이 떠나면 DB 에 빈 메모가 쌓이지 않음.
             _memos.Insert(0, post);
             Render();
-            Debug.WriteLine($"[MemoBoard] 새 메모 생성: No={post.No}");
+            Debug.WriteLine($"[MemoBoard] 새 메모 생성(메모리)");
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[MemoBoard] 새 메모 생성 실패: {ex.Message}");
         }
+        return Task.CompletedTask;
     }
 
     #endregion
@@ -378,8 +379,13 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             if (memo == _recentPost && _isModified) await SaveRecentMemoAsync();
 
             memo.IsCompleted = true;
-            using var service = Board.CreateService();
-            await service.UpdatePostIsCompletedAsync(memo.No, true);
+
+            // 아직 저장 안 된 빈 메모(No<=0)는 DB 갱신 없이 목록에서만 제거
+            if (memo.No > 0)
+            {
+                using var service = Board.CreateService();
+                await service.UpdatePostIsCompletedAsync(memo.No, true);
+            }
 
             _memos.Remove(memo);
             Render();
