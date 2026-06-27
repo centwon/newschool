@@ -96,6 +96,7 @@ namespace NewSchool.Board.Repositories
 
             try
             {
+                // 메모 대시보드(GetMemosAsync)는 최근 메모의 Content(.flow)를 인라인 에디터에 바로 로드하므로 Content 포함
                 string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted FROM Post WHERE 1=1";
                 using var cmd = CreateCommand(query);
 
@@ -182,7 +183,8 @@ namespace NewSchool.Board.Repositories
 
             try
             {
-                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, COUNT(*) OVER() AS TotalCount FROM Post WHERE 1=1";
+                // 목록은 PlainText(미리보기/검색)만 사용하므로 무거운 Content(.flow BLOB)는 조회하지 않음 (메모리 절약)
+                string query = "SELECT No, User, DateTime, Category, Subject, Title, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, COUNT(*) OVER() AS TotalCount FROM Post WHERE 1=1";
                 using var cmd = CreateCommand(query);
 
                 // 카테고리 필터
@@ -604,7 +606,6 @@ namespace NewSchool.Board.Repositories
             var catOrd = cache.GetOrdinal("Category");
             var subOrd = cache.GetOrdinal("Subject");
             var titleOrd = cache.GetOrdinal("Title");
-            var contentOrd = cache.GetOrdinal("Content");
             var refOrd = cache.GetOrdinal("RefNo");
             var replyOrd = cache.GetOrdinal("ReplyOrder");
             var depthOrd = cache.GetOrdinal("Depth");
@@ -620,7 +621,6 @@ namespace NewSchool.Board.Repositories
                 Category = reader.IsDBNull(catOrd) ? "" : reader.GetString(catOrd),
                 Subject = reader.IsDBNull(subOrd) ? "" : reader.GetString(subOrd),
                 Title = reader.GetString(titleOrd),
-                Content = reader.IsDBNull(contentOrd) ? [] : (byte[])reader.GetValue(contentOrd),
                 RefNo = reader.GetInt32(refOrd),
                 ReplyOrder = reader.GetInt32(replyOrd),
                 Depth = reader.GetInt32(depthOrd),
@@ -636,6 +636,10 @@ namespace NewSchool.Board.Repositories
             // PlainText 컬럼 (검색용)
             if (cache.TryGetOrdinal("PlainText", out var ptOrd))
                 post.PlainText = reader.IsDBNull(ptOrd) ? "" : reader.GetString(ptOrd);
+
+            // Content(.flow BLOB)는 상세 조회에만 포함됨 — 목록 쿼리에는 없으므로 조건부 로드
+            if (cache.TryGetOrdinal("Content", out var contentOrd))
+                post.Content = reader.IsDBNull(contentOrd) ? [] : (byte[])reader.GetValue(contentOrd);
 
             return post;
         }

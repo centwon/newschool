@@ -42,7 +42,8 @@ namespace NewSchool.Board.Repositories
 
                 // ✅ WAL 모드 활성화 (동시 읽기/쓰기 개선)
                 using var cmd = Connection.CreateCommand();
-                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
+                // WAL + synchronous=NORMAL 은 권장 조합 (쓰기 안전성 유지하며 성능 향상)
+                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
                 cmd.ExecuteNonQuery();
 
                 LogDebug($"{GetType().Name} 연결 열림 (WAL 모드)");
@@ -177,9 +178,15 @@ namespace NewSchool.Board.Repositories
         {
             var cmd = Connection.CreateCommand();
             cmd.CommandText = query;
-            if (Transaction != null)
+            // 트랜잭션이 이 연결에서 시작된 것인지 확인 후 설정 (연결 불일치 가드)
+            if (Transaction != null && Transaction.Connection == Connection)
             {
                 cmd.Transaction = Transaction;
+            }
+            else if (Transaction != null)
+            {
+                LogDebug($"트랜잭션 연결 불일치 무시 - {GetType().Name}");
+                Transaction = null;
             }
             return cmd;
         }
@@ -192,7 +199,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                return await cmd.ExecuteNonQueryAsync();
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -209,7 +216,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 using var cmd = CreateCommand(query);
-                return await cmd.ExecuteScalarAsync();
+                return await cmd.ExecuteScalarAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -258,10 +265,10 @@ namespace NewSchool.Board.Repositories
             var list = new List<T>();
             var cache = new ReaderColumnCache();
 
-            using var reader = await cmd.ExecuteReaderAsync();
+            using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
             cache.Initialize(reader);
 
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync().ConfigureAwait(false))
                 list.Add(mapper(reader, cache));
 
             return list;

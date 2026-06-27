@@ -89,7 +89,7 @@ namespace NewSchool.Board
         {
             this.InitializeComponent();
             this.DataContext = this;
-            _service = Board.CreateService();
+            _service = Board.CreateCachedService();
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

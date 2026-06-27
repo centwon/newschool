@@ -42,7 +42,9 @@ namespace NewSchool.Repositories
 
                 // WAL 모드 활성화 (동시 읽기/쓰기 개선)
                 using var cmd = Connection.CreateCommand();
-                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
+                // WAL + synchronous=NORMAL 은 권장 조합 (쓰기 안전성 유지하며 성능 향상)
+                // 기존에는 synchronous 미설정으로 기본값 FULL 이 적용되어 쓰기가 느렸음
+                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
                 cmd.ExecuteNonQuery();
 
                 LogDebug($"{GetType().Name} 연결 열림 (WAL 모드)");

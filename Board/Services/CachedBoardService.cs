@@ -30,7 +30,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// Post 조회 (캐시됨)
         /// </summary>
-        public new async Task<Post?> GetPostAsync(int no, bool incrementReadCount = true)
+        public override async Task<Post?> GetPostAsync(int no, bool incrementReadCount = true)
         {
             string key = CacheKeys.Post(no);
 
@@ -58,7 +58,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// Post 목록 조회 (캐시됨)
         /// </summary>
-        public new async Task<PagedResult<Post>> GetPostsPagedAsync(
+        public override async Task<PagedResult<Post>> GetPostsPagedAsync(
             int pageNumber,
             int pageSize,
             string category = "",
@@ -80,7 +80,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// Post 저장 (캐시 무효화)
         /// </summary>
-        public new async Task<int> SavePostAsync(Post post)
+        public override async Task<int> SavePostAsync(Post post)
         {
             int result = await base.SavePostAsync(post);
 
@@ -97,7 +97,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// Post 삭제 (캐시 무효화)
         /// </summary>
-        public new async Task<bool> DeletePostAsync(int postNo, string category)
+        public override async Task<bool> DeletePostAsync(int postNo, string category)
         {
             bool result = await base.DeletePostAsync(postNo, category);
 
@@ -120,7 +120,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// Comment 목록 조회 (캐시됨)
         /// </summary>
-        public new async Task<List<Comment>> GetCommentsByPostAsync(int postNo)
+        public override async Task<List<Comment>> GetCommentsByPostAsync(int postNo)
         {
             string key = CacheKeys.Comments(postNo);
 
@@ -133,7 +133,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// Comment 생성 (캐시 무효화)
         /// </summary>
-        public new async Task<int> CreateCommentAsync(Comment comment)
+        public override async Task<int> CreateCommentAsync(Comment comment)
         {
             int result = await base.CreateCommentAsync(comment);
 
@@ -150,7 +150,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// Comment 수정 (캐시 무효화)
         /// </summary>
-        public new async Task<bool> UpdateCommentAsync(Comment comment)
+        public override async Task<bool> UpdateCommentAsync(Comment comment)
         {
             bool result = await base.UpdateCommentAsync(comment);
 
@@ -165,7 +165,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// Comment 삭제 (캐시 무효화)
         /// </summary>
-        public new async Task<bool> DeleteCommentAsync(int commentNo, string category)
+        public override async Task<bool> DeleteCommentAsync(int commentNo, string category)
         {
             // Comment 정보 먼저 조회 (Post 번호 필요)
             using var uow = new UnitOfWork(_dbPath);  // ✅ 이제 접근 가능
@@ -190,7 +190,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// PostFile 목록 조회 (캐시됨)
         /// </summary>
-        public new async Task<List<PostFile>> GetPostFilesByPostAsync(int postNo)
+        public override async Task<List<PostFile>> GetPostFilesByPostAsync(int postNo)
         {
             string key = CacheKeys.PostFiles(postNo);
 
@@ -203,7 +203,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// PostFile 추가 (캐시 무효화)
         /// </summary>
-        public new async Task<int> AddPostFileAsync(PostFile postFile)
+        public override async Task<int> AddPostFileAsync(PostFile postFile)
         {
             int result = await base.AddPostFileAsync(postFile);
 
@@ -220,7 +220,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// PostFile 삭제 (캐시 무효화)
         /// </summary>
-        public new async Task<bool> DeletePostFileAsync(int postFileNo, string category)
+        public override async Task<bool> DeletePostFileAsync(int postFileNo, string category)
         {
             // PostFile 정보 먼저 조회
             using var uow = new UnitOfWork(_dbPath);  // ✅ 이제 접근 가능
@@ -245,7 +245,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// 카테고리 목록 조회 (캐시됨, 30분)
         /// </summary>
-        public new async Task<List<string>> GetCategoriesAsync()
+        public override async Task<List<string>> GetCategoriesAsync()
         {
             return await _cache.GetOrCreateAsync(
                 CacheKeys.Categories(),
@@ -256,7 +256,7 @@ namespace NewSchool.Board.Services
         /// <summary>
         /// 주제 목록 조회 (캐시됨, 30분)
         /// </summary>
-        public new async Task<List<string>> GetSubjectsAsync(string category = "")
+        public override async Task<List<string>> GetSubjectsAsync(string category = "")
         {
             return await _cache.GetOrCreateAsync(
                 CacheKeys.Subjects(category),

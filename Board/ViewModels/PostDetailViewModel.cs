@@ -114,7 +114,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
 
     public PostDetailViewModel()
     {
-        _service = Board.CreateService();
+        _service = Board.CreateCachedService();
         _comments = new OptimizedObservableCollection<Comment>();
         _files = new OptimizedObservableCollection<PostFile>();
 

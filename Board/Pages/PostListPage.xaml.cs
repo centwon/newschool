@@ -330,7 +330,7 @@ public sealed partial class PostListPage : Page
 
         try
         {
-            using var service = Board.CreateService();
+            using var service = Board.CreateCachedService();
             var categories = await service.GetCategoriesAsync();
             foreach (var cat in categories)
             {
@@ -378,7 +378,7 @@ public sealed partial class PostListPage : Page
             }
 
             // DB에서 기존 주제 로드 (중복 제거)
-            using var service = Board.CreateService();
+            using var service = Board.CreateCachedService();
             var subjects = await service.GetSubjectsAsync(category);
             foreach (var subject in subjects)
             {

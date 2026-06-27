@@ -202,12 +202,10 @@ public class StudentCardPrintService
             return;
         }
 
-        // 사진 파일의 절대 경로 확인
-        string fullPath = Path.IsPathRooted(photoPath)
-            ? photoPath
-            : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, photoPath);
+        // 사진 파일의 절대 경로 확인 (저장 기준인 UserDataPath 기준 — PhotoService 와 동일하게 해석)
+        string fullPath = PhotoService.ResolveFullPath(photoPath) ?? "";
 
-        if (!File.Exists(fullPath))
+        if (string.IsNullOrEmpty(fullPath) || !File.Exists(fullPath))
         {
             container.AlignCenter().AlignMiddle()
                 .Text("사진 없음").FontSize(9).FontColor(Colors.Grey.Medium);

@@ -217,7 +217,7 @@ public class PostListViewModel : INotifyPropertyChanged
         // DispatcherQueue 가져오기
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
-        _service = Board.CreateService();
+        _service = Board.CreateCachedService();
         _posts = new OptimizedObservableCollection<PostItemViewModel>();
         // Posts 컬렉션 변경 감지 추가
         _posts.CollectionChanged += (s, e) =>

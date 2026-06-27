@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 
 namespace NewSchool.Collections
 {
@@ -47,8 +48,7 @@ namespace NewSchool.Collections
             finally
             {
                 _suppressNotification = false;
-                OnCollectionChanged(new NotifyCollectionChangedEventArgs(
-                    NotifyCollectionChangedAction.Reset));
+                RaiseResetNotifications();
             }
         }
 
@@ -71,8 +71,7 @@ namespace NewSchool.Collections
             finally
             {
                 _suppressNotification = false;
-                OnCollectionChanged(new NotifyCollectionChangedEventArgs(
-                    NotifyCollectionChangedAction.Reset));
+                RaiseResetNotifications();
             }
         }
 
@@ -96,9 +95,19 @@ namespace NewSchool.Collections
             finally
             {
                 _suppressNotification = false;
-                OnCollectionChanged(new NotifyCollectionChangedEventArgs(
-                    NotifyCollectionChangedAction.Reset));
+                RaiseResetNotifications();
             }
+        }
+
+        /// <summary>
+        /// 대량 작업 종료 후 Count·Item[]·Reset 알림을 한 번씩 발생시킨다.
+        /// </summary>
+        private void RaiseResetNotifications()
+        {
+            OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
+            OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+            OnCollectionChanged(new NotifyCollectionChangedEventArgs(
+                NotifyCollectionChangedAction.Reset));
         }
 
         protected override void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
@@ -106,6 +115,19 @@ namespace NewSchool.Collections
             if (!_suppressNotification)
             {
                 base.OnCollectionChanged(e);
+            }
+        }
+
+        /// <summary>
+        /// 대량 업데이트 중에는 Count/Item[] PropertyChanged 도 함께 억제하여
+        /// 항목마다 발생하는 바인딩 갱신 오버헤드를 제거한다.
+        /// (억제 해제 시 Reset 알림이 전체 갱신을 유발하므로 정합성 유지)
+        /// </summary>
+        protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+        {
+            if (!_suppressNotification)
+            {
+                base.OnPropertyChanged(e);
             }
         }
     }

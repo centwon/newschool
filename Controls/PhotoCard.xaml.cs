@@ -268,12 +268,10 @@ namespace NewSchool.Controls
 
             try
             {
-                // 절대 경로 생성
-                string fullPath = Path.IsPathRooted(photoPath)
-                    ? photoPath
-                    : Path.Combine(AppContext.BaseDirectory, photoPath);
+                // 절대 경로 생성 (저장 기준인 UserDataPath 기준 — PhotoService 와 동일하게 해석)
+                string fullPath = NewSchool.Services.PhotoService.ResolveFullPath(photoPath) ?? "";
 
-                if (!File.Exists(fullPath))
+                if (string.IsNullOrEmpty(fullPath) || !File.Exists(fullPath))
                 {
                     if (token == _photoLoadToken) Photo.Source = null;
                     return;
@@ -285,9 +283,13 @@ namespace NewSchool.Controls
 
                 BitmapImage bitmap = new();
 
-                // 메모리 최적화: 표시 크기에 맞게 디코딩
-                // PhotoCard의 최대 너비는 약 200px이므로 400px로 디코딩 (레티나 대응)
-                bitmap.DecodePixelWidth = 400;
+                // 메모리 최적화: 고정 400px 대신 실제 카드 표시 폭에 맞춘 적응형 디코딩.
+                // 비트맵 메모리는 폭²에 비례하므로, 표시 크기의 2배(고DPI 대비)로만 디코딩한다.
+                // 예) 기본 80px 카드 → ~160px 디코딩 (기존 400px 대비 약 6배 절감)
+                double displayWidth = PhotoControl.Width;
+                if (double.IsNaN(displayWidth) || displayWidth <= 0)
+                    displayWidth = double.IsNaN(this.Width) ? 80 : this.Width;
+                bitmap.DecodePixelWidth = Math.Clamp((int)(displayWidth * 2), 120, 400);
                 bitmap.DecodePixelType = DecodePixelType.Logical;
 
                 // Stream을 using으로 명시적으로 관리하여 즉시 해제

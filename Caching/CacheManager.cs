@@ -114,15 +114,41 @@ namespace NewSchool.Board.Caching
         }
 
         /// <summary>
+        /// 캐시에서 데이터 조회 시도 (히트/미스를 명확히 구분)
+        /// 값 타입의 default(0)나 캐시된 null 을 미스로 오인하지 않도록 bool 반환
+        /// </summary>
+        public bool TryGet<T>(string key, out T? value)
+        {
+            lock (_lockObject)
+            {
+                if (_cache.TryGetValue(key, out var entry))
+                {
+                    if (entry.ExpiresAt > DateTime.Now)
+                    {
+                        entry.LastAccessTime = DateTime.Now; // LRU 갱신
+                        value = (T?)entry.Value;
+                        return true;
+                    }
+
+                    // 만료 항목 제거
+                    _currentCacheSize -= entry.Size;
+                    _cache.Remove(key);
+                }
+
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// 캐시에서 데이터 조회 또는 생성
         /// </summary>
         public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null)
         {
-            // 먼저 캐시 확인
-            var cached = Get<T>(key);
-            if (cached != null)
+            // 먼저 캐시 확인 (TryGet 으로 히트/미스를 정확히 판별)
+            if (TryGet<T>(key, out var cached))
             {
-                return cached;
+                return cached!;
             }
 
             // 캐시에 없으면 생성
@@ -326,8 +352,10 @@ namespace NewSchool.Board.Caching
             // 대략적인 크기 추정
             if (obj is string str)
                 return str.Length * 2; // Unicode 문자당 2바이트
-            if (obj is ICollection<object> collection)
-                return collection.Count * 100; // 평균 100바이트로 추정
+            // 비제네릭 ICollection 으로 판별해야 List<Post>, List<Comment> 등도 매칭됨
+            // (ICollection<object> 는 제네릭 무공변 때문에 List<T> 와 매칭되지 않아 항상 100바이트로 오산정됨)
+            if (obj is System.Collections.ICollection collection)
+                return Math.Max(collection.Count, 1) * 100; // 평균 100바이트로 추정
 
             return 100; // 기본값
         }

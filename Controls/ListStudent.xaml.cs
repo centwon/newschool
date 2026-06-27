@@ -246,6 +246,9 @@ namespace NewSchool.Controls
 
         #region Drag and Drop
 
+        // 참고: 150% 등 비100% 배율에서 드래그 비주얼이 커서와 어긋나는 것은 WinUI 3 프레임워크 버그
+        // (microsoft-ui-xaml #7008 / #10144)로, DragStarting 에서 비주얼/앵커를 바꿔도 고쳐지지 않는다.
+        // 표준 ListView 드래그를 사용하고, 근본 해결은 추후 자체 드래그(고스트) 구현으로 검토.
         private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
         {
             if (e.Items.Count > 0 && e.Items[0] is Enrollment student)

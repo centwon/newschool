@@ -28,7 +28,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Post 생성 또는 수정 (트랜잭션 처리)
     /// </summary>
-    public async Task<int> SavePostAsync(Post post)
+    public virtual async Task<int> SavePostAsync(Post post)
     {
         using var uow = new UnitOfWork(_dbPath);
 
@@ -62,7 +62,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Post 조회 (조회수 증가 포함)
     /// </summary>
-    public async Task<Post?> GetPostAsync(int no, bool incrementReadCount = true)
+    public virtual async Task<Post?> GetPostAsync(int no, bool incrementReadCount = true)
     {
         using var uow = new UnitOfWork(_dbPath);
 
@@ -87,7 +87,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Post 목록 조회 (페이징)
     /// </summary>
-    public async Task<PagedResult<Post>> GetPostsPagedAsync(
+    public virtual async Task<PagedResult<Post>> GetPostsPagedAsync(
         int pageNumber,
         int pageSize,
         string category = "",
@@ -123,7 +123,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Post 삭제 (관련 파일도 함께 삭제)
     /// </summary>
-    public async Task<bool> DeletePostAsync(int postNo, string category)
+    public virtual async Task<bool> DeletePostAsync(int postNo, string category)
     {
         // ✅ 각 Repository를 독립적으로 사용 (CASCADE로 DB 정합성 보장)
         try
@@ -170,7 +170,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Comment 생성 (Post의 HasComment 플래그도 업데이트)
     /// </summary>
-    public async Task<int> CreateCommentAsync(Comment comment)
+    public virtual async Task<int> CreateCommentAsync(Comment comment)
     {
         // UnitOfWork 대신 직접 Repository 사용
         using var commentRepo = new CommentRepository(_dbPath);
@@ -198,7 +198,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Comment 수정
     /// </summary>
-    public async Task<bool> UpdateCommentAsync(Comment comment)
+    public virtual async Task<bool> UpdateCommentAsync(Comment comment)
     {
         using var uow = new UnitOfWork(_dbPath);
 
@@ -216,7 +216,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Comment 삭제 (관련 파일도 삭제, Post의 HasComment 업데이트)
     /// </summary>
-    public async Task<bool> DeleteCommentAsync(int commentNo, string category)
+    public virtual async Task<bool> DeleteCommentAsync(int commentNo, string category)
     {
         // ✅ 각 Repository를 독립적으로 사용
         try
@@ -266,7 +266,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Post의 모든 Comment 조회
     /// </summary>
-    public async Task<List<Comment>> GetCommentsByPostAsync(int postNo)
+    public virtual async Task<List<Comment>> GetCommentsByPostAsync(int postNo)
     {
         using var uow = new UnitOfWork(_dbPath);
 
@@ -287,7 +287,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// PostFile 추가 (Post의 HasFile 플래그도 업데이트)
     /// </summary>
-    public async Task<int> AddPostFileAsync(PostFile postFile)
+    public virtual async Task<int> AddPostFileAsync(PostFile postFile)
     {
         // UnitOfWork 대신 직접 Repository 사용
         using var postFileRepo = new PostFileRepository(_dbPath);
@@ -316,7 +316,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// PostFile 삭제 (물리적 파일도 삭제, Post의 HasFile 업데이트)
     /// </summary>
-    public async Task<bool> DeletePostFileAsync(int postFileNo, string category)
+    public virtual async Task<bool> DeletePostFileAsync(int postFileNo, string category)
     {
         using var postFileRepo = new PostFileRepository(_dbPath);
         using var postRepo = new PostRepository(_dbPath);
@@ -355,7 +355,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Post의 모든 파일 조회
     /// </summary>
-    public async Task<List<PostFile>> GetPostFilesByPostAsync(int postNo)
+    public virtual async Task<List<PostFile>> GetPostFilesByPostAsync(int postNo)
     {
         using var postFileRepo = new PostFileRepository(_dbPath);
 
@@ -463,7 +463,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// 카테고리 목록 조회
     /// </summary>
-    public async Task<List<string>> GetCategoriesAsync()
+    public virtual async Task<List<string>> GetCategoriesAsync()
     {
         using var uow = new UnitOfWork(_dbPath);
         return await uow.Posts.GetCategoriesAsync();
@@ -472,7 +472,7 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// 주제 목록 조회
     /// </summary>
-    public async Task<List<string>> GetSubjectsAsync(string category = "")
+    public virtual async Task<List<string>> GetSubjectsAsync(string category = "")
     {
         using var uow = new UnitOfWork(_dbPath);
         return await uow.Posts.GetSubjectsAsync(category);

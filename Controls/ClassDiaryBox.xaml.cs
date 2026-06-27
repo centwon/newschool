@@ -68,16 +68,24 @@ public sealed partial class ClassDiaryBox : UserControl
     {
         if (grade == 0 || classNumber == 0 || year == 0) return;
 
-        using var service = new TimetableService(SchoolDatabase.DbPath);
-        var timeset = await service.GetClassTimetableAsync(
-            Settings.SchoolCode,
-            year,
-            Settings.WorkSemester,
-            grade,
-            classNumber);
+        // async void 이므로 예외가 전역으로 전파되어 앱이 종료될 수 있어 방어
+        try
+        {
+            using var service = new TimetableService(SchoolDatabase.DbPath);
+            var timeset = await service.GetClassTimetableAsync(
+                Settings.SchoolCode,
+                year,
+                Settings.WorkSemester,
+                grade,
+                classNumber);
 
-        // 시간표 표시
-        ClassTimeTable.DataContext = timeset;
+            // 시간표 표시
+            ClassTimeTable.DataContext = timeset;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] 시간표 로드 실패: {ex.Message}");
+        }
     }
     /// <summary>
     /// 현재 학급일지 저장

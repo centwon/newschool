@@ -474,9 +474,10 @@ public class SeatsPrintService
                         .Width(photoW).Height(photoH)
                         .Element(photo =>
                         {
-                            if (!string.IsNullOrEmpty(student.PhotoPath) && File.Exists(student.PhotoPath))
+                            var photoFull = PhotoService.ResolveFullPath(student.PhotoPath);
+                            if (!string.IsNullOrEmpty(photoFull) && File.Exists(photoFull))
                             {
-                                photo.Image(student.PhotoPath).FitArea();
+                                photo.Image(photoFull).FitArea();
                             }
                             else
                             {
@@ -662,10 +663,11 @@ public class SeatsPrintService
         if (showPhoto)
         {
             sb.Append($"<td class=\"{cls}\"><div class=\"photo-wrap\">");
-            if (!string.IsNullOrEmpty(s.PhotoPath) && File.Exists(s.PhotoPath))
+            var photoFull = PhotoService.ResolveFullPath(s.PhotoPath);
+            if (!string.IsNullOrEmpty(photoFull) && File.Exists(photoFull))
             {
                 // 파일 URI로 직접 참조 (로컬 뷰어 전용)
-                var uri = new Uri(s.PhotoPath).AbsoluteUri;
+                var uri = new Uri(photoFull).AbsoluteUri;
                 sb.Append($"<img src=\"{E(uri)}\" alt=\"\">");
             }
             else

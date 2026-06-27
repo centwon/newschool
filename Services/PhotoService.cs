@@ -108,6 +108,22 @@ namespace NewSchool.Services
         #region 사진 로드
 
         /// <summary>
+        /// 상대 사진 경로를 절대 경로로 변환 (저장 기준인 UserDataPath 기준).
+        /// 사진은 "Photos/{연도}/{파일}" 상대 경로로 저장되므로,
+        /// 모든 소비자(PhotoCard, 인쇄 등)는 반드시 이 헬퍼로 경로를 풀어야 한다.
+        /// (과거 PhotoCard 는 AppContext.BaseDirectory 기준으로 풀어 설치 환경에서 사진 누락이 발생했음)
+        /// </summary>
+        public static string? ResolveFullPath(string? photoPath)
+        {
+            if (string.IsNullOrEmpty(photoPath))
+                return null;
+
+            return Path.IsPathRooted(photoPath)
+                ? photoPath
+                : Path.Combine(Settings.UserDataPath, photoPath);
+        }
+
+        /// <summary>
         /// 사진 로드 (BitmapImage 반환)
         /// 메모리 최적화: DecodePixelWidth 설정 + WeakReference 캐싱
         /// </summary>
