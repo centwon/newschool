@@ -310,6 +310,9 @@
       <_PublishPropertiesFiles Include="$(PublishDir)Properties\**\*" />
       <_PublishInstallerFiles Include="$(PublishDir)Installer\**\*" />
       <_PublishPrereqFiles Include="$(PublishDir)prerequisites\**\*" />
+      <!-- 개발용/내장 전환된 파일은 게시 폴더에 두지 않음(이전 게시 잔존분도 제거) -->
+      <_PublishEditorConfig Include="$(PublishDir).editorconfig" />
+      <_PublishSecretsJson Include="$(PublishDir)secrets.json" />
     </ItemGroup>
     <Delete Files="@(_PublishXamlFiles)" />
     <Delete Files="@(_PublishPdbFiles)" />
@@ -318,6 +321,8 @@
     <Delete Files="@(_PublishPropertiesFiles)" />
     <Delete Files="@(_PublishInstallerFiles)" />
     <Delete Files="@(_PublishPrereqFiles)" />
+    <Delete Files="@(_PublishEditorConfig)" />
+    <Delete Files="@(_PublishSecretsJson)" />
     <RemoveDir Directories="$(PublishDir)Properties" />
     <RemoveDir Directories="$(PublishDir)Pages" />
     <RemoveDir Directories="$(PublishDir)Controls" />
