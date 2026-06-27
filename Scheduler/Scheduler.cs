@@ -162,6 +162,8 @@ public static class Scheduler
                 backupFileName
             );
 
+            // WAL 체크포인트로 미반영 WAL 데이터를 .db 본체에 합친 뒤 백업 (최신 데이터 누락 방지)
+            CheckpointWal();
             await Task.Run(() => File.Copy(DbPath, backupPath, true));
             Debug.WriteLine($"[SchedulerDB] DB 백업 완료: {backupPath}");
             return backupPath;
@@ -186,6 +188,8 @@ public static class Scheduler
                 return false;
             }
 
+            // 기존 -wal/-shm 잔존분을 먼저 제거 (복원한 .db 를 옛 WAL 이 덮어쓰지 않도록)
+            DeleteWalSidecars(DbPath);
             await Task.Run(() => File.Copy(backupPath, DbPath, true));
             Debug.WriteLine($"[SchedulerDB] DB 복원 완료: {backupPath}");
 
@@ -217,12 +221,13 @@ public static class Scheduler
             if (!confirmed)
                 return false;
 
-            // DB 파일 삭제
+            // DB 파일 + WAL sidecar(-wal/-shm) 삭제
             if (File.Exists(DbPath))
             {
                 File.Delete(DbPath);
                 Debug.WriteLine("[SchedulerDB] DB 파일 삭제됨");
             }
+            DeleteWalSidecars(DbPath);
 
             // 재초기화
             Settings.Scheduler_Inited.Set(false);
@@ -234,6 +239,41 @@ public static class Scheduler
         {
             Debug.WriteLine($"[SchedulerDB] DB 초기화 실패: {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>WAL 체크포인트(TRUNCATE): 미반영 WAL 데이터를 .db 본체에 반영하고 -wal 을 비운다.</summary>
+    private static void CheckpointWal()
+    {
+        try
+        {
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={DbPath}");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            // 체크포인트 실패해도 백업 자체는 진행 (대부분 데이터는 .db 에 있음)
+            Debug.WriteLine($"[SchedulerDB] WAL 체크포인트 실패: {ex.Message}");
+        }
+    }
+
+    /// <summary>DB 파일의 -wal/-shm sidecar 를 삭제한다(존재할 때만).</summary>
+    private static void DeleteWalSidecars(string dbPath)
+    {
+        foreach (var suffix in new[] { "-wal", "-shm" })
+        {
+            try
+            {
+                var path = dbPath + suffix;
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SchedulerDB] sidecar 삭제 실패({suffix}): {ex.Message}");
+            }
         }
     }
 

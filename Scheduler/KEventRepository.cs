@@ -74,15 +74,19 @@ public class KEventRepository : BaseRepository
             var from = DateTime.SpecifyKind(startDate.Date, DateTimeKind.Unspecified);
             var to   = DateTime.SpecifyKind(from.AddDays(days), DateTimeKind.Unspecified);
 
+            // 시간 이벤트=UTC 문자열, 종일 이벤트=로컬 날짜(yyyy-MM-dd) 저장 → 각각의 경계로 비교
             const string query = @"
                 SELECT * FROM KEvent
-                WHERE Start < @To AND End >= @From
-                  AND Status <> 'cancelled'
+                WHERE Status <> 'cancelled'
+                  AND ( (IsAllday = 0 AND Start < @ToUtc  AND End >= @FromUtc)
+                     OR (IsAllday = 1 AND Start < @ToDate AND End >= @FromDate) )
                 ORDER BY Start ASC, Title ASC";
 
             using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@From", DateTimeHelper.ToStandardString(from));
-            cmd.Parameters.AddWithValue("@To",   DateTimeHelper.ToStandardString(to));
+            cmd.Parameters.AddWithValue("@FromUtc",  DateTimeHelper.ToStandardString(from));
+            cmd.Parameters.AddWithValue("@ToUtc",    DateTimeHelper.ToStandardString(to));
+            cmd.Parameters.AddWithValue("@FromDate", from.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@ToDate",   to.ToString("yyyy-MM-dd"));
 
             list = await ExecuteListAsync(cmd, Map);
 
@@ -108,14 +112,17 @@ public class KEventRepository : BaseRepository
             const string query = @"
                 SELECT * FROM KEvent
                 WHERE CalendarId = @CalendarId
-                  AND Start < @To AND End >= @From
                   AND Status <> 'cancelled'
+                  AND ( (IsAllday = 0 AND Start < @ToUtc  AND End >= @FromUtc)
+                     OR (IsAllday = 1 AND Start < @ToDate AND End >= @FromDate) )
                 ORDER BY Start ASC";
 
             using var cmd = CreateCommand(query);
             cmd.Parameters.AddWithValue("@CalendarId", calendarId);
-            cmd.Parameters.AddWithValue("@From", DateTimeHelper.ToStandardString(from));
-            cmd.Parameters.AddWithValue("@To",   DateTimeHelper.ToStandardString(to));
+            cmd.Parameters.AddWithValue("@FromUtc",  DateTimeHelper.ToStandardString(from));
+            cmd.Parameters.AddWithValue("@ToUtc",    DateTimeHelper.ToStandardString(to));
+            cmd.Parameters.AddWithValue("@FromDate", from.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@ToDate",   to.ToString("yyyy-MM-dd"));
 
             list = await ExecuteListAsync(cmd, Map);
 
@@ -413,15 +420,18 @@ public class KEventRepository : BaseRepository
             string query = @"
                 SELECT * FROM KEvent
                 WHERE ItemType = 'task'
-                  AND Start < @To AND End >= @From
-                  AND Status <> 'cancelled'";
+                  AND Status <> 'cancelled'
+                  AND ( (IsAllday = 0 AND Start < @ToUtc  AND End >= @FromUtc)
+                     OR (IsAllday = 1 AND Start < @ToDate AND End >= @FromDate) )";
             if (!showCompleted)
                 query += " AND IsDone = 0";
             query += " ORDER BY Start ASC, Title ASC";
 
             using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@From", DateTimeHelper.ToStandardString(from));
-            cmd.Parameters.AddWithValue("@To",   DateTimeHelper.ToStandardString(to));
+            cmd.Parameters.AddWithValue("@FromUtc",  DateTimeHelper.ToStandardString(from));
+            cmd.Parameters.AddWithValue("@ToUtc",    DateTimeHelper.ToStandardString(to));
+            cmd.Parameters.AddWithValue("@FromDate", from.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@ToDate",   to.ToString("yyyy-MM-dd"));
 
             list = await ExecuteListAsync(cmd, Map);
 
@@ -441,18 +451,22 @@ public class KEventRepository : BaseRepository
         var list = new List<KEvent>();
         try
         {
-            var todayStr = DateTimeHelper.ToStandardString(
+            var todayUtc  = DateTimeHelper.ToStandardString(
                 DateTime.SpecifyKind(today.Date, DateTimeKind.Unspecified));
+            var todayDate = today.Date.ToString("yyyy-MM-dd");
 
+            // 종일=로컬 날짜, 시간=UTC 로 저장되므로 '오늘 기준' 비교도 각각의 형식으로
             const string query = @"
                 SELECT * FROM KEvent
                 WHERE ItemType = 'task'
                   AND Status <> 'cancelled'
-                  AND ((Start < @Today AND IsDone = 0) OR (Start >= @Today))
+                  AND ( ( ((IsAllday = 0 AND Start < @TodayUtc) OR (IsAllday = 1 AND Start < @TodayDate)) AND IsDone = 0 )
+                     OR ( (IsAllday = 0 AND Start >= @TodayUtc) OR (IsAllday = 1 AND Start >= @TodayDate) ) )
                 ORDER BY Start ASC, Title ASC";
 
             using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Today", todayStr);
+            cmd.Parameters.AddWithValue("@TodayUtc",  todayUtc);
+            cmd.Parameters.AddWithValue("@TodayDate", todayDate);
 
             list = await ExecuteListAsync(cmd, Map);
 
@@ -472,19 +486,22 @@ public class KEventRepository : BaseRepository
         var list = new List<KEvent>();
         try
         {
-            var todayStr = DateTimeHelper.ToStandardString(
+            var todayUtc  = DateTimeHelper.ToStandardString(
                 DateTime.SpecifyKind(today.Date, DateTimeKind.Unspecified));
+            var todayDate = today.Date.ToString("yyyy-MM-dd");
 
             const string query = @"
                 SELECT * FROM KEvent
                 WHERE ItemType = 'task' AND CalendarId = @CalendarId
                   AND Status <> 'cancelled'
-                  AND ((Start < @Today AND IsDone = 0) OR (Start >= @Today))
+                  AND ( ( ((IsAllday = 0 AND Start < @TodayUtc) OR (IsAllday = 1 AND Start < @TodayDate)) AND IsDone = 0 )
+                     OR ( (IsAllday = 0 AND Start >= @TodayUtc) OR (IsAllday = 1 AND Start >= @TodayDate) ) )
                 ORDER BY Start ASC, Title ASC";
 
             using var cmd = CreateCommand(query);
             cmd.Parameters.AddWithValue("@CalendarId", calendarId);
-            cmd.Parameters.AddWithValue("@Today", todayStr);
+            cmd.Parameters.AddWithValue("@TodayUtc",  todayUtc);
+            cmd.Parameters.AddWithValue("@TodayDate", todayDate);
 
             list = await ExecuteListAsync(cmd, Map);
         }
