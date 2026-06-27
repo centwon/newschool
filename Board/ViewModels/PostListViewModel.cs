@@ -253,25 +253,25 @@ public class PostListViewModel : INotifyPropertyChanged
 
             Debug.WriteLine($"서비스에서 받은 아이템 수: {result.Items.Count}");
 
-            // ConfigureAwait(true)로 UI 컨텍스트로 돌아옴 (기본값이지만 명시)
-            var postItems = new List<PostItemViewModel>();
+            // 댓글 개수를 한 번의 쿼리로 일괄 조회 (글마다 조회하던 N+1 제거)
+            var ids = new List<int>(result.Items.Count);
+            foreach (var p in result.Items) ids.Add(p.No);
+            Dictionary<int, int> commentCounts;
+            try
+            {
+                commentCounts = await _service.GetCommentCountsAsync(ids);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"댓글 개수 일괄 조회 실패: {ex.Message}");
+                commentCounts = new Dictionary<int, int>();
+            }
+
+            var postItems = new List<PostItemViewModel>(result.Items.Count);
             foreach (var post in result.Items)
             {
-                // 댓글 개수 계산
-                int commentCount = 0;
-                try
-                {
-                    var comments = await _service.GetCommentsByPostAsync(post.No);
-                    commentCount = comments.Count;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"댓글 개수 조회 실패 (Post {post.No}): {ex.Message}");
-                }
-
-                var postItem = new PostItemViewModel(post, commentCount);
-                postItems.Add(postItem);
-                Debug.WriteLine($"추가됨 - No: {post.No}, Title: {post.Title}, Comments: {commentCount}");
+                commentCounts.TryGetValue(post.No, out int commentCount);
+                postItems.Add(new PostItemViewModel(post, commentCount));
             }
             Posts.ReplaceAll(postItems);
 
@@ -329,26 +329,29 @@ public class PostListViewModel : INotifyPropertyChanged
 
             if (_dispatcherQueue != null)
             {
-                _dispatcherQueue.TryEnqueue(async () =>
+                // 댓글 개수 일괄 조회 (N+1 제거) — UI 스레드 진입 전에 수행
+                var ids = new List<int>(result.Items.Count);
+                foreach (var p in result.Items) ids.Add(p.No);
+                Dictionary<int, int> commentCounts;
+                try
                 {
-                    Posts.Clear();
+                    commentCounts = await _service.GetCommentCountsAsync(ids);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"댓글 개수 일괄 조회 실패: {ex.Message}");
+                    commentCounts = new Dictionary<int, int>();
+                }
+
+                _dispatcherQueue.TryEnqueue(() =>
+                {
+                    var items = new List<PostItemViewModel>(result.Items.Count);
                     foreach (var post in result.Items)
                     {
-                        // 댓글 개수 계산
-                        int commentCount = 0;
-                        try
-                        {
-                            var comments = await _service.GetCommentsByPostAsync(post.No);
-                            commentCount = comments.Count;
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"댓글 개수 조회 실패 (Post {post.No}): {ex.Message}");
-                        }
-
-                        var postItem = new PostItemViewModel(post, commentCount);
-                        Posts.Add(postItem);
+                        commentCounts.TryGetValue(post.No, out int commentCount);
+                        items.Add(new PostItemViewModel(post, commentCount));
                     }
+                    Posts.ReplaceAll(items);
 
                     TotalPages = result.TotalPages;
                     TotalCount = result.TotalCount;

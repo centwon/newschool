@@ -14,6 +14,11 @@ namespace NewSchool.Board.Repositories
         {
         }
 
+        /// <summary>UnitOfWork 공유 연결 생성자.</summary>
+        public PostRepository(Microsoft.Data.Sqlite.SqliteConnection connection) : base(connection)
+        {
+        }
+
         #region Create
         /// <summary>
         /// Post 생성 (비동기)

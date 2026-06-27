@@ -14,6 +14,11 @@ namespace NewSchool.Board.Repositories
         {
         }
 
+        /// <summary>UnitOfWork 공유 연결 생성자.</summary>
+        public CommentRepository(SqliteConnection connection) : base(connection)
+        {
+        }
+
         #region Create
 
         /// <summary>
@@ -101,6 +106,42 @@ namespace NewSchool.Board.Repositories
             catch (Exception ex)
             {
                 LogError($"Comment 목록 조회 실패: Post={postNo}", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 여러 Post의 Comment 개수를 한 번의 쿼리로 일괄 조회 (N+1 방지)
+        /// </summary>
+        public async Task<Dictionary<int, int>> GetCountsByPostsAsync(IReadOnlyList<int> postNos)
+        {
+            var counts = new Dictionary<int, int>();
+            if (postNos == null || postNos.Count == 0)
+                return counts;
+
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < postNos.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append("@p").Append(i);
+            }
+            var query = $"SELECT Post, COUNT(*) AS Cnt FROM Comment WHERE Post IN ({sb}) GROUP BY Post";
+
+            try
+            {
+                using var cmd = CreateCommand(query);
+                for (int i = 0; i < postNos.Count; i++)
+                    cmd.Parameters.Add($"@p{i}", SqliteType.Integer).Value = postNos[i];
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    counts[reader.GetInt32(0)] = reader.GetInt32(1);
+
+                return counts;
+            }
+            catch (Exception ex)
+            {
+                LogError("Comment 개수 일괄 조회 실패", ex);
                 throw;
             }
         }

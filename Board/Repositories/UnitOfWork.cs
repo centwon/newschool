@@ -1,11 +1,13 @@
-﻿using System;
+using System;
+using System.Data;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 
 namespace NewSchool.Board.Repositories
 {
     /// <summary>
-    /// Unit of Work 패턴 - 여러 Repository의 트랜잭션을 통합 관리
+    /// Unit of Work 패턴 - 여러 Repository가 단일 연결·단일 트랜잭션을 공유.
+    /// 모든 Repository 가 같은 연결을 쓰므로 트랜잭션이 Post/Comment/PostFile 전체에 원자적으로 적용된다.
     /// </summary>
     public class UnitOfWork : IDisposable
     {
@@ -14,7 +16,7 @@ namespace NewSchool.Board.Repositories
         private SqliteTransaction? _transaction;
         private bool _disposed;
 
-        // Repositories
+        // Repositories (모두 공유 연결 사용)
         private PostRepository? _postRepository;
         private CommentRepository? _commentRepository;
         private PostFileRepository? _postFileRepository;
@@ -32,14 +34,8 @@ namespace NewSchool.Board.Repositories
             {
                 if (_postRepository == null)
                 {
-                    EnsureConnection();
-                    _postRepository = new PostRepository(_dbPath);
-
-                    // ✅ 트랜잭션이 있으면 설정
-                    if (_transaction != null)
-                    {
-                        _postRepository.SetTransaction(_transaction);
-                    }
+                    _postRepository = new PostRepository(EnsureConnection());
+                    if (_transaction != null) _postRepository.SetTransaction(_transaction);
                 }
                 return _postRepository;
             }
@@ -51,14 +47,8 @@ namespace NewSchool.Board.Repositories
             {
                 if (_commentRepository == null)
                 {
-                    EnsureConnection();
-                    _commentRepository = new CommentRepository(_dbPath);
-
-                    // ✅ 트랜잭션이 있으면 설정
-                    if (_transaction != null)
-                    {
-                        _commentRepository.SetTransaction(_transaction);
-                    }
+                    _commentRepository = new CommentRepository(EnsureConnection());
+                    if (_transaction != null) _commentRepository.SetTransaction(_transaction);
                 }
                 return _commentRepository;
             }
@@ -70,14 +60,8 @@ namespace NewSchool.Board.Repositories
             {
                 if (_postFileRepository == null)
                 {
-                    EnsureConnection();
-                    _postFileRepository = new PostFileRepository(_dbPath);
-
-                    // ✅ 트랜잭션이 있으면 설정
-                    if (_transaction != null)
-                    {
-                        _postFileRepository.SetTransaction(_transaction);
-                    }
+                    _postFileRepository = new PostFileRepository(EnsureConnection());
+                    if (_transaction != null) _postFileRepository.SetTransaction(_transaction);
                 }
                 return _postFileRepository;
             }
@@ -87,40 +71,44 @@ namespace NewSchool.Board.Repositories
 
         #region Transaction Management
 
-        private void EnsureConnection()
+        /// <summary>공유 연결을 한 번만 만들고 PRAGMA(WAL·foreign_keys 등)를 적용한다.</summary>
+        private SqliteConnection EnsureConnection()
         {
-            if (_connection == null || _connection.State != System.Data.ConnectionState.Open)
+            if (_connection == null || _connection.State != ConnectionState.Open)
             {
-                _connection = new SqliteConnection($"Data Source={_dbPath}");
+                var cs = new SqliteConnectionStringBuilder
+                {
+                    DataSource = _dbPath,
+                    Mode = SqliteOpenMode.ReadWriteCreate,
+                    Cache = SqliteCacheMode.Shared,
+                    Pooling = true
+                }.ToString();
+
+                _connection = new SqliteConnection(cs);
                 _connection.Open();
+
+                using var cmd = _connection.CreateCommand();
+                // foreign_keys=ON 필수: CASCADE 삭제가 실제 동작하도록 (per-connection 설정)
+                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
+                cmd.ExecuteNonQuery();
             }
+            return _connection;
         }
 
         /// <summary>
-        /// 트랜잭션 시작
+        /// 트랜잭션 시작 (이미 생성된 Repository 전체에 적용 — 단일 연결이라 원자적).
         /// </summary>
         public void BeginTransaction()
         {
-            // ✅ 첫 번째 Repository 생성 (Connection 확보)
-            if (_postRepository == null)
-            {
-                _ = Posts;  // Property getter 호출로 Repository 생성
-            }
-
+            var conn = EnsureConnection();
             _transaction?.Dispose();
+            _transaction = conn.BeginTransaction();
 
-            // ✅ 첫 Repository에서 트랜잭션 시작
-            if (_postRepository != null)
-            {
-                _postRepository.BeginTransaction();
-                _transaction = _postRepository.GetTransaction();  // ⭐ getter 사용
-                _connection = _postRepository.GetConnection();    // ⭐ getter 사용
-            }
-
-            // ✅ 이미 생성된 다른 Repository들에도 트랜잭션 설정
+            _postRepository?.SetTransaction(_transaction);
             _commentRepository?.SetTransaction(_transaction);
             _postFileRepository?.SetTransaction(_transaction);
         }
+
         /// <summary>
         /// 트랜잭션 커밋
         /// </summary>
@@ -137,8 +125,7 @@ namespace NewSchool.Board.Repositories
             }
             finally
             {
-                _transaction?.Dispose();
-                _transaction = null;
+                ClearTransaction();
             }
         }
 
@@ -153,9 +140,18 @@ namespace NewSchool.Board.Repositories
             }
             finally
             {
-                _transaction?.Dispose();
-                _transaction = null;
+                ClearTransaction();
             }
+        }
+
+        private void ClearTransaction()
+        {
+            _transaction?.Dispose();
+            _transaction = null;
+            // 각 Repository 가 들고 있던 트랜잭션 참조도 해제
+            _postRepository?.SetTransaction(null);
+            _commentRepository?.SetTransaction(null);
+            _postFileRepository?.SetTransaction(null);
         }
 
         /// <summary>
@@ -213,10 +209,12 @@ namespace NewSchool.Board.Repositories
                 {
                     _transaction?.Dispose();
 
+                    // Repository 들은 공유 연결을 소유하지 않으므로(_ownsConnection=false) 연결을 닫지 않는다.
                     _postRepository?.Dispose();
                     _commentRepository?.Dispose();
                     _postFileRepository?.Dispose();
 
+                    // 연결은 UnitOfWork 가 한 번만 닫는다.
                     _connection?.Close();
                     _connection?.Dispose();
                 }

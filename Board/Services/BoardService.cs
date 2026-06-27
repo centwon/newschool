@@ -281,6 +281,25 @@ public partial class BoardService:IDisposable
         }
     }
 
+    /// <summary>
+    /// 여러 Post의 댓글 개수를 한 번의 쿼리로 일괄 조회 (목록 화면 N+1 방지).
+    /// 반환 딕셔너리에 없는 Post 는 댓글 0개.
+    /// </summary>
+    public virtual async Task<Dictionary<int, int>> GetCommentCountsAsync(IReadOnlyList<int> postNos)
+    {
+        using var uow = new UnitOfWork(_dbPath);
+
+        try
+        {
+            return await uow.Comments.GetCountsByPostsAsync(postNos);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Comment 개수 일괄 조회 실패: {ex.Message}");
+            throw;
+        }
+    }
+
     #endregion
 
     #region PostFile Operations

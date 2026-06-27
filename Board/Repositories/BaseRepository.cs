@@ -17,13 +17,26 @@ namespace NewSchool.Board.Repositories
         protected readonly SqliteConnection Connection;
         protected SqliteTransaction? Transaction;
         private bool _disposed;
+        private readonly bool _ownsConnection;   // 공유 연결(UnitOfWork)일 때 false → Dispose 시 닫지 않음
 
         // ⭐ public getter 추가
         public SqliteTransaction? GetTransaction() => Transaction;
         public SqliteConnection GetConnection() => Connection;
 
+        /// <summary>
+        /// 외부에서 만든 연결을 공유하는 생성자 (UnitOfWork 전용).
+        /// 연결을 소유하지 않으므로 Dispose 시 닫지 않는다(여러 Repo 가 한 연결·한 트랜잭션을 공유).
+        /// </summary>
+        protected BaseRepository(SqliteConnection sharedConnection)
+        {
+            Connection = sharedConnection;
+            _dbPath = sharedConnection.DataSource ?? string.Empty;
+            _ownsConnection = false;
+        }
+
         protected BaseRepository(string dbPath)
         {
+            _ownsConnection = true;
             try
             {
                 _dbPath = dbPath;  // ⭐ 저장
@@ -43,7 +56,9 @@ namespace NewSchool.Board.Repositories
                 // ✅ WAL 모드 활성화 (동시 읽기/쓰기 개선)
                 using var cmd = Connection.CreateCommand();
                 // WAL + synchronous=NORMAL 은 권장 조합 (쓰기 안전성 유지하며 성능 향상)
-                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
+                // foreign_keys=ON 필수: per-connection 설정이므로 작업용 연결마다 켜야
+                // Post 삭제 시 Comment/PostFile 의 ON DELETE CASCADE 가 실제로 동작함(고아 행 방지)
+                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
                 cmd.ExecuteNonQuery();
 
                 LogDebug($"{GetType().Name} 연결 열림 (WAL 모드)");
@@ -326,16 +341,20 @@ namespace NewSchool.Board.Repositories
                 {
                     try
                     {
-                        Transaction?.Dispose();
-
-                        // ✅ 강제로 연결 종료
-                        if (Connection != null)
+                        // 공유 연결(UnitOfWork)에서는 트랜잭션·연결 수명을 UnitOfWork 가 관리하므로 닫지 않는다.
+                        if (_ownsConnection)
                         {
-                            if (Connection.State == System.Data.ConnectionState.Open)
+                            Transaction?.Dispose();
+
+                            // ✅ 강제로 연결 종료
+                            if (Connection != null)
                             {
-                                Connection.Close();
+                                if (Connection.State == System.Data.ConnectionState.Open)
+                                {
+                                    Connection.Close();
+                                }
+                                Connection.Dispose();
                             }
-                            Connection.Dispose();
                         }
 
                         LogDebug($"{GetType().Name} 리소스 해제 완료");
