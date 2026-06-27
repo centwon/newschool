@@ -81,9 +81,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="newschool.ico" />
-    <Content Include="secrets.json" Condition="Exists('secrets.json')">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <!-- secrets.json 은 빌드 시 어셈블리에 내장(EmbeddedResource) → 게시 폴더에 평문 파일을 두지 않음.
+         빌드 입력일 뿐이며 .gitignore 로 git 에는 포함되지 않음. -->
+    <EmbeddedResource Include="secrets.json" Condition="Exists('secrets.json')" />
   </ItemGroup>
 
   <ItemGroup>
@@ -117,6 +117,23 @@
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageReference Include="SQLitePCLRaw.core" Version="3.0.3" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.9" />
+  </ItemGroup>
+
+  <!-- 미사용 전이 의존성의 런타임/네이티브 자산을 게시본에서 제외 (용량 절감).
+       앱은 Windows AI(ML)·WebView2 를 사용하지 않음. compile 자산은 유지해 메타데이터 해석엔 영향 없음.
+       ⚠ 게시 후 실행 검증 필요(앱 시작·Google/NEIS 동작). 문제 시 ExcludeAssets 제거로 즉시 원복. -->
+  <ItemGroup>
+    <!-- Windows AI / Machine Learning: onnxruntime.dll(20.7MB)+DirectML.dll(17.8MB)+ML.dll 제거 -->
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.70">
+      <ExcludeAssets>runtime;native</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.1.70">
+      <ExcludeAssets>runtime;native</ExcludeAssets>
+    </PackageReference>
+    <!-- WebView2: Core.dll + WebView2Loader.dll 제거 (앱 미사용) -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3719.77">
+      <ExcludeAssets>runtime;native</ExcludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <!-- WinUIRichEditor: Jodit(WebView2) 대체용 Win2D 네이티브 리치에디터.
