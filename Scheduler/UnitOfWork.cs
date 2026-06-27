@@ -28,8 +28,7 @@ namespace NewSchool.Scheduler
             {
                 if (_schedules == null)
                 {
-                    EnsureConnection();
-                    _schedules = new SchoolScheduleRepository(_dbPath);
+                    _schedules = new SchoolScheduleRepository(EnsureConnection());
                     if (_transaction != null)
                         _schedules.SetTransaction(_transaction);
                 }
@@ -43,8 +42,7 @@ namespace NewSchool.Scheduler
             {
                 if (_kevents == null)
                 {
-                    EnsureConnection();
-                    _kevents = new KEventRepository(_dbPath);
+                    _kevents = new KEventRepository(EnsureConnection());
                     if (_transaction != null)
                         _kevents.SetTransaction(_transaction);
                 }
@@ -57,36 +55,40 @@ namespace NewSchool.Scheduler
             _dbPath = dbPath;
         }
 
-        private void EnsureConnection()
+        /// <summary>공유 연결을 한 번만 만들고 PRAGMA(WAL 등)를 적용한다. 모든 Repository 가 이 연결을 공유.</summary>
+        private SqliteConnection EnsureConnection()
         {
             if (_connection == null || _connection.State != System.Data.ConnectionState.Open)
             {
-                _connection = new SqliteConnection($"Data Source={_dbPath}");
+                var cs = new SqliteConnectionStringBuilder
+                {
+                    DataSource = _dbPath,
+                    Mode = SqliteOpenMode.ReadWriteCreate,
+                    Cache = SqliteCacheMode.Shared,
+                    Pooling = true
+                }.ToString();
+
+                _connection = new SqliteConnection(cs);
                 _connection.Open();
+
+                using var cmd = _connection.CreateCommand();
+                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
+                cmd.ExecuteNonQuery();
             }
+            return _connection;
         }
 
         /// <summary>
-        /// 단일 트랜잭션 시작 — KEventRepository의 Connection에서 시작
+        /// 단일 트랜잭션 시작 — 모든 Repository 가 공유 연결을 쓰므로 Schedules·KEvents 에 원자적으로 적용.
         /// </summary>
         public void BeginTransaction()
         {
-            // KEventRepository 생성 (Connection 확보)
-            if (_kevents == null)
-                _ = KEvents;
-
+            var conn = EnsureConnection();
             _transaction?.Dispose();
+            _transaction = conn.BeginTransaction();
 
-            // KEventRepository에서 트랜잭션 시작
-            if (_kevents != null)
-            {
-                _kevents.BeginTransaction();
-                _transaction = _kevents.GetTransaction();
-                _connection = _kevents.GetConnection();
-            }
-
-            // 이미 생성된 다른 Repository들에도 트랜잭션 설정
             _schedules?.SetTransaction(_transaction);
+            _kevents?.SetTransaction(_transaction);
         }
 
         /// <summary>
@@ -105,8 +107,7 @@ namespace NewSchool.Scheduler
             }
             finally
             {
-                _transaction?.Dispose();
-                _transaction = null;
+                ClearTransaction();
             }
         }
 
@@ -121,9 +122,16 @@ namespace NewSchool.Scheduler
             }
             finally
             {
-                _transaction?.Dispose();
-                _transaction = null;
+                ClearTransaction();
             }
+        }
+
+        private void ClearTransaction()
+        {
+            _transaction?.Dispose();
+            _transaction = null;
+            _schedules?.SetTransaction(null);
+            _kevents?.SetTransaction(null);
         }
 
         /// <summary>

@@ -18,12 +18,25 @@ namespace NewSchool.Repositories
         protected readonly SqliteConnection Connection;
         protected SqliteTransaction? Transaction;
         private bool _disposed;
+        private readonly bool _ownsConnection;   // 공유 연결(UnitOfWork)일 때 false → Dispose 시 닫지 않음
 
         public SqliteTransaction? GetTransaction() => Transaction;
         public SqliteConnection GetConnection() => Connection;
 
+        /// <summary>
+        /// 외부에서 만든 연결을 공유하는 생성자 (UnitOfWork 전용).
+        /// 연결을 소유하지 않으므로 Dispose 시 닫지 않는다(여러 Repo 가 한 연결·한 트랜잭션을 공유).
+        /// </summary>
+        protected BaseRepository(SqliteConnection sharedConnection)
+        {
+            Connection = sharedConnection;
+            _dbPath = sharedConnection.DataSource ?? string.Empty;
+            _ownsConnection = false;
+        }
+
         protected BaseRepository(string dbPath)
         {
+            _ownsConnection = true;
             try
             {
                 _dbPath = dbPath;
@@ -345,15 +358,19 @@ namespace NewSchool.Repositories
                 {
                     try
                     {
-                        Transaction?.Dispose();
-
-                        if (Connection != null)
+                        // 공유 연결(UnitOfWork)에서는 연결 수명을 UnitOfWork 가 관리하므로 닫지 않는다.
+                        if (_ownsConnection)
                         {
-                            if (Connection.State == System.Data.ConnectionState.Open)
+                            Transaction?.Dispose();
+
+                            if (Connection != null)
                             {
-                                Connection.Close();
+                                if (Connection.State == System.Data.ConnectionState.Open)
+                                {
+                                    Connection.Close();
+                                }
+                                Connection.Dispose();
                             }
-                            Connection.Dispose();
                         }
 
                         LogDebug($"{GetType().Name} 리소스 해제 완료");

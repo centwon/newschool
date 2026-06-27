@@ -14,6 +14,9 @@ namespace NewSchool.Repositories
     {
         public SchoolScheduleRepository(string dbPath) : base(dbPath) { }
 
+        /// <summary>UnitOfWork 공유 연결 생성자.</summary>
+        public SchoolScheduleRepository(Microsoft.Data.Sqlite.SqliteConnection connection) : base(connection) { }
+
         #region Create
 
         /// <summary>

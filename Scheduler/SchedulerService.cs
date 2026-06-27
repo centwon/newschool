@@ -73,7 +73,7 @@ namespace NewSchool.Scheduler
         {
             try
             {
-                bool success = await KEventRepo.DeleteAsync(no);
+                bool success = await SmartDeleteAsync(no);
                 Debug.WriteLine($"[SchedulerService] 작업 삭제 완료: {no}");
                 return success;
             }
@@ -83,6 +83,22 @@ namespace NewSchool.Scheduler
                 throw;
             }
         }
+
+        /// <summary>
+        /// 동기화 여부에 따른 스마트 삭제:
+        /// - GoogleId 가 있는(동기화된) 항목은 soft-delete(cancelled) → 다음 동기화에서 Google 에도 삭제 전파
+        /// - 동기화 안 된 항목은 즉시 hard-delete
+        /// </summary>
+        private async Task<bool> SmartDeleteAsync(int no)
+        {
+            var ev = await KEventRepo.GetByIdAsync(no);
+            if (ev != null && !string.IsNullOrEmpty(ev.GoogleId))
+                return await KEventRepo.MarkCancelledAsync(no);
+            return await KEventRepo.DeleteAsync(no);
+        }
+
+        /// <summary>영구 삭제(hard-delete). Google 삭제 전파 완료 후 cancelled 행 정리에 사용.</summary>
+        public async Task<bool> PurgeEventAsync(int no) => await KEventRepo.DeleteAsync(no);
 
         /// <summary>
         /// 작업 조회 (ID)
@@ -221,7 +237,7 @@ namespace NewSchool.Scheduler
         {
             try
             {
-                bool ok = await KEventRepo.DeleteAsync(no);
+                bool ok = await SmartDeleteAsync(no);
                 Debug.WriteLine($"[SchedulerService] 이벤트 삭제 완료: {no}");
                 return ok;
             }

@@ -13,6 +13,9 @@ public class KEventRepository : BaseRepository
 {
     public KEventRepository(string dbPath) : base(dbPath) { }
 
+    /// <summary>UnitOfWork 공유 연결 생성자.</summary>
+    public KEventRepository(Microsoft.Data.Sqlite.SqliteConnection connection) : base(connection) { }
+
     #region Create
 
     public async Task<int> CreateAsync(KEvent ev)
@@ -81,9 +84,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@From", DateTimeHelper.ToStandardString(from));
             cmd.Parameters.AddWithValue("@To",   DateTimeHelper.ToStandardString(to));
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
 
             LogInfo($"KEvent 범위 조회: {list.Count}개 ({startDate:yyyy-MM-dd}, {days}일)");
             return list;
@@ -116,9 +117,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@From", DateTimeHelper.ToStandardString(from));
             cmd.Parameters.AddWithValue("@To",   DateTimeHelper.ToStandardString(to));
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
 
             return list;
         }
@@ -193,6 +192,27 @@ public class KEventRepository : BaseRepository
         }
     }
 
+    /// <summary>
+    /// soft-delete: Status='cancelled' 로 표시. 동기화된 이벤트의 삭제를 Google 에 전파하기 위함.
+    /// (GetDeletedWithGoogleIdAsync 가 이 상태를 찾아 Google 에서 삭제 후 영구삭제)
+    /// </summary>
+    public async Task<bool> MarkCancelledAsync(int no)
+    {
+        try
+        {
+            using var cmd = CreateCommand("UPDATE KEvent SET Status='cancelled' WHERE No = @No");
+            cmd.Parameters.AddWithValue("@No", no);
+            bool ok = await cmd.ExecuteNonQueryAsync() > 0;
+            if (ok) LogInfo($"KEvent soft-delete(cancelled): No={no}");
+            return ok;
+        }
+        catch (Exception ex)
+        {
+            LogError($"KEvent soft-delete 실패: No={no}", ex);
+            throw;
+        }
+    }
+
     #endregion
 
     #region Helpers
@@ -229,11 +249,12 @@ public class KEventRepository : BaseRepository
         cmd.Parameters.AddWithValue("@Completed", ev.Completed ?? string.Empty);
     }
 
-    private static KEvent Map(SqliteDataReader r)
+    // 컬럼 인덱스 캐시 기반 매핑 (행마다 GetOrdinal 반복 호출 제거)
+    private static KEvent Map(SqliteDataReader r, ReaderColumnCache c)
     {
-        var isAllday = r.GetInt32(r.GetOrdinal("IsAllday")) == 1;
-        var startStr = r.GetString(r.GetOrdinal("Start"));
-        var endStr   = r.GetString(r.GetOrdinal("End"));
+        var isAllday = r.GetInt32(c.GetOrdinal("IsAllday")) == 1;
+        var startStr = r.GetString(c.GetOrdinal("Start"));
+        var endStr   = r.GetString(c.GetOrdinal("End"));
 
         // 종일 이벤트: 날짜 전용 문자열("yyyy-MM-dd")로 저장되므로 시간대 변환 없이 파싱
         // 시간 이벤트: UTC 문자열로 저장되므로 Local 변환 포함 파싱
@@ -251,39 +272,41 @@ public class KEventRepository : BaseRepository
 
         var ev = new KEvent
         {
-            No          = r.GetInt32(r.GetOrdinal("No")),
-            GoogleId    = r.GetString(r.GetOrdinal("GoogleId")),
-            CalendarId  = r.GetInt32(r.GetOrdinal("CalendarId")),
-            Title       = r.GetString(r.GetOrdinal("Title")),
-            Notes       = r.GetString(r.GetOrdinal("Notes")),
+            No          = r.GetInt32(c.GetOrdinal("No")),
+            GoogleId    = r.GetString(c.GetOrdinal("GoogleId")),
+            CalendarId  = r.GetInt32(c.GetOrdinal("CalendarId")),
+            Title       = r.GetString(c.GetOrdinal("Title")),
+            Notes       = r.GetString(c.GetOrdinal("Notes")),
             Start       = start,
             End         = end,
             IsAllday    = isAllday,
-            Location    = r.GetString(r.GetOrdinal("Location")),
-            Status      = r.GetString(r.GetOrdinal("Status")),
-            ColorId     = r.GetString(r.GetOrdinal("ColorId")),
-            Recurrence  = r.GetString(r.GetOrdinal("Recurrence")),
-            Updated     = r.GetString(r.GetOrdinal("Updated")),
-            User        = r.GetString(r.GetOrdinal("User"))
+            Location    = r.GetString(c.GetOrdinal("Location")),
+            Status      = r.GetString(c.GetOrdinal("Status")),
+            ColorId     = r.GetString(c.GetOrdinal("ColorId")),
+            Recurrence  = r.GetString(c.GetOrdinal("Recurrence")),
+            Updated     = r.GetString(c.GetOrdinal("Updated")),
+            User        = r.GetString(c.GetOrdinal("User"))
         };
         // Ktask 통합 컬럼 (기존 DB 호환)
-        ev.ItemType  = TryGetString(r, "ItemType", "event");
-        ev.IsDone    = TryGetInt(r, "IsDone") == 1;
-        ev.Completed = TryGetString(r, "Completed", string.Empty);
+        ev.ItemType  = TryGetString(r, c, "ItemType", "event");
+        ev.IsDone    = TryGetInt(r, c, "IsDone") == 1;
+        ev.Completed = TryGetString(r, c, "Completed", string.Empty);
         return ev;
     }
 
-    private static string TryGetString(SqliteDataReader r, string col, string fallback)
+    // 단일 행 조회용 오버로드 (캐시 1회 초기화)
+    private static KEvent Map(SqliteDataReader r)
     {
-        try { var i = r.GetOrdinal(col); return r.IsDBNull(i) ? fallback : r.GetString(i); }
-        catch { return fallback; }
+        var c = new ReaderColumnCache();
+        c.Initialize(r);
+        return Map(r, c);
     }
 
-    private static int TryGetInt(SqliteDataReader r, string col)
-    {
-        try { var i = r.GetOrdinal(col); return r.IsDBNull(i) ? 0 : r.GetInt32(i); }
-        catch { return 0; }
-    }
+    private static string TryGetString(SqliteDataReader r, ReaderColumnCache c, string col, string fallback)
+        => c.TryGetOrdinal(col, out var i) && !r.IsDBNull(i) ? r.GetString(i) : fallback;
+
+    private static int TryGetInt(SqliteDataReader r, ReaderColumnCache c, string col)
+        => c.TryGetOrdinal(col, out var i) && !r.IsDBNull(i) ? r.GetInt32(i) : 0;
 
     #endregion
 
@@ -320,9 +343,7 @@ public class KEventRepository : BaseRepository
         {
             using var cmd = CreateCommand(query);
             cmd.Parameters.AddWithValue("@CalendarId", calendarId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
             return list;
         }
         catch (Exception ex)
@@ -345,9 +366,7 @@ public class KEventRepository : BaseRepository
             using var cmd = CreateCommand(query);
             cmd.Parameters.AddWithValue("@CalendarId", calendarId);
             cmd.Parameters.AddWithValue("@Since", sinceUtc);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
             return list;
         }
         catch (Exception ex)
@@ -368,9 +387,7 @@ public class KEventRepository : BaseRepository
         {
             using var cmd = CreateCommand(query);
             cmd.Parameters.AddWithValue("@CalendarId", calendarId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
             return list;
         }
         catch (Exception ex)
@@ -406,9 +423,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@From", DateTimeHelper.ToStandardString(from));
             cmd.Parameters.AddWithValue("@To",   DateTimeHelper.ToStandardString(to));
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
 
             LogInfo($"Task 범위 조회: {list.Count}개 ({startDate:yyyy-MM-dd}, {days}일)");
         }
@@ -439,9 +454,7 @@ public class KEventRepository : BaseRepository
             using var cmd = CreateCommand(query);
             cmd.Parameters.AddWithValue("@Today", todayStr);
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
 
             LogInfo($"미완료+미래 Task 조회: {list.Count}개 (기준: {today:yyyy-MM-dd})");
         }
@@ -473,9 +486,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@CalendarId", calendarId);
             cmd.Parameters.AddWithValue("@Today", todayStr);
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
         }
         catch (Exception ex)
         {
@@ -497,9 +508,7 @@ public class KEventRepository : BaseRepository
             query += " ORDER BY Start ASC";
 
             using var cmd = CreateCommand(query);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add(Map(reader));
+            list = await ExecuteListAsync(cmd, Map);
         }
         catch (Exception ex)
         {

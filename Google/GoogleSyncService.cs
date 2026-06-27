@@ -315,6 +315,8 @@ public sealed class GoogleSyncService : IDisposable
             try
             {
                 await _apiClient.DeleteEventAsync(calendar.GoogleId, localEvent.GoogleId);
+                // Google 에서 삭제 완료 → 로컬 cancelled 행 영구 삭제(누적/재전송 방지)
+                await service.PurgeEventAsync(localEvent.No);
                 result.Deleted++;
             }
             catch (Exception ex)
