@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.1.0 (2026-07-01)
+
+v1.0.4 이후 누적 대형 릴리스. **핵심은 에디터 엔진 전면 교체** — 웹 기반 Jodit(WebView2 + ~900KB JS)를
+네이티브 Win2D 리치에디터(WinUIRichEditor)로 바꾸고 WebView2 런타임 의존을 완전히 제거했다.
+함께 WinAppSDK 1.8→2.2 업그레이드, Post 콘텐츠 `.flow`(BLOB) 저장 전환도 포함(상세는 아래 v1.0.6·v1.0.5).
+이번 릴리스에서 게시 파이프라인을 Native AOT 로 전환했다.
+
+### Native AOT 게시 전환 + 미사용 자산 제외 (2026-07-01)
+- **R2R+SingleFile → Native AOT 게시** — `PublishAot` 실활성화(기존엔 SingleFile/R2R 와 상호배타라 무시되던 설정).
+  게시본 **~165MB → 46.6MB**(네이티브 exe 32.3MB + 네이티브 dll 소수), 파일 335 → 10개
+- **미사용 전이 자산 게시 제외** — WinAppSDK 2.2 가 끌고 오는 WebView2·Windows AI(ML) 자산 제거(`RemoveUnusedWinAppSdkAssets` 타깃):
+  managed projection(~2MB) + 네이티브 ML 런타임 `onnxruntime.dll`(20.7MB)·`DirectML.dll`(17.8MB) = **~40MB 절감**.
+  Win2D(`Microsoft.Graphics.Canvas`)는 에디터가 사용하므로 유지
+- **AOT 안전성 조정** — `ReportExportService` 의 엑셀 저장을 `MiniExcel.SaveAsAsync`(비동기 어댑터 `MakeGenericType`→IL3050
+  동적코드 위험) → 백그라운드 동기 `SaveAs` 로 전환. MiniExcel·QuestPDF 는 `TrimmerRootAssembly` 로 보존(IL2104 억제)
+- **게시 오케스트레이션 수정** — VS 프로필 게시 시 `PublishProfile` 전역속성이 ProjectReference(WinUIRichEditor)로 전파돼
+  라이브러리에 ILLink 단독 실행→IL1034 실패하던 문제 해결(라이브러리 pubxml 의 앱스타일 트림/단일파일 설정 비활성화)
+- 검증: 프로필 AOT 게시 성공, IL1034·IL3050·IL2104 0, exe 기동 정상
+
 ## v1.0.6 (2026-06-18 ~ 2026-06-27)
 
 ### Post 콘텐츠 저장 .flow 전환 + 검색 평문 분리 (2026-06-27)
