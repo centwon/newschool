@@ -119,22 +119,8 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.9" />
   </ItemGroup>
 
-  <!-- 미사용 전이 의존성의 런타임/네이티브 자산을 게시본에서 제외 (용량 절감).
-       앱은 Windows AI(ML)·WebView2 를 사용하지 않음. compile 자산은 유지해 메타데이터 해석엔 영향 없음.
-       ⚠ 게시 후 실행 검증 필요(앱 시작·Google/NEIS 동작). 문제 시 ExcludeAssets 제거로 즉시 원복. -->
-  <ItemGroup>
-    <!-- Windows AI / Machine Learning: onnxruntime.dll(20.7MB)+DirectML.dll(17.8MB)+ML.dll 제거 -->
-    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.70">
-      <ExcludeAssets>runtime;native</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.1.70">
-      <ExcludeAssets>runtime;native</ExcludeAssets>
-    </PackageReference>
-    <!-- WebView2: Core.dll + WebView2Loader.dll 제거 (앱 미사용) -->
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3719.77">
-      <ExcludeAssets>runtime;native</ExcludeAssets>
-    </PackageReference>
-  </ItemGroup>
+  <!-- 미사용 전이 의존성(WebView2·Windows AI/ML)의 런타임 자산 게시 제외는
+       파일 하단 RemoveUnusedWinAppSdkAssets Target 에서 처리한다(ResolvedFileToPublish 필터). -->
 
   <!-- WinUIRichEditor: Jodit(WebView2) 대체용 Win2D 네이티브 리치에디터.
        마이그레이션 중엔 ProjectReference 로 빠르게 반복 (API 유동적 + 본인 저장소). -->
@@ -222,6 +208,9 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <WebView2EnableCsWinRTProjection>False</WebView2EnableCsWinRTProjection>
+  </PropertyGroup>
 
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
@@ -234,10 +223,10 @@
 
   <!-- Publish Properties -->
   <PropertyGroup>
-    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">True</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <!-- Native AOT 게시. AOT 는 트리밍·self-contained 를 함의하며 ReadyToRun·SingleFile 과 상호배타다.
+         → PublishReadyToRun=False 로 명시하고, pubxml 에서 PublishSingleFile 을 끈다. -->
+    <PublishReadyToRun>False</PublishReadyToRun>
+    <PublishTrimmed>True</PublishTrimmed>
     <PublishAot>True</PublishAot>
     <WindowsPackageType>None</WindowsPackageType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -248,6 +237,14 @@
     <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
     <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
   </PropertyGroup>
+
+  <!-- AOT/트리밍 안전망: MiniExcel·QuestPDF 는 트림 경고(IL2104)를 내므로 전체를 루트로 보존해
+       리플렉션으로 접근하는 내부 멤버가 잘려나가 런타임에 깨지는 것을 방지한다.
+       (IL3050 동적코드 위험은 ReportExportService 의 동기 SaveAs 전환으로 별도 해소함) -->
+  <ItemGroup Condition="'$(PublishAot)' == 'True'">
+    <TrimmerRootAssembly Include="MiniExcel" />
+    <TrimmerRootAssembly Include="QuestPDF" />
+  </ItemGroup>
 
   <!-- ==========================================
        게시 시 불필요한 파일 출력 제외
@@ -332,5 +329,21 @@
     <RemoveDir Directories="$(PublishDir)Installer" />
     <RemoveDir Directories="$(PublishDir)prerequisites" />
     <Message Text="[CleanPublishOutput] 불필요 파일/폴더 정리 완료" Importance="high" />
+  </Target>
+
+  <!-- ==========================================
+       미사용 전이 자산 게시 제외 (WindowsAppSDK 2.2 가 끌고 오는 WebView2·Windows AI(ML))
+       앱은 WebView2(Jodit 제거)·Windows AI/ML 을 사용하지 않음 → 게시본에서 제거.
+       · managed projection(WebView2·Microsoft.Windows.AI.*·Imaging) ~2MB
+       · 네이티브 ML 런타임(onnxruntime.dll 20.7MB + DirectML.dll 17.8MB) ~38MB
+       SingleFile/AOT 모두 번들 전 단계인 ResolvedFileToPublish 에서 걸러야 한다
+       (게시 후 Delete 로는 exe 번들 내부를 못 지움).
+       ⚠ Win2D(Microsoft.Graphics.Canvas*)는 WinUIRichEditor 가 사용 → 유지.
+       ⚠ 게시 후 실행 검증 필요(앱 시작·도움말·Google/NEIS). 문제 시 이 Target 제거로 즉시 원복.
+       ========================================== -->
+  <Target Name="RemoveUnusedWinAppSdkAssets" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Web.WebView2'))&#xD;&#xA;                  or '%(Filename)' == 'WebView2Loader'&#xD;&#xA;                  or '%(Filename)' == 'Microsoft.ML.OnnxRuntime'&#xD;&#xA;                  or $([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Windows.AI'))&#xD;&#xA;                  or '%(Filename)' == 'Microsoft.Graphics.Imaging.Projection'&#xD;&#xA;                  or '%(Filename)' == 'onnxruntime'&#xD;&#xA;                  or '%(Filename)' == 'DirectML'" />
+    </ItemGroup>
   </Target>
 </Project>
