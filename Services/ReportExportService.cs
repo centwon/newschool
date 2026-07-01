@@ -89,9 +89,7 @@ public class ReportExportService
                 ["비고"] = ""
             });
 
-            // 엑셀 저장
-            // 동기 SaveAs 사용: 비동기 쓰기 어댑터는 MakeGenericType(IL3050)로 Native AOT 에서
-            // 런타임 실패 위험이 있어, AOT 안전한 동기 경로를 백그라운드 스레드로 호출한다.
+            // 엑셀 저장 (동기 SaveAs: 비동기 어댑터의 MakeGenericType→IL3050 AOT 위험 회피, 백그라운드 실행)
             await Task.Run(() => MiniExcel.SaveAs(filePath, rows, overwriteFile: true));
 
             result.Success = true;
@@ -188,9 +186,7 @@ public class ReportExportService
 
             rows.Add(summaryRow);
 
-            // 엑셀 저장
-            // 동기 SaveAs 사용: 비동기 쓰기 어댑터는 MakeGenericType(IL3050)로 Native AOT 에서
-            // 런타임 실패 위험이 있어, AOT 안전한 동기 경로를 백그라운드 스레드로 호출한다.
+            // 엑셀 저장 (동기 SaveAs: 비동기 어댑터의 MakeGenericType→IL3050 AOT 위험 회피, 백그라운드 실행)
             await Task.Run(() => MiniExcel.SaveAs(filePath, rows, overwriteFile: true));
 
             result.Success = true;
@@ -263,9 +259,7 @@ public class ReportExportService
                 });
             }
 
-            // 엑셀 저장
-            // 동기 SaveAs 사용: 비동기 쓰기 어댑터는 MakeGenericType(IL3050)로 Native AOT 에서
-            // 런타임 실패 위험이 있어, AOT 안전한 동기 경로를 백그라운드 스레드로 호출한다.
+            // 엑셀 저장 (동기 SaveAs: 비동기 어댑터의 MakeGenericType→IL3050 AOT 위험 회피, 백그라운드 실행)
             await Task.Run(() => MiniExcel.SaveAs(filePath, rows, overwriteFile: true));
 
             result.Success = true;
@@ -331,9 +325,7 @@ public class ReportExportService
                 });
             }
 
-            // 엑셀 저장
-            // 동기 SaveAs 사용: 비동기 쓰기 어댑터는 MakeGenericType(IL3050)로 Native AOT 에서
-            // 런타임 실패 위험이 있어, AOT 안전한 동기 경로를 백그라운드 스레드로 호출한다.
+            // 엑셀 저장 (동기 SaveAs: 비동기 어댑터의 MakeGenericType→IL3050 AOT 위험 회피, 백그라운드 실행)
             await Task.Run(() => MiniExcel.SaveAs(filePath, rows, overwriteFile: true));
 
             result.Success = true;
@@ -429,9 +421,7 @@ public class ReportExportService
                 ["상태"] = ""
             });
 
-            // 엑셀 저장
-            // 동기 SaveAs 사용: 비동기 쓰기 어댑터는 MakeGenericType(IL3050)로 Native AOT 에서
-            // 런타임 실패 위험이 있어, AOT 안전한 동기 경로를 백그라운드 스레드로 호출한다.
+            // 엑셀 저장 (동기 SaveAs: 비동기 어댑터의 MakeGenericType→IL3050 AOT 위험 회피, 백그라운드 실행)
             await Task.Run(() => MiniExcel.SaveAs(filePath, rows, overwriteFile: true));
 
             result.Success = true;
