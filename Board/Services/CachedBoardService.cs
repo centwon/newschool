@@ -34,12 +34,18 @@ namespace NewSchool.Board.Services
         {
             string key = CacheKeys.Post(no);
 
-            // 조회수 증가가 필요하면 캐시 사용 안 함
             if (incrementReadCount)
             {
+                // 캐시에 있으면 DB 왕복 없이 즉시 반환하고, 조회수 증가는 백그라운드로 미룬다.
+                // (같은 글을 반복 열람해도 매번 Get+Update 두 번의 동기 DB 호출이 발생하던 문제 개선)
+                if (_cache.TryGet<Post>(key, out var cachedPost) && cachedPost != null)
+                {
+                    _ = IncrementReadCountInBackgroundAsync(no, cachedPost);
+                    return cachedPost;
+                }
+
                 var post = await base.GetPostAsync(no, true);
 
-                // 조회수 증가 후 캐시 갱신
                 if (post != null)
                 {
                     _cache.Set(key, post, _mediumCache);
@@ -56,6 +62,24 @@ namespace NewSchool.Board.Services
         }
 
         /// <summary>
+        /// 조회수 증가를 백그라운드에서 처리 (캐시 히트 시 호출자를 블로킹하지 않음).
+        /// 캐시된 Post 인스턴스도 함께 갱신해 다음 조회 시 최신 조회수가 보이도록 한다.
+        /// </summary>
+        private async Task IncrementReadCountInBackgroundAsync(int postNo, Post cachedPost)
+        {
+            try
+            {
+                using var postRepo = new PostRepository(_dbPath);
+                await postRepo.IncrementReadCountAsync(postNo);
+                cachedPost.ReadCount++;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"조회수 증가(백그라운드) 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Post 목록 조회 (캐시됨)
         /// </summary>
         public override async Task<PagedResult<Post>> GetPostsPagedAsync(
@@ -65,15 +89,16 @@ namespace NewSchool.Board.Services
             string subject = "",
             bool searchTitle = false,
             bool searchContent = false,
-            string searchText = "")
+            string searchText = "",
+            Models.PostSortOrder sortOrder = Models.PostSortOrder.NewestFirst)
         {
-            string key = CacheKeys.Posts(pageNumber, pageSize, category, searchText);
+            string key = CacheKeys.Posts(pageNumber, pageSize, category, subject, searchText) + $":{sortOrder}";
 
             return await _cache.GetOrCreateAsync(
                 key,
                 async () => await base.GetPostsPagedAsync(
                     pageNumber, pageSize, category, subject,
-                    searchTitle, searchContent, searchText),
+                    searchTitle, searchContent, searchText, sortOrder),
                 _shortCache);
         }
 

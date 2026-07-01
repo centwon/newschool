@@ -139,13 +139,37 @@
         Padding="16">
                         <Grid>
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
+                            <!-- 답글 대상 안내 -->
+                            <Border x:Name="ReplyingToBorder"
+                                    Grid.Row="0"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    Padding="8"
+                                    CornerRadius="4"
+                                    Margin="0,0,0,8"
+                                    Visibility="{x:Bind ViewModel.IsReplying, Mode=OneWay}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="{x:Bind ViewModel.ReplyTargetComment.User, Mode=OneWay}"
+                                               VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1"
+                                            Content="답글 취소"
+                                            Click="CancelReplyButton_Click"
+                                            Padding="8,4"/>
+                                </Grid>
+                            </Border>
+
                             <!-- 댓글 내용 -->
-                            <TextBox Grid.Row="0"
+                            <TextBox Grid.Row="1"
                  x:Name="NewCommentTextBox"
                  PlaceholderText="댓글을 입력하세요"
                  AcceptsReturn="True"
@@ -154,7 +178,7 @@
                  Text="{x:Bind ViewModel.NewCommentContent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                             <!-- 파일 첨부 영역 -->
-                            <StackPanel Grid.Row="1" 
+                            <StackPanel Grid.Row="2"
                     Margin="0,8,0,0"
                     Spacing="8">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -222,7 +246,7 @@
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="16"
-                    Margin="0,0,0,8">
+                    Margin="{x:Bind IndentMargin}">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -254,6 +278,11 @@
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                                             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4">
+                                                <Button Content="답글"
+                                                        Click="ReplyCommentButton_Click"
+                                                        Tag="{x:Bind}"
+                                                        Visibility="{x:Bind NotReply}"
+                                                        Padding="8,4"/>
                                                 <Button Content="수정"
                                                         Click="EditCommentButton_Click"
                                                         Tag="{x:Bind}"

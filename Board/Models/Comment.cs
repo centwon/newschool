@@ -65,19 +65,32 @@ namespace NewSchool.Board
             }
         }
 
-        private int _replyOrder;
-        public int ReplyOrder
+        private int _parentNo;
+        /// <summary>답글 대상 댓글의 No. 0이면 최상위(원 댓글).</summary>
+        public int ParentNo
         {
-            get => _replyOrder;
+            get => _parentNo;
             set
             {
-                if (_replyOrder != value)
+                if (_parentNo != value)
                 {
-                    _replyOrder = value;
+                    _parentNo = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsReply));
+                    OnPropertyChanged(nameof(IndentMargin));
+                    OnPropertyChanged(nameof(NotReply));
                 }
             }
         }
+
+        /// <summary>답글 여부 (UI 들여쓰기 판단용)</summary>
+        public bool IsReply => ParentNo != 0;
+
+        /// <summary>답글이면 들여쓰기 마진 적용</summary>
+        public Thickness IndentMargin => IsReply ? new Thickness(32, 0, 0, 8) : new Thickness(0, 0, 0, 8);
+
+        /// <summary>답글 버튼 표시 여부 (1단계 대댓글만 지원하므로 답글에는 답글 버튼을 숨김)</summary>
+        public Visibility NotReply => IsReply ? Visibility.Collapsed : Visibility.Visible;
 
         private string _content = string.Empty;
         public string Content

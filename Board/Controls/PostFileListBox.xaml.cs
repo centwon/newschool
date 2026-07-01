@@ -14,6 +14,15 @@ namespace NewSchool.Board.Controls
 {
     public sealed partial class PostFileListBox : UserControl
     {
+        /// <summary>첨부파일 최대 크기 (100MB) — 무제한 첨부로 인한 DB 파일 비대화 방지</summary>
+        private const long MaxFileSizeBytes = 100L * 1024 * 1024;
+
+        /// <summary>학교 공용 PC에서 실수로 실행/배포되면 위험한 확장자 (실행형만 차단, 문서/압축 등은 허용)</summary>
+        private static readonly string[] BlockedExtensions =
+        {
+            ".exe", ".bat", ".cmd", ".com", ".scr", ".msi", ".ps1", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh"
+        };
+
         public ObservableCollection<FileItemBox> FileBoxes { get; } = new();
         public ObservableCollection<PostFile> FilesToDelete { get; } = new();
 
@@ -167,7 +176,22 @@ namespace NewSchool.Board.Controls
 
         private async Task AddFileAsync(StorageFile file)
         {
+            var extension = Path.GetExtension(file.Name);
+            if (!string.IsNullOrEmpty(extension) && Array.IndexOf(BlockedExtensions, extension.ToLowerInvariant()) >= 0)
+            {
+                await MessageBox.ShowErrorAsync($"'{file.Name}': 실행 파일({extension})은 첨부할 수 없습니다.");
+                return;
+            }
+
             var properties = await file.GetBasicPropertiesAsync();
+
+            if (properties.Size > MaxFileSizeBytes)
+            {
+                await MessageBox.ShowErrorAsync(
+                    $"'{file.Name}' 파일이 너무 큽니다. (최대 {MaxFileSizeBytes / (1024 * 1024)}MB)");
+                return;
+            }
+
             var postFile = new PostFile
             {
                 FileName = file.Name,

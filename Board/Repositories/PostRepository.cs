@@ -95,7 +95,10 @@ namespace NewSchool.Board.Repositories
             string subject = "",
             bool searchTitle = false,
             bool searchContent = false,
-            string searchText = "")
+            string searchText = "",
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            bool includeCompleted = true)
         {
             var posts = new List<Post>();
 
@@ -141,6 +144,25 @@ namespace NewSchool.Board.Repositories
                     }
                 }
 
+                // 완료 필터 (메모용)
+                if (!includeCompleted)
+                {
+                    query += " AND IsCompleted = 0";
+                }
+
+                // 날짜 범위 필터 (DateTime은 ISO 8601 UTC 문자열이라 사전식 비교가 시간순 비교와 일치)
+                if (startDate.HasValue)
+                {
+                    query += " AND DateTime >= @StartDate";
+                    cmd.Parameters.AddWithValue("@StartDate", DateTimeHelper.ToStandardString(startDate.Value.Date));
+                }
+
+                if (endDate.HasValue)
+                {
+                    query += " AND DateTime <= @EndDate";
+                    cmd.Parameters.AddWithValue("@EndDate", DateTimeHelper.ToStandardString(DateTimeHelper.ToEndOfDay(endDate.Value)));
+                }
+
                 // 정렬
                 query += " ORDER BY No DESC";
 
@@ -181,7 +203,8 @@ namespace NewSchool.Board.Repositories
             string subject = "",
             bool searchTitle = false,
             bool searchContent = false,
-            string searchText = "")
+            string searchText = "",
+            Models.PostSortOrder sortOrder = Models.PostSortOrder.NewestFirst)
         {
             var posts = new List<Post>();
             int totalCount = 0;
@@ -228,8 +251,8 @@ namespace NewSchool.Board.Repositories
                     }
                 }
 
-                // 정렬
-                query += " ORDER BY No DESC";
+                // 정렬 (화이트리스트 매핑 — SQL 인젝션 방지)
+                query += " ORDER BY " + MapSortOrder(sortOrder);
 
                 // 페이징
                 if (limit > 0)
@@ -578,6 +601,18 @@ namespace NewSchool.Board.Repositories
         #endregion
 
         #region Helper Methods
+
+        /// <summary>
+        /// 정렬 기준을 SQL ORDER BY 절로 변환 (화이트리스트 — 문자열 결합이라 인젝션 방지 필수)
+        /// </summary>
+        private static string MapSortOrder(Models.PostSortOrder sortOrder) => sortOrder switch
+        {
+            Models.PostSortOrder.OldestFirst => "No ASC",
+            Models.PostSortOrder.TitleAsc => "Title ASC",
+            Models.PostSortOrder.ReadCountDesc => "ReadCount DESC, No DESC",
+            Models.PostSortOrder.UserAsc => "User ASC, No DESC",
+            _ => "No DESC"
+        };
 
         /// <summary>
         /// Post 파라미터 추가 (Native AOT 호환)

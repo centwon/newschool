@@ -14,6 +14,15 @@ namespace NewSchool.Board.Pages;
 
 public sealed partial class PostDetailPage : Page
 {
+    /// <summary>댓글 첨부파일 최대 크기 (100MB)</summary>
+    private const long MaxCommentFileSizeBytes = 100L * 1024 * 1024;
+
+    /// <summary>학교 공용 PC에서 실수로 실행/배포되면 위험한 확장자 (PostFileListBox와 동일 기준)</summary>
+    private static readonly string[] BlockedCommentExtensions =
+    {
+        ".exe", ".bat", ".cmd", ".com", ".scr", ".msi", ".ps1", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh"
+    };
+
     public PostDetailViewModel ViewModel { get; }
     private int _postNo;
     private StorageFile? _commentAttachedFile;
@@ -93,8 +102,7 @@ public sealed partial class PostDetailPage : Page
             "게시글 삭제", "삭제", "취소");
         if (confirmed && ViewModel.Post != null)
         {
-            using var service = Board.CreateService();
-            bool success = await service.DeletePostAsync(_postNo, ViewModel.Post.Category);
+            bool success = await ViewModel.DeletePostAsync();
 
             if (success)
             {
@@ -128,10 +136,23 @@ public sealed partial class PostDetailPage : Page
 
             if (file != null)
             {
+                var extension = Path.GetExtension(file.Name);
+                if (!string.IsNullOrEmpty(extension) && Array.IndexOf(BlockedCommentExtensions, extension.ToLowerInvariant()) >= 0)
+                {
+                    await ShowErrorAsync($"실행 파일({extension})은 첨부할 수 없습니다.");
+                    return;
+                }
+
+                var properties = await file.GetBasicPropertiesAsync();
+                if (properties.Size > MaxCommentFileSizeBytes)
+                {
+                    await ShowErrorAsync($"파일이 너무 큽니다. (최대 {MaxCommentFileSizeBytes / (1024 * 1024)}MB)");
+                    return;
+                }
+
                 _commentAttachedFile = file;
 
                 // 파일 정보 표시
-                var properties = await file.GetBasicPropertiesAsync();
                 CommentFileNameTextBlock.Text = file.Name;
                 CommentFileSizeTextBlock.Text = $"({FormatFileSize((long)properties.Size)})";
 
@@ -203,6 +224,26 @@ public sealed partial class PostDetailPage : Page
     {
         ViewModel.CancelEdit();
         ResetCommentUI();
+    }
+
+    /// <summary>
+    /// 답글 작성 시작
+    /// </summary>
+    private void ReplyCommentButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is Comment comment)
+        {
+            ViewModel.StartReply(comment);
+            NewCommentTextBox.Focus(FocusState.Programmatic);
+        }
+    }
+
+    /// <summary>
+    /// 답글 작성 취소
+    /// </summary>
+    private void CancelReplyButton_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.CancelReply();
     }
 
     private void ResetCommentUI()

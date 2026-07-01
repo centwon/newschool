@@ -102,6 +102,21 @@ public class PostDetailViewModel : INotifyPropertyChanged
 
     public bool IsEditing => EditingComment != null;
 
+    private Comment? _replyTargetComment;
+    /// <summary>답글 대상 댓글 (null이면 최상위 댓글로 작성)</summary>
+    public Comment? ReplyTargetComment
+    {
+        get => _replyTargetComment;
+        private set
+        {
+            _replyTargetComment = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsReplying));
+        }
+    }
+
+    public bool IsReplying => ReplyTargetComment != null;
+
     #endregion
 
     #region Commands
@@ -159,7 +174,7 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             var comments = await _service.GetCommentsByPostAsync(postNo);
 
-            Comments.ReplaceAll(comments);
+            Comments.ReplaceAll(BuildThreadedOrder(comments));
 
             Debug.WriteLine($"댓글 로드 완료: {Comments.Count}개");
         }
@@ -167,6 +182,44 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             Debug.WriteLine($"댓글 로드 실패: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 최상위 댓글은 기존 순서를 유지하고, 각 댓글의 답글은 바로 아래에 시간순으로 묶어서 배치한다.
+    /// (1단계 대댓글만 지원 — 답글에 대한 답글은 원 댓글의 답글로 평탄화됨)
+    /// </summary>
+    private static List<Comment> BuildThreadedOrder(List<Comment> comments)
+    {
+        var topLevel = comments.Where(c => c.ParentNo == 0).ToList();
+        var repliesByParent = comments
+            .Where(c => c.ParentNo != 0)
+            .GroupBy(c => c.ParentNo)
+            .ToDictionary(g => g.Key, g => g.OrderBy(c => c.DateTime).ToList());
+
+        var ordered = new List<Comment>(comments.Count);
+        foreach (var parent in topLevel)
+        {
+            ordered.Add(parent);
+            if (repliesByParent.TryGetValue(parent.No, out var replies))
+            {
+                ordered.AddRange(replies);
+            }
+        }
+
+        return ordered;
+    }
+
+    /// <summary>
+    /// 답글 작성 시작 — 답글의 답글은 원 댓글로 평탄화(1단계 대댓글만 지원)
+    /// </summary>
+    public void StartReply(Comment comment)
+    {
+        ReplyTargetComment = comment;
+    }
+
+    public void CancelReply()
+    {
+        ReplyTargetComment = null;
     }
 
     private async Task LoadFilesAsync(int postNo)
@@ -182,6 +235,24 @@ public class PostDetailViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             Debug.WriteLine($"파일 로드 실패: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Post 삭제 (캐시 서비스 사용 — 목록 화면 캐시가 함께 무효화됨)
+    /// </summary>
+    public async Task<bool> DeletePostAsync()
+    {
+        if (Post == null) return false;
+
+        try
+        {
+            return await _service.DeletePostAsync(Post.No, Post.Category);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Post 삭제 실패: {ex.Message}");
+            throw;
         }
     }
 
@@ -256,13 +327,18 @@ public class PostDetailViewModel : INotifyPropertyChanged
 
         try
         {
+            // 답글의 답글은 1단계로 평탄화 (원 댓글을 부모로 설정)
+            int parentNo = ReplyTargetComment == null
+                ? 0
+                : ReplyTargetComment.ParentNo != 0 ? ReplyTargetComment.ParentNo : ReplyTargetComment.No;
+
             var comment = new Comment
             {
                 Post = Post.No,
                 User = Settings.UserName ?? "익명",
                 Content = NewCommentContent,
                 DateTime = DateTime.Now,
-                ReplyOrder = 0,
+                ParentNo = parentNo,
                 HasFile = attachedFile != null,
                 FileName = "",
                 FileSize = 0
@@ -289,8 +365,11 @@ public class PostDetailViewModel : INotifyPropertyChanged
             if (commentId > 0)
             {
                 comment.No = commentId;
-                Comments.Insert(0, comment);
                 NewCommentContent = "";
+                CancelReply();
+
+                // 답글은 부모 댓글 바로 아래에 위치해야 하므로 전체 목록을 다시 정렬해서 로드
+                await LoadCommentsAsync(Post.No);
 
                 Debug.WriteLine($"댓글 추가 완료: ID={commentId}, 파일={comment.HasFile}");
             }
