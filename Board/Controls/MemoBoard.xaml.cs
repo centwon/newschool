@@ -402,9 +402,9 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     {
         if (_isModified) await SaveRecentMemoAsync();
 
-        var dialog = new Dialogs.MemoEditDialog(memo) { XamlRoot = XamlRoot };
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary)
+        var dialog = new Dialogs.MemoEditDialog(memo);
+        bool saved = await dialog.ShowDialogAsync(App.MainWindow);
+        if (saved)
             await LoadMemosAsync();
     }
 
