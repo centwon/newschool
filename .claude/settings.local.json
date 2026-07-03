@@ -248,7 +248,9 @@
       "Bash(where python *)",
       "Bash(node -e ' *)",
       "Bash(echo \"exit: $?\")",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(gh release *)",
+      "Bash(dotnet msbuild *)"
     ]
   }
 }
