@@ -235,6 +235,15 @@ public sealed class GoogleSyncService : IDisposable
 
         if (localEvent == null)
         {
+            // 학사일정을 UploadSchoolSchedulesAsync 로 올린 뒤 되돌아오는 종일 이벤트는 school.db 에
+            // 이미 있으므로 로컬 KEvent 로 다시 만들면 달력에 날짜 옆(SchoolSchedule)과 목록(KEvent)
+            // 양쪽에 중복 표시된다. 제목+날짜가 학사일정과 일치하면 Pull 을 건너뛴다.
+            if (await IsSchoolScheduleDuplicateAsync(gEvent))
+            {
+                Debug.WriteLine($"[GoogleSync] 학사일정과 중복되어 Pull 스킵: {gEvent.Summary}");
+                return;
+            }
+
             // 신규 이벤트
             var newEvent = GoogleEventToLocal(gEvent, calendarId);
             await service.CreateEventAsync(newEvent);
@@ -249,6 +258,27 @@ public sealed class GoogleSyncService : IDisposable
                 await service.UpdateEventAsync(localEvent);
                 result.Updated++;
             }
+        }
+    }
+
+    /// <summary>Google 종일 이벤트가 school.db 의 학사일정(같은 제목+날짜)과 겹치는지 확인</summary>
+    private static async Task<bool> IsSchoolScheduleDuplicateAsync(GoogleEvent gEvent)
+    {
+        var dateStr = gEvent.Start?.Date;
+        if (string.IsNullOrEmpty(dateStr) || string.IsNullOrEmpty(gEvent.Summary)) return false;
+        if (!DateTime.TryParse(dateStr, out var date)) return false;
+
+        try
+        {
+            using var scheduleService = new NewSchool.Services.SchoolScheduleService(Settings.SchoolDB.Value);
+            // GetByDateRangeAsync는 [start, end) 반개구간이므로 해당 하루만 조회하려면 end=date+1일
+            var result = await scheduleService.GetSchedulesByDataRangeAsync(Settings.SchoolCode, date, date.AddDays(1));
+            return result.Success && result.Schedules.Any(s => s.EVENT_NM == gEvent.Summary);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GoogleSync] 학사일정 중복 확인 실패: {ex.Message}");
+            return false;
         }
     }
 
@@ -511,11 +541,17 @@ public sealed class GoogleSyncService : IDisposable
 
     #endregion
 
-    #region 학사일정 일괄 등록
+    #region 학사일정 동기화 (학교 전용 캘린더, 재조정)
+
+    private const string ScheduleCalendarTitle = "학사일정";
+    private const string ScheduleItemType = "schoolschedule";
+    private const string ScheduleCalendarColor = "#757575";
 
     /// <summary>
-    /// SchoolSchedule 목록을 Google Calendar에 종일 이벤트로 일괄 등록
-    /// 학교 캘린더(학교 이름)에 등록됨
+    /// SchoolSchedule 목록을 로컬 "학사일정" 캘린더(학교별로 분리)와 재조정(reconcile)한 뒤 Google Calendar에 반영.
+    /// 단순 업로드가 아니라 신규/변경/삭제를 전부 비교해서 처리하므로, school.db 에서 학사일정을 수정한 뒤
+    /// 이 메서드를 다시 실행하면 구글 쪽도 그대로 맞춰진다. 로컬 KEvent에 GoogleId를 저장해두기 때문에
+    /// 이후 어떤 경로로 Pull이 일어나도 중복 생성되지 않는다.
     /// </summary>
     public async Task<SyncResult> UploadSchoolSchedulesAsync(List<SchoolSchedule> schedules)
     {
@@ -535,117 +571,170 @@ public sealed class GoogleSyncService : IDisposable
 
         if (schedules.Count == 0)
         {
-            result.Success = true;
+            // 빈 목록으로 재조정을 돌리면 "학교에 등록된 일정이 없다"고 오판해 이미 동기화된 항목을
+            // 전부 삭제 대상으로 취급하게 된다(NEIS 조회 실패 등으로 빈 리스트가 들어올 수 있음).
+            // 안전하게 조회 실패로 간주하고 아무것도 건드리지 않는다.
+            result.ErrorMessages.Add("학사일정이 없습니다. 삭제로 오인되지 않도록 동기화를 건너뜁니다.");
             return result;
         }
 
-        // 학교 캘린더(수업/학급/업무가 매핑된 Google 캘린더) 찾기
-        using var service = Scheduler.Scheduler.CreateService();
-        var schoolCalendar = (await service.GetAllCalendarsAsync())
-            .FirstOrDefault(c => c.Title == CategoryNames.Lesson && !string.IsNullOrEmpty(c.GoogleId));
-
-        if (schoolCalendar == null)
+        string schoolCode = Settings.SchoolCode;
+        if (string.IsNullOrEmpty(schoolCode))
         {
-            result.ErrorMessages.Add("학교 캘린더가 Google에 연동되지 않았습니다. 먼저 Google 계정을 연동하세요.");
+            result.ErrorMessages.Add("학교 설정이 필요합니다.");
             return result;
         }
 
-        string googleCalendarId = schoolCalendar.GoogleId;
+        using var service = Scheduler.Scheduler.CreateService();
+        KCalendarList calendar;
+        try
+        {
+            calendar = await EnsureScheduleCalendarAsync(service);
+        }
+        catch (Exception ex)
+        {
+            result.ErrorMessages.Add($"학사일정 캘린더 준비 실패: {ex.Message}");
+            Debug.WriteLine($"[GoogleSync] 학사일정 캘린더 준비 실패: {ex.Message}");
+            return result;
+        }
 
-        // 연속 날짜 같은 이벤트 그룹핑 (예: 여름방학 7/22~8/25 → 하나의 이벤트)
+        // 연속 날짜 같은 이벤트 그룹핑 (예: 여름방학 7/22~8/25 → 하나의 이벤트). 이름을 자연키로 사용.
         var groups = SchoolScheduleGroupHelper.GroupSchedules(schedules);
+        var groupsByTitle = groups.ToDictionary(g => g.EventName);
 
-        // 이미 등록된 항목(제목+시작일 동일) 중복 등록 방지 — 재실행 시 기존 이벤트 조회 후 스킵
-        var existingKeys = await GetExistingAllDayEventKeysAsync(
-            googleCalendarId, groups.Min(g => g.StartDate), groups.Max(g => g.EndDate));
+        var existing = await service.GetEventsByCalendarAndTypeAsync(calendar.No, ScheduleItemType);
+        var existingByTitle = existing.ToDictionary(e => e.Title);
 
-        Debug.WriteLine($"[GoogleSync] 학사일정 {schedules.Count}건 → {groups.Count}개 그룹으로 등록 시작 (기존 {existingKeys.Count}건 확인됨)");
+        Debug.WriteLine($"[GoogleSync] 학사일정 재조정 시작: 현재 {groups.Count}개, 기존 등록 {existing.Count}개");
 
+        // 1) 신규 등록 + 날짜 변경분 수정
         foreach (var group in groups)
         {
-            if (existingKeys.Contains((group.EventName, group.StartDate.ToString("yyyy-MM-dd"))))
+            if (!existingByTitle.TryGetValue(group.EventName, out var localEvent))
             {
-                Debug.WriteLine($"[GoogleSync] 학사일정 이미 등록됨(스킵): {group.EventName} ({group.StartDate:M/d})");
-                continue;
-            }
+                try
+                {
+                    var ev = new KEvent
+                    {
+                        CalendarId = calendar.No,
+                        Title = group.EventName,
+                        ItemType = ScheduleItemType,
+                        Start = group.StartDate,
+                        End = group.EndDate,
+                        IsAllday = true,
+                        Status = "confirmed",
+                        Notes = group.IsVacation ? "휴업일" : string.Empty,
+                        Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        User = Environment.UserName
+                    };
+                    ev.No = await service.CreateEventAsync(ev);
 
+                    var created = await _apiClient.InsertEventAsync(calendar.GoogleId, BuildScheduleGoogleEvent(group));
+                    if (created?.Id != null)
+                    {
+                        ev.GoogleId = created.Id;
+                        ev.Updated = created.Updated ?? ev.Updated;
+                        await service.UpdateEventAsync(ev);
+                    }
+
+                    result.Created++;
+                    Debug.WriteLine($"[GoogleSync] 학사일정 신규: {group.EventName} ({group.StartDate:M/d}~{group.EndDate:M/d})");
+                }
+                catch (Exception ex)
+                {
+                    result.Errors++;
+                    result.ErrorMessages.Add($"{group.EventName}: {ex.Message}");
+                    Debug.WriteLine($"[GoogleSync] 학사일정 신규 등록 실패: {group.EventName} — {ex.Message}");
+                }
+            }
+            else if (localEvent.Start.Date != group.StartDate.Date || localEvent.End.Date != group.EndDate.Date)
+            {
+                try
+                {
+                    localEvent.Start = group.StartDate;
+                    localEvent.End = group.EndDate;
+                    localEvent.Notes = group.IsVacation ? "휴업일" : string.Empty;
+                    localEvent.Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                    await service.UpdateEventAsync(localEvent);
+
+                    if (!string.IsNullOrEmpty(localEvent.GoogleId))
+                        await _apiClient.UpdateEventAsync(calendar.GoogleId, localEvent.GoogleId, BuildScheduleGoogleEvent(group));
+
+                    result.Updated++;
+                    Debug.WriteLine($"[GoogleSync] 학사일정 수정: {group.EventName} ({group.StartDate:M/d}~{group.EndDate:M/d})");
+                }
+                catch (Exception ex)
+                {
+                    result.Errors++;
+                    result.ErrorMessages.Add($"{group.EventName}: {ex.Message}");
+                    Debug.WriteLine($"[GoogleSync] 학사일정 수정 실패: {group.EventName} — {ex.Message}");
+                }
+            }
+        }
+
+        // 2) school.db 에서 사라진 학사일정 → 로컬+구글 정리
+        foreach (var stale in existing.Where(e => !groupsByTitle.ContainsKey(e.Title)))
+        {
             try
             {
-                var gEvent = new GoogleEvent
-                {
-                    Summary = group.EventName,
-                    Description = group.IsVacation ? "휴업일" : null,
-                    Start = new GoogleEventDateTime
-                    {
-                        Date = group.StartDate.ToString("yyyy-MM-dd")
-                    },
-                    End = new GoogleEventDateTime
-                    {
-                        // Google Calendar 종일 이벤트는 end를 exclusive로 처리 (+1일)
-                        Date = group.EndDate.AddDays(1).ToString("yyyy-MM-dd")
-                    },
-                    Status = "confirmed"
-                };
+                if (!string.IsNullOrEmpty(stale.GoogleId))
+                    await _apiClient.DeleteEventAsync(calendar.GoogleId, stale.GoogleId);
 
-                var created = await _apiClient.InsertEventAsync(googleCalendarId, gEvent);
-                if (created?.Id != null)
-                {
-                    result.Created++;
-                    Debug.WriteLine($"[GoogleSync] 학사일정 등록: {group.EventName} ({group.StartDate:M/d}~{group.EndDate:M/d})");
-                }
+                await service.PurgeEventAsync(stale.No);
+                result.Deleted++;
+                Debug.WriteLine($"[GoogleSync] 학사일정 삭제: {stale.Title}");
             }
             catch (Exception ex)
             {
                 result.Errors++;
-                result.ErrorMessages.Add($"{group.EventName}: {ex.Message}");
-                Debug.WriteLine($"[GoogleSync] 학사일정 등록 실패: {group.EventName} — {ex.Message}");
+                result.ErrorMessages.Add($"{stale.Title} 삭제: {ex.Message}");
+                Debug.WriteLine($"[GoogleSync] 학사일정 삭제 실패: {stale.Title} — {ex.Message}");
             }
         }
 
         result.Success = result.Errors == 0;
-        Debug.WriteLine($"[GoogleSync] 학사일정 일괄 등록 완료: {result.Summary}");
+        Debug.WriteLine($"[GoogleSync] 학사일정 재조정 완료: {result.Summary}");
         return result;
     }
 
-    /// <summary>
-    /// 지정 기간의 종일 이벤트를 (제목, 시작일) 키 집합으로 조회 — 학사일정 재업로드 시 중복 방지용
-    /// </summary>
-    private async Task<HashSet<(string Summary, string StartDate)>> GetExistingAllDayEventKeysAsync(
-        string calendarId, DateTime rangeStart, DateTime rangeEnd)
+    private static GoogleEvent BuildScheduleGoogleEvent(SchoolScheduleGroup group) => new()
     {
-        var keys = new HashSet<(string, string)>();
-        string? pageToken = null;
+        Summary = group.EventName,
+        Description = group.IsVacation ? "휴업일" : null,
+        Start = new GoogleEventDateTime { Date = group.StartDate.ToString("yyyy-MM-dd") },
+        // Google Calendar 종일 이벤트는 end를 exclusive로 처리 (+1일)
+        End = new GoogleEventDateTime { Date = group.EndDate.AddDays(1).ToString("yyyy-MM-dd") },
+        Status = "confirmed"
+    };
 
-        try
+    /// <summary>
+    /// 현재 학교의 "학사일정" 캘린더를 로컬(KCalendarList)+구글(Calendar) 양쪽에서 확보한다.
+    /// 학교 코드가 바뀌면 새 캘린더가 생성되어 예전 학교 학사일정과 섞이지 않는다.
+    /// SyncMode는 항상 "None"으로 고정 — 이 캘린더는 이 메서드로만 관리되며 일반 Pull 대상이 아니다
+    /// (그래도 GoogleId를 로컬에 저장해두므로, 혹시 Pull이 돌더라도 중복 생성되지 않는다).
+    /// </summary>
+    private async Task<KCalendarList> EnsureScheduleCalendarAsync(SchedulerService service)
+    {
+        string schoolCode = Settings.SchoolCode;
+        string schoolName = string.IsNullOrWhiteSpace(Settings.SchoolName.Value) ? "학교" : Settings.SchoolName.Value;
+
+        var calendar = await service.GetOrCreateCalendarForSchoolAsync(
+            ScheduleCalendarTitle, schoolCode, ScheduleCalendarColor);
+
+        if (string.IsNullOrEmpty(calendar.GoogleId))
         {
-            do
-            {
-                var response = await _apiClient.ListEventsAsync(
-                    calendarId,
-                    timeMin: rangeStart,
-                    timeMax: rangeEnd.AddDays(1),
-                    pageToken: pageToken);
+            var created = await _apiClient.InsertCalendarAsync(
+                $"{schoolName} 학사일정", "NewSchool 앱에서 자동 관리되는 학사일정 캘린더입니다.");
+            if (created?.Id == null)
+                throw new InvalidOperationException("Google Calendar 생성 실패");
 
-                if (response.Items != null)
-                {
-                    foreach (var item in response.Items)
-                    {
-                        if (item.Status == "cancelled") continue;
-                        var startDate = item.Start?.Date;
-                        if (string.IsNullOrEmpty(startDate) || item.Summary == null) continue;
-                        keys.Add((item.Summary, startDate));
-                    }
-                }
-
-                pageToken = response.NextPageToken;
-            } while (!string.IsNullOrEmpty(pageToken));
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GoogleSync] 기존 이벤트 조회 실패(중복 검사 생략): {ex.Message}");
+            calendar.GoogleId = created.Id;
+            calendar.SyncMode = "None";
+            calendar.Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+            await service.UpdateCalendarAsync(calendar);
         }
 
-        return keys;
+        return calendar;
     }
 
     #endregion

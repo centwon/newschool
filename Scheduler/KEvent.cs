@@ -133,15 +133,28 @@ public partial class KEvent : INotifyPropertyChanged
     /// </summary>
     public string SeriesId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 소속 캘린더(KCalendarList)의 색상 (#RRGGBB). DB 컬럼이 아니라 조회 시점에 호출부가 채워주는
+    /// UI 전용 필드 — 이벤트 자체 ColorId가 없을 때 <see cref="DisplayColor"/> 의 폴백으로 쓰인다.
+    /// </summary>
+    public string CalendarColor { get; set; } = string.Empty;
+
     #endregion
 
     #region Computed Properties (UI 바인딩용)
 
     /// <summary>
     /// 표시용 색상 문자열 (#RRGGBB)
-    /// ColorId가 있으면 Google Calendar 색상, 없으면 빈 문자열 (카테고리 색상 사용)
+    /// ColorId가 있으면 Google Calendar 색상, 없으면 소속 캘린더 색상(CalendarColor), 둘 다 없으면 빈 문자열
     /// </summary>
-    public string DisplayColor => ColorIdToHex(ColorId);
+    public string DisplayColor
+    {
+        get
+        {
+            var hex = ColorIdToHex(ColorId);
+            return string.IsNullOrEmpty(hex) ? CalendarColor : hex;
+        }
+    }
 
     /// <summary>
     /// 달력 셀 표시용 시간 문자열

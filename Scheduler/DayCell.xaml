@@ -66,28 +66,21 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- 날짜 (오늘이면 원형 배경 표시) -->
+                <!-- 날짜 (오늘 강조는 셀 전체 테두리(TodayHighlight)로 충분해 원형 배지는 생략) -->
                 <Grid Grid.Column="0" Margin="0,0,4,0">
-                    <Border x:Name="TodayCircle"
-                            Background="{StaticResource TodayBorderColor}"
-                            CornerRadius="12"
-                            Width="24" Height="24"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Visibility="Collapsed"/>
                     <TextBlock x:Name="LbDate"
                                FontWeight="Bold"
                                FontSize="12"
                                HorizontalAlignment="Center"
-                               VerticalAlignment="Center"/>
+                               VerticalAlignment="Bottom"/>
                 </Grid>
 
                 <!-- 날짜 이름 (공휴일 등) -->
-                <TextBlock x:Name="TbDateName" 
+                <TextBlock x:Name="TbDateName"
                            Grid.Column="1"
                            FontSize="9"
                            TextTrimming="CharacterEllipsis"
-                           VerticalAlignment="Center"
+                           VerticalAlignment="Bottom"
                            Opacity="0.8"/>
 
                 <!-- 작업 개수 배지 -->
@@ -119,18 +112,26 @@
                                     CornerRadius="3"
                                     Margin="2,1,2,1"
                                     Padding="4,2"
-                                    Background="#4285F4"
+                                    Background="Transparent"
                                     Tag="{x:Bind}"
                                     PointerPressed="EventItem_PointerPressed"
                                     PointerEntered="EventItem_PointerEntered"
                                     PointerExited="EventItem_PointerExited">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <TextBlock Text="{x:Bind TimeLabel, Mode=OneWay}"
-                                               FontSize="9" Foreground="White"
+                                    <Border Width="6" Height="6" CornerRadius="3"
+                                            Margin="0,0,2,0"
+                                            Background="{x:Bind local:DayCell.EventColorToBrush(DisplayColor), Mode=OneWay}"
+                                            VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="EvtTimeText"
+                                               Text="{x:Bind TimeLabel, Mode=OneWay}"
+                                               FontSize="{x:Bind local:DayCell.GetEventTimeFontSize(TimeLabel), Mode=OneWay}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center"
                                                Visibility="{x:Bind TimeLabel, Converter={StaticResource StringNotEmptyToVisibilityConverter}, Mode=OneWay}"/>
-                                    <TextBlock Text="{x:Bind Title, Mode=OneWay}"
-                                               FontSize="10" Foreground="White"
+                                    <TextBlock x:Name="EvtTitleText"
+                                               Text="{x:Bind Title, Mode=OneWay}"
+                                               FontSize="{x:Bind local:DayCell.GetEventTitleFontSize(Title), Mode=OneWay}"
+                                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                FontWeight="SemiBold"
                                                TextTrimming="CharacterEllipsis"
                                                TextWrapping="NoWrap"
@@ -174,11 +175,12 @@
                                 </Button>
 
                                 <!-- 제목 -->
-                                <TextBlock Grid.Column="1" 
-                                           Text="{x:Bind Title, Mode=OneWay}" 
-                                           FontSize="11" 
+                                <TextBlock x:Name="TaskTitleText"
+                                           Grid.Column="1"
+                                           Text="{x:Bind Title, Mode=OneWay}"
+                                           FontSize="{x:Bind local:DayCell.GetTaskTitleFontSize(Title), Mode=OneWay}"
                                            TextDecorations="{x:Bind TextDecorations, Mode=OneWay}"
-                                           TextTrimming="CharacterEllipsis" 
+                                           TextTrimming="CharacterEllipsis"
                                            TextWrapping="NoWrap"
                                            VerticalAlignment="Center"/>
                             </Grid>

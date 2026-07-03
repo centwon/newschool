@@ -515,6 +515,28 @@ public class KEventRepository : BaseRepository
         return list;
     }
 
+    /// <summary>특정 캘린더 소속 + 특정 ItemType 전체 조회 (학사일정 재조정 동기화용, 날짜 무관)</summary>
+    public async Task<List<KEvent>> GetByCalendarIdAndTypeAsync(int calendarId, string itemType)
+    {
+        const string query = @"
+            SELECT * FROM KEvent
+            WHERE CalendarId = @CalendarId AND ItemType = @ItemType AND Status <> 'cancelled'";
+        var list = new List<KEvent>();
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@CalendarId", calendarId);
+            cmd.Parameters.AddWithValue("@ItemType", itemType);
+            list = await ExecuteListAsync(cmd, Map);
+        }
+        catch (Exception ex)
+        {
+            LogError($"캘린더+타입별 조회 실패: CalendarId={calendarId}, ItemType={itemType}", ex);
+            throw;
+        }
+        return list;
+    }
+
     /// <summary>전체 할 일 조회</summary>
     public async Task<List<KEvent>> GetAllTasksAsync(bool showCompleted = true)
     {

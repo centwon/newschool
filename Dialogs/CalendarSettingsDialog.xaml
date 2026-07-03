@@ -27,6 +27,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition/>
                         <RowDefinition/>
+                        <RowDefinition/>
                     </Grid.RowDefinitions>
 
                     <ToggleSwitch
@@ -43,7 +44,7 @@
                     <NumberBox
                         x:Name="EventFontSizeNumberBox"
                         Grid.Row="1" Grid.Column="0"
-                        Header="이벤트 폰트"
+                        Header="학사일정 폰트"
                         PlaceholderText="9.0"
                         SpinButtonPlacementMode="Inline"
                         Minimum="8" Maximum="20"
@@ -51,10 +52,19 @@
                     <NumberBox
                         x:Name="TaskFontSizeNumberBox"
                         Grid.Row="1" Grid.Column="1"
-                        Header="할 일 폰트"
+                        Header="할 일 폰트 (이벤트/할일 목록)"
                         PlaceholderText="10.0"
                         SpinButtonPlacementMode="Inline"
                         Minimum="8" Maximum="20"
+                        SmallChange="0.5" LargeChange="1"/>
+
+                    <NumberBox
+                        x:Name="DateFontSizeNumberBox"
+                        Grid.Row="2" Grid.Column="0"
+                        Header="요일/날짜 폰트"
+                        PlaceholderText="12.0"
+                        SpinButtonPlacementMode="Inline"
+                        Minimum="8" Maximum="24"
                         SmallChange="0.5" LargeChange="1"/>
                 </Grid>
             </Expander.Content>
@@ -168,19 +178,19 @@
             </Expander.Content>
         </Expander>
 
-        <!-- 4. 학사일정 일괄 등록 -->
-        <Expander Header="학사일정 일괄 등록" IsExpanded="False" HorizontalAlignment="Stretch">
+        <!-- 4. 학사일정 동기화 -->
+        <Expander Header="학사일정 동기화" IsExpanded="False" HorizontalAlignment="Stretch">
             <Expander.Content>
                 <StackPanel Spacing="12" Padding="12">
 
                     <TextBlock
-                        Text="NEIS에서 받아온 학사일정을 Google Calendar에 한번에 등록합니다."
+                        Text="NEIS에서 받아온 학사일정을 학교 전용 Google 캘린더와 동기화합니다. school.db에서 학사일정을 수정한 뒤 다시 눌러도 구글에 그대로 반영됩니다."
                         Opacity="0.6" TextWrapping="Wrap" FontSize="12"/>
 
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button
                             x:Name="UploadSchoolScheduleButton"
-                            Content="학사일정 등록"
+                            Content="학사일정 동기화"
                             IsEnabled="{x:Bind UseGoogleToggle.IsOn, Mode=OneWay}"
                             Click="OnUploadSchoolScheduleClicked"/>
                         <ProgressRing

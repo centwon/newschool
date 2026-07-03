@@ -16,8 +16,8 @@ public class KCalendarListRepository : BaseRepository
     public async Task<int> CreateAsync(KCalendarList cal)
     {
         const string query = @"
-            INSERT INTO KCalendarList (GoogleId, Title, Color, SortOrder, IsDefault, IsVisible, Updated, SyncMode, SyncToken)
-            VALUES (@GoogleId, @Title, @Color, @SortOrder, @IsDefault, @IsVisible, @Updated, @SyncMode, @SyncToken);
+            INSERT INTO KCalendarList (GoogleId, Title, Color, SortOrder, IsDefault, IsVisible, Updated, SyncMode, SyncToken, SchoolCode)
+            VALUES (@GoogleId, @Title, @Color, @SortOrder, @IsDefault, @IsVisible, @Updated, @SyncMode, @SyncToken, @SchoolCode);
             SELECT last_insert_rowid();";
         try
         {
@@ -75,7 +75,44 @@ public class KCalendarListRepository : BaseRepository
     {
         var existing = await GetByTitleAsync(title);
         if (existing != null) return existing.No;
+        return await CreateNewAsync(title, color, isDefault, schoolCode: string.Empty);
+    }
 
+    /// <summary>학교 코드로 조회 (학사일정처럼 학교별로 분리되는 캘린더 전용)</summary>
+    public async Task<KCalendarList?> GetByTitleAndSchoolCodeAsync(string title, string schoolCode)
+    {
+        const string query = "SELECT * FROM KCalendarList WHERE Title = @Title AND SchoolCode = @SchoolCode LIMIT 1";
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@Title", title);
+            cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
+            using var reader = await cmd.ExecuteReaderAsync();
+            return await reader.ReadAsync() ? Map(reader) : null;
+        }
+        catch (Exception ex)
+        {
+            LogError($"KCalendarList 학교별 조회 실패: '{title}', SchoolCode={schoolCode}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 학교 코드로 조회 후 없으면 생성 (학사일정 캘린더 전용). 같은 이름이라도 학교 코드가 다르면
+    /// 별도 행으로 분리되어, 학교를 옮겨도 예전 학교 학사일정과 섞이지 않는다.
+    /// </summary>
+    public async Task<KCalendarList> GetOrCreateForSchoolAsync(string title, string schoolCode, string color)
+    {
+        var existing = await GetByTitleAndSchoolCodeAsync(title, schoolCode);
+        if (existing != null) return existing;
+
+        int no = await CreateNewAsync(title, color, isDefault: false, schoolCode: schoolCode);
+        return (await GetByTitleAndSchoolCodeAsync(title, schoolCode))
+            ?? throw new InvalidOperationException($"캘린더 생성 후 조회 실패: No={no}");
+    }
+
+    private async Task<int> CreateNewAsync(string title, string color, bool isDefault, string schoolCode)
+    {
         int maxOrder = 0;
         try
         {
@@ -86,12 +123,13 @@ public class KCalendarListRepository : BaseRepository
 
         var newCal = new KCalendarList
         {
-            Title     = title,
-            Color     = color,
-            SortOrder = maxOrder + 1,
-            IsDefault = isDefault,
-            IsVisible = true,
-            Updated   = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+            Title      = title,
+            Color      = color,
+            SortOrder  = maxOrder + 1,
+            IsDefault  = isDefault,
+            IsVisible  = true,
+            Updated    = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+            SchoolCode = schoolCode
         };
         return await CreateAsync(newCal);
     }
@@ -101,7 +139,7 @@ public class KCalendarListRepository : BaseRepository
         const string query = @"
             UPDATE KCalendarList SET GoogleId=@GoogleId, Title=@Title, Color=@Color,
                 SortOrder=@SortOrder, IsDefault=@IsDefault, IsVisible=@IsVisible,
-                Updated=@Updated, SyncMode=@SyncMode, SyncToken=@SyncToken
+                Updated=@Updated, SyncMode=@SyncMode, SyncToken=@SyncToken, SchoolCode=@SchoolCode
             WHERE No = @No";
         try
         {
@@ -159,6 +197,7 @@ public class KCalendarListRepository : BaseRepository
         cmd.Parameters.AddWithValue("@Updated",   cal.Updated   ?? string.Empty);
         cmd.Parameters.AddWithValue("@SyncMode",  cal.SyncMode  ?? "None");
         cmd.Parameters.AddWithValue("@SyncToken", cal.SyncToken ?? string.Empty);
+        cmd.Parameters.AddWithValue("@SchoolCode", cal.SchoolCode ?? string.Empty);
     }
 
     private static KCalendarList Map(SqliteDataReader r)
@@ -175,9 +214,11 @@ public class KCalendarListRepository : BaseRepository
             Updated   = r.GetString(r.GetOrdinal("Updated")),
             SyncMode  = r.GetString(r.GetOrdinal("SyncMode"))
         };
-        // SyncToken 컬럼이 존재하면 읽기 (기존 DB 호환)
+        // SyncToken/SchoolCode 컬럼이 존재하면 읽기 (기존 DB 호환)
         try { cal.SyncToken = r.GetString(r.GetOrdinal("SyncToken")); }
         catch { cal.SyncToken = string.Empty; }
+        try { cal.SchoolCode = r.GetString(r.GetOrdinal("SchoolCode")); }
+        catch { cal.SchoolCode = string.Empty; }
         return cal;
     }
 

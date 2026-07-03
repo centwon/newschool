@@ -12,54 +12,54 @@
         <local:BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <local:StringNotEmptyToVisibilityConverter x:Key="StrToVis"/>
 
-        <!-- 날짜 헤더 템플릿 -->
-        <DataTemplate x:Key="HeaderTemplate" x:DataType="local:AgendaHeader">
-            <Border Padding="8,4,8,2"
-                    Background="#F0F4FF"
-                    BorderBrush="#C5D0F0"
-                    BorderThickness="0,0,0,1"
-                    Margin="0,4,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="{x:Bind DateHeader}"
-                               FontWeight="SemiBold"
-                               FontSize="12"
-                               Foreground="#3F51B5"/>
-                    <TextBlock Text="{x:Bind CountLabel}"
-                               FontSize="11"
-                               Foreground="#7986CB"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-        </DataTemplate>
-
-        <!-- 개별 항목 템플릿 -->
+        <!-- 개별 항목 템플릿: [분류 배지][날짜][시간] [제목][완료/진행] -->
         <DataTemplate x:Key="ItemTemplate" x:DataType="local:AgendaItem">
             <Grid Padding="8,4" MinHeight="32">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="18"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="76"/>
                     <ColumnDefinition Width="90"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- 유형 아이콘 -->
-                <TextBlock Grid.Column="0"
-                           Text="{x:Bind TypeIcon, Mode=OneWay}"
-                           FontSize="10"
-                           VerticalAlignment="Center"
-                           Foreground="{x:Bind local:KAgendaControl.HexToBrush(AccentColor), Mode=OneWay}"/>
+                <!-- 분류 배지 (할일/일정 구분은 맨 끝 완료·진행 토글 유무로 충분) -->
+                <Border Grid.Column="0"
+                        CornerRadius="3"
+                        Padding="5,1"
+                        Height="20"
+                        MinWidth="34"
+                        Margin="0,0,6,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Background="{x:Bind local:KAgendaControl.HexToBrush(BadgeBackground), Mode=OneWay}"
+                        Visibility="{x:Bind CategoryName, Converter={StaticResource StrToVis}}">
+                    <TextBlock Text="{x:Bind CategoryName}"
+                               FontSize="9"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="White"/>
+                </Border>
 
-                <!-- 시간 라벨 -->
+                <!-- 날짜 -->
                 <TextBlock Grid.Column="1"
-                           Text="{x:Bind TimeLabel}"
-                           FontSize="10"
+                           Text="{x:Bind DateLabel}"
+                           FontSize="12"
                            Foreground="#777"
+                           TextTrimming="CharacterEllipsis"
                            VerticalAlignment="Center"
                            Margin="2,0,4,0"/>
 
-                <!-- 제목 -->
+                <!-- 시간 -->
                 <TextBlock Grid.Column="2"
+                           Text="{x:Bind TimeLabel}"
+                           FontSize="12"
+                           Foreground="#777"
+                           VerticalAlignment="Center"
+                           Margin="0,0,4,0"/>
+
+                <!-- 제목 -->
+                <TextBlock Grid.Column="3"
                            Text="{x:Bind Title}"
                            FontSize="12"
                            TextDecorations="{x:Bind Decorations, Mode=OneWay}"
@@ -68,21 +68,7 @@
                            VerticalAlignment="Center"
                            Opacity="{x:Bind TitleOpacity, Mode=OneWay}"/>
 
-                <!-- 분류 배지 -->
-                <Border Grid.Column="3"
-                        CornerRadius="3"
-                        Padding="5,1"
-                        Margin="4,0,2,0"
-                        Height="22"
-                        Background="{x:Bind local:KAgendaControl.HexToBrush(BadgeBackground)}"
-                        Visibility="{x:Bind CategoryName, Converter={StaticResource StrToVis}}">
-                    <TextBlock Text="{x:Bind CategoryName}"
-                               FontSize="9"
-                               VerticalAlignment="Center"
-                               Foreground="White"/>
-                </Border>
-
-                <!-- 완료 토글 버튼 (할일만) -->
+                <!-- 완료/진행 (할일만) -->
                 <ToggleButton Grid.Column="4"
                               Tag="{x:Bind}"
                               IsChecked="{x:Bind IsTaskDone, Mode=OneWay}"
@@ -96,11 +82,6 @@
                               Content="{x:Bind DoneLabel, Mode=OneWay}"/>
             </Grid>
         </DataTemplate>
-
-        <!-- DataTemplateSelector -->
-        <local:AgendaTemplateSelector x:Key="AgendaSelector"
-                                      HeaderTemplate="{StaticResource HeaderTemplate}"
-                                      ItemTemplate="{StaticResource ItemTemplate}"/>
     </UserControl.Resources>
 
     <Border BorderBrush="CornflowerBlue" BorderThickness="1" CornerRadius="5"
@@ -173,7 +154,7 @@
             <!-- ── 목록 본문 ── -->
             <ListView x:Name="AgendaListView"
                       Grid.Row="1"
-                      ItemTemplateSelector="{StaticResource AgendaSelector}"
+                      ItemTemplate="{StaticResource ItemTemplate}"
                       SelectionMode="Single"
                       IsItemClickEnabled="True"
                       ItemClick="AgendaListView_ItemClick"

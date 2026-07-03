@@ -36,6 +36,22 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
     /// <summary>리스트 그룹핑용 표시 날짜 (다일 일정은 날짜별로 복제)</summary>
     public DateTime DisplayDate { get; init; }
 
+    /// <summary>목록 항목의 날짜 열에 표시할 라벨 (예: "오늘 7/3(금)")</summary>
+    public string DateLabel
+    {
+        get
+        {
+            string rel = (DisplayDate.Date - DateTime.Today).Days switch
+            {
+                -1 => "어제 ",
+                0 => "오늘 ",
+                1 => "내일 ",
+                _ => string.Empty
+            };
+            return $"{rel}{DisplayDate:M월d일}({DisplayDate:ddd})";
+        }
+    }
+
     public string TimeLabel
     {
         get
@@ -47,13 +63,6 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
             return $"{SourceEvent.Start:HH:mm}~{SourceEvent.End:HH:mm}";
         }
     }
-
-    public string TypeIcon  => IsTask ? (IsTaskDone ? "●" : "○") : "▶";
-    public string AccentColor => IsTask
-        ? (IsTaskDone ? "#AAAAAA" : "#1565C0")
-        : (string.IsNullOrEmpty(_accentHex) ? "#4285F4" : _accentHex);
-
-    private string _accentHex = string.Empty;
 
     /// <summary>분류/캘린더 이름 (배지 표시용)</summary>
     public string CategoryName  { get; init; } = string.Empty;
@@ -71,8 +80,6 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
             if (_isTaskDone == value) return;
             _isTaskDone = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(TypeIcon));
-            OnPropertyChanged(nameof(AccentColor));
             OnPropertyChanged(nameof(Decorations));
             OnPropertyChanged(nameof(TitleOpacity));
             OnPropertyChanged(nameof(DoneLabel));
@@ -108,67 +115,13 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
             SourceEvent     = ev,
             CategoryName    = calendarName,
             BadgeBackground = hex,
-            DisplayDate     = displayDate ?? ev.Start.Date,
-            _accentHex      = hex
+            DisplayDate     = displayDate ?? ev.Start.Date
         };
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-}
-
-// ─────────────────────────────────────────────
-// AgendaHeader — 날짜 헤더 (평탄 리스트용)
-// ─────────────────────────────────────────────
-[WinRT.GeneratedBindableCustomProperty]
-public sealed partial class AgendaHeader
-{
-    public string DateHeader { get; init; } = string.Empty;
-    public string CountLabel { get; init; } = string.Empty;
-
-    public static (AgendaHeader header, List<AgendaItem> items) Create(DateTime date, List<AgendaItem> items)
-    {
-        int dayDiff = (date.Date - DateTime.Today).Days;
-        string rel = dayDiff switch
-        {
-            -2 => "그제",
-            -1 => "어제",
-             0 => "오늘",
-             1 => "내일",
-             2 => "모레",
-             _ => string.Empty
-        };
-        string dow     = date.ToString("ddd");
-        string dateStr = date.ToString("M월 d일");
-        string header  = string.IsNullOrEmpty(rel)
-            ? $"{dateStr} ({dow})"
-            : $"{rel} — {dateStr} ({dow})";
-
-        int taskCnt  = items.Count(i => i.IsTask);
-        int eventCnt = items.Count(i => i.IsEvent);
-        var parts = new List<string>();
-        if (taskCnt  > 0) parts.Add($"할 일 {taskCnt}");
-        if (eventCnt > 0) parts.Add($"일정 {eventCnt}");
-        string countLabel = parts.Count > 0 ? $"({string.Join(", ", parts)})" : string.Empty;
-
-        return (new AgendaHeader { DateHeader = header, CountLabel = countLabel }, items);
-    }
-}
-
-// ─────────────────────────────────────────────
-// AgendaTemplateSelector — Native AOT 안전한 템플릿 선택
-// ─────────────────────────────────────────────
-public sealed partial class AgendaTemplateSelector : DataTemplateSelector
-{
-    public DataTemplate? HeaderTemplate { get; set; }
-    public DataTemplate? ItemTemplate   { get; set; }
-
-    protected override DataTemplate? SelectTemplateCore(object item)
-        => item is AgendaHeader ? HeaderTemplate : ItemTemplate;
-
-    protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container)
-        => SelectTemplateCore(item);
 }
 
 // ─────────────────────────────────────────────
@@ -334,8 +287,10 @@ public sealed partial class KAgendaControl : UserControl
         foreach (var ev in allEvents)
         {
             var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
-            string name  = cal?.Title ?? string.Empty;
-            string color = cal?.Color ?? "#4285F4";
+            // 캘린더 조회 실패(CalendarId=0 등 레거시 데이터)시에도 배지가 빈 이름 때문에
+            // 통째로 숨겨지지 않도록 항상 표시 가능한 이름/색을 보장
+            string name  = string.IsNullOrEmpty(cal?.Title) ? "기타" : cal.Title;
+            string color = string.IsNullOrEmpty(cal?.Color) ? "#9E9E9E" : cal.Color;
 
             if (ev.ItemType == "task")
             {
@@ -357,7 +312,7 @@ public sealed partial class KAgendaControl : UserControl
     }
 
     // ─────────────────────────────────────────────
-    // 내부: 필터 적용 + GroupedView 바인딩
+    // 내부: 필터 적용 + 목록 바인딩
     // ─────────────────────────────────────────────
     private void ApplyFilter()
     {
@@ -373,16 +328,11 @@ public sealed partial class KAgendaControl : UserControl
                 i.SourceEvent != null && i.SourceEvent.CalendarId == _selectedCalendarId);
         }
 
-        // 평탄 리스트: 날짜 헤더 + 항목 교차 배치 (Native AOT 안전)
-        var flatList = new List<object>();
-        foreach (var g in filtered.OrderBy(i => i.DisplayDate).ThenBy(i => i.SortKey).GroupBy(i => i.DisplayDate))
-        {
-            var items = g.ToList();
-            var (header, _) = AgendaHeader.Create(g.Key, items);
-            flatList.Add(header);
-            flatList.AddRange(items);
-        }
-        AgendaListView.ItemsSource = flatList;
+        // 단일 평탄 리스트 — 각 행에 날짜 열이 있으므로 날짜별 헤더로 나눌 필요 없음
+        AgendaListView.ItemsSource = filtered
+            .OrderBy(i => i.DisplayDate)
+            .ThenBy(i => i.SortKey)
+            .ToList();
     }
 
     // ─────────────────────────────────────────────
@@ -417,8 +367,8 @@ public sealed partial class KAgendaControl : UserControl
             {
                 var ev  = dialog.ResultEvent;
                 var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
-                string name  = cal?.Title ?? string.Empty;
-                string color = cal?.Color ?? "#4285F4";
+                string name  = string.IsNullOrEmpty(cal?.Title) ? "기타" : cal.Title;
+                string color = string.IsNullOrEmpty(cal?.Color) ? "#9E9E9E" : cal.Color;
 
                 if (ev.ItemType == "task")
                 {
@@ -454,8 +404,8 @@ public sealed partial class KAgendaControl : UserControl
             {
                 var ev  = dialog.ResultEvent;
                 var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
-                string name  = cal?.Title ?? string.Empty;
-                string color = cal?.Color ?? "#4285F4";
+                string name  = string.IsNullOrEmpty(cal?.Title) ? "기타" : cal.Title;
+                string color = string.IsNullOrEmpty(cal?.Color) ? "#9E9E9E" : cal.Color;
 
                 // 같은 SourceEvent를 참조하는 항목 모두 제거 (다일 일정 복제본 포함)
                 _allItems.RemoveAll(a => a.SourceEvent == item.SourceEvent);

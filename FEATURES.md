@@ -104,23 +104,33 @@
 
 ## 7. 일정 관리 모듈 (Scheduler/)
 
-할 일(task)과 일정(event)은 `KEvent` 단일 모델로 통합 관리(`ItemType`으로 구분). 옛 `Ktask`/`TaskDialog`/`KtaskListControl`은 제거됨.
+할 일(task)과 일정(event)은 `KEvent` 단일 모델로 통합 관리(`ItemType`으로 구분: `task`/`event`/`schoolschedule`).
+옛 `Ktask`/`TaskDialog`/`KtaskListControl`은 제거됨.
 
 | 파일 | 기능 |
 |------|------|
 | `Kcalendar.xaml` | 메인 캘린더 페이지 (월별 그리드) |
-| `DayCell.xaml` | 일별 셀 컨트롤 (할 일/일정 표시, 완료 토글) |
-| `KAgendaControl.xaml` | 목록형(아젠다) 일정/할일 뷰 |
+| `DayCell.xaml` | 일별 셀 컨트롤 (할 일/일정 표시, 완료 토글). `ItemType="schoolschedule"`는 날짜 옆 텍스트와 중복되므로 목록에서 제외 |
+| `KAgendaControl.xaml` | 목록형(아젠다) 일정/할일 뷰. 날짜별 그룹 헤더 없이 단일 목록, 각 행 `[분류 배지][날짜][시간][제목][완료/진행]` |
 | `UnifiedItemDialog.xaml` | 할 일/일정 통합 편집 다이얼로그 (반복 생성, 시리즈 삭제) |
 | `KEvent.cs` | 일정/할일 통합 모델 (Google Calendar Event 대응) |
-| `KEventRepository.cs` | KEvent DB 접근 (Google 동기화 쿼리 포함) |
-| `KCalendarList.cs` | 캘린더 목록(카테고리+색상) 모델 |
-| `KCalendarListRepository.cs` | KCalendarList DB 접근 |
+| `KEventRepository.cs` | KEvent DB 접근 (Google 동기화 쿼리, 캘린더+ItemType별 조회 포함) |
+| `KCalendarList.cs` | 캘린더 목록(카테고리+색상) 모델. `SchoolCode`로 학사일정 캘린더를 학교별로 분리 |
+| `KCalendarListRepository.cs` | KCalendarList DB 접근 (학교별 조회/생성 포함) |
 | `Scheduler.cs` | 정적 진입점 (Service/UnitOfWork 생성, DB 백업/복원/초기화) |
 | `SchedulerService.cs` | 일정/할일 비즈니스 로직 레이어 |
 | `UnitOfWork.cs` | 단일 트랜잭션으로 여러 Repository 원자적 처리 |
 | `DatabaseInitializer.cs` | 스케줄러 DB 스키마 초기화/마이그레이션 |
 | `DispatcherQueueExtensions.cs` | DispatcherQueue 비동기 실행 확장 메서드 |
+
+### 학사일정 → Google Calendar 동기화
+
+`Dialogs/CalendarSettingsDialog.xaml`의 "학사일정 동기화" 버튼(`Google/GoogleSyncService.cs`
+`UploadSchoolSchedulesAsync`)은 `school.db`의 `SchoolSchedule`을 **학교 전용 Google 캘린더**(로컬
+`KCalendarList.SchoolCode`로 학교별 분리, `SyncMode="None"` 고정)와 재조정(reconcile) 동기화한다.
+단순 업로드가 아니라 신규/날짜변경/삭제를 모두 비교하므로, `school.db`를 수정한 뒤 다시 실행하면
+구글에도 그대로 반영된다. 로컬 KEvent에 `GoogleId`를 저장해두어 이후 어떤 경로로 Pull이 일어나도
+중복 생성되지 않는다.
 
 ---
 
@@ -321,7 +331,9 @@
 ### 스케줄러 설정
 - `SchedulerDB` - 스케줄러 DB 경로
 - `ShowEvents` / `ShowTasks` - 이벤트/태스크 표시
-- `EventFontSize` / `TaskFontSize` - 폰트 크기
+- `EventFontSize` - **학사일정** 텍스트(DayCell의 `TbDateName`, 날짜 옆 표시) 폰트 크기 — 설정창 라벨은 "학사일정 폰트"
+- `TaskFontSize` - DayCell **이벤트/할일 목록**(`EvtTitleText`/`EvtTimeText`/`TaskTitleText`) 폰트 크기 — 설정창 라벨은 "할 일 폰트 (이벤트/할일 목록)". `KAgendaControl`(아젠다 목록)은 별도 컨트롤이라 이 설정과 무관하게 고정 폰트(제목/날짜/시간 12px) 사용
+- `DateFontSize` - 날짜 숫자(`LbDate`)·요일 헤더·년월 선택(`MonthPicker.DisplayFontSize`) 폰트 크기 — 설정창 라벨은 "요일/날짜 폰트"
 - `UseGoogle` - 구글 캘린더 연동
 - `GoogleCalendarName` / `GoogleCalendarID` - 구글 캘린더 정보
 

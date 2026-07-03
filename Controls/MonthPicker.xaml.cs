@@ -17,6 +17,16 @@ public sealed partial class MonthPicker : UserControl
     public event EventHandler<SelectedMonthChangedEventArgs>? SelectedMonthChanged;
     #endregion
 
+    /// <summary>
+    /// "yyyy년 M월" 표시 버튼의 폰트 크기. MainButtonStyle이 FontSize를 로컬 값으로 고정하고 있어
+    /// (스타일 세터는 부모 상속보다 우선), 바깥에서 상속만으로는 못 바꾸고 이 프로퍼티로 직접 설정해야 한다.
+    /// </summary>
+    public double DisplayFontSize
+    {
+        get => BtnMonth.FontSize;
+        set => BtnMonth.FontSize = value;
+    }
+
     #region Dependency Properties
     public DateTime SelectedMonth
     {

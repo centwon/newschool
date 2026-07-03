@@ -286,6 +286,13 @@ namespace NewSchool.Scheduler
             catch (Exception ex) { Debug.WriteLine($"[SchedulerService] 이벤트 범위 조회 실패: {ex.Message}"); throw; }
         }
 
+        /// <summary>특정 캘린더 소속 + 특정 ItemType 전체 조회 (학사일정 재조정 동기화용)</summary>
+        public async Task<List<KEvent>> GetEventsByCalendarAndTypeAsync(int calendarId, string itemType)
+        {
+            try { return await KEventRepo.GetByCalendarIdAndTypeAsync(calendarId, itemType); }
+            catch (Exception ex) { Debug.WriteLine($"[SchedulerService] 캘린더+타입별 조회 실패: {ex.Message}"); throw; }
+        }
+
         #endregion
 
         #region KCalendarList Operations
@@ -298,6 +305,10 @@ namespace NewSchool.Scheduler
 
         public async Task<int> GetOrCreateCalendarIdAsync(string title, string color = "#4285F4")
             => await KCalendarListRepo.GetOrCreateAsync(title, color);
+
+        /// <summary>학교별로 분리되는 캘린더 조회/생성 (학사일정 전용)</summary>
+        public async Task<KCalendarList> GetOrCreateCalendarForSchoolAsync(string title, string schoolCode, string color)
+            => await KCalendarListRepo.GetOrCreateForSchoolAsync(title, schoolCode, color);
 
         public async Task<bool> UpdateCalendarAsync(KCalendarList cal)
             => await KCalendarListRepo.UpdateAsync(cal);

@@ -87,6 +87,8 @@ public sealed partial class Kcalendar : Page
         //Scheduler 초기화
         await NewSchool.Scheduler.Scheduler.InitAsync();  // 내부에서 파일 존재 여부 + 플래그 체크함
 
+        ApplyHeaderFontSize();
+
         Debug.WriteLine($"[Kcalendar] 2단계: DayCell 생성");
         await CreateDayCellsSynchronouslyAsync();
 
@@ -208,6 +210,15 @@ public sealed partial class Kcalendar : Page
                 var allEvents = await service.GetEventsByDateAsync(calendarStart, 42);
                 Debug.WriteLine($"[Kcalendar] KEvent 전체 로드 완료: {allEvents.Count}개");
 
+                // 이벤트 자체 색상(ColorId)이 없을 때 표시할 폴백 색 — 소속 캘린더 색상을 미리 채워둠
+                var calendars = await service.GetAllCalendarsAsync();
+                var colorByCalendarId = calendars.ToDictionary(c => c.No, c => c.Color);
+                foreach (var ev in allEvents)
+                {
+                    if (colorByCalendarId.TryGetValue(ev.CalendarId, out var color))
+                        ev.CalendarColor = color;
+                }
+
                 newEvents = Settings.ShowTasks.Value
                     ? allEvents
                     : allEvents.Where(e => e.ItemType != "task").ToList();
@@ -268,12 +279,16 @@ public sealed partial class Kcalendar : Page
                             Debug.WriteLine($"[UpdateCells] {cellDate:yyyy-MM-dd} 스케줄: {schedules.Count}개");
 
                         // KEvent를 task와 event로 분리 (다중일 이벤트: Start~End 범위, End는 inclusive)
+                        // ItemType="schoolschedule"(학사일정 자동동기화분)은 날짜 옆 DateName(SchoolSchedules)에
+                        // 이미 표시되므로 목록에서 제외 — 사용자가 직접 넣은 항목(ItemType="event")은 그대로 표시.
                         var dayEvents = KEvents?
                             .Where(x => cellDate.Date >= x.Start.Date && cellDate.Date <= x.End.Date)
                             .ToList() ?? new List<KEvent>();
 
                         var tasks = dayEvents.Where(e => e.ItemType == "task").ToList();
-                        var events = dayEvents.Where(e => e.ItemType != "task").ToList();
+                        var events = dayEvents
+                            .Where(e => e.ItemType != "task" && e.ItemType != "schoolschedule")
+                            .ToList();
 
                         if (dayEvents.Count > 0)
                             Debug.WriteLine($"[UpdateCells] {cellDate:yyyy-MM-dd} KEvent: {dayEvents.Count}개 (task: {tasks.Count}, event: {events.Count})");
@@ -339,6 +354,7 @@ public sealed partial class Kcalendar : Page
 
         try
         {
+            ApplyHeaderFontSize();
             await LoadCalendarDataAsync();
             await UpdateCellsDisplayAsync();
 
@@ -446,6 +462,20 @@ public sealed partial class Kcalendar : Page
 
         // 다이얼로그 닫힌 후 달력 새로고침
         await RefreshCalendarAsync();
+    }
+
+    /// <summary>요일 헤더("일~토")·년월 선택 폰트 크기를 설정값에 맞춰 적용 (날짜 숫자와 같은 크기 사용)</summary>
+    private void ApplyHeaderFontSize()
+    {
+        double size = Settings.DateFontSize.Value;
+        TxtWeekdaySun.FontSize = size;
+        TxtWeekdayMon.FontSize = size;
+        TxtWeekdayTue.FontSize = size;
+        TxtWeekdayWed.FontSize = size;
+        TxtWeekdayThu.FontSize = size;
+        TxtWeekdayFri.FontSize = size;
+        TxtWeekdaySat.FontSize = size;
+        PickerMonth.DisplayFontSize = size;
     }
 
     /// <summary>

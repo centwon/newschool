@@ -68,25 +68,25 @@
 
                     <!-- 요일 헤더 - 오른쪽과 아래쪽 테두리만 -->
                     <Border Grid.Column="0" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="일" Foreground="Red" FontSize="12" HorizontalTextAlignment="Center" />
+                        <TextBlock x:Name="TxtWeekdaySun" Text="일" Foreground="Red" FontSize="12" FontWeight="Bold" HorizontalTextAlignment="Center" />
                     </Border>
                     <Border Grid.Column="1" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="월" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
+                        <TextBlock x:Name="TxtWeekdayMon" Text="월" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                     </Border>
                     <Border Grid.Column="2" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="화" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
+                        <TextBlock x:Name="TxtWeekdayTue" Text="화" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                     </Border>
                     <Border Grid.Column="3" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="수" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
+                        <TextBlock x:Name="TxtWeekdayWed" Text="수" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                     </Border>
                     <Border Grid.Column="4" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="목" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
+                        <TextBlock x:Name="TxtWeekdayThu" Text="목" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                     </Border>
                     <Border Grid.Column="5" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0.5,0.5" Padding="8">
-                        <TextBlock Text="금" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" HorizontalTextAlignment="Center"/>
+                        <TextBlock x:Name="TxtWeekdayFri" Text="금" Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontSize="12" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                     </Border>
                     <Border Grid.Column="6" Grid.Row="0" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0,0.5" Padding="8">
-                        <TextBlock Text="토" Foreground="Blue" FontSize="12" HorizontalTextAlignment="Center"/>
+                        <TextBlock x:Name="TxtWeekdaySat" Text="토" Foreground="Blue" FontSize="12" FontWeight="Bold" HorizontalTextAlignment="Center"/>
                     </Border>
                 </Grid>
             </Border>

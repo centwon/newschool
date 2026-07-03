@@ -53,6 +53,12 @@ public class KCalendarList : INotifyPropertyChanged
     /// <summary>Google incremental sync token (events.list syncToken)</summary>
     public string SyncToken { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 이 캘린더가 속한 학교 코드 (학사일정 캘린더 전용, 나머지 기본 캘린더는 빈 문자열).
+    /// 학교가 바뀌면 같은 이름이라도 새 SchoolCode로 새 캘린더를 만들어 학교별로 분리한다.
+    /// </summary>
+    public string SchoolCode { get; set; } = string.Empty;
+
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

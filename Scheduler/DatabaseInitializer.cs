@@ -83,11 +83,15 @@ namespace NewSchool.Scheduler
                     IsDefault INTEGER NOT NULL DEFAULT 0,
                     IsVisible INTEGER NOT NULL DEFAULT 1,
                     Updated   TEXT NOT NULL DEFAULT '',
-                    SyncMode  TEXT NOT NULL DEFAULT 'None'
+                    SyncMode  TEXT NOT NULL DEFAULT 'None',
+                    SchoolCode TEXT NOT NULL DEFAULT ''
                 );
             ";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[SchedulerDB] KCalendarList 테이블 생성 완료");
+
+            // 기존 DB 호환: 누락 컬럼 추가
+            await AddColumnIfNotExistsAsync(cmd, "KCalendarList", "SchoolCode", "TEXT NOT NULL DEFAULT ''");
 
             // KEvent 테이블 (일정 + 할일 통합)
             cmd.CommandText = @"

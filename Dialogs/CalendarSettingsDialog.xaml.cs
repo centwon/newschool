@@ -27,6 +27,7 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
         ShowTasksToggle.IsOn = Settings.ShowTasks.Value;
         EventFontSizeNumberBox.Value = Settings.EventFontSize.Value;
         TaskFontSizeNumberBox.Value = Settings.TaskFontSize.Value;
+        DateFontSizeNumberBox.Value = Settings.DateFontSize.Value;
         UseGoogleToggle.IsOn = Settings.UseGoogle.Value;
         GoogleAutoSyncToggle.IsOn = Settings.GoogleAutoSync.Value;
         GoogleSyncIntervalNumberBox.Value = Settings.GoogleSyncIntervalMinutes.Value;
@@ -43,6 +44,8 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
             Settings.EventFontSize.Set(EventFontSizeNumberBox.Value);
         if (!double.IsNaN(TaskFontSizeNumberBox.Value))
             Settings.TaskFontSize.Set(TaskFontSizeNumberBox.Value);
+        if (!double.IsNaN(DateFontSizeNumberBox.Value))
+            Settings.DateFontSize.Set(DateFontSizeNumberBox.Value);
         Settings.UseGoogle.Set(UseGoogleToggle.IsOn);
         Settings.GoogleAutoSync.Set(GoogleAutoSyncToggle.IsOn);
         if (!double.IsNaN(GoogleSyncIntervalNumberBox.Value))
@@ -333,7 +336,7 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
                 return;
             }
 
-            UploadScheduleStatusText.Text = $"학사일정 {schedules.Count}건 등록 중...";
+            UploadScheduleStatusText.Text = $"학사일정 {schedules.Count}건 동기화 중...";
 
             using var authService = new GoogleAuthService();
             var apiClient = new GoogleCalendarApiClient(authService);
@@ -343,11 +346,11 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
 
             if (result.Success)
             {
-                UploadScheduleStatusText.Text = $"✅ {year}학년도 학사일정 등록 완료 — {result.Created}건 등록";
+                UploadScheduleStatusText.Text = $"✅ {year}학년도 학사일정 동기화 완료 — 신규 {result.Created}건, 수정 {result.Updated}건, 삭제 {result.Deleted}건";
             }
             else
             {
-                UploadScheduleStatusText.Text = $"⚠️ 등록 완료 (일부 오류) — {result.Summary}";
+                UploadScheduleStatusText.Text = $"⚠️ 동기화 완료 (일부 오류) — {result.Summary}";
             }
         }
         catch (Exception ex)

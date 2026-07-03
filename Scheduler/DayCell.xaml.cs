@@ -243,7 +243,6 @@ public sealed partial class DayCell : UserControl
     private readonly SolidColorBrush _sundayBrush;
     private readonly SolidColorBrush _vacationBrush;
     private readonly SolidColorBrush _taskHoverBrush;
-    private readonly SolidColorBrush _whiteBrush;
     private readonly SolidColorBrush _transparentBrush;
 
     private bool _isInitialized = false;
@@ -279,12 +278,20 @@ public sealed partial class DayCell : UserControl
         _sundayBrush = new SolidColorBrush(Color.FromArgb(255, 255, 68, 68));
         _vacationBrush = new SolidColorBrush(Color.FromArgb(255, 255, 165, 0));
         _taskHoverBrush = new SolidColorBrush(Color.FromArgb(255, 230, 244, 255));
-        _whiteBrush = new SolidColorBrush(Colors.White);
         _transparentBrush = new SolidColorBrush(Colors.Transparent);
 
         // Loaded 이벤트에서 초기화
         this.Loaded += DayCell_Loaded;
     }
+
+    // ItemsRepeater 컨테이너 재활용 타이밍에 기대는 code-behind(ElementPrepared) 방식은 신뢰성이
+    // 낮아, EventColorToBrush(DisplayColor)처럼 이미 검증된 x:Bind 정적 메서드 패턴으로 통일한다.
+    // 컨테이너가 재사용될 때마다 x:Bind가 다시 평가되므로 설정 변경이 항상 반영된다.
+    // 설정 다이얼로그의 "할 일 폰트"가 DayCell의 이벤트/할일 목록을 함께 관장한다(레이블과 달리
+    // "이벤트 폰트"는 예전부터 TbDateName=학사일정 텍스트를 가리켰음 — UpdateDateDisplay 참고).
+    public static double GetEventTitleFontSize(string _) => Settings.TaskFontSize.Value;
+    public static double GetEventTimeFontSize(string _) => Math.Max(7, Settings.TaskFontSize.Value - 1);
+    public static double GetTaskTitleFontSize(string _) => Settings.TaskFontSize.Value;
 
     private void DayCell_Loaded(object sender, RoutedEventArgs e)
     {
@@ -516,6 +523,7 @@ public sealed partial class DayCell : UserControl
             if (LbDate != null)
             {
                 LbDate.Text = dayInfo.Date.Day.ToString();
+                LbDate.FontSize = Settings.DateFontSize.Value;
             }
             else
             {
@@ -526,6 +534,8 @@ public sealed partial class DayCell : UserControl
             if (TbDateName != null)
             {
                 TbDateName.Text = dayInfo.DateName ?? string.Empty;
+                // 설정 다이얼로그의 "학사일정 폰트"(EventFontSize)가 이 텍스트를 가리킴
+                TbDateName.FontSize = Settings.EventFontSize.Value;
                 TbDateName.Visibility = string.IsNullOrEmpty(dayInfo.DateName)
                     ? Visibility.Collapsed
                     : Visibility.Visible;
@@ -615,34 +625,26 @@ public sealed partial class DayCell : UserControl
             if (LbDate != null)
             {
                 LbDate.Text = dayInfo.Date.Day.ToString();
+                LbDate.FontSize = Settings.DateFontSize.Value;
             }
 
             // 날짜 이름 표시
             if (TbDateName != null)
             {
                 TbDateName.Text = dayInfo.DateName ?? string.Empty;
+                // 설정 다이얼로그의 "학사일정 폰트"(EventFontSize)가 이 텍스트를 가리킴
+                TbDateName.FontSize = Settings.EventFontSize.Value;
                 TbDateName.Visibility = string.IsNullOrEmpty(dayInfo.DateName)
                     ? Visibility.Collapsed
                     : Visibility.Visible;
             }
 
-            // 오늘 날짜 강조: 원형 배지 + 셀 배경
+            // 오늘 날짜 강조: 셀 전체 테두리(TodayHighlight)만으로 표시
             if (TodayHighlight != null)
             {
                 TodayHighlight.Visibility = dayInfo.IsToday
                     ? Visibility.Visible
                     : Visibility.Collapsed;
-            }
-            if (TodayCircle != null)
-            {
-                TodayCircle.Visibility = dayInfo.IsToday
-                    ? Visibility.Visible
-                    : Visibility.Collapsed;
-                // 오늘이면 날짜 텍스트를 흰색으로
-                if (dayInfo.IsToday && LbDate != null)
-                {
-                    LbDate.Foreground = _whiteBrush;
-                }
             }
         }
         catch (Exception ex)
@@ -655,39 +657,27 @@ public sealed partial class DayCell : UserControl
     {
         try
         {
-            SolidColorBrush targetBrush;
+            // 날짜 숫자: 공휴일(최우선) → 일요일 → 토요일 → 평일. 휴업일은 날짜 색에 영향 없음.
+            SolidColorBrush dateBrush;
+            if (dayInfo.IsHoliday) dateBrush = _holidayBrush;
+            else if (dayInfo.Date.DayOfWeek == DayOfWeek.Sunday) dateBrush = _sundayBrush;
+            else if (dayInfo.Date.DayOfWeek == DayOfWeek.Saturday) dateBrush = _saturdayBrush;
+            else dateBrush = _normalBrush;
 
-            if (dayInfo.IsHoliday)
-            {
-                targetBrush = _holidayBrush;
-            }
-            else if (dayInfo.IsVacation)
-            {
-                targetBrush = _vacationBrush;
-            }
-            else if (dayInfo.Date.DayOfWeek == DayOfWeek.Sunday)
-            {
-                targetBrush = _sundayBrush;
-            }
-            else if (dayInfo.Date.DayOfWeek == DayOfWeek.Saturday)
-            {
-                targetBrush = _saturdayBrush;
-            }
-            else
-            {
-                targetBrush = _normalBrush;
-            }
+            // 학사일정 텍스트: 휴일 → 휴업일 → 나머지(검정). 요일은 텍스트 색에 영향 없음.
+            SolidColorBrush scheduleBrush;
+            if (dayInfo.IsHoliday) scheduleBrush = _holidayBrush;
+            else if (dayInfo.IsVacation) scheduleBrush = _vacationBrush;
+            else scheduleBrush = _normalBrush;
 
-            // 색상 적용 (오늘 날짜는 원형 배지 위 흰색 유지)
+            // 색상 적용 (오늘 강조는 셀 테두리(TodayHighlight)가 담당하므로 날짜 색은 평소 규칙 그대로)
             if (LbDate != null)
             {
-                LbDate.Foreground = dayInfo.IsToday
-                    ? _whiteBrush
-                    : targetBrush;
+                LbDate.Foreground = dateBrush;
             }
             if (TbDateName != null)
             {
-                TbDateName.Foreground = targetBrush;
+                TbDateName.Foreground = scheduleBrush;
             }
         }
         catch (Exception ex)
@@ -846,13 +836,13 @@ public sealed partial class DayCell : UserControl
     private void EventItem_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Border border)
-            border.Opacity = 0.8;
+            border.Background = _taskHoverBrush;
     }
 
     private void EventItem_PointerExited(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Border border)
-            border.Opacity = 1.0;
+            border.Background = _transparentBrush;
     }
 
     #endregion

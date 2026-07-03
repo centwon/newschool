@@ -167,6 +167,7 @@ public static class Settings
     public static SettingProperty<bool> ShowTasks { get; private set; } = null!;
     public static SettingProperty<double> EventFontSize { get; private set; } = null!;
     public static SettingProperty<double> TaskFontSize { get; private set; } = null!;
+    public static SettingProperty<double> DateFontSize { get; private set; } = null!;
     public static SettingProperty<bool> UseGoogle { get; private set; } = null!;
     public static SettingProperty<string> GoogleCalendarName { get; private set; } = null!;
     public static SettingProperty<string> GoogleCalendarID { get; private set; } = null!;
@@ -288,6 +289,7 @@ public static class Settings
         ShowTasks = new SettingProperty<bool>("ShowTasks", true, bool.Parse, b => b.ToString().ToLower());
         EventFontSize = new SettingProperty<double>("EventFontSize", 9.0, double.Parse, d => d.ToString());
         TaskFontSize = new SettingProperty<double>("TaskFontSize", 10.0, double.Parse, d => d.ToString());
+        DateFontSize = new SettingProperty<double>("DateFontSize", 12.0, double.Parse, d => d.ToString());
         UseGoogle = new SettingProperty<bool>("UseGoogle", false, bool.Parse, b => b.ToString().ToLower());
         GoogleCalendarName = new SettingProperty<string>("GoogleCalendarName", "", s => s, s => s);
         GoogleCalendarID = new SettingProperty<string>("GoogleCalendarID", "", s => s, s => s);
@@ -406,6 +408,7 @@ public static class Settings
         ShowTasks.Reload();
         EventFontSize.Reload();
         TaskFontSize.Reload();
+        DateFontSize.Reload();
         UseGoogle.Reload();
         GoogleCalendarName.Reload();
         GoogleCalendarID.Reload();
