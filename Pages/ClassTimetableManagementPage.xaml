@@ -23,11 +23,12 @@
 
             <!-- 필터 -->
             <StackPanel Orientation="Horizontal" Spacing="12">
-                <controls:SchoolFilterPicker 
-                    x:Name="FilterPicker"
-                    ShowSemester="True"
-                    IncludeAllGrade="False"
-                    IncludeAllClass="False"/>
+                <controls:YearSemesterPicker
+                    x:Name="YearSemPicker"
+                    YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
+                <controls:ClassPicker
+                    x:Name="ClassFilter"
+                    AutoLoad="False"/>
 
                 <!-- 조회 버튼 -->
                 <Button 

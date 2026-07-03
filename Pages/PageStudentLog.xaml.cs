@@ -97,17 +97,19 @@ public sealed partial class PageStudentLog : Page, IDisposable
 
         SetupStudentContextMenu();
 
-        // SchoolFilterPicker가 자동으로 초기화함
+        // YearSemPicker/ClassFilter 가 자체 초기화 후 ClassChanged 를 발생시켜 학생 목록을 로드함
     }
 
     #endregion
 
     #region Event Handlers - FilterPicker
 
-    /// <summary>
-    /// SchoolFilterPicker 선택 변경
-    /// </summary>
-    private async void FilterPicker_SelectionChanged(object? sender, SchoolFilterChangedEventArgs e)
+    private async void YearSemPicker_YearSemesterChanged(object? sender, YearSemesterChangedEventArgs e)
+    {
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
+    }
+
+    private async void ClassFilter_ClassChanged(object? sender, ClassChangedEventArgs e)
     {
         _year = e.Year;
         _semester = e.Semester;
@@ -160,6 +162,9 @@ public sealed partial class PageStudentLog : Page, IDisposable
     private async void OnStudentSelected(object? sender, Enrollment student)
     {
         await CheckUnSavedAsync();
+        if (SpecBox != null && !await SpecBox.ConfirmLeaveAsync())
+            return;
+
         _selectedStudent = student;
         await LoadLogsAsync();
         UpdateSpecBoxVisibility();
@@ -335,9 +340,9 @@ public sealed partial class PageStudentLog : Page, IDisposable
 
     private async Task BatchExportAsync()
     {
-        int year = FilterPicker.SelectedYear;
-        int grade = FilterPicker.SelectedGrade;
-        int classNo = FilterPicker.SelectedClass;
+        int year = _year;
+        int grade = _grade;
+        int classNo = _classroom;
 
         if (year == 0 || grade == 0 || classNo == 0)
         {
@@ -619,6 +624,8 @@ public sealed partial class PageStudentLog : Page, IDisposable
 
         try
         {
+            SpecBox.StudentName = $"{_selectedStudent.GetClassInfo()} {_selectedStudent.Name}";
+
             using var service = new StudentSpecialService();
             var specials = await service.GetByStudentAsync(_selectedStudent.StudentID, _year);
 

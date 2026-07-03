@@ -1,4 +1,4 @@
-﻿<Page
+<Page
     x:Class="NewSchool.Pages.PageStudentLog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -30,12 +30,14 @@
             <!-- 필터 패널 -->
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <!-- 학년도/학기/학년/반 필터 -->
-                <controls:SchoolFilterPicker 
-                    x:Name="FilterPicker"
-                    ShowSemester="True"
-                    IncludeAllGrade="False"
+                <controls:YearSemesterPicker
+                    x:Name="YearSemPicker"
+                    YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
+                <controls:ClassPicker
+                    x:Name="ClassFilter"
                     IncludeAllClass="False"
-                    SelectionChanged="FilterPicker_SelectionChanged"/>
+                    AutoLoad="False"
+                    ClassChanged="ClassFilter_ClassChanged"/>
 
                 <ComboBox x:Name="CBoxCat" 
                           MinWidth="120"
@@ -206,7 +208,7 @@
             <!-- 학생부 기록 (StudentSpecBox) -->
             <controls:StudentSpecBox x:Name="SpecBox" 
                                      Grid.Row="1"
-                                     Height="200" 
+                                     MinHeight="360" 
                                      Visibility="Collapsed"
                                      Margin="0,16,0,0"/>
         </Grid>

@@ -207,7 +207,7 @@
                 <!-- 학생부 기록 (StudentSpecBox) -->
                 <controls:StudentSpecBox x:Name="SpecBox"
                                          Grid.Row="2"
-                                         Height="180"
+                                         MinHeight="360"
                                          Margin="0,12,0,0"
                                          Visibility="Collapsed"/>
             </Grid>

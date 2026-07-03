@@ -1,11 +1,12 @@
-﻿<Page
-    x:Class="NewSchool.Pages.StudentSpecPage"
+<Page
+    x:Class="NewSchool.Pages.CourseSpecPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:NewSchool.Controls"
     mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
     Unloaded="Page_Unloaded">
 
     <Grid>
@@ -17,12 +18,12 @@
         </Grid.RowDefinitions>
 
         <!-- 필터 및 버튼 영역 -->
-        <Grid Grid.Row="0" 
+        <Grid Grid.Row="0"
               Padding="16"
               Background="{ThemeResource LayerFillColorDefaultBrush}"
               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
               BorderThickness="0,0,0,1">
-            
+
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <!-- 필터 -->
@@ -31,36 +32,37 @@
             </Grid.ColumnDefinitions>
 
             <!-- 필터 영역 -->
-            <StackPanel Grid.Column="0" 
-                        Orientation="Horizontal" 
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
                         Spacing="8">
-                
-                <!-- 학년도/학년/반 필터 -->
-                <controls:YearSemesterPicker
-                    x:Name="YearSemPicker"
-                    ShowSemester="False"
-                    YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
-                <controls:ClassPicker
-                    x:Name="ClassFilter"
-                    IncludeAllClass="False"
-                    AutoLoad="False"/>
 
-                <!-- 카테고리 -->
-                <ComboBox x:Name="CBoxCategory"
-                          PlaceholderText="선택"
-                          MinWidth="140"
-                          SelectionChanged="OnCategoryChanged"/>
+                <!-- 페이지 제목 -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <FontIcon Glyph="&#xE70F;" FontSize="18"/>
+                    <TextBlock Text="학생부 기록"
+                               Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                </StackPanel>
 
-                <!-- 조회 버튼 -->
-                <Button x:Name="BtnQuery"
-                        Content="조회"
-                        Margin="0,0,0,0"
-                        Style="{StaticResource AccentButtonStyle}"
-                        Click="OnQueryClick">
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="Enter" Modifiers="Control"/>
-                    </Button.KeyboardAccelerators>
-                </Button>
+                <AppBarSeparator Margin="0,0,4,0"/>
+
+                <!-- 과목/강의실 선택 -->
+                <controls:CoursePicker x:Name="CoursePickerCtl"
+                                       VerticalAlignment="Center"
+                                       CourseChanged="CoursePickerCtl_CourseChanged"/>
+
+                <!-- 수강생 수 표시 -->
+                <StackPanel Orientation="Horizontal"
+                            Spacing="4"
+                            VerticalAlignment="Center"
+                            Margin="8,0,0,0">
+                    <FontIcon Glyph="&#xE77B;" FontSize="14"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="TxtStudentCount"
+                               Text="0명"
+                               FontSize="13"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
             </StackPanel>
 
             <!-- 버튼 영역 -->
@@ -145,24 +147,11 @@
                 <Border Width="1" Height="24" VerticalAlignment="Center"
                         Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
 
-                <!-- 일괄 입력 -->
-                <Button x:Name="BtnBatchInput"
-                        ToolTipService.ToolTip="학급 전체 학생의 특기사항을 한 화면에서 편집"
-                        Click="OnBatchInputClick">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <FontIcon Glyph="&#xE70F;" FontSize="16"/>
-                        <TextBlock Text="일괄 입력"/>
-                    </StackPanel>
-                </Button>
-
-                <!-- 일괄 출력 -->
-                <Button x:Name="BtnBatchExport"
-                        ToolTipService.ToolTip="학급 전체 학생부를 PDF 또는 엑셀로 일괄 출력"
-                        Click="OnBatchExportClick">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <FontIcon Glyph="&#xEA90;" FontSize="16"/>
-                        <TextBlock Text="일괄 출력"/>
-                    </StackPanel>
+                <!-- 새로고침 -->
+                <Button x:Name="BtnRefresh"
+                        Click="BtnRefresh_Click"
+                        ToolTipService.ToolTip="과목 목록 새로고침">
+                    <FontIcon Glyph="&#xE72C;" FontSize="16"/>
                 </Button>
             </StackPanel>
         </Grid>

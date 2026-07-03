@@ -37,13 +37,17 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- 필터 -->
-                <controls:SchoolFilterPicker 
-                    x:Name="FilterPicker"
-                    Grid.Column="0"
-                    ShowSemester="True"
-                    ShowClass="False"
-                    IncludeAllGrade="True"
-                    SelectionChanged="OnFilterChanged"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                    <controls:YearSemesterPicker
+                        x:Name="YearSemPicker"
+                        YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
+                    <controls:ClassPicker
+                        x:Name="ClassFilter"
+                        ShowClass="False"
+                        IncludeAllGrade="True"
+                        AutoLoad="False"
+                        ClassChanged="ClassFilter_ClassChanged"/>
+                </StackPanel>
 
                 <!-- 버튼 -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">

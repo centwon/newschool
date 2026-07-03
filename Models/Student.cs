@@ -197,23 +197,20 @@ namespace NewSchool.Models
         /// </summary>
         public int GetAge()
         {
-            var today = DateTime.Today;
             if (BirthDate == null)
             {
                 return 0;
             }
-            else
+
+            var today = DateTime.Today;
+            var birthday = BirthDate.Value;
+            var age = today.Year - birthday.Year;
+            if (birthday.Date > today.AddYears(-age))
             {
-                var birthday = BirthDate.Value;
-                var age = today.Year - birthday.Year;
-                if (birthday.Date > today.AddYears(-age))
-                {
-                    age--;
-                    return age;
-                }
+                age--;
             }
 
-            return 0;
+            return age;
         }
 
         #endregion

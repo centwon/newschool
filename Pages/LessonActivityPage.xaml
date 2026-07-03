@@ -6,10 +6,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:NewSchool.Controls"
-    xmlns:models="using:NewSchool.Models"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
-    Loaded="Page_Loaded"
     Unloaded="Page_Unloaded">
 
     <Grid Padding="16">
@@ -48,29 +46,11 @@
 
                 <AppBarSeparator Margin="4,0"/>
 
-                <!-- 수업 선택 -->
-                <ComboBox x:Name="CBoxCourse"
-                          Header="수업"
-                          MinWidth="150"
-                          SelectionChanged="CBoxCourse_SelectionChanged">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="models:Course">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{x:Bind Subject}"/>
-                                <TextBlock Text="{x:Bind TypeDisplay}"
-                                           FontSize="11"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-
-                <!-- 강의실 선택 -->
-                <ComboBox x:Name="CBoxRoom"
-                          Header="강의실"
-                          MinWidth="120"
-                          SelectionChanged="CBoxRoom_SelectionChanged"/>
+                <!-- 과목/강의실 선택 -->
+                <controls:CoursePicker x:Name="CoursePickerCtl"
+                                       VerticalAlignment="Bottom"
+                                       CourseChanged="CoursePickerCtl_CourseChanged"
+                                       LoadError="CoursePickerCtl_LoadError"/>
 
                 <!-- 수강생 수 표시 -->
                 <StackPanel Orientation="Horizontal" 
@@ -206,7 +186,7 @@
                 <!-- 학생부 기록 (StudentSpecBox) -->
                 <controls:StudentSpecBox x:Name="SpecBox"
                                          Grid.Row="1"
-                                         Height="180"
+                                         MinHeight="360"
                                          Margin="0,12,0,0"
                                          Visibility="Collapsed"/>
             </Grid>

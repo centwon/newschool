@@ -28,15 +28,19 @@ public sealed partial class CourseManagementPage : Page
 
     private void CourseManagementPage_Loaded(object sender, RoutedEventArgs e)
     {
-        // SchoolFilterPicker가 자동으로 초기화함
+        // YearSemPicker/ClassFilter 가 자체 초기화 후 ClassChanged 를 발생시켜 수업 목록을 로드함
         _isInitialized = true;
-        LoadCoursesAsync();
+    }
+
+    private async void YearSemPicker_YearSemesterChanged(object? sender, YearSemesterChangedEventArgs e)
+    {
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
     }
 
     /// <summary>
     /// 필터 변경 이벤트
     /// </summary>
-    private void OnFilterChanged(object? sender, SchoolFilterChangedEventArgs e)
+    private void ClassFilter_ClassChanged(object? sender, ClassChangedEventArgs e)
     {
         if (!_isInitialized) return;
         LoadCoursesAsync();
@@ -48,7 +52,7 @@ public sealed partial class CourseManagementPage : Page
     private async void LoadCoursesAsync()
     {
         // 유효성 검사
-        if (FilterPicker.SelectedYear == 0 || FilterPicker.SelectedSemester == 0)
+        if (YearSemPicker.Year == 0 || YearSemPicker.Semester == 0)
             return;
 
         try
@@ -56,9 +60,9 @@ public sealed partial class CourseManagementPage : Page
             ShowLoadingState();
 
             // FilterPicker에서 값 가져오기
-            int year = FilterPicker.SelectedYear;
-            int semester = FilterPicker.SelectedSemester;
-            int grade = FilterPicker.SelectedGrade; // 0 = 전체
+            int year = YearSemPicker.Year;
+            int semester = YearSemPicker.Semester;
+            int grade = ClassFilter.Grade; // 0 = 전체
 
             string teacherId = Settings.User.Value;
             if (string.IsNullOrEmpty(teacherId))
@@ -101,14 +105,14 @@ public sealed partial class CourseManagementPage : Page
     /// </summary>
     private async void OnAddClick(object sender, RoutedEventArgs e)
     {
-        if (FilterPicker.SelectedYear == 0 || FilterPicker.SelectedSemester == 0)
+        if (YearSemPicker.Year == 0 || YearSemPicker.Semester == 0)
         {
             await MessageBox.ShowAsync("알림", "학년도와 학기를 먼저 선택해주세요.");
             return;
         }
 
-        int year = FilterPicker.SelectedYear;
-        int semester = FilterPicker.SelectedSemester;
+        int year = YearSemPicker.Year;
+        int semester = YearSemPicker.Semester;
         string teacherId = Settings.User.Value;
         string schoolCode = Settings.SchoolCode.Value;
 

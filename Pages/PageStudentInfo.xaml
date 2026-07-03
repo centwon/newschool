@@ -23,13 +23,17 @@
         <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal">
 
             <!-- 상단 선택 영역 -->
-            <controls:SchoolFilterPicker 
-                x:Name="FilterPicker"
+            <controls:YearSemesterPicker
+                x:Name="YearSemPicker"
                 ShowSemester="False"
-                IncludeAllGrade="False"
-                IncludeAllClass="False"
                 Margin="8"
-                SelectionChanged="FilterPicker_SelectionChanged"/>
+                YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
+            <controls:ClassPicker
+                x:Name="ClassFilter"
+                IncludeAllClass="False"
+                AutoLoad="False"
+                Margin="8"
+                ClassChanged="ClassFilter_ClassChanged"/>
             <!-- 학생 정보 헤더 -->
             <StackPanel Grid.Column="1" Margin="60,0,0,0"
               Orientation="Horizontal" Spacing="4"

@@ -12,10 +12,11 @@ namespace NewSchool.Controls;
 
 /// <summary>
 /// StudentSpecBox - 학생 특이사항 편집 컨트롤
-/// 
+///
 /// 기능:
 /// - NEIS 바이트 계산 (한글 3바이트, 영문 1바이트)
-/// - 자동 저장 (LostFocus 시)
+/// - 저장 버튼으로만 저장. 편집 중에는 헤더 색이 바뀌고, 저장하면 원래 색으로 돌아온다.
+/// - 저장하지 않은 채 다른 학생/페이지로 넘어가려 하면 호출부가 ConfirmLeaveAsync()로 저장 여부를 물을 수 있다.
 /// - 유형별 바이트 제한 (진로활동: 2100, 기타: 1500)
 /// - 맞춤법 검사 연동
 /// </summary>
@@ -48,6 +49,12 @@ public sealed partial class StudentSpecBox : UserControl
     /// 수정 여부
     /// </summary>
     public bool IsModified => _isModified;
+
+    /// <summary>
+    /// 헤더에 표시할 학생 정보. "N학년 M반 K번 이름" 형태로 호출부에서 채워 넣는다.
+    /// 지정하지 않으면 StudentID가 대신 표시된다.
+    /// </summary>
+    public string StudentName { get; set; } = string.Empty;
 
     #endregion
 
@@ -83,13 +90,14 @@ public sealed partial class StudentSpecBox : UserControl
         TxtSemester.Visibility = showSemester ? Visibility.Visible : Visibility.Collapsed;
         TxtSemesterLabel.Visibility = showSemester ? Visibility.Visible : Visibility.Collapsed;
 
-        // 학생 정보 (추후 Enrollment나 Student에서 가져오기)
-        TxtStudent.Text = _special.StudentID;
+        // 학생 정보
+        TxtStudent.Text = !string.IsNullOrEmpty(StudentName) ? StudentName : _special.StudentID;
 
         // 내용
         TxtContent.Text = _special.Content ?? string.Empty;
         _originalContent = TxtContent.Text;
         _isModified = false;
+        UpdateModifiedIndicator();
 
         // 마감 상태에 따른 UI 제어
         TxtContent.IsReadOnly = _special.IsFinalized;
@@ -115,6 +123,7 @@ public sealed partial class StudentSpecBox : UserControl
         
         _originalContent = string.Empty;
         _isModified = false;
+        UpdateModifiedIndicator();
     }
 
     #endregion
@@ -131,29 +140,10 @@ public sealed partial class StudentSpecBox : UserControl
 
         // 수정 여부 체크
         _isModified = TxtContent.Text != _originalContent;
+        UpdateModifiedIndicator();
 
         // 바이트 정보 업데이트
         UpdateByteInfo();
-    }
-
-    /// <summary>
-    /// 포커스 잃었을 때 - 자동 저장 확인
-    /// </summary>
-    private async void OnLostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!_isModified || _special == null)
-            return;
-
-        // 저장 여부 확인
-        var result = await MessageBox.ShowAsync(
-            "변경사항을 저장할까요?",
-            "변경 사항 저장",
-            MessageBoxButton.YesNo);
-
-        if (result == MessageBoxResult.Yes)
-        {
-            await SaveAsync();
-        }
     }
 
     /// <summary>
@@ -206,7 +196,8 @@ public sealed partial class StudentSpecBox : UserControl
             TxtContent.Text = string.Empty;
             _originalContent = string.Empty;
             _isModified = false;
-            
+            UpdateModifiedIndicator();
+
             UpdateByteInfo();
 
             await MessageBox.ShowAsync("기록이 삭제되었습니다.", "완료");
@@ -239,12 +230,24 @@ public sealed partial class StudentSpecBox : UserControl
     #region Private Methods
 
     /// <summary>
-    /// 저장 실행
+    /// 저장 실행 (버튼 클릭) — 완료 메시지를 보여준다
     /// </summary>
     private async Task SaveAsync()
     {
+        if (await SaveInternalAsync())
+        {
+            await MessageBox.ShowAsync("저장되었습니다.", "완료");
+        }
+    }
+
+    /// <summary>
+    /// 저장 실행 (조용히) — LostFocus 자동 저장과 버튼 클릭 저장이 공유하는 실제 저장 로직.
+    /// 실패 시에는 오류를 사용자에게 알리지만, 성공 시에는 아무 것도 표시하지 않는다.
+    /// </summary>
+    private async Task<bool> SaveInternalAsync()
+    {
         if (_special == null)
-            return;
+            return false;
 
         try
         {
@@ -267,18 +270,31 @@ public sealed partial class StudentSpecBox : UserControl
             // 저장 성공
             _originalContent = TxtContent.Text;
             _isModified = false;
-
-            await MessageBox.ShowAsync("저장되었습니다.", "완료");
+            UpdateModifiedIndicator();
+            return true;
         }
         catch (InvalidOperationException ex)
         {
             // 마감된 기록 수정 시도
             await MessageBox.ShowAsync(ex.Message, "마감된 기록");
+            return false;
         }
         catch (Exception ex)
         {
             await MessageBox.ShowAsync($"저장 실패: {ex.Message}", "오류");
+            return false;
         }
+    }
+
+    /// <summary>
+    /// 편집 중(미저장) 여부에 따라 헤더 색을 바꿔 시각적으로 표시한다.
+    /// 저장되면 원래 색(LayerFillColorDefaultBrush)으로 돌아온다.
+    /// </summary>
+    private void UpdateModifiedIndicator()
+    {
+        HeaderGrid.Background = _isModified
+            ? (Brush)Application.Current.Resources["InfoBarWarningSeverityBackgroundBrush"]
+            : (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"];
     }
 
     /// <summary>
@@ -323,15 +339,7 @@ public sealed partial class StudentSpecBox : UserControl
         if (!_isModified || _special == null)
             return false;
 
-        try
-        {
-            await SaveAsync();
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await SaveInternalAsync();
     }
 
     /// <summary>
@@ -343,8 +351,34 @@ public sealed partial class StudentSpecBox : UserControl
         {
             TxtContent.Text = _originalContent;
             _isModified = false;
+            UpdateModifiedIndicator();
             UpdateByteInfo();
         }
+    }
+
+    /// <summary>
+    /// 다른 학생/페이지로 넘어가기 전에 호출. 저장하지 않은 내용이 있으면
+    /// 저장할지 물어보고, 그 결과에 따라 저장하거나 버린다.
+    /// 반환값 true면 안전하게 넘어가도 된다는 뜻(저장 성공 또는 버림, 혹은 변경사항 없음).
+    /// 저장을 선택했지만 저장에 실패하면 false를 반환해 호출부가 이동을 막을 수 있게 한다.
+    /// </summary>
+    public async Task<bool> ConfirmLeaveAsync()
+    {
+        if (!_isModified || _special == null)
+            return true;
+
+        var result = await MessageBox.ShowAsync(
+            "변경사항을 저장할까요?",
+            "변경 사항 저장",
+            MessageBoxButton.YesNo);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            return await SaveInternalAsync();
+        }
+
+        DiscardChanges();
+        return true;
     }
 
     #endregion

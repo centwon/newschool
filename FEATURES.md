@@ -132,7 +132,9 @@
 | `ClassDiaryListWin.xaml` | 학급일지 목록 |
 | `LessonLogList.xaml` | 수업 기록 목록 |
 | `LogListViewer.xaml` | 기록 목록 뷰어 |
-| `SchoolFilterPicker.xaml` | 학교 필터 선택기 |
+| `YearSemesterPicker.xaml` | 학년도/학기 선택기 |
+| `ClassPicker.xaml` | 학년/반 선택기 (확정 시 학생 목록 이벤트 전달) |
+| `CoursePicker.xaml` | 과목/강의실 선택기 (확정 시 수강생 목록 이벤트 전달) |
 | `SchoolMealBox.xaml` | 급식 정보 박스 |
 | `SchoolScheduleListControl.xaml` | 학사일정 목록 |
 | `RichTextEditor.xaml` | 리치 텍스트 에디터 (WinUIRichEditor/Win2D 어댑터) |

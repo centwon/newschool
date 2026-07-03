@@ -7,7 +7,14 @@
     xmlns:vm="using:NewSchool.ViewModels"
     mc:Ignorable="d">
 
-    <Border 
+    <UserControl.Resources>
+        <!-- 체크박스가 배경과 구분되지 않아 안 보이는 문제 방지: 테두리 색 고정 -->
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="Gray"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="Gray"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="Transparent"/>
+    </UserControl.Resources>
+
+    <Border
         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1"
@@ -56,18 +63,22 @@
                           Grid.Column="0"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
+                          MinWidth="0"
+                          Padding="0"
+                          FontSize="14"
+                          BorderBrush="Gray"
                           Checked="OnSelectAllChecked"
                           Unchecked="OnSelectAllUnchecked"/>
 
-                <TextBlock Grid.Column="1" x:Name="TxtYearHeader" Text="학년도" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="2" x:Name="TxtTypeHeader" Text="유형" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="3" x:Name="TxtSubjectHeader" Text="과목" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="4" x:Name="TxtGradeHeader" Text="학년" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="5" x:Name="TxtClassHeader" Text="반" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="6" x:Name="TxtNumberHeader" Text="번호" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="7" x:Name="TxtNameHeader" Text="이름" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="8" Text="기록 내용" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="12,0,0,0"/>
-                <TextBlock Grid.Column="9" Text="Byte/글자수" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,0,12,0"/>
+                <TextBlock Grid.Column="1" x:Name="TxtYearHeader" Text="학년도" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" x:Name="TxtTypeHeader" Text="유형" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" x:Name="TxtSubjectHeader" Text="과목" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" x:Name="TxtGradeHeader" Text="학년" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="5" x:Name="TxtClassHeader" Text="반" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="6" x:Name="TxtNumberHeader" Text="번호" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="7" x:Name="TxtNameHeader" Text="이름" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="8" Text="기록 내용" FontWeight="SemiBold" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                <TextBlock Grid.Column="9" Text="Byte/글자수" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
             </Grid>
 
             <!-- 목록 -->
@@ -106,8 +117,11 @@
                                     <!-- 체크박스 -->
                                     <CheckBox Grid.Column="0"
                                               HorizontalAlignment="Center"
-                                              VerticalAlignment="Top"
-                                              Margin="0,4,0,0"
+                                              VerticalAlignment="Center"
+                                              MinWidth="0"
+                                              Padding="0"
+                                              FontSize="14"
+                                              BorderBrush="Gray"
                                               IsChecked="{x:Bind IsSelected, Mode=TwoWay}"/>
 
                                     <!-- 학년도 -->

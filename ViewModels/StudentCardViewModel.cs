@@ -83,6 +83,8 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
             // 관련 프로퍼티 업데이트
             OnPropertyChanged(nameof(StudentID));
             OnPropertyChanged(nameof(IsLoaded));
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(Age));
         }
     }
 
