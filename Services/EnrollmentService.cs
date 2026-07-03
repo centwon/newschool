@@ -325,6 +325,11 @@ public sealed class EnrollmentService : IDisposable
     public async Task<Enrollment?> GetCurrentEnrollmentAsync(string studentId) => await _enrollmentRepo.GetCurrentByStudentIdAsync(studentId);
 
     /// <summary>
+    /// 여러 학생의 현재 학적을 한 번에 조회 - N+1 방지용
+    /// </summary>
+    public async Task<List<Enrollment>> GetCurrentEnrollmentsAsync(List<string> studentIds) => await _enrollmentRepo.GetCurrentByStudentIdsAsync(studentIds);
+
+    /// <summary>
     /// 담임교사의 학생 목록 조회
     /// Enrollment에 Name, Sex, Photo가 denormalized되어 있어 단일 테이블 조회로 충분
     /// </summary>

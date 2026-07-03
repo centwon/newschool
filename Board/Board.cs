@@ -404,7 +404,7 @@ namespace NewSchool.Board
                 Post INTEGER NOT NULL,
                 User TEXT NOT NULL DEFAULT '',
                 DateTime TEXT NOT NULL DEFAULT '',
-                ReplyOrder INTEGER DEFAULT 0,
+                ParentNo INTEGER DEFAULT 0,
                 Content TEXT DEFAULT '',
                 HasFile INTEGER DEFAULT 0,
                 FileName TEXT DEFAULT '',
@@ -413,6 +413,18 @@ namespace NewSchool.Board
             )";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] Comment 테이블 생성 완료");
+
+            // 마이그레이션: 기존 DB의 미사용 ReplyOrder 컬럼을 대댓글용 ParentNo로 전환 (0=최상위, 그 외=부모 댓글 No)
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Comment RENAME COLUMN ReplyOrder TO ParentNo";
+                await cmd.ExecuteNonQueryAsync();
+                Debug.WriteLine("[DatabaseInitializer] Comment.ReplyOrder → ParentNo 컬럼 이름 변경 완료");
+            }
+            catch (SqliteException)
+            {
+                // 이미 ParentNo 로 존재하는 경우(신규 DB) 무시
+            }
 
             // PostFile 테이블
             cmd.CommandText = @"

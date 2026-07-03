@@ -23,6 +23,8 @@ public sealed partial class PostEditPage : Page
     private List<string> _allSubjects = new();
     private List<string> _allCategories = new();
     private string _originalCategory = string.Empty; // 수정 모드에서 카테고리 변경 감지용
+    private string _originalTitle = string.Empty;    // 취소 시 미저장 변경 감지용
+    private string _originalPlainText = string.Empty;
 
     // 기본 카테고리 목록
     private static readonly List<string> _defaultCategories = new()
@@ -156,6 +158,10 @@ public sealed partial class PostEditPage : Page
         }
 
         PageTitle.Text = _isEditMode ? "게시글 수정" : "새 글 쓰기";
+
+        // 취소 시 미저장 변경 감지 기준값 저장
+        _originalTitle = TitleTextBox.Text;
+        _originalPlainText = ContentEditor.PlainText;
     }
 
     private async Task LoadCategoriesAsync()
@@ -521,8 +527,19 @@ public sealed partial class PostEditPage : Page
         }
     }
 
-    private void CancelButton_Click(object sender, RoutedEventArgs e)
+    private async void CancelButton_Click(object sender, RoutedEventArgs e)
     {
+        bool hasChanges = TitleTextBox.Text != _originalTitle || ContentEditor.PlainText != _originalPlainText;
+
+        if (hasChanges)
+        {
+            var confirmed = await MessageBox.ShowConfirmAsync(
+                "작성 중인 내용이 저장되지 않습니다.\n정말 나가시겠습니까?",
+                "변경사항 취소", "나가기", "계속 작성");
+            if (!confirmed)
+                return;
+        }
+
         Frame.GoBack();
     }
 

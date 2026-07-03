@@ -94,7 +94,8 @@ public partial class BoardService:IDisposable
         string subject = "",
         bool searchTitle = false,
         bool searchContent = false,
-        string searchText = "")
+        string searchText = "",
+        Models.PostSortOrder sortOrder = Models.PostSortOrder.NewestFirst)
     {
         using var uow = new UnitOfWork(_dbPath);
 
@@ -109,7 +110,8 @@ public partial class BoardService:IDisposable
                 subject: subject,
                 searchTitle: searchTitle,
                 searchContent: searchContent,
-                searchText: searchText);
+                searchText: searchText,
+                sortOrder: sortOrder);
 
             return new PagedResult<Post>(posts, totalCount, pageSize, pageNumber);
         }
@@ -172,22 +174,23 @@ public partial class BoardService:IDisposable
     /// </summary>
     public virtual async Task<int> CreateCommentAsync(Comment comment)
     {
-        // UnitOfWork 대신 직접 Repository 사용
-        using var commentRepo = new CommentRepository(_dbPath);
-        using var postRepo = new PostRepository(_dbPath);
+        using var uow = new UnitOfWork(_dbPath);
 
         try
         {
-            // 댓글 생성
-            int commentId = await commentRepo.CreateAsync(comment);
-
-            // Post의 HasComment 플래그 업데이트
-            if (commentId > 0)
+            return await uow.ExecuteInTransactionAsync(async () =>
             {
-                await postRepo.UpdateHasCommentAsync(comment.Post, true);
-            }
+                // 댓글 생성
+                int commentId = await uow.Comments.CreateAsync(comment);
 
-            return commentId;
+                // Post의 HasComment 플래그 업데이트
+                if (commentId > 0)
+                {
+                    await uow.Posts.UpdateHasCommentAsync(comment.Post, true);
+                }
+
+                return commentId;
+            });
         }
         catch (Exception ex)
         {
@@ -218,43 +221,43 @@ public partial class BoardService:IDisposable
     /// </summary>
     public virtual async Task<bool> DeleteCommentAsync(int commentNo, string category)
     {
-        // ✅ 각 Repository를 독립적으로 사용
+        using var uow = new UnitOfWork(_dbPath);
+        string? fileToDelete = null;
+
         try
         {
-            Comment? comment;
-            int postNo;
-
-            // 1. 댓글 정보 조회
-            using (var commentRepo = new CommentRepository(_dbPath))
+            bool deleted = await uow.ExecuteInTransactionAsync(async () =>
             {
-                comment = await commentRepo.GetByIdAsync(commentNo);
+                var comment = await uow.Comments.GetByIdAsync(commentNo);
                 if (comment == null)
                     return false;
 
-                postNo = comment.Post;
+                int postNo = comment.Post;
 
-                // 파일 삭제
-                if (comment.HasFile && !string.IsNullOrEmpty(comment.FileName))
-                {
-                    DeletePhysicalFile(comment.FileName, category);
-                }
+                // Comment 삭제 + 남은 댓글 확인 + Post 플래그 업데이트를 하나의 트랜잭션으로 처리
+                await uow.Comments.DeleteAsync(commentNo);
 
-                // Comment 삭제
-                await commentRepo.DeleteAsync(commentNo);
-            }
-
-            // 2. 남은 댓글 확인 및 Post 플래그 업데이트
-            using (var commentRepo = new CommentRepository(_dbPath))
-            using (var postRepo = new PostRepository(_dbPath))
-            {
-                int remainingComments = await commentRepo.GetCountByPostAsync(postNo);
+                int remainingComments = await uow.Comments.GetCountByPostAsync(postNo);
                 if (remainingComments == 0)
                 {
-                    await postRepo.UpdateHasCommentAsync(postNo, false);
+                    await uow.Posts.UpdateHasCommentAsync(postNo, false);
                 }
+
+                if (comment.HasFile && !string.IsNullOrEmpty(comment.FileName))
+                {
+                    fileToDelete = comment.FileName;
+                }
+
+                return true;
+            });
+
+            // DB 트랜잭션 커밋이 확정된 뒤에만 물리 파일 삭제 (롤백 시 고아 파일 방지)
+            if (deleted && fileToDelete != null)
+            {
+                DeletePhysicalFile(fileToDelete, category);
             }
 
-            return true;
+            return deleted;
         }
         catch (Exception ex)
         {
@@ -308,22 +311,23 @@ public partial class BoardService:IDisposable
     /// </summary>
     public virtual async Task<int> AddPostFileAsync(PostFile postFile)
     {
-        // UnitOfWork 대신 직접 Repository 사용
-        using var postFileRepo = new PostFileRepository(_dbPath);
-        using var postRepo = new PostRepository(_dbPath);
+        using var uow = new UnitOfWork(_dbPath);
 
         try
         {
-            // 파일 추가
-            int fileId = await postFileRepo.CreateAsync(postFile);
-
-            // Post의 HasFile 플래그 업데이트
-            if (fileId > 0)
+            return await uow.ExecuteInTransactionAsync(async () =>
             {
-                await postRepo.UpdateHasFileAsync(postFile.Post, true);
-            }
+                // 파일 추가
+                int fileId = await uow.PostFiles.CreateAsync(postFile);
 
-            return fileId;
+                // Post의 HasFile 플래그 업데이트
+                if (fileId > 0)
+                {
+                    await uow.Posts.UpdateHasFileAsync(postFile.Post, true);
+                }
+
+                return fileId;
+            });
         }
         catch (Exception ex)
         {
@@ -337,29 +341,37 @@ public partial class BoardService:IDisposable
     /// </summary>
     public virtual async Task<bool> DeletePostFileAsync(int postFileNo, string category)
     {
-        using var postFileRepo = new PostFileRepository(_dbPath);
-        using var postRepo = new PostRepository(_dbPath);
+        using var uow = new UnitOfWork(_dbPath);
+        string? fileToDelete = null;
 
         try
         {
-            var postFile = await postFileRepo.GetByIdAsync(postFileNo);
-            if (postFile == null)
-                return false;
-
-            // 물리적 파일 삭제
-            DeletePhysicalFile(postFile.FileName, category);
-
-            // DB에서 삭제
-            bool deleted = await postFileRepo.DeleteAsync(postFileNo);
-
-            // 남은 파일 확인
-            if (deleted)
+            bool deleted = await uow.ExecuteInTransactionAsync(async () =>
             {
-                int remainingFiles = await postFileRepo.GetCountByPostAsync(postFile.Post);
-                if (remainingFiles == 0)
+                var postFile = await uow.PostFiles.GetByIdAsync(postFileNo);
+                if (postFile == null)
+                    return false;
+
+                bool result = await uow.PostFiles.DeleteAsync(postFileNo);
+
+                if (result)
                 {
-                    await postRepo.UpdateHasFileAsync(postFile.Post, false);
+                    int remainingFiles = await uow.PostFiles.GetCountByPostAsync(postFile.Post);
+                    if (remainingFiles == 0)
+                    {
+                        await uow.Posts.UpdateHasFileAsync(postFile.Post, false);
+                    }
+
+                    fileToDelete = postFile.FileName;
                 }
+
+                return result;
+            });
+
+            // DB 트랜잭션 커밋이 확정된 뒤에만 물리 파일 삭제 (롤백 시 고아 파일 방지)
+            if (deleted && fileToDelete != null)
+            {
+                DeletePhysicalFile(fileToDelete, category);
             }
 
             return deleted;
@@ -444,29 +456,12 @@ public partial class BoardService:IDisposable
 
         try
         {
-            var posts = await uow.Posts.GetListAsync(
+            return await uow.Posts.GetListAsync(
                 category: category,
-                subject: subject);
-
-            // 추가 필터링
-            var filtered = new List<Post>();
-            foreach (var post in posts)
-            {
-                // 완료 필터
-                if (!includeCompleted && post.IsCompleted)
-                    continue;
-
-                // 날짜 필터
-                if (startDate.HasValue && post.DateTime.Date < startDate.Value.Date)
-                    continue;
-
-                if (endDate.HasValue && post.DateTime.Date > endDate.Value.Date)
-                    continue;
-
-                filtered.Add(post);
-            }
-
-            return filtered;
+                subject: subject,
+                startDate: startDate,
+                endDate: endDate,
+                includeCompleted: includeCompleted);
         }
         catch (Exception ex)
         {
@@ -513,7 +508,9 @@ public partial class BoardService:IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"파일 삭제 실패: {fileName}, {ex.Message}");
+            // DB 레코드는 이미 삭제되어 되돌릴 수 없으므로 예외를 던지지 않고 계속 진행하되,
+            // 릴리스 빌드에서도 확인 가능하도록 파일 로그에 남긴다 (고아 파일 추적용).
+            NewSchool.Logging.Log.Warning("BoardService", $"물리 파일 삭제 실패 (DB 레코드는 이미 삭제됨): {fileName}, {ex.Message}");
         }
     }
 

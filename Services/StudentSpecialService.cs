@@ -149,6 +149,46 @@ public sealed class StudentSpecialService : IDisposable
     }
 
     /// <summary>
+    /// 여러 학생부 기록을 한 트랜잭션으로 저장 (신규는 생성, 기존은 수정).
+    /// 하나라도 실패하면 전체 롤백.
+    /// </summary>
+    public async Task SaveManyAsync(IEnumerable<StudentSpecial> specials)
+    {
+        var list = specials.ToList();
+        if (list.Count == 0) return;
+
+        foreach (var special in list)
+        {
+            ValidateSpecial(special);
+        }
+
+        try
+        {
+            _repository.BeginTransaction();
+
+            foreach (var special in list)
+            {
+                await EnsureNotFinalizedAsync(special.No);
+                if (special.No > 0)
+                {
+                    await _repository.UpdateAsync(special);
+                }
+                else
+                {
+                    special.No = await _repository.CreateAsync(special);
+                }
+            }
+
+            _repository.Commit();
+        }
+        catch
+        {
+            _repository.Rollback();
+            throw;
+        }
+    }
+
+    /// <summary>
     /// 마감 상태 변경 (마감/마감해제)
     /// </summary>
     public async Task<bool> UpdateFinalizedStatusAsync(int no, bool isFinalized)

@@ -72,6 +72,11 @@ public sealed partial class StudentSpecPage : Page, IDisposable
 
     #region Event Handlers - Filters
 
+    private async void YearSemPicker_YearSemesterChanged(object sender, YearSemesterChangedEventArgs e)
+    {
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
+    }
+
     private void OnCategoryChanged(object sender, SelectionChangedEventArgs e)
     {
         if (CBoxCategory.SelectedItem is LogCategory category)
@@ -181,9 +186,9 @@ public sealed partial class StudentSpecPage : Page, IDisposable
     /// </summary>
     private void OnBatchInputClick(object sender, RoutedEventArgs e)
     {
-        int year = FilterPicker.SelectedYear;
-        int grade = FilterPicker.SelectedGrade;
-        int classNo = FilterPicker.SelectedClass;
+        int year = YearSemPicker.Year;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum;
 
         if (year == 0 || grade == 0 || classNo == 0)
         {
@@ -204,9 +209,9 @@ public sealed partial class StudentSpecPage : Page, IDisposable
     /// </summary>
     private async void OnBatchExportClick(object sender, RoutedEventArgs e)
     {
-        int year = FilterPicker.SelectedYear;
-        int grade = FilterPicker.SelectedGrade;
-        int classNo = FilterPicker.SelectedClass;
+        int year = YearSemPicker.Year;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum;
 
         if (year == 0 || grade == 0 || classNo == 0)
         {
@@ -324,9 +329,9 @@ public sealed partial class StudentSpecPage : Page, IDisposable
     {
         try
         {
-            int selectedYear = FilterPicker.SelectedYear;
-            int selectedGrade = FilterPicker.SelectedGrade;
-            int selectedClass = FilterPicker.SelectedClass;
+            int selectedYear = YearSemPicker.Year;
+            int selectedGrade = ClassFilter.Grade;
+            int selectedClass = ClassFilter.ClassNum;
 
             if (selectedYear == 0 || selectedGrade == 0 || selectedClass == 0)
             {
@@ -395,7 +400,6 @@ public sealed partial class StudentSpecPage : Page, IDisposable
 
     private void UpdateUIByCategory()
     {
-        // SchoolFilterPicker로 변경되어 개별 콤보박스 숨김 불필요
     }
 
     private bool IsAutoCreateCategory(LogCategory category)
@@ -416,7 +420,7 @@ public sealed partial class StudentSpecPage : Page, IDisposable
         {
             No = 0,
             StudentID = studentId,
-            Year = FilterPicker.SelectedYear,
+            Year = YearSemPicker.Year,
             Type = _selectedCategory.ToString(),
             Title = string.Empty,
             Content = string.Empty,

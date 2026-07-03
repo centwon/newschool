@@ -28,8 +28,8 @@ namespace NewSchool.Board.Repositories
         {
             // INSERT + SELECT 를 한 번에 실행 (왕복 1회)
             const string query = @"
-                INSERT INTO Comment (Post, User, DateTime, ReplyOrder, Content, HasFile, FileName, FileSize)
-                VALUES (@Post, @User, @DateTime, @ReplyOrder, @Content, @HasFile, @FileName, @FileSize);
+                INSERT INTO Comment (Post, User, DateTime, ParentNo, Content, HasFile, FileName, FileSize)
+                VALUES (@Post, @User, @DateTime, @ParentNo, @Content, @HasFile, @FileName, @FileSize);
                 SELECT last_insert_rowid();";
 
             try
@@ -87,7 +87,8 @@ namespace NewSchool.Board.Repositories
         /// </summary>
         public async Task<List<Comment>> GetByPostAsync(int postNo)
         {
-            const string query = "SELECT * FROM Comment WHERE Post = @Post ORDER BY DateTime DESC";
+            // 대화 흐름상 자연스럽도록 오래된 순(작성 순서)으로 정렬
+            const string query = "SELECT * FROM Comment WHERE Post = @Post ORDER BY DateTime ASC";
 
             var comments = new List<Comment>();
 
@@ -307,7 +308,7 @@ namespace NewSchool.Board.Repositories
             cmd.Parameters.Add("@Post", SqliteType.Integer).Value = comment.Post;
             cmd.Parameters.AddWithValue("@User", comment.User); // 추가
             cmd.Parameters.AddWithValue("@DateTime", DateTimeHelper.ToStandardString(comment.DateTime));
-            cmd.Parameters.Add("@ReplyOrder", SqliteType.Integer).Value = comment.ReplyOrder;
+            cmd.Parameters.Add("@ParentNo", SqliteType.Integer).Value = comment.ParentNo;
             cmd.Parameters.AddWithValue("@Content", comment.Content);
             cmd.Parameters.Add("@HasFile", SqliteType.Integer).Value = comment.HasFile ? 1 : 0;
             cmd.Parameters.AddWithValue("@FileName", comment.FileName);
@@ -322,7 +323,7 @@ namespace NewSchool.Board.Repositories
             var postOrd = cache.GetOrdinal("Post");
             var userOrd = cache.GetOrdinal("User");
             var dtOrd = cache.GetOrdinal("DateTime");
-            var replyOrd = cache.GetOrdinal("ReplyOrder");
+            var parentOrd = cache.GetOrdinal("ParentNo");
             var contentOrd = cache.GetOrdinal("Content");
             var fileOrd = cache.GetOrdinal("HasFile");
             var nameOrd = cache.GetOrdinal("FileName");
@@ -334,7 +335,7 @@ namespace NewSchool.Board.Repositories
                 Post = reader.GetInt32(postOrd),
                 User = reader.IsDBNull(userOrd) ? "" : reader.GetString(userOrd),
                 DateTime = DateTimeHelper.FromDateString(reader.GetString(dtOrd)),
-                ReplyOrder = reader.GetInt32(replyOrd),
+                ParentNo = reader.GetInt32(parentOrd),
                 Content = reader.IsDBNull(contentOrd) ? "" : reader.GetString(contentOrd),
                 HasFile = reader.GetInt32(fileOrd) == 1,
                 FileName = reader.IsDBNull(nameOrd) ? "" : reader.GetString(nameOrd),

@@ -16,7 +16,7 @@ namespace NewSchool.Pages;
 
 /// <summary>
 /// 학생 정보 출력 페이지 (WinUI3 버전)
-/// SchoolFilterPicker 사용, Student/StudentDetail 모델 기반 출력항목
+/// YearSemesterPicker + ClassPicker 사용, Student/StudentDetail 모델 기반 출력항목
 /// </summary>
 public sealed partial class StudentInfoExportPage : Page, IDisposable
 {
@@ -47,9 +47,14 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
 
     #endregion
 
-    #region SchoolFilterPicker Event
+    #region Filter Events
 
-    private void SchoolFilter_SelectionChanged(object sender, SchoolFilterChangedEventArgs e)
+    private async void YearSemPicker_YearSemesterChanged(object sender, YearSemesterChangedEventArgs e)
+    {
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
+    }
+
+    private void ClassFilter_ClassChanged(object sender, ClassChangedEventArgs e)
     {
         // 학급 변경 시 "학급 표시" 체크박스 자동 설정
         if (e.IsAllClass)
@@ -64,7 +69,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
 
     private bool ValidateSelection()
     {
-        if (SchoolFilter.SelectedYear == 0 || SchoolFilter.SelectedGrade == 0)
+        if (YearSemPicker.Year == 0 || ClassFilter.Grade == 0)
         {
             _ = MessageBox.ShowAsync("학년도와 학년을 선택해주세요.");
             return false;
@@ -200,9 +205,9 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
             throw new InvalidOperationException("_data가 null입니다.");
 
         string schoolCode = Settings.SchoolCode.Value;
-        int year = SchoolFilter.SelectedYear;
-        int grade = SchoolFilter.SelectedGrade;
-        int classNo = SchoolFilter.SelectedClass; // 0이면 전체
+        int year = YearSemPicker.Year;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum; // 0이면 전체
 
         // Enrollment 조회 (grade 파라미터 사용)
         using var enrollmentService = new EnrollmentService();
@@ -381,9 +386,9 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
         sb.Append($"<h1 style='text-align:center; font-size:16pt; margin-bottom:10px;'>{HtmlEncode(title)}</h1>");
 
         // 학급 정보
-        int year = SchoolFilter.SelectedYear;
-        int grade = SchoolFilter.SelectedGrade;
-        int classNo = SchoolFilter.SelectedClass;
+        int year = YearSemPicker.Year;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum;
 
         string classInfo = classNo == 0
             ? $"{year}학년도 {grade}학년"
@@ -514,9 +519,9 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
                 ? "학생정보"
                 : TboxTitle.Text;
 
-            int year = SchoolFilter.SelectedYear;
-            int grade = SchoolFilter.SelectedGrade;
-            int classNo = SchoolFilter.SelectedClass;
+            int year = YearSemPicker.Year;
+            int grade = ClassFilter.Grade;
+            int classNo = ClassFilter.ClassNum;
 
             string subtitle = classNo == 0
                 ? $"{year}학년도 {grade}학년 전체"

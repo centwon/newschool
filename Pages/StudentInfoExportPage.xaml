@@ -16,10 +16,13 @@
 
         <!-- Row 0: 학급 필터 + 제목 + 옵션 (한 줄로 합침) -->
         <StackPanel Orientation="Horizontal" Spacing="12" Grid.Row="0">
-            <controls:SchoolFilterPicker x:Name="SchoolFilter"
+            <controls:YearSemesterPicker x:Name="YearSemPicker"
                 ShowSemester="False"
+                YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
+            <controls:ClassPicker x:Name="ClassFilter"
                 IncludeAllClass="True"
-                SelectionChanged="SchoolFilter_SelectionChanged"/>
+                AutoLoad="False"
+                ClassChanged="ClassFilter_ClassChanged"/>
             <Border Width="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="4,4"/>
             <TextBlock Text="제목:" VerticalAlignment="Center"/>
             <TextBox x:Name="TboxTitle" Width="160" PlaceholderText="학생 정보"/>

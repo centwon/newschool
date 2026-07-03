@@ -175,10 +175,11 @@ public sealed class GoogleSyncService : IDisposable
                 response = await _apiClient.ListEventsAsync(
                     calendar.GoogleId, timeMin: timeMin, syncToken: syncToken, pageToken: pageToken);
             }
-            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Gone)
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Gone
+                || ex.StatusCode == HttpStatusCode.BadRequest)
             {
-                // syncToken 만료 → 전체 동기화
-                Debug.WriteLine("[GoogleSync] syncToken 만료 — 전체 동기화로 전환");
+                // syncToken 만료(410) 또는 요청 거부(400, 예: 파라미터 비호환) → 전체 동기화로 폴백
+                Debug.WriteLine($"[GoogleSync] syncToken 사용 불가({ex.StatusCode}) — 전체 동기화로 전환");
                 calendar.SyncToken = string.Empty;
                 syncToken = null;
                 timeMin = DateTime.Today.AddYears(-1);
@@ -283,10 +284,14 @@ public sealed class GoogleSyncService : IDisposable
         }
 
         // 2. 로컬 수정된 이벤트 → Update
+        // 최초 동기화(lastSync 없음)에도 GoogleId가 있는 기존 이벤트의 오프라인 수정분이 유실되지 않도록
+        // epoch 이후 전체를 "수정됨"으로 간주해 비교 대상에 포함
         string lastSync = Settings.GoogleLastSyncTime.Value;
-        if (!string.IsNullOrEmpty(lastSync))
         {
-            var modified = await service.GetModifiedEventsSinceAsync(calendar.No, lastSync);
+            string sinceUtc = string.IsNullOrEmpty(lastSync)
+                ? "0001-01-01T00:00:00.000Z"
+                : lastSync;
+            var modified = await service.GetModifiedEventsSinceAsync(calendar.No, sinceUtc);
             foreach (var localEvent in modified)
             {
                 try
@@ -550,10 +555,20 @@ public sealed class GoogleSyncService : IDisposable
         // 연속 날짜 같은 이벤트 그룹핑 (예: 여름방학 7/22~8/25 → 하나의 이벤트)
         var groups = SchoolScheduleGroupHelper.GroupSchedules(schedules);
 
-        Debug.WriteLine($"[GoogleSync] 학사일정 {schedules.Count}건 → {groups.Count}개 그룹으로 등록 시작");
+        // 이미 등록된 항목(제목+시작일 동일) 중복 등록 방지 — 재실행 시 기존 이벤트 조회 후 스킵
+        var existingKeys = await GetExistingAllDayEventKeysAsync(
+            googleCalendarId, groups.Min(g => g.StartDate), groups.Max(g => g.EndDate));
+
+        Debug.WriteLine($"[GoogleSync] 학사일정 {schedules.Count}건 → {groups.Count}개 그룹으로 등록 시작 (기존 {existingKeys.Count}건 확인됨)");
 
         foreach (var group in groups)
         {
+            if (existingKeys.Contains((group.EventName, group.StartDate.ToString("yyyy-MM-dd"))))
+            {
+                Debug.WriteLine($"[GoogleSync] 학사일정 이미 등록됨(스킵): {group.EventName} ({group.StartDate:M/d})");
+                continue;
+            }
+
             try
             {
                 var gEvent = new GoogleEvent
@@ -590,6 +605,47 @@ public sealed class GoogleSyncService : IDisposable
         result.Success = result.Errors == 0;
         Debug.WriteLine($"[GoogleSync] 학사일정 일괄 등록 완료: {result.Summary}");
         return result;
+    }
+
+    /// <summary>
+    /// 지정 기간의 종일 이벤트를 (제목, 시작일) 키 집합으로 조회 — 학사일정 재업로드 시 중복 방지용
+    /// </summary>
+    private async Task<HashSet<(string Summary, string StartDate)>> GetExistingAllDayEventKeysAsync(
+        string calendarId, DateTime rangeStart, DateTime rangeEnd)
+    {
+        var keys = new HashSet<(string, string)>();
+        string? pageToken = null;
+
+        try
+        {
+            do
+            {
+                var response = await _apiClient.ListEventsAsync(
+                    calendarId,
+                    timeMin: rangeStart,
+                    timeMax: rangeEnd.AddDays(1),
+                    pageToken: pageToken);
+
+                if (response.Items != null)
+                {
+                    foreach (var item in response.Items)
+                    {
+                        if (item.Status == "cancelled") continue;
+                        var startDate = item.Start?.Date;
+                        if (string.IsNullOrEmpty(startDate) || item.Summary == null) continue;
+                        keys.Add((item.Summary, startDate));
+                    }
+                }
+
+                pageToken = response.NextPageToken;
+            } while (!string.IsNullOrEmpty(pageToken));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GoogleSync] 기존 이벤트 조회 실패(중복 검사 생략): {ex.Message}");
+        }
+
+        return keys;
     }
 
     #endregion

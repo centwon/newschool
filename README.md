@@ -63,9 +63,16 @@ dotnet build -c Debug
 
 ## 배포용 인스톨러 빌드
 
+`Platform` 을 명시해야 합니다 (생략하면 `AnyCPU` 로 해석되어 존재하지 않는 게시 프로필을 찾다 실패합니다).
+Native AOT 게시본은 아키텍처별로 별도 빌드해야 하며, 지원 아키텍처는 `win-x64`/`win-x86`/`win-arm64` 입니다.
+
 ```bash
-dotnet publish -c Release
+dotnet publish -c Release -p:Platform=x64
 ```
+
+`Properties/PublishProfiles/win-x64.pubxml` 이 자동 적용되어 자체 포함(self-contained) Native AOT 게시본을
+`bin\Release\net10.0-windows10.0.26100.0\win-x64\publish\` 에 생성합니다. x86/arm64는 `-p:Platform=x86` 또는
+`-p:Platform=arm64` 로 교체.
 
 이후 Inno Setup 으로 `installer.iss` 또는 `Installer/NewSchoolSetup.iss` 컴파일.
 

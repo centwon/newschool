@@ -26,21 +26,21 @@ public sealed partial class ClassTimetableManagementPage : Page
     public ClassTimetableManagementPage()
     {
         this.InitializeComponent();
-        this.Loaded += ClassTimetableManagementPage_Loaded;
     }
 
-    private void ClassTimetableManagementPage_Loaded(object sender, RoutedEventArgs e)
+    private async void YearSemPicker_YearSemesterChanged(object sender, YearSemesterChangedEventArgs e)
     {
-        // SchoolFilterPicker가 자동으로 초기화함
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
     }
+
     /// <summary>
     /// 조회 버튼 클릭
     /// </summary>
     private async void OnLoadClick(object sender, RoutedEventArgs e)
     {
         // 유효성 검사
-        if (FilterPicker.SelectedYear == 0 || FilterPicker.SelectedSemester == 0 ||
-            FilterPicker.SelectedGrade == 0 || FilterPicker.SelectedClass == 0)
+        if (YearSemPicker.Year == 0 || YearSemPicker.Semester == 0 ||
+            ClassFilter.Grade == 0 || ClassFilter.ClassNum == 0)
         {
             await MessageBox.ShowAsync("알림", "학년도, 학기, 학년, 반을 모두 선택해주세요.");
             return;
@@ -56,10 +56,10 @@ public sealed partial class ClassTimetableManagementPage : Page
     {
         try
         {
-            int year = FilterPicker.SelectedYear;
-            int semester = FilterPicker.SelectedSemester;
-            int grade = FilterPicker.SelectedGrade;
-            int classNo = FilterPicker.SelectedClass;
+            int year = YearSemPicker.Year;
+            int semester = YearSemPicker.Semester;
+            int grade = ClassFilter.Grade;
+            int classNo = ClassFilter.ClassNum;
             string schoolCode = Settings.SchoolCode.Value;
 
             using var repo = new ClassTimetableRepository(SchoolDatabase.DbPath);
@@ -179,15 +179,15 @@ public sealed partial class ClassTimetableManagementPage : Page
     /// </summary>
     private async void OnEditClick(object sender, RoutedEventArgs e)
     {
-        if (FilterPicker.SelectedYear == 0 || FilterPicker.SelectedGrade == 0 || FilterPicker.SelectedClass == 0)
+        if (YearSemPicker.Year == 0 || ClassFilter.Grade == 0 || ClassFilter.ClassNum == 0)
         {
             return;
         }
 
-        int year = FilterPicker.SelectedYear;
-        int semester = FilterPicker.SelectedSemester;
-        int grade = FilterPicker.SelectedGrade;
-        int classNo = FilterPicker.SelectedClass;
+        int year = YearSemPicker.Year;
+        int semester = YearSemPicker.Semester;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum;
         string schoolCode = Settings.SchoolCode.Value;
         var dialog = new ClassTimetableEditDialog(schoolCode, year, semester, grade, classNo, _timetables);
         dialog.XamlRoot = this.XamlRoot;
@@ -206,15 +206,15 @@ public sealed partial class ClassTimetableManagementPage : Page
     /// </summary>
     private async void OnDeleteClick(object sender, RoutedEventArgs e)
     {
-        if (FilterPicker.SelectedYear == 0 || FilterPicker.SelectedGrade == 0 || FilterPicker.SelectedClass == 0)
+        if (YearSemPicker.Year == 0 || ClassFilter.Grade == 0 || ClassFilter.ClassNum == 0)
         {
             return;
         }
 
-        int year = FilterPicker.SelectedYear;
-        int semester = FilterPicker.SelectedSemester;
-        int grade = FilterPicker.SelectedGrade;
-        int classNo = FilterPicker.SelectedClass;
+        int year = YearSemPicker.Year;
+        int semester = YearSemPicker.Semester;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum;
 
         // 확인 다이얼로그
         var confirmed = await MessageBox.ShowConfirmAsync(

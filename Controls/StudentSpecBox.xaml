@@ -23,7 +23,8 @@
             </Grid.RowDefinitions>
 
             <!-- 헤더 영역 -->
-            <Grid Grid.Row="0" 
+            <Grid x:Name="HeaderGrid"
+                  Grid.Row="0"
                   Padding="16,12"
                   Background="{ThemeResource LayerFillColorDefaultBrush}"
                   BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
@@ -132,7 +133,6 @@
                      BorderThickness="0"
                      Background="Transparent"
                      TextChanged="OnTextChanged"
-                     LostFocus="OnLostFocus"
                      PlaceholderText="특이사항을 입력하세요"/>
 
             <!-- 바이트 정보 -->

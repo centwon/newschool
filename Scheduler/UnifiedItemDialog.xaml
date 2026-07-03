@@ -122,6 +122,17 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- 반복 시리즈 삭제 범위 선택 (기존 반복 항목 수정 시만 표시) -->
+                <StackPanel x:Name="PanelSeriesDelete" Grid.Row="3" Grid.ColumnSpan="2"
+                            Orientation="Horizontal" Spacing="8" Margin="10,4,2,4"
+                            Visibility="Collapsed">
+                    <TextBlock Text="삭제 범위" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <RadioButton x:Name="RbDeleteThisOnly" Content="이 항목만" GroupName="DeleteScope"
+                                 IsChecked="True" MinWidth="0" Padding="6,4"/>
+                    <RadioButton x:Name="RbDeleteSeries" Content="이후 반복 항목 모두" GroupName="DeleteScope"
+                                 MinWidth="0" Padding="6,4"/>
+                </StackPanel>
+
                 <TextBlock Text="완료" Grid.Row="4"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <CheckBox x:Name="ChkTaskDone" Content="완료됨"

@@ -101,6 +101,31 @@ namespace NewSchool.Scheduler
         public async Task<bool> PurgeEventAsync(int no) => await KEventRepo.DeleteAsync(no);
 
         /// <summary>
+        /// 반복 시리즈 중 기준일 이후(포함) 항목을 모두 삭제 ("이후 반복 항목 모두 삭제").
+        /// 항목별로 SmartDeleteAsync 규칙(동기화된 항목은 soft-delete)을 적용.
+        /// </summary>
+        public async Task<int> DeleteSeriesFromAsync(string seriesId, DateTime fromDate)
+        {
+            try
+            {
+                var members = await KEventRepo.GetBySeriesIdFromAsync(seriesId, fromDate);
+                int count = 0;
+                foreach (var ev in members)
+                {
+                    if (await SmartDeleteAsync(ev.No))
+                        count++;
+                }
+                Debug.WriteLine($"[SchedulerService] 시리즈 삭제 완료: SeriesId={seriesId}, {count}건");
+                return count;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SchedulerService] 시리즈 삭제 실패: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
         /// 작업 조회 (ID)
         /// </summary>
         public async Task<KEvent?> GetTaskAsync(int no)

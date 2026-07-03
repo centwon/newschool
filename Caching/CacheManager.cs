@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using NewSchool.Board.Services;
 
 namespace NewSchool.Board.Caching
 {
@@ -349,16 +350,44 @@ namespace NewSchool.Board.Caching
         {
             if (obj == null) return 0;
 
-            // 대략적인 크기 추정
-            if (obj is string str)
-                return str.Length * 2; // Unicode 문자당 2바이트
-            // 비제네릭 ICollection 으로 판별해야 List<Post>, List<Comment> 등도 매칭됨
-            // (ICollection<object> 는 제네릭 무공변 때문에 List<T> 와 매칭되지 않아 항상 100바이트로 오산정됨)
-            if (obj is System.Collections.ICollection collection)
-                return Math.Max(collection.Count, 1) * 100; // 평균 100바이트로 추정
-
-            return 100; // 기본값
+            // Post.Content(.flow BLOB)가 수십KB~MB급이라 개당 고정치로는 실제 메모리 사용량을 크게 과소평가함.
+            // 실제 바이트 길이를 반영해야 _maxCacheSizeBytes 상한이 의미를 가짐.
+            switch (obj)
+            {
+                case byte[] bytes:
+                    return bytes.Length;
+                case string str:
+                    return str.Length * 2; // Unicode 문자당 2바이트
+                case Post post:
+                    return EstimatePostSize(post);
+                case PagedResult<Post> paged:
+                    return paged.Items.Sum(EstimatePostSize) + 200;
+                case System.Collections.IEnumerable enumerable:
+                    long total = 0;
+                    int count = 0;
+                    foreach (var item in enumerable)
+                    {
+                        total += EstimateSize(item);
+                        count++;
+                        if (count > 1000)
+                        {
+                            // 너무 큰 컬렉션은 순회 비용을 제한하고 대략치로 보정
+                            total += 100;
+                            break;
+                        }
+                    }
+                    return Math.Max(total, 1);
+                default:
+                    return 100; // 기본값 (단순 값 타입 등)
+            }
         }
+
+        /// <summary>Post 1건의 실제 메모리 사용량 추정 (Content BLOB 포함)</summary>
+        private static long EstimatePostSize(Post post) =>
+            100
+            + (post.Title?.Length ?? 0) * 2
+            + (post.PlainText?.Length ?? 0) * 2
+            + (post.Content?.Length ?? 0);
 
         #endregion
 
@@ -419,8 +448,8 @@ namespace NewSchool.Board.Caching
         public static string Categories() => "board:categories";
         public static string Subjects(string category) => $"board:subjects:{category}";
         public static string Post(int no) => $"board:post:{no}";
-        public static string Posts(int page, int pageSize, string category, string search)
-            => $"board:posts:{page}:{pageSize}:{category}:{search}";
+        public static string Posts(int page, int pageSize, string category, string subject, string search)
+            => $"board:posts:{page}:{pageSize}:{category}:{subject}:{search}";
         public static string Comments(int postNo) => $"board:comments:{postNo}";
         public static string PostFiles(int postNo) => $"board:files:{postNo}";
         public static string PostCount(string category) => $"board:count:{category}";

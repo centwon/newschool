@@ -58,9 +58,6 @@ public sealed partial class Kcalendar : Page
         {
             System.Diagnostics.Debug.WriteLine("Kcalendar_Loaded 시작");
 
-            // UI 완전 로드 대기
-            await Task.Delay(100);
-
             // 안전한 초기화 순서
             await InitializeCalendarSafelyAsync();
 
@@ -104,7 +101,7 @@ public sealed partial class Kcalendar : Page
     /// <summary>
     /// DayCell들을 동기적으로 생성
     /// </summary>
-    private async Task CreateDayCellsSynchronouslyAsync()
+    private Task CreateDayCellsSynchronouslyAsync()
     {
         // ✅ UI 스레드에서 직접 실행 (DispatcherQueue 불필요)
         for (int i = 0; i < Cells.Length; i++)
@@ -129,55 +126,11 @@ public sealed partial class Kcalendar : Page
             {
                 System.Diagnostics.Debug.WriteLine($"DayCell 생성 오류 (인덱스 {i}): {ex.Message}");
             }
-
-            // 매 행(7개)마다 잠깐 대기
-            if (i % 7 == 6)
-            {
-                await Task.Delay(5);
-            }
         }
 
+        // Dayinfo 대입은 DayCell._pendingDayInfo 큐잉으로 Loaded 이전에도 안전하게 처리됨(대기 불필요)
         Debug.WriteLine($"[Kcalendar] 모든 DayCell 생성 완료: {Cells.Count(c => c != null)}개");
-
-        // 모든 셀의 Loaded 이벤트 대기
-        await Task.Delay(100);
-    }
-
-    private async Task CreateDayCellsAsync()
-    {
-        // ✅ UI 스레드에서 직접 실행 (DispatcherQueue 불필요)
-        for (int i = 0; i < Cells.Length; i++)
-        {
-            try
-            {
-                var row = (i / 7) + 1;
-                var column = i % 7;
-
-                var cell = new DayCell();
-                cell.Position = (row, column);
-                cell.PointerPressed += DayCell_PointerPressed;
-                cell.CellChanged += DayCell_CellChanged;
-
-                Grid.SetRow(cell, row);
-                Grid.SetColumn(cell, column);
-                GridBody.Children.Add(cell);
-
-                Cells[i] = cell;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"DayCell 생성 오류 (인덱스 {i}): {ex.Message}");
-            }
-
-            // 매 행(7개)마다 잠깐 대기
-            if (i % 7 == 6)
-            {
-                await Task.Delay(5);
-            }
-        }
-
-        // 모든 셀이 생성될 때까지 추가 대기
-        await Task.Delay(100);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -251,27 +204,13 @@ public sealed partial class Kcalendar : Page
             {
                 using var service = Scheduler.CreateService();
 
-                // 모든 KEvent 로드 (task + event 포함)
+                // 모든 KEvent 로드 (task + event 포함) — GetTasksByDateAsync 중복 조회 없이 메모리에서 분리
                 var allEvents = await service.GetEventsByDateAsync(calendarStart, 42);
                 Debug.WriteLine($"[Kcalendar] KEvent 전체 로드 완료: {allEvents.Count}개");
 
-                // task 항목도 별도 로드 (ShowTasks 설정 반영)
-                if (Settings.ShowTasks.Value)
-                {
-                    var tasks = await service.GetTasksByDateAsync(calendarStart, 42, true);
-                    Debug.WriteLine($"[Kcalendar] Task 로드 완료: {tasks.Count}개");
-
-                    // events에서 task 항목 제외하고, task 쿼리 결과 추가 (중복 방지)
-                    var eventOnly = allEvents.Where(e => e.ItemType != "task").ToList();
-                    newEvents = new List<KEvent>(eventOnly.Count + tasks.Count);
-                    newEvents.AddRange(tasks);
-                    newEvents.AddRange(eventOnly);
-                }
-                else
-                {
-                    // task 숨김 → event만 표시
-                    newEvents = allEvents.Where(e => e.ItemType != "task").ToList();
-                }
+                newEvents = Settings.ShowTasks.Value
+                    ? allEvents
+                    : allEvents.Where(e => e.ItemType != "task").ToList();
             }
             catch (Exception ex)
             {
@@ -378,12 +317,6 @@ public sealed partial class Kcalendar : Page
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"[UpdateCellsDisplayAsync] 셀 {i} 업데이트 오류: {ex.Message}");
-                }
-
-                // 매 행(7개)마다 UI 스레드 양보
-                if (i % 7 == 6)
-                {
-                    await Task.Delay(10);
                 }
             }
 

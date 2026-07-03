@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
+using NewSchool.Board.Models;
 using NewSchool.Board.Services;
 using NewSchool.Board.ViewModels;
 
@@ -32,12 +33,11 @@ public sealed partial class PostListPage : Page
     /// </summary>
     public async Task SetSubjectAsync(string subject)
     {
-        ViewModel.SelectedSubject = subject;
         if (_parameter != null)
         {
             _parameter.Subject = subject;
         }
-        await ViewModel.RefreshAsync();
+        await ViewModel.SetSubjectAndRefreshAsync(subject);
     }
 
     /// <summary>
@@ -501,6 +501,18 @@ public sealed partial class PostListPage : Page
     }
 
     /// <summary>
+    /// 검색어 입력 중 Enter 키로 검색 실행
+    /// </summary>
+    private async void SearchTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            await ViewModel.SearchPostsAsync();
+        }
+    }
+
+    /// <summary>
     /// 새로고침 버튼
     /// </summary>
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
@@ -522,5 +534,41 @@ public sealed partial class PostListPage : Page
     private async void NextButton_Click(object sender, RoutedEventArgs e)
     {
         await ViewModel.NextPageAsync();
+    }
+
+    /// <summary>
+    /// 정렬 기준 변경
+    /// </summary>
+    private void SortOrderComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // InitializeComponent()가 ViewModel 생성보다 먼저 실행되어, XAML의 SelectedIndex 초기값이
+        // ViewModel이 null인 상태에서 이 핸들러를 한 번 호출한다 — 그 최초 호출은 무시한다.
+        if (ViewModel == null) return;
+
+        ViewModel.SortOrder = SortOrderComboBox.SelectedIndex switch
+        {
+            1 => PostSortOrder.OldestFirst,
+            2 => PostSortOrder.TitleAsc,
+            3 => PostSortOrder.ReadCountDesc,
+            4 => PostSortOrder.UserAsc,
+            _ => PostSortOrder.NewestFirst
+        };
+    }
+
+    /// <summary>
+    /// 페이지당 표시 개수 변경
+    /// </summary>
+    private void PageSizeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // SortOrderComboBox_SelectionChanged와 동일한 이유로 초기 호출 시 ViewModel이 null일 수 있음
+        if (ViewModel == null) return;
+
+        ViewModel.PageSize = PageSizeComboBox.SelectedIndex switch
+        {
+            0 => 10,
+            2 => 50,
+            3 => 100,
+            _ => 20
+        };
     }
 }

@@ -277,6 +277,9 @@ public sealed partial class ClubActivityPage : Page
     /// </summary>
     private async void OnStudentSelected(object? sender, Enrollment student)
     {
+        if (SpecBox != null && !await SpecBox.ConfirmLeaveAsync())
+            return;
+
         _selectedStudent = student;
 
         // 헤더 업데이트
@@ -462,6 +465,8 @@ public sealed partial class ClubActivityPage : Page
 
         try
         {
+            SpecBox.StudentName = $"{_selectedStudent.GetClassInfo()} {_selectedStudent.Name}";
+
             using var service = new StudentSpecialService();
             var specials = await service.GetByStudentAsync(_selectedStudent.StudentID, Settings.WorkYear.Value);
 

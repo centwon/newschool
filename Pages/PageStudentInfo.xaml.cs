@@ -71,24 +71,13 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     {
         InitializeServices();
         SetupStudentContextMenu();
-        // SchoolFilterPicker가 자동으로 초기화함
+        // YearSemPicker/ClassFilter 가 자체 초기화 후 ClassChanged 를 발생시켜 학생 목록을 로드함
 
         // ListStudent 이벤트 구독
         StudentList.StudentSelected += StudentList_StudentSelected;
-        
+
         // StudentCard 이벤트 구독
         SCard.StudentChanged += SCard_StudentChanged;
-        
-        // FilterPicker 초기화 후 학생 목록 로드 (서비스 초기화 후)
-        if (FilterPicker.SelectedYear > 0 && 
-            FilterPicker.SelectedGrade > 0 && 
-            FilterPicker.SelectedClass > 0)
-        {
-            _currentYear = FilterPicker.SelectedYear;
-            _currentGrade = FilterPicker.SelectedGrade;
-            _currentClass = FilterPicker.SelectedClass;
-            await LoadStudentListAsync();
-        }
     }
 
     private void PageStudentInfo_Unloaded(object sender, RoutedEventArgs e)
@@ -140,7 +129,12 @@ public sealed partial class PageStudentInfo : Page, IDisposable
 
     #region Event Handlers - FilterPicker
 
-    private async void FilterPicker_SelectionChanged(object? sender, SchoolFilterChangedEventArgs e)
+    private async void YearSemPicker_YearSemesterChanged(object? sender, YearSemesterChangedEventArgs e)
+    {
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
+    }
+
+    private async void ClassFilter_ClassChanged(object? sender, ClassChangedEventArgs e)
     {
         _currentYear = e.Year;
         _currentGrade = e.Grade;
@@ -451,8 +445,6 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     #endregion
 
     #region Data Loading
-
-    // LoadClassListAsync 제거 - SchoolFilterPicker가 자동으로 처리
 
     /// <summary>
     /// 학생 목록 로드

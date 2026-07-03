@@ -103,7 +103,10 @@ public sealed partial class StudentManagementPage : Page, IDisposable
 
     #region 초기화
 
-    // SchoolFilterPicker가 자동으로 초기화함
+    private async void YearSemPicker_YearSemesterChanged(object sender, YearSemesterChangedEventArgs e)
+    {
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
+    }
 
     #endregion
 
@@ -230,9 +233,9 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             ChkSelectAll.IsChecked = false;
 
             // FilterPicker에서 값 가져오기
-            int year = FilterPicker.SelectedYear;
-            int grade = FilterPicker.SelectedGrade;  // 0 = 전체
-            int classNo = FilterPicker.SelectedClass; // 0 = 전체
+            int year = YearSemPicker.Year;
+            int grade = ClassFilter.Grade;  // 0 = 전체
+            int classNo = ClassFilter.ClassNum; // 0 = 전체
 
             if (year == 0)
             {
@@ -345,8 +348,6 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             IsModified = false
         }).ToList();
     }
-
-    // GetClassListAsync 제거 - SchoolFilterPicker가 자동으로 처리
 
     #endregion
 

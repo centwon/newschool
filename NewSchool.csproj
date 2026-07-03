@@ -11,6 +11,14 @@
     <Version>1.1.0</Version>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
+
+    <!-- MSB3277: WindowsAppSDK 2.2.0 이 전이적으로 끌고 오는 Microsoft.Web.WebView2 패키지가
+         net6.0-windows/net8.0-windows TFM에는 Microsoft.Web.WebView2.Wpf.dll을 아예 배포하지 않아,
+         NuGet이 유일하게 그 어셈블리를 가진 net5.0-windows(WPF의 WindowsBase 5.0.0.0 참조) 자산으로
+         폴백하면서 앱 자체의 WindowsBase(4.0.0.0) 참조와 충돌 경고가 발생한다.
+         앱은 WebView2/WPF를 전혀 사용하지 않고(위 "미사용 전이 자산 게시 제외" 참고), 런타임에도
+         영향이 없는 빌드 타임 경고이므로 억제한다. -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
   </PropertyGroup>
 
   <!-- 테스트 프로젝트에 internal 멤버 노출 (CsvExportService.Escape 등) -->
@@ -23,7 +31,6 @@
        ========================================== -->
   <ItemGroup>
     <Compile Remove="Board\FileItemBox.xaml.cs" />
-    <Compile Remove="Board\ListViewer.xaml.cs" />
     <Compile Remove="Board\PostBox.xaml.cs" />
     <Compile Remove="Board\PostFileListBox.xaml.cs" />
     <!-- 테스트 프로젝트는 별도 csproj 로 빌드되므로 메인 프로젝트의 implicit glob 에서 제외 -->
@@ -34,7 +41,6 @@
     <None Remove="Board\Controls\FileItemBox.xaml" />
     <None Remove="Board\Controls\PostFileListBox.xaml" />
     <None Remove="Board\FileItemBox.xaml" />
-    <None Remove="Board\ListViewer.xaml" />
     <None Remove="Board\Pages\PostDetailPage.xaml" />
     <None Remove="Board\Pages\PostEditPage.xaml" />
     <None Remove="Board\Pages\PostListPage.xaml" />
@@ -57,7 +63,6 @@
   </ItemGroup>
   <ItemGroup>
     <Page Remove="Board\FileItemBox.xaml" />
-    <Page Remove="Board\ListViewer.xaml" />
     <Page Remove="Board\PostBox.xaml" />
     <Page Remove="Board\PostFileListBox.xaml" />
   </ItemGroup>

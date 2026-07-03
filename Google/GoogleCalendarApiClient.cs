@@ -95,15 +95,17 @@ public class GoogleCalendarApiClient
     {
         var sb = new StringBuilder(256);
         sb.Append($"{BaseUrl}/calendars/{Uri.EscapeDataString(calendarId)}/events");
-        sb.Append("?maxResults=2500&singleEvents=true&orderBy=startTime");
+        sb.Append("?maxResults=2500&singleEvents=true");
 
         if (!string.IsNullOrEmpty(syncToken))
         {
-            // 증분 동기화 — syncToken 사용 시 timeMin/timeMax 무시
+            // 증분 동기화 — syncToken은 orderBy/timeMin/timeMax와 함께 쓸 수 없음(Google API 제약)
             sb.Append($"&syncToken={Uri.EscapeDataString(syncToken)}");
         }
         else
         {
+            // 전체 동기화일 때만 정렬 지정 가능
+            sb.Append("&orderBy=startTime");
             if (timeMin.HasValue)
                 sb.Append($"&timeMin={Uri.EscapeDataString(timeMin.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"))}");
             if (timeMax.HasValue)

@@ -42,11 +42,15 @@
 
             <!-- 첫 번째 행: 필터 -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
-                <controls:SchoolFilterPicker 
-                    x:Name="FilterPicker"
+                <controls:YearSemesterPicker
+                    x:Name="YearSemPicker"
                     ShowSemester="False"
+                    YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
+                <controls:ClassPicker
+                    x:Name="ClassFilter"
                     IncludeAllGrade="True"
-                    IncludeAllClass="True"/>
+                    IncludeAllClass="True"
+                    AutoLoad="False"/>
 
                 <Button x:Name="BtnLookUp" 
                         Content="조회" 

@@ -1,4 +1,4 @@
-﻿<!-- PostListPage.xaml - Post 목록 페이지 (개선 버전) -->
+<!-- PostListPage.xaml - Post 목록 페이지 (개선 버전) -->
 <Page
     x:Class="NewSchool.Board.Pages.PostListPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -36,6 +36,8 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -59,9 +61,36 @@
                           Visibility="Collapsed"
                           Margin="0,0,8,0"/>
 
+            <!-- 정렬 기준 -->
+            <ComboBox x:Name="SortOrderComboBox"
+                          Grid.Column="2"
+                          Width="120"
+                          SelectedIndex="0"
+                          SelectionChanged="SortOrderComboBox_SelectionChanged"
+                          Margin="0,0,8,0">
+                <ComboBoxItem Content="최신순"/>
+                <ComboBoxItem Content="오래된순"/>
+                <ComboBoxItem Content="제목순"/>
+                <ComboBoxItem Content="조회수순"/>
+                <ComboBoxItem Content="작성자순"/>
+            </ComboBox>
+
+            <!-- 페이지당 개수 -->
+            <ComboBox x:Name="PageSizeComboBox"
+                          Grid.Column="3"
+                          Width="100"
+                          SelectedIndex="1"
+                          SelectionChanged="PageSizeComboBox_SelectionChanged"
+                          Margin="0,0,8,0">
+                <ComboBoxItem Content="10개씩"/>
+                <ComboBoxItem Content="20개씩"/>
+                <ComboBoxItem Content="50개씩"/>
+                <ComboBoxItem Content="100개씩"/>
+            </ComboBox>
+
             <!-- ViewMode 전환 버튼 -->
             <Button x:Name="ViewModeToggleButton"
-                        Grid.Column="3"
+                        Grid.Column="5"
                         Click="ViewModeToggleButton_Click"
                         ToolTipService.ToolTip="보기 모드 전환"
                         Margin="4,0,0,0"
@@ -70,7 +99,7 @@
             </Button>
 
             <!-- 새로고침 -->
-            <Button Grid.Column="4"
+            <Button Grid.Column="6"
                         Content="새로고침"
                         Click="RefreshButton_Click"
                         Margin="4,0,0,0">
@@ -80,7 +109,7 @@
             </Button>
 
             <!-- 새 글 작성 -->
-            <Button Grid.Column="5"
+            <Button Grid.Column="7"
                         Content="새 글 쓰기"
                         Style="{StaticResource AccentButtonStyle}"
                         Margin="4,0,0,0"
@@ -367,7 +396,7 @@
         </Grid>
 
         <!-- 페이징 -->
-        <Grid Grid.Row="3" Margin="0,20,0,0">
+        <Grid Grid.Row="3" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -394,12 +423,13 @@
                     IsEnabled="False"/>
         </Grid>
         <!-- 검색 영역 -->
-        <Grid x:Name="SearchRow" Grid.Row="4" Margin="0,10,0,0">
+        <Grid x:Name="SearchRow" Grid.Row="4" Margin="0,12,0,0" HorizontalAlignment="Center">
             <StackPanel Orientation="Horizontal">
                 <TextBox x:Name="SearchTextBox"
                              Width="300"
                              PlaceholderText="검색어 입력"
                              Text="{x:Bind ViewModel.SearchText, Mode=TwoWay}"
+                             KeyDown="SearchTextBox_KeyDown"
                              Margin="0,0,8,0"/>
 
                 <CheckBox Content="제목"

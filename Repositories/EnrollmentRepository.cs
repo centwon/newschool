@@ -208,6 +208,48 @@ namespace NewSchool.Repositories
         }
 
         /// <summary>
+        /// 여러 학생의 현재 학적을 한 번에 조회 (학생별 가장 최근 것) - N+1 방지용
+        /// </summary>
+        public async Task<List<Enrollment>> GetCurrentByStudentIdsAsync(List<string> studentIds)
+        {
+            if (studentIds == null || studentIds.Count == 0)
+                return new List<Enrollment>();
+
+            var placeholders = string.Join(",", studentIds.Select((_, i) => $"@id{i}"));
+            var query = $@"
+                SELECT * FROM Enrollment
+                WHERE StudentID IN ({placeholders})
+                  AND IsDeleted = 0
+                ORDER BY StudentID, Year DESC, Semester DESC";
+
+            try
+            {
+                using var cmd = CreateCommand(query);
+                for (int i = 0; i < studentIds.Count; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@id{i}", studentIds[i]);
+                }
+
+                var seen = new HashSet<string>();
+                var results = new List<Enrollment>();
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var enrollment = MapEnrollment(reader);
+                    if (seen.Add(enrollment.StudentID))
+                        results.Add(enrollment);
+                }
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                LogError($"현재 학적 일괄 조회 실패: {studentIds.Count}건", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
         /// 특정 학생의 전체 학적 이력 조회 (최신순)
         /// </summary>
         public async Task<List<Enrollment>> GetHistoryByStudentIdAsync(string studentId)

@@ -188,6 +188,9 @@ public static class Scheduler
                 return false;
             }
 
+            // 열려 있는 풀링된 연결이 파일을 잠그고 있으면 복사가 실패하므로 먼저 정리
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
             // 기존 -wal/-shm 잔존분을 먼저 제거 (복원한 .db 를 옛 WAL 이 덮어쓰지 않도록)
             DeleteWalSidecars(DbPath);
             await Task.Run(() => File.Copy(backupPath, DbPath, true));
@@ -220,6 +223,9 @@ public static class Scheduler
                 "데이터베이스 초기화", "초기화", "취소");
             if (!confirmed)
                 return false;
+
+            // 열려 있는 풀링된 연결이 파일을 잠그고 있으면 삭제가 실패하므로 먼저 정리
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
 
             // DB 파일 + WAL sidecar(-wal/-shm) 삭제
             if (File.Exists(DbPath))

@@ -164,10 +164,12 @@ public sealed partial class ClassDiaryPage : Page
 
     #region 이벤트 핸들러
 
-    /// <summary>
-    /// SchoolFilterPicker 선택 변경
-    /// </summary>
-    private async void FilterPicker_SelectionChanged(object? sender, Controls.SchoolFilterChangedEventArgs e)
+    private async void YearSemPicker_YearSemesterChanged(object? sender, YearSemesterChangedEventArgs e)
+    {
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
+    }
+
+    private async void ClassFilter_ClassChanged(object? sender, ClassChangedEventArgs e)
     {
         _currentYear = e.Year;
         _currentGrade = e.Grade;

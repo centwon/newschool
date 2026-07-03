@@ -10,6 +10,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using NewSchool.Board.Models;
 using NewSchool.Board.Services;
 using NewSchool.Board.ViewModels;
 using NewSchool.Collections;
@@ -58,6 +59,10 @@ public class PostListViewModel : INotifyPropertyChanged
         }
     } = "";
 
+    /// <summary>외부에서 카테고리+주제를 한 번에 설정하고 확정적으로 새로고침할 때, 이 setter의 자동 새로고침과
+    /// 중복 로드되지 않도록 억제하기 위한 플래그. <see cref="SetSubjectAndRefreshAsync"/> 참고.</summary>
+    private bool _suppressAutoReload;
+
     public string SelectedSubject
     {
         get;
@@ -67,9 +72,35 @@ public class PostListViewModel : INotifyPropertyChanged
             {
                 field = value;
                 OnPropertyChanged();
+                if (!_suppressAutoReload)
+                {
+                    _ = LoadPostsAsync().ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
+                    }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
+                }
             }
         }
     } = "";
+
+    /// <summary>
+    /// 주제를 설정하고 정확히 한 번만 새로고침한다 (외부 호출용 — 이중 로드 방지).
+    /// </summary>
+    public async Task SetSubjectAndRefreshAsync(string subject)
+    {
+        _suppressAutoReload = true;
+        try
+        {
+            SelectedSubject = subject;
+        }
+        finally
+        {
+            _suppressAutoReload = false;
+        }
+
+        await RefreshAsync();
+    }
 
 
     public Visibility HasPosts
@@ -99,6 +130,24 @@ public class PostListViewModel : INotifyPropertyChanged
     public Visibility LoadingVisibility => IsLoading ? Visibility.Visible : Visibility.Collapsed;
 
 
+
+    public PostSortOrder SortOrder
+    {
+        get;
+        set
+        {
+            if (field != value)
+            {
+                field = value;
+                OnPropertyChanged();
+                _ = LoadPostsAsync().ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
+                }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
+            }
+        }
+    } = PostSortOrder.NewestFirst;
 
     public string SearchText
     {
@@ -163,8 +212,17 @@ public class PostListViewModel : INotifyPropertyChanged
         get;
         set
         {
-            field = value;
-            OnPropertyChanged();
+            if (field != value)
+            {
+                field = value;
+                OnPropertyChanged();
+                CurrentPage = 1;
+                _ = LoadPostsAsync().ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
+                }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
+            }
         }
     } = 20;
 
@@ -207,7 +265,6 @@ public class PostListViewModel : INotifyPropertyChanged
     public ICommand SearchCommand { get; }
     public ICommand PreviousPageCommand { get; }
     public ICommand NextPageCommand { get; }
-    public ICommand DeletePostCommand { get; }
     public ICommand RefreshCommand { get; }
 
     #endregion
@@ -230,7 +287,6 @@ public class PostListViewModel : INotifyPropertyChanged
         SearchCommand = new RelayCommand(async () => await SearchPostsAsync());
         PreviousPageCommand = new RelayCommand(async () => await PreviousPageAsync(), () => HasPreviousPage);
         NextPageCommand = new RelayCommand(async () => await NextPageAsync(), () => HasNextPage);
-        DeletePostCommand = new RelayCommand<PostItemViewModel>(async (postItem) => await DeletePostAsync(postItem));
         RefreshCommand = new RelayCommand(async () => await RefreshAsync());
     }
 
@@ -249,7 +305,8 @@ public class PostListViewModel : INotifyPropertyChanged
                 pageNumber: CurrentPage,
                 pageSize: PageSize,
                 category: SelectedCategory,
-                subject: SelectedSubject);
+                subject: SelectedSubject,
+                sortOrder: SortOrder);
 
             Debug.WriteLine($"서비스에서 받은 아이템 수: {result.Items.Count}");
 
@@ -325,7 +382,8 @@ public class PostListViewModel : INotifyPropertyChanged
                 subject: SelectedSubject,
                 searchTitle: SearchInTitle,
                 searchContent: SearchInContent,
-                searchText: SearchText);
+                searchText: SearchText,
+                sortOrder: SortOrder);
 
             if (_dispatcherQueue != null)
             {
@@ -397,28 +455,6 @@ public class PostListViewModel : INotifyPropertyChanged
         {
             CurrentPage++;
             await LoadPostsAsync();
-        }
-    }
-
-    public async Task DeletePostAsync(PostItemViewModel? postItem)
-    {
-        if (postItem == null) return;
-
-        try
-        {
-            // 삭제 확인은 UI에서 처리되었다고 가정
-            bool success = await _service.DeletePostAsync(postItem.No, postItem.Category);
-
-            if (success)
-            {
-                Posts.Remove(postItem);
-                TotalCount--;
-                Debug.WriteLine($"Post 삭제 완료: No={postItem.No}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Post 삭제 실패: {ex.Message}");
         }
     }
 

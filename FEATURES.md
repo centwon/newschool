@@ -26,6 +26,7 @@
 | `StudentInfoExport` | `StudentInfoExportPage.xaml` | 학생 정보 출력 |
 | `UnifiedExport` | `UnifiedExportPage.xaml` | 통합 내보내기 (누가기록·학생부·좌석배정·학생카드 × Excel/PDF/HTML) |
 | `Timetable_ClassManagement` | `ClassTimetableManagementPage.xaml` | 학급 시간표 관리 |
+| `CourseSpec` | `CourseSpecPage.xaml` | 학생부 기록 (교과세특, 과목/강의실 필터) |
 
 ---
 
@@ -83,7 +84,7 @@
 ### Dialogs
 | 파일 | 기능 |
 |------|------|
-| `MemoEditDialog.xaml` | 메모 편집 다이얼로그 |
+| `MemoEditDialog.xaml` | 메모 편집 창 (리사이즈 가능한 별도 Window, ContentDialog 아님) |
 
 ### ViewModels
 | 파일 | 기능 |
@@ -103,15 +104,23 @@
 
 ## 7. 일정 관리 모듈 (Scheduler/)
 
+할 일(task)과 일정(event)은 `KEvent` 단일 모델로 통합 관리(`ItemType`으로 구분). 옛 `Ktask`/`TaskDialog`/`KtaskListControl`은 제거됨.
+
 | 파일 | 기능 |
 |------|------|
-| `Kcalendar.xaml` | 메인 캘린더 컨트롤 |
-| `DayCell.xaml` | 일별 셀 컨트롤 |
-| `TaskDialog.xaml` | 일정 편집 다이얼로그 |
-| `KtaskListControl.xaml` | 일정 목록 컨트롤 |
-| `Ktask.cs` | 일정 모델 |
-| `SchedulerService.cs` | 일정 서비스 |
-| `CachedSchedulerService.cs` | 캐시된 일정 서비스 |
+| `Kcalendar.xaml` | 메인 캘린더 페이지 (월별 그리드) |
+| `DayCell.xaml` | 일별 셀 컨트롤 (할 일/일정 표시, 완료 토글) |
+| `KAgendaControl.xaml` | 목록형(아젠다) 일정/할일 뷰 |
+| `UnifiedItemDialog.xaml` | 할 일/일정 통합 편집 다이얼로그 (반복 생성, 시리즈 삭제) |
+| `KEvent.cs` | 일정/할일 통합 모델 (Google Calendar Event 대응) |
+| `KEventRepository.cs` | KEvent DB 접근 (Google 동기화 쿼리 포함) |
+| `KCalendarList.cs` | 캘린더 목록(카테고리+색상) 모델 |
+| `KCalendarListRepository.cs` | KCalendarList DB 접근 |
+| `Scheduler.cs` | 정적 진입점 (Service/UnitOfWork 생성, DB 백업/복원/초기화) |
+| `SchedulerService.cs` | 일정/할일 비즈니스 로직 레이어 |
+| `UnitOfWork.cs` | 단일 트랜잭션으로 여러 Repository 원자적 처리 |
+| `DatabaseInitializer.cs` | 스케줄러 DB 스키마 초기화/마이그레이션 |
+| `DispatcherQueueExtensions.cs` | DispatcherQueue 비동기 실행 확장 메서드 |
 
 ---
 
@@ -132,7 +141,9 @@
 | `ClassDiaryListWin.xaml` | 학급일지 목록 |
 | `LessonLogList.xaml` | 수업 기록 목록 |
 | `LogListViewer.xaml` | 기록 목록 뷰어 |
-| `SchoolFilterPicker.xaml` | 학교 필터 선택기 |
+| `YearSemesterPicker.xaml` | 학년도/학기 선택기 |
+| `ClassPicker.xaml` | 학년/반 선택기 (확정 시 학생 목록 이벤트 전달) |
+| `CoursePicker.xaml` | 과목/강의실 선택기 (확정 시 수강생 목록 이벤트 전달) |
 | `SchoolMealBox.xaml` | 급식 정보 박스 |
 | `SchoolScheduleListControl.xaml` | 학사일정 목록 |
 | `RichTextEditor.xaml` | 리치 텍스트 에디터 (WinUIRichEditor/Win2D 어댑터) |
@@ -367,6 +378,7 @@
 | 학생 정보 | `Pages/PageStudentInfo.xaml`, `Services/StudentService.cs` |
 | 학생 기록 | `Pages/PageStudentLog.xaml`, `Services/StudentLogService.cs` |
 | 학생부 | `Pages/StudentSpecPage.xaml`, `Services/StudentSpecialService.cs` |
+| 학생부(교과세특) | `Pages/CourseSpecPage.xaml`, `Controls/CoursePicker.xaml` |
 | 자리 배정 | `Pages/PageSeats.xaml`, `Services/SeatService.cs`, `Services/SeatsPrintService.cs`, `Dialogs/SeatOptionsDialog.xaml` |
 | 시간표 | `Controls/TimetableControl.xaml`, `Services/TimetableService.cs` |
 | 수업 관리 | `Pages/CourseManagementPage.xaml`, `Services/CourseService.cs` |

@@ -22,11 +22,16 @@ public sealed partial class UnifiedExportPage : Page
         Unloaded += (_, _) => PreviewEditor?.Dispose();   // 페이지 이탈 시 에디터 해제
     }
 
+    private async void YearSemPicker_YearSemesterChanged(object sender, YearSemesterChangedEventArgs e)
+    {
+        await ClassFilter.LoadAsync(e.Year, e.Semester);
+    }
+
     private async void BtnPreview_Click(object sender, RoutedEventArgs e)
     {
-        int year = SchoolFilter.SelectedYear;
-        int grade = SchoolFilter.SelectedGrade;
-        int classNo = SchoolFilter.SelectedClass;
+        int year = YearSemPicker.Year;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum;
 
         if (year == 0 || grade == 0 || classNo == 0)
         {
@@ -61,9 +66,9 @@ public sealed partial class UnifiedExportPage : Page
 
     private async void BtnExport_Click(object sender, RoutedEventArgs e)
     {
-        int year = SchoolFilter.SelectedYear;
-        int grade = SchoolFilter.SelectedGrade;
-        int classNo = SchoolFilter.SelectedClass;
+        int year = YearSemPicker.Year;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum;
 
         if (year == 0 || grade == 0 || classNo == 0)
         {
@@ -88,9 +93,9 @@ public sealed partial class UnifiedExportPage : Page
     /// </summary>
     private async void BtnCopyClipboard_Click(object sender, RoutedEventArgs e)
     {
-        int year = SchoolFilter.SelectedYear;
-        int grade = SchoolFilter.SelectedGrade;
-        int classNo = SchoolFilter.SelectedClass;
+        int year = YearSemPicker.Year;
+        int grade = ClassFilter.Grade;
+        int classNo = ClassFilter.ClassNum;
 
         if (year == 0 || grade == 0 || classNo == 0)
         {

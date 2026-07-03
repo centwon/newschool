@@ -16,9 +16,12 @@
 
         <!-- Row 0: 학급 필터 -->
         <StackPanel Orientation="Horizontal" Spacing="12" Grid.Row="0">
-            <controls:SchoolFilterPicker x:Name="SchoolFilter"
+            <controls:YearSemesterPicker x:Name="YearSemPicker"
                 ShowSemester="False"
-                IncludeAllClass="False"/>
+                YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
+            <controls:ClassPicker x:Name="ClassFilter"
+                IncludeAllClass="False"
+                AutoLoad="False"/>
         </StackPanel>
 
         <!-- Row 1: 데이터 선택 -->

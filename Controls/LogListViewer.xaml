@@ -7,6 +7,13 @@
     xmlns:vm="using:NewSchool.ViewModels"
     mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <!-- 체크박스가 배경과 구분되지 않아 안 보이는 문제 방지: 테두리 색 고정 -->
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="Gray"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="Gray"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="Transparent"/>
+    </UserControl.Resources>
+
     <Border
         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -61,6 +68,10 @@
                           HorizontalAlignment="Left"
                           VerticalAlignment="Center"
                           Margin="4,0,0,0"
+                          MinWidth="0"
+                          Padding="0"
+                          FontSize="14"
+                          BorderBrush="Gray"
                           Checked="OnSelectAllChecked"
                           Unchecked="OnSelectAllUnchecked"/>
 
@@ -130,28 +141,29 @@
                                     <!-- 체크박스 -->
                                     <CheckBox Grid.Column="0"
                                               HorizontalAlignment="Left"
-                                              VerticalAlignment="Top"
+                                              VerticalAlignment="Center"
                                               Margin="4,0,0,0"
                                               Padding="0"
+                                              MinWidth="0"
+                                              FontSize="14"
+                                              BorderBrush="Gray"
                                               IsChecked="{x:Bind IsSelected, Mode=TwoWay}"/>
 
                                     <!-- 학년도 -->
                                     <TextBlock Grid.Column="1"
                                                Text="{x:Bind Year}"
                                                Visibility="{x:Bind YearColumnVisibility, Mode=OneWay}"
-                                               VerticalAlignment="Top"
+                                               VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"
-                                               Margin="0,4,0,0"/>
+                                               FontSize="12"/>
 
                                     <!-- 학기 -->
                                     <TextBlock Grid.Column="2"
                                                Text="{x:Bind Semester}"
                                                Visibility="{x:Bind SemesterColumnVisibility, Mode=OneWay}"
-                                               VerticalAlignment="Top"
+                                               VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"
-                                               Margin="0,4,0,0"/>
+                                               FontSize="12"/>
 
                                     <!-- 영역 (라벨만 표시) -->
                                     <Border Grid.Column="3"
@@ -160,8 +172,7 @@
                                             CornerRadius="3"
                                             Padding="4,2"
                                             HorizontalAlignment="Center"
-                                            VerticalAlignment="Top"
-                                            Margin="0,2,0,0"
+                                            VerticalAlignment="Center"
                                             Visibility="{Binding ElementName=TxtCategoryHeader, Path=Visibility}">
                                         <TextBlock Text="{x:Bind CategoryLabel}"
                                                    FontSize="9"
@@ -173,10 +184,9 @@
                                     <TextBlock Grid.Column="4"
                                                Text="{x:Bind SubjectName}"
                                                Visibility="{Binding ElementName=TxtSubjectHeader, Path=Visibility}"
-                                               VerticalAlignment="Top"
+                                               VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="12"
-                                               Margin="0,4,0,0"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"/>
 
@@ -184,46 +194,41 @@
                                     <TextBlock Grid.Column="5"
                                                Text="{x:Bind Grade}"
                                                Visibility="{Binding ElementName=TxtGradeHeader, Path=Visibility}"
-                                               VerticalAlignment="Top"
+                                               VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"
-                                               Margin="0,4,0,0"/>
+                                               FontSize="12"/>
 
                                     <!-- 반 -->
                                     <TextBlock Grid.Column="6"
                                                Text="{x:Bind Class}"
                                                Visibility="{Binding ElementName=TxtClassHeader, Path=Visibility}"
-                                               VerticalAlignment="Top"
+                                               VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"
-                                               Margin="0,4,0,0"/>
+                                               FontSize="12"/>
 
                                     <!-- 번호 -->
                                     <TextBlock Grid.Column="7"
                                                Text="{x:Bind Number}"
                                                Visibility="{Binding ElementName=TxtNumberHeader, Path=Visibility}"
-                                               VerticalAlignment="Top"
+                                               VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"
-                                               Margin="0,4,0,0"/>
+                                               FontSize="12"/>
 
                                     <!-- 이름 -->
                                     <TextBlock Grid.Column="8"
                                                Text="{x:Bind Name}"
                                                Visibility="{Binding ElementName=TxtNameHeader, Path=Visibility}"
-                                               VerticalAlignment="Top"
+                                               VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="12"
-                                               Margin="0,4,0,0"
                                                FontWeight="SemiBold"/>
 
                                     <!-- 일시 -->
                                     <TextBlock Grid.Column="9"
                                                Text="{x:Bind DateString}"
-                                               VerticalAlignment="Top"
+                                               VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="12"
-                                               Margin="0,4,0,0"
                                                TextWrapping="NoWrap"/>
 
                                     <!-- 주제 -->

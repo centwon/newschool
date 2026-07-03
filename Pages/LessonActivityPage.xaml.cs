@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,7 +8,6 @@ using Microsoft.UI.Xaml.Controls;
 using NewSchool.Controls;
 using NewSchool.Dialogs;
 using NewSchool.Models;
-using NewSchool.Repositories;
 using NewSchool.Services;
 using NewSchool.ViewModels;
 
@@ -26,12 +24,6 @@ public sealed partial class LessonActivityPage : Page
     private Course? _selectedCourse;
     private string? _selectedRoom;
     private Enrollment? _selectedStudent;
-
-    /// <summary>과목 목록</summary>
-    public ObservableCollection<Course> Courses { get; } = new();
-
-    /// <summary>강의실 목록</summary>
-    public ObservableCollection<string> Rooms { get; } = new();
 
     #endregion
 
@@ -53,199 +45,15 @@ public sealed partial class LessonActivityPage : Page
         // StudentList 이벤트 연결
         StudentList.StudentSelected += OnStudentSelected;
 
-        // ComboBox 바인딩
-        CBoxCourse.ItemsSource = Courses;
-        CBoxRoom.ItemsSource = Rooms;
-
         // LogListViewer 초기 설정 — 교과활동 모드
         LogList.Category = LogCategory.교과활동;
 
         SetupStudentContextMenu();
     }
 
-    private async void Page_Loaded(object sender, RoutedEventArgs e)
-    {
-        await LoadCoursesAsync();
-    }
-
     #endregion
 
     #region Data Loading
-
-    /// <summary>
-    /// 내 수업 목록 로드
-    /// </summary>
-    private async Task LoadCoursesAsync()
-    {
-        try
-        {
-            using var courseService = new CourseService();
-            var courses = await courseService.GetMyCoursesAsync();
-
-            Courses.Clear();
-            foreach (var course in courses)
-            {
-                Courses.Add(course);
-            }
-
-            // 첫 번째 과목 자동 선택
-            if (Courses.Count > 0)
-            {
-                CBoxCourse.SelectedIndex = 0;
-            }
-            else
-            {
-                ShowInfoBar("등록된 수업이 없습니다.", InfoBarSeverity.Warning);
-            }
-
-            Debug.WriteLine($"[LessonActivityPage] 과목 로드 완료: {Courses.Count}개");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[LessonActivityPage] 과목 로드 실패: {ex.Message}");
-            ShowInfoBar($"과목 목록을 불러오는데 실패했습니다: {ex.Message}", InfoBarSeverity.Error);
-        }
-    }
-
-    /// <summary>
-    /// 강의실 목록 로드
-    /// </summary>
-    private void LoadRooms()
-    {
-        Rooms.Clear();
-        Rooms.Add("전체"); // 기본 옵션
-
-        if (_selectedCourse != null && !string.IsNullOrEmpty(_selectedCourse.Rooms))
-        {
-            foreach (var room in _selectedCourse.RoomList)
-            {
-                Rooms.Add(room);
-            }
-        }
-
-        CBoxRoom.SelectedIndex = 0;
-    }
-
-    /// <summary>
-    /// 수강생 목록 로드
-    /// </summary>
-    private async Task LoadStudentsAsync()
-    {
-        if (_selectedCourse == null)
-        {
-            StudentList.ClearStudents();
-            TxtStudentCount.Text = "0명";
-            return;
-        }
-
-        try
-        {
-            List<Enrollment> students;
-
-            if (_selectedRoom != null && _selectedRoom != "전체")
-            {
-                // 특정 강의실 선택: CourseEnrollment.Room으로 필터
-                students = await LoadStudentsByRoomFilterAsync(_selectedRoom);
-            }
-            else if (_selectedCourse.IsClassType)
-            {
-                // 학급 공통 + 전체: 해당 학년 전체 학생
-                using var enrollmentService = new EnrollmentService();
-                students = await enrollmentService.GetEnrollmentsAsync(
-                    Settings.SchoolCode.Value,
-                    Settings.WorkYear.Value,
-                    0,
-                    _selectedCourse.Grade);
-            }
-            else
-            {
-                // Selective/Club + 전체: CourseEnrollment 기반
-                students = await LoadStudentsByCourseEnrollmentAsync();
-            }
-
-            // 정렬: 학년 → 반 → 번호
-            var sorted = students
-                .OrderBy(s => s.Grade)
-                .ThenBy(s => s.Class)
-                .ThenBy(s => s.Number)
-                .ToList();
-
-            StudentList.LoadStudents(sorted);
-            TxtStudentCount.Text = $"{sorted.Count}명";
-
-            // 선택 초기화
-            _selectedStudent = null;
-            LogList?.Logs?.Clear();
-
-            Debug.WriteLine($"[LessonActivityPage] 학생 로드 완료: {sorted.Count}명");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[LessonActivityPage] 학생 로드 실패: {ex.Message}");
-            ShowInfoBar($"학생 목록을 불러오는데 실패했습니다: {ex.Message}", InfoBarSeverity.Error);
-        }
-    }
-
-    /// <summary>
-    /// CourseEnrollment 기반 학생 로드
-    /// </summary>
-    private async Task<List<Enrollment>> LoadStudentsByCourseEnrollmentAsync()
-    {
-        if (_selectedCourse == null) return new List<Enrollment>();
-
-        using var enrollmentRepo = new CourseEnrollmentRepository(SchoolDatabase.DbPath);
-        var courseEnrollments = await enrollmentRepo.GetByCourseAsync(_selectedCourse.No);
-
-        if (courseEnrollments.Count == 0)
-            return new List<Enrollment>();
-
-        using var enrollmentService = new EnrollmentService();
-        var students = new List<Enrollment>();
-
-        foreach (var ce in courseEnrollments)
-        {
-            var enrollment = await enrollmentService.GetCurrentEnrollmentAsync(ce.StudentID);
-            if (enrollment != null)
-            {
-                students.Add(enrollment);
-            }
-        }
-
-        return students;
-    }
-
-    /// <summary>
-    /// 강의실(Room)별 학생 로드 — CourseEnrollment.Room 필터
-    /// </summary>
-    private async Task<List<Enrollment>> LoadStudentsByRoomFilterAsync(string room)
-    {
-        if (_selectedCourse == null) return new List<Enrollment>();
-
-        using var enrollmentRepo = new CourseEnrollmentRepository(SchoolDatabase.DbPath);
-        var courseEnrollments = await enrollmentRepo.GetByCourseAsync(_selectedCourse.No);
-
-        // Room 필터 적용
-        var filtered = courseEnrollments
-            .Where(ce => ce.Room == room)
-            .ToList();
-
-        if (filtered.Count == 0)
-            return new List<Enrollment>();
-
-        using var enrollmentService = new EnrollmentService();
-        var students = new List<Enrollment>();
-
-        foreach (var ce in filtered)
-        {
-            var enrollment = await enrollmentService.GetCurrentEnrollmentAsync(ce.StudentID);
-            if (enrollment != null)
-            {
-                students.Add(enrollment);
-            }
-        }
-
-        return students;
-    }
 
     /// <summary>
     /// 활동 기록 로드
@@ -303,28 +111,29 @@ public sealed partial class LessonActivityPage : Page
     #region Event Handlers - Selection
 
     /// <summary>
-    /// 수업 선택 변경
+    /// 과목/강의실 선택 확정 — CoursePicker 가 수강생 목록까지 함께 전달
     /// </summary>
-    private async void CBoxCourse_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void CoursePickerCtl_LoadError(object? sender, string message)
     {
-        if (CBoxCourse.SelectedItem is Course course)
-        {
-            _selectedCourse = course;
-            LoadRooms();
-            await LoadStudentsAsync();
-        }
+        ShowInfoBar(message, InfoBarSeverity.Error);
     }
 
-    /// <summary>
-    /// 강의실 선택 변경
-    /// </summary>
-    private async void CBoxRoom_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void CoursePickerCtl_CourseChanged(object? sender, CourseChangedEventArgs e)
     {
-        if (CBoxRoom.SelectedItem is string room)
-        {
-            _selectedRoom = room;
-            await LoadStudentsAsync();
-        }
+        _selectedCourse = e.Course;
+        _selectedRoom = e.Room;
+
+        var sorted = e.Students
+            .OrderBy(s => s.Grade)
+            .ThenBy(s => s.Class)
+            .ThenBy(s => s.Number)
+            .ToList();
+
+        StudentList.LoadStudents(sorted);
+        TxtStudentCount.Text = $"{sorted.Count}명";
+
+        _selectedStudent = null;
+        LogList?.Logs?.Clear();
     }
 
     /// <summary>
@@ -332,6 +141,9 @@ public sealed partial class LessonActivityPage : Page
     /// </summary>
     private async void OnStudentSelected(object? sender, Enrollment student)
     {
+        if (SpecBox != null)
+            await SpecBox.ConfirmLeaveAsync();
+
         _selectedStudent = student;
         await LoadLogsAsync();
         await LoadSpecAsync();
@@ -356,7 +168,7 @@ public sealed partial class LessonActivityPage : Page
     /// </summary>
     private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
     {
-        await LoadCoursesAsync();
+        await CoursePickerCtl.LoadAsync(Settings.WorkYear.Value, Settings.WorkSemester.Value);
     }
 
     /// <summary>
@@ -544,6 +356,8 @@ public sealed partial class LessonActivityPage : Page
 
         try
         {
+            SpecBox.StudentName = $"{_selectedStudent.GetClassInfo()} {_selectedStudent.Name}";
+
             using var service = new StudentSpecialService();
             var specials = await service.GetByStudentAsync(_selectedStudent.StudentID, Settings.WorkYear.Value);
 
