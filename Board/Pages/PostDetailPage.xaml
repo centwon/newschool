@@ -8,7 +8,7 @@
     xmlns:appcontrols="using:NewSchool.Controls"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="20">
+    <Grid Padding="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -16,7 +16,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <!-- 헤더 -->
-        <Grid Grid.Row="0" Margin="0,0,0,20">
+        <Grid Grid.Row="0" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -26,25 +26,25 @@
             </Grid.ColumnDefinitions>
 
             <!-- 뒤로가기 버튼 추가 -->
-            <Button Grid.Column="0" Click="BackButton_Click" Margin="0,0,20,0" ToolTipService.ToolTip="목록으로 돌아가기">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE72B;" FontSize="16"/>
-                    <TextBlock Text="목록으로" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
-
-            <TextBlock Grid.Column="1" Text="게시글 보기" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
-
-            <Button Grid.Column="2" Click="PrintButton_Click" Margin="0,0,10,0" ToolTipService.ToolTip="인쇄">
+            <Button Grid.Column="0" Click="BackButton_Click" Margin="0,0,8,0" Padding="8,4" ToolTipService.ToolTip="목록으로 돌아가기">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon Glyph="&#xE749;" FontSize="14"/>
-                    <TextBlock Text="인쇄"/>
+                    <FontIcon Glyph="&#xE72B;" FontSize="14"/>
+                    <TextBlock Text="목록으로" VerticalAlignment="Center" FontSize="13"/>
                 </StackPanel>
             </Button>
 
-            <Button Grid.Column="3" Content="수정" Click="EditButton_Click" Margin="0,0,10,0"/>
+            <TextBlock Grid.Column="1" Text="게시글 보기" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
 
-            <Button Grid.Column="4" Content="삭제" Click="DeleteButton_Click" Style="{StaticResource AccentButtonStyle}"/>
+            <Button Grid.Column="2" Click="PrintButton_Click" Margin="0,0,8,0" Padding="8,4" ToolTipService.ToolTip="인쇄">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <FontIcon Glyph="&#xE749;" FontSize="13"/>
+                    <TextBlock Text="인쇄" FontSize="13"/>
+                </StackPanel>
+            </Button>
+
+            <Button Grid.Column="3" Content="수정" Click="EditButton_Click" Margin="0,0,8,0" Padding="8,4"/>
+
+            <Button Grid.Column="4" Content="삭제" Click="DeleteButton_Click" Style="{StaticResource AccentButtonStyle}" Padding="8,4"/>
         </Grid>
         <!-- Post 정보 상단 -->
         <Border Grid.Row="1"
@@ -52,42 +52,41 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1,1,1,0"
                 CornerRadius="8,8,0,0"
-                Padding="20,20,20,12">
-            <StackPanel Spacing="12">
-                <!-- 카테고리/주제 + 제목 -->
+                Padding="12,10,12,8">
+            <StackPanel Spacing="8">
+                <!-- 카테고리/주제 + 제목 + 날짜/조회/확인 (한 줄) -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Bind ViewModel.Post.Category, Mode=OneWay}" Foreground="White" FontSize="12"/>
+                    <Border Grid.Column="0" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind ViewModel.Post.Category, Mode=OneWay}" Foreground="White" FontSize="11"/>
                     </Border>
-                    <Border Grid.Column="1" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center"
+                    <Border Grid.Column="1" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center"
                             Visibility="{x:Bind ViewModel.SubjectVisibility, Mode=OneWay}">
-                        <TextBlock Text="{x:Bind ViewModel.Post.Subject, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Post.Subject, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </Border>
                     <TextBlock Grid.Column="2"
                                Text="{x:Bind ViewModel.Post.Title, Mode=OneWay}"
-                               Style="{StaticResource SubtitleTextBlockStyle}"
-                               FontWeight="Bold"
-                               TextWrapping="Wrap"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center"/>
-                </Grid>
 
-                <!-- 메타 정보 -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.Post.DateTime, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="조회" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBlock Text="{x:Bind ViewModel.Post.ReadCount, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <CheckBox Content="확인"
+                                  Padding="6,2"
+                                  MinHeight="0"
+                                  Visibility="{x:Bind ViewModel.IsMemoVisibility, Mode=OneWay}"
+                                  IsChecked="{x:Bind ViewModel.IsCompleted, Mode=TwoWay}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Post.DateTime, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="조회" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{x:Bind ViewModel.Post.ReadCount, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
 
@@ -101,7 +100,7 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1,0,1,1"
                 CornerRadius="0,0,8,8"
-                Padding="20,0,20,12">
+                Padding="12,0,12,8">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
@@ -121,22 +120,22 @@
         </Border>
 
         <!-- 댓글 섹션 -->
-        <ScrollViewer Grid.Row="3" MaxHeight="350" Margin="0,20,0,0"
+        <ScrollViewer Grid.Row="3" MaxHeight="260" Margin="0,10,0,0"
                       VerticalScrollBarVisibility="Auto"
                       VerticalScrollMode="Enabled"
                       HorizontalScrollMode="Disabled">
-            <StackPanel Spacing="12">
+            <StackPanel Spacing="8">
                 <!-- 댓글 섹션 -->
-                <StackPanel Spacing="12">
+                <StackPanel Spacing="8">
                     <TextBlock Text="댓글"
-                               Style="{StaticResource SubtitleTextBlockStyle}"/>
+                               Style="{StaticResource BodyStrongTextBlockStyle}"/>
 
                     <!-- 댓글 작성 -->
                     <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1"
         CornerRadius="8"
-        Padding="16">
+        Padding="12">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>

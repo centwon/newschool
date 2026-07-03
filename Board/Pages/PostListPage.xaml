@@ -11,6 +11,9 @@
 
     <Page.Resources>
         <converters:DateTimeToStringConverter x:Key="DateTimeConverter"/>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:BoolToStrikethroughConverter x:Key="BoolToStrikethroughConverter"/>
+        <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter"/>
     </Page.Resources>
 
     <Page.KeyboardAccelerators>
@@ -207,9 +210,18 @@
                                         <StackPanel Grid.Column="1"
                                                     Orientation="Horizontal"
                                                     Margin="8,0,0,0">
+                                            <FontIcon Glyph="&#xE73E;"
+                                                      FontSize="12"
+                                                      Margin="0,0,6,0"
+                                                      Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                                      ToolTipService.ToolTip="확인"
+                                                      Visibility="{x:Bind IsCompleted, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
                                             <TextBlock Text="{x:Bind Title}"
                                                        VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"
+                                                       TextDecorations="{x:Bind IsCompleted, Converter={StaticResource BoolToStrikethroughConverter}}"
+                                                       Opacity="{x:Bind IsCompleted, Converter={StaticResource BoolToOpacityConverter}}"
                                                        FontSize="14"/>
 
                                             <FontIcon Glyph="&#xE8BD;"
@@ -283,12 +295,21 @@
                                     </Grid.RowDefinitions>
 
                                     <!-- 제목 -->
-                                    <TextBlock Grid.Row="0"
-                                               Text="{x:Bind Title}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"
-                                               TextWrapping="Wrap"
-                                               Margin="0,0,0,8"/>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                        <FontIcon Glyph="&#xE73E;"
+                                                  FontSize="12"
+                                                  Margin="0,0,6,0"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                                  ToolTipService.ToolTip="확인"
+                                                  Visibility="{x:Bind IsCompleted, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                        <TextBlock Text="{x:Bind Title}"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   TextDecorations="{x:Bind IsCompleted, Converter={StaticResource BoolToStrikethroughConverter}}"
+                                                   Opacity="{x:Bind IsCompleted, Converter={StaticResource BoolToOpacityConverter}}"/>
+                                    </StackPanel>
 
                                     <!-- 내용 미리보기 -->
                                     <TextBlock Grid.Row="1"

@@ -37,16 +37,42 @@ public class PostDetailViewModel : INotifyPropertyChanged
         get => _post;
         set
         {
+            if (_post != null) _post.PropertyChanged -= Post_PropertyChanged;
             _post = value;
+            if (_post != null) _post.PropertyChanged += Post_PropertyChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SubjectVisibility));
+            OnPropertyChanged(nameof(IsMemoVisibility));
         }
+    }
+
+    private void Post_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Post.IsCompleted))
+            OnPropertyChanged(nameof(IsCompleted));
     }
 
     public Visibility SubjectVisibility =>
         Post != null && !string.IsNullOrEmpty(Post.Subject)
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+    /// <summary>메모(Subject="메모")일 때만 완료(읽음 처리) 토글을 노출.</summary>
+    public Visibility IsMemoVisibility =>
+        Post != null && Post.Subject == "메모"
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    public bool IsCompleted
+    {
+        get => Post?.IsCompleted ?? false;
+        set
+        {
+            if (Post == null || Post.IsCompleted == value) return;
+            Post.IsCompleted = value;
+            _ = _service.UpdatePostIsCompletedAsync(Post.No, value);
+        }
+    }
 
     public OptimizedObservableCollection<Comment> Comments
     {
