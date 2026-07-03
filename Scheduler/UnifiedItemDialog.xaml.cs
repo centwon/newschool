@@ -79,8 +79,6 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
         try
         {
-            await Task.Delay(50);
-
             // 캘린더 목록 로드
             await LoadListsAsync();
 
@@ -151,6 +149,12 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
         TaskDueTimePicker.Visibility = _taskEvent.IsAllday ? Visibility.Collapsed : Visibility.Visible;
         GridRepeat.Visibility = _isNew ? Visibility.Visible : Visibility.Collapsed;
+
+        // 기존 반복 시리즈 항목이면 삭제 범위 선택(이 항목만 / 이후 모두)을 표시
+        bool isSeriesMember = !_isNew && !string.IsNullOrEmpty(_taskEvent.SeriesId);
+        PanelSeriesDelete.Visibility = isSeriesMember ? Visibility.Visible : Visibility.Collapsed;
+        RbDeleteThisOnly.IsChecked = true;
+
         UpdateRepeatLabels();
     }
 
@@ -228,7 +232,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized || !args.NewDate.HasValue) return;
         var newDate = args.NewDate.Value.Date;
         _taskEvent.Start = DateTime.SpecifyKind(newDate + _taskEvent.Start.TimeOfDay, DateTimeKind.Unspecified);
-        _taskEvent.End   = DateTime.SpecifyKind(newDate, DateTimeKind.Unspecified);
+        NormalizeTaskEnd();
 
         UpdateRepeatLabels();
     }
@@ -237,7 +241,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     {
         if (!_isInitialized) return;
         _taskEvent.Start = DateTime.SpecifyKind(_taskEvent.Start.Date + e, DateTimeKind.Unspecified);
-        _taskEvent.End   = DateTime.SpecifyKind(_taskEvent.Start.AddHours(1), DateTimeKind.Unspecified);
+        NormalizeTaskEnd();
 
         UpdateRepeatLabels();
     }
@@ -247,10 +251,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (!_isInitialized) return;
         _taskEvent.IsAllday = ChkTaskAllday.IsChecked == true;
         TaskDueTimePicker.Visibility = _taskEvent.IsAllday ? Visibility.Collapsed : Visibility.Visible;
-
-        // 종일로 전환 시 End를 Start.Date로 리셋 (시간 변경으로 자정 넘긴 경우 대비)
-        if (_taskEvent.IsAllday)
-            _taskEvent.End = DateTime.SpecifyKind(_taskEvent.Start.Date, DateTimeKind.Unspecified);
+        NormalizeTaskEnd();
 
         UpdateRepeatLabels();
     }
@@ -262,6 +263,17 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         LbRepeatEnd.Visibility = showEnd ? Visibility.Visible : Visibility.Collapsed;
         PickerEnd.Visibility   = showEnd ? Visibility.Visible : Visibility.Collapsed;
 
+    }
+
+    /// <summary>
+    /// task의 End가 항상 Start 이상이 되도록 맞춘다.
+    /// 종일: End = Start.Date. 시간 지정: End = Start(마감 시각과 동일한 시점).
+    /// </summary>
+    private void NormalizeTaskEnd()
+    {
+        _taskEvent.End = _taskEvent.IsAllday
+            ? DateTime.SpecifyKind(_taskEvent.Start.Date, DateTimeKind.Unspecified)
+            : _taskEvent.Start;
     }
 
     private void UpdateRepeatLabels()
@@ -411,7 +423,13 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             if (!_isNew)
             {
                 using var service = Scheduler.CreateService();
-                if (_isTaskMode)
+                bool deleteSeries = _isTaskMode
+                    && !string.IsNullOrEmpty(_taskEvent.SeriesId)
+                    && RbDeleteSeries?.IsChecked == true;
+
+                if (deleteSeries)
+                    await service.DeleteSeriesFromAsync(_taskEvent.SeriesId, _taskEvent.Start.Date);
+                else if (_isTaskMode)
                     await service.DeleteEventAsync(_taskEvent.No);
                 else
                     await service.DeleteEventAsync(_event.No);
@@ -522,11 +540,15 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         var current = DateTime.SpecifyKind(_taskEvent.Start.Date, DateTimeKind.Unspecified);
         int count = 0;
 
+        // 반복 생성된 항목들을 하나의 시리즈로 묶어 "이후 반복 항목 모두 삭제"를 가능하게 함
+        var seriesId = Guid.NewGuid().ToString("N");
+
         while (current <= endDate && count < 365)
         {
             var t = CloneTaskEvent(_taskEvent);
             t.Start = DateTime.SpecifyKind(current + _taskEvent.Start.TimeOfDay, DateTimeKind.Unspecified);
-            t.End   = DateTime.SpecifyKind(current, DateTimeKind.Unspecified);
+            t.End   = t.IsAllday ? DateTime.SpecifyKind(current, DateTimeKind.Unspecified) : t.Start;
+            t.SeriesId = seriesId;
             tasks.Add(t);
             count++;
 
@@ -547,6 +569,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         IsDone = src.IsDone, ItemType = "task",
         CalendarId = src.CalendarId, User = src.User,
         Updated = src.Updated, Completed = src.Completed,
+        SeriesId = src.SeriesId,
         Status = "confirmed"
     };
 

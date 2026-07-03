@@ -108,7 +108,8 @@ namespace NewSchool.Scheduler
                     User       TEXT NOT NULL DEFAULT '',
                     ItemType   TEXT NOT NULL DEFAULT 'event',
                     IsDone     INTEGER NOT NULL DEFAULT 0,
-                    Completed  TEXT NOT NULL DEFAULT ''
+                    Completed  TEXT NOT NULL DEFAULT '',
+                    SeriesId   TEXT NOT NULL DEFAULT ''
                 );
             ";
             await cmd.ExecuteNonQueryAsync();
@@ -118,6 +119,7 @@ namespace NewSchool.Scheduler
             await AddColumnIfNotExistsAsync(cmd, "KEvent", "ItemType", "TEXT NOT NULL DEFAULT 'event'");
             await AddColumnIfNotExistsAsync(cmd, "KEvent", "IsDone", "INTEGER NOT NULL DEFAULT 0");
             await AddColumnIfNotExistsAsync(cmd, "KEvent", "Completed", "TEXT NOT NULL DEFAULT ''");
+            await AddColumnIfNotExistsAsync(cmd, "KEvent", "SeriesId", "TEXT NOT NULL DEFAULT ''");
 
             // 기본 목록 생성
             await SeedDefaultListsAsync(cmd);
@@ -141,30 +143,9 @@ namespace NewSchool.Scheduler
 
         private static async Task SeedDefaultListsAsync(SqliteCommand cmd)
         {
-            // 기본 목록이 없으면 생성
-            cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM KtaskList)";
-            var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-            if (count == 1) return;
-
-            // (title, order, syncMode)
-            var defaults = new[] { (CategoryNames.Lesson, 1, "None"), (CategoryNames.Homeroom, 2, "None"), (CategoryNames.Work, 3, "None"), (CategoryNames.Personal, 4, "TwoWay") };
-            foreach (var (title, order, sync) in defaults)
-            {
-                cmd.CommandText = @"
-                    INSERT INTO KtaskList (GoogleId, Title, SortOrder, IsDefault, Updated, SyncMode)
-                    VALUES ('', @Title, @Order, 1, @Updated, @SyncMode)";
-                cmd.Parameters.Clear();
-                cmd.Parameters.AddWithValue("@Title", title);
-                cmd.Parameters.AddWithValue("@Order", order);
-                cmd.Parameters.AddWithValue("@Updated", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
-                cmd.Parameters.AddWithValue("@SyncMode", sync);
-                await cmd.ExecuteNonQueryAsync();
-            }
-            Debug.WriteLine("[SchedulerDB] 기본 목록 4개 생성 완료 (수업/학급/업무/개인)");
-
             // KCalendarList 기본 캘린더 생성 (없는 경우만)
             cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM KCalendarList)";
-            count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             if (count == 0)
             {
                 // (title, order, color, syncMode)
@@ -206,6 +187,7 @@ namespace NewSchool.Scheduler
                 CREATE INDEX IF NOT EXISTS idx_kevent_googleid ON KEvent(GoogleId);
                 CREATE INDEX IF NOT EXISTS idx_kevent_itemtype ON KEvent(ItemType);
                 CREATE INDEX IF NOT EXISTS idx_kevent_isdone ON KEvent(IsDone);
+                CREATE INDEX IF NOT EXISTS idx_kevent_seriesid ON KEvent(SeriesId);
             ";
 
             await cmd.ExecuteNonQueryAsync();

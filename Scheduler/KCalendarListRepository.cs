@@ -117,16 +117,32 @@ public class KCalendarListRepository : BaseRepository
         }
     }
 
+    /// <summary>캘린더 삭제 + 소속 KEvent 전체 삭제(고아 이벤트 방지, 같은 DB의 두 테이블을 한 트랜잭션으로 처리)</summary>
     public async Task<bool> DeleteAsync(int no)
     {
         try
         {
-            using var cmd = CreateCommand("DELETE FROM KCalendarList WHERE No = @No AND IsDefault = 0");
-            cmd.Parameters.AddWithValue("@No", no);
-            return await cmd.ExecuteNonQueryAsync() > 0;
+            BeginTransaction();
+
+            using (var delEvents = CreateCommand("DELETE FROM KEvent WHERE CalendarId = @No"))
+            {
+                delEvents.Parameters.AddWithValue("@No", no);
+                await delEvents.ExecuteNonQueryAsync();
+            }
+
+            bool ok;
+            using (var cmd = CreateCommand("DELETE FROM KCalendarList WHERE No = @No AND IsDefault = 0"))
+            {
+                cmd.Parameters.AddWithValue("@No", no);
+                ok = await cmd.ExecuteNonQueryAsync() > 0;
+            }
+
+            Commit();
+            return ok;
         }
         catch (Exception ex)
         {
+            Rollback();
             LogError($"KCalendarList 삭제 실패: No={no}", ex);
             throw;
         }

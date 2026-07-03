@@ -127,6 +127,12 @@ public partial class KEvent : INotifyPropertyChanged
     /// <summary>완료 일시 (UTC 문자열, ItemType="task"용)</summary>
     public string Completed { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 반복 생성된 할 일들을 묶는 식별자 (Guid 문자열, 반복이 아니면 빈 문자열).
+    /// 같은 SeriesId를 가진 항목들은 "이후 반복 항목 모두 삭제" 시 함께 삭제된다.
+    /// </summary>
+    public string SeriesId { get; set; } = string.Empty;
+
     #endregion
 
     #region Computed Properties (UI 바인딩용)
@@ -180,17 +186,17 @@ public partial class KEvent : INotifyPropertyChanged
     /// </summary>
     public static string ColorIdToHex(string colorId) => colorId switch
     {
-        "1"  => "#AC725E",  // Tomato
-        "2"  => "#D06B64",  // Flamingo
-        "3"  => "#F83A22",  // Tangerine
-        "4"  => "#FA573C",  // Banana
-        "5"  => "#FF7537",  // Sage
-        "6"  => "#FFAD46",  // Basil
-        "7"  => "#42D692",  // Peacock
-        "8"  => "#16A765",  // Blueberry
-        "9"  => "#7BD148",  // Lavender
-        "10" => "#B3DC6C",  // Grape
-        "11" => "#9E69AF",  // Graphite
+        "1"  => "#7986CB",  // Lavender
+        "2"  => "#33B679",  // Sage
+        "3"  => "#8E24AA",  // Grape
+        "4"  => "#E67C73",  // Flamingo
+        "5"  => "#F6BF26",  // Banana
+        "6"  => "#F4511E",  // Tangerine
+        "7"  => "#039BE5",  // Peacock
+        "8"  => "#616161",  // Graphite
+        "9"  => "#3F51B5",  // Blueberry
+        "10" => "#0B8043",  // Basil
+        "11" => "#D50000",  // Tomato
         _    => string.Empty
     };
 

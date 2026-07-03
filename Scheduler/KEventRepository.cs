@@ -23,10 +23,10 @@ public class KEventRepository : BaseRepository
         const string query = @"
             INSERT INTO KEvent (GoogleId, CalendarId, Title, Notes, Start, End,
                                 IsAllday, Location, Status, ColorId, Recurrence, Updated, User,
-                                ItemType, IsDone, Completed)
+                                ItemType, IsDone, Completed, SeriesId)
             VALUES (@GoogleId, @CalendarId, @Title, @Notes, @Start, @End,
                     @IsAllday, @Location, @Status, @ColorId, @Recurrence, @Updated, @User,
-                    @ItemType, @IsDone, @Completed);
+                    @ItemType, @IsDone, @Completed, @SeriesId);
             SELECT last_insert_rowid();";
         try
         {
@@ -159,7 +159,7 @@ public class KEventRepository : BaseRepository
             UPDATE KEvent SET GoogleId=@GoogleId, CalendarId=@CalendarId, Title=@Title,
                 Notes=@Notes, Start=@Start, End=@End, IsAllday=@IsAllday, Location=@Location,
                 Status=@Status, ColorId=@ColorId, Recurrence=@Recurrence, Updated=@Updated, User=@User,
-                ItemType=@ItemType, IsDone=@IsDone, Completed=@Completed
+                ItemType=@ItemType, IsDone=@IsDone, Completed=@Completed, SeriesId=@SeriesId
             WHERE No = @No";
         try
         {
@@ -254,6 +254,7 @@ public class KEventRepository : BaseRepository
         cmd.Parameters.AddWithValue("@ItemType",  ev.ItemType  ?? "event");
         cmd.Parameters.AddWithValue("@IsDone",    ev.IsDone ? 1 : 0);
         cmd.Parameters.AddWithValue("@Completed", ev.Completed ?? string.Empty);
+        cmd.Parameters.AddWithValue("@SeriesId",  ev.SeriesId ?? string.Empty);
     }
 
     // 컬럼 인덱스 캐시 기반 매핑 (행마다 GetOrdinal 반복 호출 제거)
@@ -298,6 +299,7 @@ public class KEventRepository : BaseRepository
         ev.ItemType  = TryGetString(r, c, "ItemType", "event");
         ev.IsDone    = TryGetInt(r, c, "IsDone") == 1;
         ev.Completed = TryGetString(r, c, "Completed", string.Empty);
+        ev.SeriesId  = TryGetString(r, c, "SeriesId", string.Empty);
         return ev;
     }
 
@@ -530,6 +532,41 @@ public class KEventRepository : BaseRepository
         catch (Exception ex)
         {
             LogError("전체 Task 조회 실패", ex);
+            throw;
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// 같은 반복 시리즈의 항목 중 기준일 이후(포함) 것만 조회 — "이후 반복 항목 모두 삭제"용
+    /// </summary>
+    public async Task<List<KEvent>> GetBySeriesIdFromAsync(string seriesId, DateTime fromDate)
+    {
+        var list = new List<KEvent>();
+        if (string.IsNullOrEmpty(seriesId)) return list;
+
+        try
+        {
+            var fromUtc  = DateTimeHelper.ToStandardString(DateTime.SpecifyKind(fromDate.Date, DateTimeKind.Unspecified));
+            var fromDateStr = fromDate.Date.ToString("yyyy-MM-dd");
+
+            const string query = @"
+                SELECT * FROM KEvent
+                WHERE SeriesId = @SeriesId
+                  AND Status <> 'cancelled'
+                  AND ( (IsAllday = 0 AND Start >= @FromUtc) OR (IsAllday = 1 AND Start >= @FromDate) )
+                ORDER BY Start ASC";
+
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@SeriesId", seriesId);
+            cmd.Parameters.AddWithValue("@FromUtc", fromUtc);
+            cmd.Parameters.AddWithValue("@FromDate", fromDateStr);
+
+            list = await ExecuteListAsync(cmd, Map);
+        }
+        catch (Exception ex)
+        {
+            LogError($"시리즈 조회 실패: SeriesId={seriesId}", ex);
             throw;
         }
         return list;
