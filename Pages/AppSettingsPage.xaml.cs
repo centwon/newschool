@@ -78,12 +78,8 @@ public sealed partial class AppSettingsPage : Page
         if (!_isInitialized) return;
         Settings.TopMost.Set(TopMostToggle.IsOn);
 
-        var window = App.MainWindow;
-        if (window != null)
-        {
-            var hwnd = WindowNative.GetWindowHandle(window);
-            // TODO: P/Invoke를 사용하여 창을 항상 위에 표시
-        }
+        // 메인 창에 즉시 적용
+        MainWindow.SetAlwaysOnTop(App.MainWindow, TopMostToggle.IsOn);
     }
 
     private void OnThemeChanged(object sender, SelectionChangedEventArgs e)

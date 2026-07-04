@@ -42,7 +42,7 @@ public sealed partial class ClassTimetableManagementPage : Page
         if (YearSemPicker.Year == 0 || YearSemPicker.Semester == 0 ||
             ClassFilter.Grade == 0 || ClassFilter.ClassNum == 0)
         {
-            await MessageBox.ShowAsync("알림", "학년도, 학기, 학년, 반을 모두 선택해주세요.");
+            await MessageBox.ShowAsync("학년도, 학기, 학년, 반을 모두 선택해주세요.", "알림");
             return;
         }
 
@@ -78,7 +78,7 @@ public sealed partial class ClassTimetableManagementPage : Page
         catch (Exception ex)
         {
             Debug.WriteLine(ex.Message);
-            await MessageBox.ShowAsync("오류", $"시간표 조회 중 오류가 발생했습니다.\n{ex.Message}");
+            await MessageBox.ShowAsync($"시간표 조회 중 오류가 발생했습니다.\n{ex.Message}", "오류");
         }
     }
 
@@ -196,9 +196,8 @@ public sealed partial class ClassTimetableManagementPage : Page
         if (result == ContentDialogResult.Primary)
         {
             await LoadTimetableAsync();
+            await MessageBox.ShowAsync("시간표가 저장되었습니다.", "완료");
         }
-        await MessageBox.ShowAsync("완료", "시간표가 저장되었습니다.");
-
     }
 
     /// <summary>
@@ -231,7 +230,7 @@ public sealed partial class ClassTimetableManagementPage : Page
 
             if (count > 0)
             {
-                await MessageBox.ShowAsync("완료", $"{count}개의 시간표가 삭제되었습니다.");
+                await MessageBox.ShowAsync($"{count}개의 시간표가 삭제되었습니다.", "완료");
                 
                 // UI 초기화
                 EmptyState.Visibility = Visibility.Visible;
@@ -240,12 +239,12 @@ public sealed partial class ClassTimetableManagementPage : Page
             }
             else
             {
-                await MessageBox.ShowAsync("알림", "삭제할 시간표가 없습니다.");
+                await MessageBox.ShowAsync("삭제할 시간표가 없습니다.", "알림");
             }
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync("오류", $"시간표 삭제 중 오류가 발생했습니다.\n{ex.Message}");
+            await MessageBox.ShowAsync($"시간표 삭제 중 오류가 발생했습니다.\n{ex.Message}", "오류");
         }
     }
 

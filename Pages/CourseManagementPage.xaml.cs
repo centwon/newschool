@@ -67,7 +67,7 @@ public sealed partial class CourseManagementPage : Page
             string teacherId = Settings.User.Value;
             if (string.IsNullOrEmpty(teacherId))
             {
-                await MessageBox.ShowAsync("오류", "교사 정보를 찾을 수 없습니다.");
+                await MessageBox.ShowAsync("교사 정보를 찾을 수 없습니다.", "오류");
                 ShowEmptyState();
                 return;
             }
@@ -95,7 +95,7 @@ public sealed partial class CourseManagementPage : Page
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync("오류", $"수업 목록 조회 중 오류가 발생했습니다.\n{ex.Message}");
+            await MessageBox.ShowAsync($"수업 목록 조회 중 오류가 발생했습니다.\n{ex.Message}", "오류");
             ShowEmptyState();
         }
     }
@@ -107,7 +107,7 @@ public sealed partial class CourseManagementPage : Page
     {
         if (YearSemPicker.Year == 0 || YearSemPicker.Semester == 0)
         {
-            await MessageBox.ShowAsync("알림", "학년도와 학기를 먼저 선택해주세요.");
+            await MessageBox.ShowAsync("학년도와 학기를 먼저 선택해주세요.", "알림");
             return;
         }
 
@@ -181,7 +181,7 @@ public sealed partial class CourseManagementPage : Page
         var result = await dialog.ShowAsync();
         if (result == ContentDialogResult.Primary)
         {
-            await MessageBox.ShowAsync("완료", "시간표 배치가 저장되었습니다.");
+            await MessageBox.ShowAsync("시간표 배치가 저장되었습니다.", "완료");
         }
     }
 
@@ -207,17 +207,17 @@ public sealed partial class CourseManagementPage : Page
 
             if (success)
             {
-                await MessageBox.ShowAsync("완료", "수업이 삭제되었습니다.");
+                await MessageBox.ShowAsync("수업이 삭제되었습니다.", "완료");
                 LoadCoursesAsync();
             }
             else
             {
-                await MessageBox.ShowAsync("오류", "수업 삭제에 실패했습니다.");
+                await MessageBox.ShowAsync("수업 삭제에 실패했습니다.", "오류");
             }
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync("오류", $"수업 삭제 중 오류가 발생했습니다.\n{ex.Message}");
+            await MessageBox.ShowAsync($"수업 삭제 중 오류가 발생했습니다.\n{ex.Message}", "오류");
         }
     }
 

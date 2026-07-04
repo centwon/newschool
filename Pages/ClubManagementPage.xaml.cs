@@ -83,7 +83,7 @@ public sealed partial class ClubManagementPage : Page
 
             if (string.IsNullOrEmpty(teacherId))
             {
-                await MessageBox.ShowAsync("오류", "교사 정보를 찾을 수 없습니다.");
+                await MessageBox.ShowAsync("교사 정보를 찾을 수 없습니다.", "오류");
                 ShowEmptyState();
                 return;
             }
@@ -105,7 +105,7 @@ public sealed partial class ClubManagementPage : Page
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync("오류", $"동아리 목록 조회 중 오류가 발생했습니다.\n{ex.Message}");
+            await MessageBox.ShowAsync($"동아리 목록 조회 중 오류가 발생했습니다.\n{ex.Message}", "오류");
             ShowEmptyState();
         }
     }
@@ -117,7 +117,7 @@ public sealed partial class ClubManagementPage : Page
     {
         if (CBoxYear.SelectedItem == null)
         {
-            await MessageBox.ShowAsync("알림", "학년도를 먼저 선택해주세요.");
+            await MessageBox.ShowAsync("학년도를 먼저 선택해주세요.", "알림");
             return;
         }
 
@@ -193,17 +193,17 @@ public sealed partial class ClubManagementPage : Page
 
             if (success)
             {
-                await MessageBox.ShowAsync("완료", "동아리가 삭제되었습니다.");
+                await MessageBox.ShowAsync("동아리가 삭제되었습니다.", "완료");
                 LoadClubsAsync();
             }
             else
             {
-                await MessageBox.ShowAsync("오류", "동아리 삭제에 실패했습니다.");
+                await MessageBox.ShowAsync("동아리 삭제에 실패했습니다.", "오류");
             }
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync("오류", $"동아리 삭제 중 오류가 발생했습니다.\n{ex.Message}");
+            await MessageBox.ShowAsync($"동아리 삭제 중 오류가 발생했습니다.\n{ex.Message}", "오류");
         }
     }
 

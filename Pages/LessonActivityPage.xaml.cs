@@ -141,8 +141,9 @@ public sealed partial class LessonActivityPage : Page
     /// </summary>
     private async void OnStudentSelected(object? sender, Enrollment student)
     {
-        if (SpecBox != null)
-            await SpecBox.ConfirmLeaveAsync();
+        // 미저장 학생부 편집을 저장/폐기 확인 — 저장 실패(false) 시 학생 전환 중단
+        if (SpecBox != null && !await SpecBox.ConfirmLeaveAsync())
+            return;
 
         _selectedStudent = student;
         await LoadLogsAsync();

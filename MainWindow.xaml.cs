@@ -74,8 +74,25 @@ private void SetAppIcon()
         int height = Settings.WindowHeight.Value;
         _appWindow.Resize(new Windows.Graphics.SizeInt32(width, height));
 
+        // 저장된 "항상 위에" 설정 적용
+        if (_appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+            presenter.IsAlwaysOnTop = Settings.TopMost.Value;
+
         // 창 크기 변경 이벤트 등록
         _appWindow.Changed += AppWindow_Changed;
+    }
+
+    /// <summary>
+    /// 지정한 창의 "항상 위에" 상태를 설정 (설정 페이지 토글에서 호출)
+    /// </summary>
+    public static void SetAlwaysOnTop(Window? window, bool onTop)
+    {
+        if (window == null) return;
+        var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
+        var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+        if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+            presenter.IsAlwaysOnTop = onTop;
     }
 
     /// <summary>

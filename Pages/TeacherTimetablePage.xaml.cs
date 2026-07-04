@@ -41,7 +41,8 @@ public sealed partial class TeacherTimetablePage : Page
         var years = await courseService.GetDistinctCourseYearsAsync(Settings.User.Value);
         if (!years.Contains(Settings.WorkYear.Value))
         {
-            years.Insert(Settings.WorkYear.Value,0);
+            // 현재 학년도를 목록 맨 앞에 추가 (인자 순서: index=0, item=연도)
+            years.Insert(0, Settings.WorkYear.Value);
         }
         foreach (var year in years.OrderByDescending(y => y).Take(3))
         {

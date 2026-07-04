@@ -90,7 +90,8 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
         // 날짜 범위 기본값 (해당 학년도 전체)
         var selectedYear = (int)CBoxYear.SelectedItem;
         StartDatePicker.Date = new DateTimeOffset(new DateTime(selectedYear, 3, 1));
-        EndDatePicker.Date = new DateTimeOffset(new DateTime(selectedYear + 1, 2, 28));
+        // 학년도 종료일 = 다음 해 2월 말일 (윤년이면 2/29)
+        EndDatePicker.Date = new DateTimeOffset(new DateTime(selectedYear + 1, 3, 1).AddDays(-1));
     }
 
     #endregion
@@ -183,7 +184,8 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
         // 날짜 범위 자동 조정
         var year = (int)CBoxYear.SelectedItem;
         StartDatePicker.Date = new DateTimeOffset(new DateTime(year, 3, 1));
-        EndDatePicker.Date = new DateTimeOffset(new DateTime(year + 1, 2, 28));
+        // 학년도 종료일 = 다음 해 2월 말일 (윤년이면 2/29)
+        EndDatePicker.Date = new DateTimeOffset(new DateTime(year + 1, 3, 1).AddDays(-1));
     }
 
     /// <summary>
@@ -233,7 +235,8 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
 
             // Functions.GetSchoolSchedulesAsync() 호출
             var startDate = new DateTime(year, 3, 1);
-            var endDate = new DateTime(year + 1, 2, 28);
+            // 학년도 종료일 = 다음 해 2월 말일 (윤년이면 2/29)
+            var endDate = new DateTime(year + 1, 3, 1).AddDays(-1);
             var service = new SchoolScheduleService(SchoolDatabase.DbPath);
             var neisSchedules = await service.DownloadFromNeisAsync(
                 Settings.SchoolCode,
@@ -349,11 +352,13 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
     /// </summary>
     private async Task SaveSelectedAsync()
     {
-        var selected = _schedules.Where(s => s.IsSelected).ToList();
+        // 편집(IsModified)했거나 체크(IsSelected)한 항목을 저장 대상으로
+        // (✏️ 표시된 수정 행을 체크 없이도 저장)
+        var selected = _schedules.Where(s => s.IsSelected || s.IsModified).ToList();
 
         if (selected.Count == 0)
         {
-            await MessageBox.ShowAsync("저장할 항목을 선택하세요.", "알림");
+            await MessageBox.ShowAsync("저장할 변경 사항이 없습니다.\n(수정하거나 항목을 선택하세요)", "알림");
             return;
         }
 
