@@ -44,7 +44,7 @@ public sealed partial class StudentSpecPage : Page, IDisposable
     {
         this.InitializeComponent();
         InitializeFilters();
-        Unloaded += (_, _) => Dispose();
+        // Unloaded 는 XAML 의 Page_Unloaded 에서 처리 (중복 등록 제거)
     }
 
     #endregion
@@ -435,8 +435,7 @@ public sealed partial class StudentSpecPage : Page, IDisposable
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
-        _specialService?.Dispose();
-        _enrollservice?.Dispose();
+        Dispose();
     }
 
     #endregion

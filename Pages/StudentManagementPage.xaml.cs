@@ -10,7 +10,6 @@ using NewSchool.Models;
 using NewSchool.Services;
 using NewSchool.Repositories;
 using NewSchool.Helpers;
-using Windows.Devices.Midi;
 using System.Diagnostics;
 using NewSchool.Controls;
 
@@ -270,7 +269,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                     Number = e.Number,
                     Name = e.Name,
                     Status = e.Status,
-                    Memo = string.Empty,
+                    Memo = e.Memo,
                     IsSelected = false,
                     IsModified = false
                 }).ToList();
@@ -360,19 +359,21 @@ public sealed partial class StudentManagementPage : Page, IDisposable
     {
         try
         {
-            var selectedStudents = Students.Where(s => s.IsSelected).ToList();
+            // 편집(IsModified)했거나 체크(IsSelected)한 학생을 저장 대상으로
+            var targetStudents = Students.Where(s => s.IsModified || s.IsSelected).ToList();
 
-            if (selectedStudents.Count == 0)
+            if (targetStudents.Count == 0)
             {
-                await MessageBox.ShowAsync("저장할 학생을 선택하세요.", "알림");
+                await MessageBox.ShowAsync("저장할 변경 사항이 없습니다.\n(수정하거나 학생을 선택하세요)", "알림");
                 return;
             }
 
             int successCount = 0;
             // ⭐ SchoolDatabase.DbPath 사용
             using var repo = new EnrollmentRepository(SchoolDatabase.DbPath);
+            using var studentService = new StudentService(SchoolDatabase.DbPath);
 
-            foreach (var vm in selectedStudents)
+            foreach (var vm in targetStudents)
             {
                 try
                 {
@@ -380,11 +381,25 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                     var enrollment = await repo.GetByIdAsync(vm.EnrollmentNo);
                     if (enrollment == null) continue;
 
-                    // 수정된 데이터 반영
+                    // 이름이 바뀌었으면 정본(Student)을 통해 갱신
+                    // → UpdateBasicInfoAsync 가 Enrollment.Name 까지 자동 동기화
+                    if (enrollment.Name != vm.Name)
+                    {
+                        var student = await studentService.GetBasicInfoAsync(vm.StudentID);
+                        if (student != null)
+                        {
+                            student.Name = vm.Name;
+                            await studentService.UpdateBasicInfoAsync(student);
+                        }
+                    }
+
+                    // 학적(Enrollment) 데이터 반영
                     enrollment.Year = vm.Year;
                     enrollment.Grade = vm.Grade;
                     enrollment.Class = vm.Class;
                     enrollment.Number = vm.Number;
+                    enrollment.Name = vm.Name;
+                    enrollment.Memo = vm.Memo;
                     enrollment.UpdatedAt = DateTime.Now;
 
                     // DB 업데이트

@@ -52,12 +52,14 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="60"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="70"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0" Text="학년도" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox x:Name="TxtYear" Grid.Column="1" InputScope="Number" 
+            <TextBox x:Name="TxtYear" Grid.Column="1" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
             <TextBlock Grid.Column="2" Text="학년" VerticalAlignment="Center" Margin="16,0,8,0"/>
@@ -72,11 +74,18 @@
             <TextBox x:Name="TxtNumber" Grid.Column="7" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
-            <TextBlock Grid.Column="8" Text="이름" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtName" Grid.Column="9" PlaceholderText="학생 이름 입력"
+            <TextBlock Grid.Column="8" Text="성별" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <ComboBox x:Name="CboSex" Grid.Column="9" SelectedIndex="0"
+                      HorizontalAlignment="Stretch">
+                <ComboBoxItem Content="남"/>
+                <ComboBoxItem Content="여"/>
+            </ComboBox>
+
+            <TextBlock Grid.Column="10" Text="이름" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <TextBox x:Name="TxtName" Grid.Column="11" PlaceholderText="학생 이름 입력"
                      Margin="0,0,16,0"/>
 
-            <Button x:Name="BtnAddStudent" Grid.Column="10" Content="추가"
+            <Button x:Name="BtnAddStudent" Grid.Column="12" Content="추가"
                    Style="{StaticResource AccentButtonStyle}"
                    Click="BtnAddStudent_Click"/>
         </Grid>
@@ -129,6 +138,7 @@
                                 <ColumnDefinition Width="60"/>
                                 <ColumnDefinition Width="60"/>
                                 <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="40"/>
                             </Grid.ColumnDefinitions>
@@ -144,8 +154,9 @@
                             <TextBlock Grid.Column="4" Text="반" FontWeight="SemiBold" FontSize="12"/>
                             <TextBlock Grid.Column="5" Text="번호" FontWeight="SemiBold" FontSize="12"/>
                             <TextBlock Grid.Column="6" Text="이름" FontWeight="SemiBold" FontSize="12"/>
-                            <TextBlock Grid.Column="7" Text="학급 정보" FontWeight="SemiBold" FontSize="12"/>
-                            <TextBlock Grid.Column="8" Text="" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Grid.Column="7" Text="성별" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Grid.Column="8" Text="학급 정보" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Grid.Column="9" Text="" FontWeight="SemiBold" FontSize="12"/>
                         </Grid>
 
                         <!-- ItemsRepeater -->
@@ -175,6 +186,7 @@
                                                 <ColumnDefinition Width="60"/>
                                                 <ColumnDefinition Width="60"/>
                                                 <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="50"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="40"/>
                                             </Grid.ColumnDefinitions>
@@ -212,12 +224,16 @@
                                                       FontWeight="SemiBold"/>
 
                                             <TextBlock Grid.Column="7"
+                                                      Text="{x:Bind Sex}"
+                                                      VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Column="8"
                                                       Text="{x:Bind ClassInfo}"
                                                       VerticalAlignment="Center"
                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                       FontSize="12"/>
 
-                                            <Button Grid.Column="8"
+                                            <Button Grid.Column="9"
                                                    Content="&#xE74D;"
                                                    FontFamily="Segoe MDL2 Assets"
                                                    FontSize="12"

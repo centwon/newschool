@@ -584,7 +584,8 @@ public sealed partial class PageStudentLog : Page, IDisposable
             }
             else
             {
-                logs = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year);
+                // 선택한 학기만 조회
+                logs = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year, _semester);
             }
 
             // 카테고리 필터 적용

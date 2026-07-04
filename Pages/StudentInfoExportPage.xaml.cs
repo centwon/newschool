@@ -156,6 +156,8 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
             .ToList();
 
         // Native AOT 호환 - 직접 타입 지정으로 열 추가
+        // (사전 정의 항목은 Content 가 서로 겹치지 않으며, selectedTags 와 컬럼 수가
+        //  1:1 로 대응해야 하므로 여기서는 중복 제거하지 않는다)
         foreach (var item in selectedItems)
         {
             switch (item.Tag)
@@ -169,7 +171,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
             }
         }
 
-        // 사용자 정의 항목
+        // 사용자 정의 항목 (이미 존재하는 컬럼명은 건너뜀 — DuplicateNameException 방지)
         if (ExpanderUserItem.IsExpanded)
         {
             var userItems = new[]
@@ -177,17 +179,18 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
                 TBoxUser1, TBoxUser2, TBoxUser3, TBoxUser4, TBoxUser5
             }
             .Where(tb => !string.IsNullOrWhiteSpace(tb.Text))
-            .Select(tb => tb.Text)
+            .Select(tb => tb.Text.Trim())
             .ToList();
 
             foreach (var item in userItems)
             {
-                _data.Columns.Add(item, typeof(string));
+                if (!_data.Columns.Contains(item))
+                    _data.Columns.Add(item, typeof(string));
             }
         }
 
         // 비고
-        if (ChkShowEtc.IsChecked == true)
+        if (ChkShowEtc.IsChecked == true && !_data.Columns.Contains("비고"))
         {
             _data.Columns.Add("비고", typeof(string));
         }

@@ -34,7 +34,6 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        _enrollmentService?.Dispose();
         _studentService?.Dispose();
         _studentLogService?.Dispose();
         GC.SuppressFinalize(this);
@@ -48,7 +47,6 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     private string? _currentStudentId;
 
     // Services
-    private EnrollmentService? _enrollmentService;
     private StudentService? _studentService;
     private StudentLogService? _studentLogService;
 
@@ -80,21 +78,23 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         SCard.StudentChanged += SCard_StudentChanged;
     }
 
-    private void PageStudentInfo_Unloaded(object sender, RoutedEventArgs e)
+    private async void PageStudentInfo_Unloaded(object sender, RoutedEventArgs e)
     {
-        // 자동 저장
-        _ = SaveChangedAsync().ContinueWith(t =>
-        {
-            if (t.IsFaulted)
-                System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] {t.Exception?.InnerException?.Message}");
-        }, TaskContinuationOptions.OnlyOnFaulted);
-
         // 이벤트 구독 해제
         StudentList.StudentSelected -= StudentList_StudentSelected;
         SCard.StudentChanged -= SCard_StudentChanged;
 
+        // 자동 저장 — Dispose 전에 완료를 보장 (미저장 편집 유실/경합 방지)
+        try
+        {
+            await SaveChangedAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] 자동 저장 실패: {ex.Message}");
+        }
+
         // Service Dispose
-        _enrollmentService?.Dispose();
         _studentService?.Dispose();
         _studentLogService?.Dispose();
 
@@ -111,11 +111,9 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         try
         {
             // 이전 인스턴스 정리 (Loaded 재호출 대비)
-            _enrollmentService?.Dispose();
             _studentService?.Dispose();
             _studentLogService?.Dispose();
 
-            _enrollmentService = new EnrollmentService();
             _studentService = new StudentService(SchoolDatabase.DbPath);
             _studentLogService = new StudentLogService();
         }
@@ -181,24 +179,6 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     #endregion
 
     #region Event Handlers - Buttons
-
-    private async void BtnAddPhoto_Click(object sender, RoutedEventArgs e)
-    {
-        if (string.IsNullOrEmpty(_currentStudentId))
-            return;
-
-        // StudentCard에서 사진 추가 (내부적으로 ViewModel 사용)
-        bool success = await SCard.ViewModel.AddPhotoAsync();
-        
-        if (success)
-        {
-            await MessageBox.ShowAsync("사진이 등록되었습니다.", "사진 등록");
-        }
-        else
-        {
-            await MessageBox.ShowAsync("사진 등록이 취소되었습니다.", "알림");
-        }
-    }
 
     private async void BtnSave_Click(object sender, RoutedEventArgs e)
     {
@@ -1075,13 +1055,14 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         int failCount = 0;
         var failedStudents = new List<string>();
 
+        // 서비스는 루프 밖에서 한 번만 생성 (학생 수만큼 생성/폐기하던 것 제거)
+        using var studentService = new StudentService(SchoolDatabase.DbPath);
+        using var detailService = new StudentDetailService(SchoolDatabase.DbPath);
+
         foreach (var item in toSave)
         {
             try
             {
-                using var studentService = new StudentService(SchoolDatabase.DbPath);
-                using var detailService = new StudentDetailService(SchoolDatabase.DbPath);
-
                 // Student 필드 업데이트
                 if (item.StudentFields.Count > 0)
                 {

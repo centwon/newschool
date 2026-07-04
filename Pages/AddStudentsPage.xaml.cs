@@ -141,8 +141,8 @@ public sealed partial class AddStudentsPage : Page
     /// </summary>
     private async Task ProcessExcelFileAsync(StorageFile file, int year)
     {
-        // Task.Run 제거 - UI 스레드에서 실행
-        var sheetsData = ExcelHelper.DataToText(file.Path);
+        // 파일 파싱은 백그라운드에서 (대용량 파일에서도 UI 멈춤 방지)
+        var sheetsData = await ExcelHelper.DataToTextAsync(file.Path);
 
         foreach (var sheetData in sheetsData)
         {
@@ -163,7 +163,7 @@ public sealed partial class AddStudentsPage : Page
             return;
 
         // 열 인덱스 찾기 (1-based)
-        int gradeCol = -1, classCol = -1, numberCol = -1, nameCol = -1;
+        int gradeCol = -1, classCol = -1, numberCol = -1, nameCol = -1, sexCol = -1;
         int titleRow = -1;
 
         // 제목 행 찾기 (처음 10행 이내)
@@ -180,6 +180,8 @@ public sealed partial class AddStudentsPage : Page
                     classCol = col;
                 else if (cellValue.Equals("번호", StringComparison.OrdinalIgnoreCase))
                     numberCol = col;
+                else if (cellValue.Equals("성별", StringComparison.OrdinalIgnoreCase))
+                    sexCol = col;
                 else if (cellValue.Equals("이름", StringComparison.OrdinalIgnoreCase) ||
                          cellValue.Equals("성명", StringComparison.OrdinalIgnoreCase))
                 {
@@ -224,6 +226,11 @@ public sealed partial class AddStudentsPage : Page
             string name = (sheetData[row, nameCol] ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(name))
                 continue;
+
+            // 성별 ("남"/"여", 없으면 "남" 기본값)
+            string sex = "남";
+            if (sexCol != -1)
+                sex = NormalizeSex(sheetData[row, sexCol]);
 
             // 학년 ("1학년", "1" 등 처리)
             int grade = defaultGrade;
@@ -273,9 +280,23 @@ public sealed partial class AddStudentsPage : Page
                 Grade = grade,
                 Class = cls,
                 Number = number,
-                Name = name
+                Name = name,
+                Sex = sex
             });
         }
+    }
+
+    /// <summary>
+    /// 성별 텍스트 정규화 ("남"/"남자"/"M" → "남", "여"/"여자"/"F" → "여", 그 외 → "남")
+    /// </summary>
+    private static string NormalizeSex(string? text)
+    {
+        var v = (text ?? string.Empty).Trim();
+        if (v.StartsWith("여", StringComparison.OrdinalIgnoreCase) ||
+            v.Equals("F", StringComparison.OrdinalIgnoreCase) ||
+            v.Equals("Female", StringComparison.OrdinalIgnoreCase))
+            return "여";
+        return "남";
     }
 
     #endregion
@@ -339,6 +360,9 @@ public sealed partial class AddStudentsPage : Page
             return;
         }
 
+        // 성별 (ComboBox 선택값, 기본 "남")
+        string sex = (CboSex.SelectedItem as ComboBoxItem)?.Content as string ?? "남";
+
         NewStudents.Add(new StudentAddViewModel
         {
             StudentID = studentId,
@@ -346,7 +370,8 @@ public sealed partial class AddStudentsPage : Page
             Grade = grade,
             Class = cls,
             Number = number,
-            Name = name
+            Name = name,
+            Sex = sex
         });
 
         // 입력 필드 초기화
@@ -435,6 +460,7 @@ public sealed partial class AddStudentsPage : Page
                     반 = s.Class,
                     번호 = s.Number,
                     이름 = s.Name,
+                    성별 = s.Sex,
                     학생ID = s.StudentID
                 }),
                 title: "추가할_학생_목록",
@@ -467,6 +493,7 @@ public sealed partial class AddStudentsPage : Page
         public int 반 { get; set; }
         public int 번호 { get; set; }
         public string 이름 { get; set; } = string.Empty;
+        public string 성별 { get; set; } = string.Empty;
         public string 학생ID { get; set; } = string.Empty;
     }
 
@@ -610,7 +637,7 @@ public sealed partial class AddStudentsPage : Page
                 {
                     StudentID = vm.StudentID,
                     Name = vm.Name,
-                    Sex = "남", // 기본값 (향후 입력받을 수 있음)
+                    Sex = vm.Sex,
                     //BirthDate = string.Empty,
                     Phone = string.Empty,
                     Email = string.Empty,
@@ -685,7 +712,7 @@ public sealed partial class AddStudentsPage : Page
         // 파라미터 추가
         cmd.Parameters.AddWithValue("@StudentID", vm.StudentID);
         cmd.Parameters.AddWithValue("@Name", vm.Name); // ⭐ Name 추가
-        cmd.Parameters.AddWithValue("@Sex", "남"); // ⭐ Sex 추가 (기본값)
+        cmd.Parameters.AddWithValue("@Sex", vm.Sex); // ⭐ Sex (입력/엑셀 값)
         cmd.Parameters.AddWithValue("@Photo", string.Empty); // ⭐ Photo 추가
         cmd.Parameters.AddWithValue("@SchoolCode", Settings.SchoolCode.Value);
         cmd.Parameters.AddWithValue("@Year", vm.Year);
@@ -756,8 +783,9 @@ public sealed partial class AddStudentsPage : Page
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AddStudents] 중복 확인 오류: {ex.Message}");
-            // 오류 발생 시 안전을 위해 중복으로 간주하지 않음 (사용자에게 추가 기회 제공)
-            return false;
+            // (학년,반,번호) UNIQUE 제약이 없어 이 검사가 유일한 방어선이므로,
+            // 검증 실패 시엔 중복으로 간주해 잘못된 중복 삽입을 막는다.
+            return true;
         }
     }
 
@@ -950,11 +978,18 @@ public partial class StudentAddViewModel : NotifyPropertyChangedBase
     private int _class;
     private int _number;
     private string _name = string.Empty;
+    private string _sex = "남";
 
     public string StudentID
     {
         get => _studentId;
         set => SetProperty(ref _studentId, value);
+    }
+
+    public string Sex
+    {
+        get => _sex;
+        set => SetProperty(ref _sex, value);
     }
 
     public int Year
