@@ -5,7 +5,7 @@
 ### 홈
 - **Tag**: `Home`
 - **Page**: `TodayPage.xaml`
-- **기능**: 오늘의 일정/정보 대시보드
+- **기능**: 오늘 대시보드 — 상단 날짜 헤더(오늘 날짜·요일·현재 교시·오늘 학사일정), 오늘 시간표(내 수업/우리 반, 담임만 '우리 반' 표시), 학사일정, 급식, 할 일·일정, 메모
 
 ### 달력
 - **Tag**: `Calendar`
@@ -360,6 +360,7 @@
 ### 일반 설정
 - `AutoBackup` / `AutoBackupIntervalDays` / `BackupRetentionCount` - 백업
 - `Theme` / `Language` - 테마/언어
+- `TopMost` - 항상 위에(기본 꺼짐, `OverlappedPresenter.IsAlwaysOnTop`)
 - `WindowWidth` / `WindowHeight` - 창 크기
 - `LogLevel` - 로그 레벨
 
