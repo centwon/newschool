@@ -115,12 +115,10 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
     private void ApplyMode(EditorMode mode)
     {
         if (_editor == null) return;
-        _editor.EditorMode = mode switch
-        {
-            EditorMode.ReadOnly => WinUIRichEditor.Controls.EditorMode.ReadOnly,
-            EditorMode.Simple => WinUIRichEditor.Controls.EditorMode.Basic,
-            _ => WinUIRichEditor.Controls.EditorMode.Full,
-        };
+        // WinUIRichEditor 에서 EditorMode 프리셋이 제거됨(뷰어 = IsReadOnly=true).
+        // Simple/Full 의 툴바 차이는 ShowToolbar(RichEditorView vs bare) 로 이미 결정되므로,
+        // 여기서는 편집 가능 여부만 매핑한다.
+        _editor.IsReadOnly = mode == EditorMode.ReadOnly;
     }
 
     private void OnTextDpChanged(string? value)
