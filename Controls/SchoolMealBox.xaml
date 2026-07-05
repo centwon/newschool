@@ -7,11 +7,7 @@
     xmlns:model="using:NewSchool.Models"
     mc:Ignorable="d">
 
-    <Border BorderBrush="CornflowerBlue" 
-            BorderThickness="1" 
-            CornerRadius="8" 
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-            MinHeight="180">
+    <Border Style="{StaticResource DashboardCard}" MinHeight="180">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -19,10 +15,8 @@
             </Grid.RowDefinitions>
 
             <!-- 헤더 -->
-            <Grid Grid.Row="0" 
-                  Padding="12,8"
-                  Background="Lavender"
-                  CornerRadius="8,8,0,0">
+            <Border Grid.Row="0" Style="{StaticResource DashboardCardHeader}" Padding="12,6">
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -30,12 +24,11 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- 제목 -->
-                <TextBlock Grid.Column="0"
-                           Text="🍱 급식" 
-                           FontWeight="Bold"
-                           VerticalAlignment="Center" 
-                           FontSize="14"
-                           Margin="4,0,12,0"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" Margin="0,0,12,0">
+                    <FontIcon Glyph="&#xE957;" Style="{StaticResource DashboardCardHeaderIcon}"/>
+                    <TextBlock Text="급식" Style="{StaticResource DashboardCardHeaderTitle}"/>
+                </StackPanel>
 
                 <!-- 날짜 선택 영역 -->
                 <StackPanel Grid.Column="2" 
@@ -80,6 +73,7 @@
                             FontSize="12"/>-->
                 </StackPanel>
             </Grid>
+            </Border>
 
             <!-- 급식 목록 -->
             <ScrollViewer Grid.Row="1"

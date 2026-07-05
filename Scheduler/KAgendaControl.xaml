@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <UserControl
     x:Class="NewSchool.Scheduler.KAgendaControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -18,7 +18,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="76"/>
-                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="80"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
@@ -35,7 +35,7 @@
                         Background="{x:Bind local:KAgendaControl.HexToBrush(BadgeBackground), Mode=OneWay}"
                         Visibility="{x:Bind CategoryName, Converter={StaticResource StrToVis}}">
                     <TextBlock Text="{x:Bind CategoryName}"
-                               FontSize="9"
+                               FontSize="11"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
                                Foreground="White"/>
@@ -44,7 +44,7 @@
                 <!-- 날짜 -->
                 <TextBlock Grid.Column="1"
                            Text="{x:Bind DateLabel}"
-                           FontSize="12"
+                           FontSize="13"
                            Foreground="#777"
                            TextTrimming="CharacterEllipsis"
                            VerticalAlignment="Center"
@@ -53,7 +53,7 @@
                 <!-- 시간 -->
                 <TextBlock Grid.Column="2"
                            Text="{x:Bind TimeLabel}"
-                           FontSize="12"
+                           FontSize="13"
                            Foreground="#777"
                            VerticalAlignment="Center"
                            Margin="0,0,4,0"/>
@@ -61,7 +61,7 @@
                 <!-- 제목 -->
                 <TextBlock Grid.Column="3"
                            Text="{x:Bind Title}"
-                           FontSize="12"
+                           FontSize="13"
                            TextDecorations="{x:Bind Decorations, Mode=OneWay}"
                            TextTrimming="CharacterEllipsis"
                            TextWrapping="NoWrap"
@@ -84,21 +84,16 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Border BorderBrush="CornflowerBlue" BorderThickness="1" CornerRadius="5"
-            Background="{ThemeResource LayerFillColorDefaultBrush}">
+    <Border Style="{StaticResource DashboardCard}">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="36"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <!-- ── 헤더 ── -->
-            <Border Grid.Row="0"
-                    Background="Lavender"
-                    BorderBrush="CornflowerBlue"
-                    BorderThickness="0,0,0,1"
-                    CornerRadius="5,5,0,0">
-                <Grid Padding="8,4">
+            <Border Grid.Row="0" Style="{StaticResource DashboardCardHeader}" Padding="8,4">
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
@@ -110,9 +105,9 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="📋"
-                               FontSize="14" VerticalAlignment="Center"
-                               Margin="0,0,6,0"/>
+                    <FontIcon Grid.Column="0" Glyph="&#xE8FD;"
+                              Style="{StaticResource DashboardCardHeaderIcon}"
+                              Margin="0,0,6,0"/>
 
                     <ComboBox x:Name="CBoxFilter" Grid.Column="1"
                               Height="26" FontSize="11" MinWidth="70"
