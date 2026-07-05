@@ -66,6 +66,10 @@ public sealed partial class StudentSpecBatchDialog : Window
     {
         this.InitializeComponent();
 
+        // 메인 창이 '항상 위에'면 이 창도 같은 topmost 레벨로 올려 뒤로 숨지 않게 함
+        if (Settings.TopMost.Value)
+            MainWindow.SetAlwaysOnTop(this, true);
+
         _year = year;
         _semester = semester;
         _grade = grade;

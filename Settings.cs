@@ -314,7 +314,7 @@ public static class Settings
         NeisApiKey = new SettingProperty<string>("NeisApiKey", NewSchool.Services.SecretsService.NeisApiKey, s => s, s => s);
         SpecByteLimits = new SettingProperty<string>("SpecByteLimits", "", s => s, s => s);
         WorkSemester = new SettingProperty<int>("WorkSemester", 0, int.Parse, i => i.ToString());
-        TopMost = new SettingProperty<bool>("TopMost", true, bool.Parse, b => b.ToString().ToLower());
+        TopMost = new SettingProperty<bool>("TopMost", false, bool.Parse, b => b.ToString().ToLower());
         UserName = new SettingProperty<string>("UserName", "", s => s, s => s);
         IsNeisEventDownloaded = new SettingProperty<bool>("IsNeisEventDownloaded", false, bool.Parse, b => b.ToString().ToLower());
 

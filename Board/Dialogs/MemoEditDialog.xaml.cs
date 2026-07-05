@@ -73,6 +73,12 @@ public sealed partial class MemoEditDialog : Window
     public async Task<bool> ShowDialogAsync(Window? parent = null)
     {
         if (parent != null) CenterOnParent(parent);
+
+        // 메인 창이 '항상 위에' 상태면 이 편집 창도 같은 topmost 레벨로 올려,
+        // 메인 창 뒤로 숨어버리는 현상을 방지 (나중에 Activate 되므로 위에 표시됨)
+        if (Settings.TopMost.Value)
+            MainWindow.SetAlwaysOnTop(this, true);
+
         Activate();
         await LoadAsync();
         return await _dialogResult.Task;
