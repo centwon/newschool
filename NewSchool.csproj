@@ -233,6 +233,13 @@
     <PublishReadyToRun>False</PublishReadyToRun>
     <PublishTrimmed>True</PublishTrimmed>
     <PublishAot>True</PublishAot>
+    <!-- 게시 크기 최적화(저위험): AOT 코드 크기 우선 + 중복 메서드 본문 접기 +
+         데스크톱에 불필요한 런타임 기능 스위치 off. 기능/한글 동작에 영향 없음. -->
+    <OptimizationPreference>Size</OptimizationPreference>
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+    <EventSourceSupport>false</EventSourceSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
     <WindowsPackageType>None</WindowsPackageType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest></ApplicationManifest>
