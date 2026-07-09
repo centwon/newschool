@@ -381,20 +381,14 @@ public sealed partial class PageStudentLog : Page, IDisposable
             var studentLogsList = new List<(StudentCardViewModel Student, List<StudentLogViewModel> Logs)>();
             int totalLogs = 0;
 
+            // 학급 전체 기록을 IN 쿼리로 일괄 조회 (학생 수 × 학기만큼 쿼리하던 N+1 제거, semester=0=전체)
+            var logsByStudent = await logService.GetStudentLogsBatchAsync(
+                enrollments.Select(e => e.StudentID), year, filterSemester);
+
             foreach (var enrollment in enrollments.OrderBy(e => e.Number))
             {
-                // 학기 필터에 따라 조회
-                List<StudentLog> logs;
-                if (filterSemester == 0)
-                {
-                    var logs1 = await logService.GetStudentLogsAsync(enrollment.StudentID, year, 1);
-                    var logs2 = await logService.GetStudentLogsAsync(enrollment.StudentID, year, 2);
-                    logs = logs1.Concat(logs2).ToList();
-                }
-                else
-                {
-                    logs = await logService.GetStudentLogsAsync(enrollment.StudentID, year, filterSemester);
-                }
+                logsByStudent.TryGetValue(enrollment.StudentID, out var batchLogs);
+                List<StudentLog> logs = batchLogs ?? new List<StudentLog>();
 
                 // 카테고리 필터
                 if (filterCategory != LogCategory.전체)
@@ -573,20 +567,9 @@ public sealed partial class PageStudentLog : Page, IDisposable
 
         try
         {
-            List<StudentLog> logs;
+            // semester=0 이면 리포지토리가 학년도 전체를 조회하므로 그대로 전달 (이중 쿼리 불필요)
             using var service = new StudentLogService();
-            if (_semester == 0)
-            {
-                // 전체 학기: 1학기와 2학기 모두 조회
-                var logs1 = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year,1);
-                var logs2 = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year,2);
-                logs = logs1.Concat(logs2).ToList();
-            }
-            else
-            {
-                // 선택한 학기만 조회
-                logs = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year, _semester);
-            }
+            var logs = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year, _semester);
 
             // 카테고리 필터 적용
             if (_category != LogCategory.전체)

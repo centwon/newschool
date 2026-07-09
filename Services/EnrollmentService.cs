@@ -227,7 +227,8 @@ public sealed class EnrollmentService : IDisposable
             _enrollmentRepo.BeginTransaction();
 
             int count = 0;
-            DateTime graduationDate = new DateTime(year, 2, 28); // 2월 말 졸업 가정
+            // 졸업일 = 학년도 다음 해 2월 말일 (예: 2025학년도 → 2026-02-28/29)
+            DateTime graduationDate = new DateTime(year + 1, 3, 1).AddDays(-1);
 
             foreach (var enrollment in activeStudents)
             {

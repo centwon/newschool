@@ -158,17 +158,10 @@ public sealed partial class ClubActivityPage : Page
                 return;
             }
 
+            // 부원 학적을 IN 쿼리로 일괄 조회 (부원 수만큼 쿼리하던 N+1 제거)
             using var enrollmentService = new EnrollmentService();
-            var members = new List<Enrollment>();
-
-            foreach (var ce in clubEnrollments)
-            {
-                var enrollment = await enrollmentService.GetCurrentEnrollmentAsync(ce.StudentID);
-                if (enrollment != null)
-                {
-                    members.Add(enrollment);
-                }
-            }
+            var studentIds = clubEnrollments.Select(ce => ce.StudentID).ToList();
+            var members = await enrollmentService.GetCurrentEnrollmentsAsync(studentIds);
 
             // 정렬: 학년 → 반 → 번호
             var sorted = members

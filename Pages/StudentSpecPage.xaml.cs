@@ -353,35 +353,29 @@ public sealed partial class StudentSpecPage : Page, IDisposable
                 s => (Grade: s.Grade, ClassNum: s.Class, Number: s.Number, Name: s.Name)
             );
 
+            // 학급 전체 기록을 IN 쿼리로 일괄 조회 후 카테고리 필터 (학생 수만큼 쿼리하던 N+1 제거)
+            var specsByStudent = await _specialService.GetByStudentIdsAsync(
+                students.Select(s => s.StudentID), selectedYear);
+            string? typeFilter = _selectedCategory == LogCategory.전체
+                ? null
+                : _selectedCategory.ToString();
+
             var allSpecs = new List<StudentSpecial>();
 
             foreach (var student in students)
             {
-                List<StudentSpecial> specs;
+                specsByStudent.TryGetValue(student.StudentID, out var specs);
+                var list = specs ?? new List<StudentSpecial>();
+                if (typeFilter != null)
+                    list = list.Where(s => s.Type == typeFilter).ToList();
 
-                if (_selectedCategory == LogCategory.전체)
+                if (list.Count > 0)
                 {
-                    specs = await _specialService.GetByStudentAsync(student.StudentID, selectedYear);
+                    allSpecs.AddRange(list);
                 }
-                else
+                else if (IsAutoCreateCategory(_selectedCategory))
                 {
-                    specs = await _specialService.GetByTypeAsync(
-                        student.StudentID,
-                        selectedYear,
-                        _selectedCategory.ToString()
-                    );
-                }
-
-                if (specs.Any())
-                {
-                    allSpecs.AddRange(specs);
-                }
-                else
-                {
-                    if (IsAutoCreateCategory(_selectedCategory))
-                    {
-                        allSpecs.Add(CreateEmptySpec(student.StudentID));
-                    }
+                    allSpecs.Add(CreateEmptySpec(student.StudentID));
                 }
             }
 
