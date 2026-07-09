@@ -403,3 +403,14 @@
 | 학사일정 | `Pages/SchoolScheduleManagementPage.xaml`, `Services/SchoolScheduleService.cs` |
 | 통합 내보내기 | `Pages/UnifiedExportPage.xaml`, `Services/UnifiedExportService.cs`, `Services/HtmlExportService.cs` |
 | 비밀 정보(API 키) | `secrets.json` (.gitignore), `secrets.template.json`, `Services/SecretsService.cs` |
+
+---
+
+## 차후 과제
+
+| 과제 | 요약 | 상세 |
+|------|------|------|
+| **테스트 확충** | 테스트 25개 → 약 175개. 임시 SQLite 기반으로 리포지토리 CRUD·경계(~60) → 서비스 로직·회귀(~40) → 헬퍼·파서(~30) → VM 변환(~20) 순. 1·2단계만 완료해도 2026-07 점검에서 발견된 버그 부류가 전부 회귀망에 들어감. 예상 3~4세션 | [TEST_PLAN.md](TEST_PLAN.md) |
+| qpdf.dll 게시 제외 검토 | QuestPDF 부속 네이티브(4.2MB). PDF 병합/PDF-A 미사용이면 게시에서 제외 가능성 — 런타임 로드 여부 확인 필요 | — |
+| 홈 현재 교시 행 강조 | 오늘 시간표(내 수업/우리 반)에서 현재 교시 행에 틴트·"지금" 배지 표시 | `Pages/TodayPage.xaml` |
+| 학생 관리 상태 편집 | 학생 목록에서 재학/전학/휴학 상태를 콤보로 변경(현재 읽기 전용). `EnrollmentService.GraduateAsync`(일괄 졸업)도 UI 미노출 상태 | `Pages/StudentManagementPage.xaml` |
