@@ -18,9 +18,12 @@ public class StudentLogService : IDisposable
     private readonly StudentLogRepository _repository;
     private bool _disposed;
 
-    public StudentLogService()
+    public StudentLogService() : this(SchoolDatabase.DbPath) { }
+
+    /// <summary>DB 경로 주입 생성자 (테스트용 임시 DB 지원)</summary>
+    public StudentLogService(string dbPath)
     {
-        _repository = new StudentLogRepository(SchoolDatabase.DbPath);
+        _repository = new StudentLogRepository(dbPath);
     }
 
     #region Create/Insert

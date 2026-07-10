@@ -939,7 +939,9 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@Class", enrollment.Class);
             cmd.Parameters.AddWithValue("@Number", enrollment.Number);
             cmd.Parameters.AddWithValue("@Status", enrollment.Status);
-            cmd.Parameters.AddWithValue("@TeacherID", enrollment.TeacherID ?? (object)DBNull.Value);
+            // TeacherID 는 FK(Teacher.TeacherID) — 빈 문자열로 저장하면 FK 위반이므로 NULL 로 기록
+            cmd.Parameters.AddWithValue("@TeacherID",
+                string.IsNullOrEmpty(enrollment.TeacherID) ? (object)DBNull.Value : enrollment.TeacherID);
             cmd.Parameters.AddWithValue("@AdmissionDate", enrollment.AdmissionDate ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@GraduationDate", enrollment.GraduationDate ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@TransferOutDate", enrollment.TransferOutDate ?? (object)DBNull.Value);
@@ -971,6 +973,7 @@ namespace NewSchool.Repositories
                 Class = reader.GetInt32(reader.GetOrdinal("Class")),
                 Number = reader.GetInt32(reader.GetOrdinal("Number")),
                 Status = reader.GetString(reader.GetOrdinal("Status")),
+                TeacherID = reader.IsDBNull(reader.GetOrdinal("TeacherID")) ? string.Empty : reader.GetString(reader.GetOrdinal("TeacherID")),
                 AdmissionDate = reader.IsDBNull(reader.GetOrdinal("AdmissionDate")) ? string.Empty : reader.GetString(reader.GetOrdinal("AdmissionDate")),
                 GraduationDate = reader.IsDBNull(reader.GetOrdinal("GraduationDate")) ? string.Empty : reader.GetString(reader.GetOrdinal("GraduationDate")),
                 TransferOutDate = reader.IsDBNull(reader.GetOrdinal("TransferOutDate")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferOutDate")),
@@ -1002,6 +1005,7 @@ namespace NewSchool.Repositories
             var classIdx = cache.GetOrdinal("Class");
             var numberIdx = cache.GetOrdinal("Number");
             var statusIdx = cache.GetOrdinal("Status");
+            var teacherIdIdx = cache.GetOrdinal("TeacherID");
             var admissionDateIdx = cache.GetOrdinal("AdmissionDate");
             var graduationDateIdx = cache.GetOrdinal("GraduationDate");
             var transferOutDateIdx = cache.GetOrdinal("TransferOutDate");
@@ -1027,6 +1031,7 @@ namespace NewSchool.Repositories
                 Class = reader.GetInt32(classIdx),
                 Number = reader.GetInt32(numberIdx),
                 Status = reader.GetString(statusIdx),
+                TeacherID = reader.IsDBNull(teacherIdIdx) ? string.Empty : reader.GetString(teacherIdIdx),
                 AdmissionDate = reader.IsDBNull(admissionDateIdx) ? string.Empty : reader.GetString(admissionDateIdx),
                 GraduationDate = reader.IsDBNull(graduationDateIdx) ? string.Empty : reader.GetString(graduationDateIdx),
                 TransferOutDate = reader.IsDBNull(transferOutDateIdx) ? string.Empty : reader.GetString(transferOutDateIdx),

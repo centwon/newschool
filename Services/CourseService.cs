@@ -12,10 +12,13 @@ internal partial class CourseService : IDisposable
     private CourseRepository _courseRepository;
     private CourseEnrollmentRepository _courseEnrollmentRepository;
     private bool _disposed;
-    public CourseService()
+    public CourseService() : this(SchoolDatabase.DbPath) { }
+
+    /// <summary>DB 경로 주입 생성자 (테스트용 임시 DB 지원)</summary>
+    public CourseService(string dbPath)
     {
-        _courseRepository = new CourseRepository(SchoolDatabase.DbPath);
-        _courseEnrollmentRepository = new CourseEnrollmentRepository(SchoolDatabase.DbPath);
+        _courseRepository = new CourseRepository(dbPath);
+        _courseEnrollmentRepository = new CourseEnrollmentRepository(dbPath);
     }
     public async Task<List<int>> GetDistinctCourseYearsAsync(string teacher)
     {

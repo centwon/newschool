@@ -17,9 +17,12 @@ public sealed class StudentSpecialService : IDisposable
     private readonly StudentSpecialRepository _repository;
     private bool _disposed;
 
-    public StudentSpecialService()
+    public StudentSpecialService() : this(SchoolDatabase.DbPath) { }
+
+    /// <summary>DB 경로 주입 생성자 (테스트용 임시 DB 지원)</summary>
+    public StudentSpecialService(string dbPath)
     {
-        _repository = new StudentSpecialRepository(SchoolDatabase.DbPath);
+        _repository = new StudentSpecialRepository(dbPath);
     }
 
     #region CRUD Operations

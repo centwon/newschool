@@ -1,6 +1,6 @@
 # 테스트 확충 계획 (차후 과제)
 
-> 작성: 2026-07-09 · 상태: **미착수**
+> 작성: 2026-07-09 · 상태: **0단계 완료 (2026-07-10)** — 1단계 진행 가능
 > 현황: xUnit 2.9 · 테스트 25개(헬퍼 2파일: CsvEscape, NeisHelper) / 프로덕션 약 8.5만 줄
 > 문제의식: 2026-07 점검에서 발견된 버그들(이름 저장 유실, 학기 필터 무시, MessageBox 인자 뒤바뀜,
 > 졸업일 연도 오프바이원 등)은 전부 기초적인 서비스/리포지토리 테스트로 잡혔을 부류였다.
@@ -15,11 +15,11 @@
 ## 단계별 계획 — 총 신규 약 150개 (누적 약 175개)
 
 ### 0단계. 테스트 인프라 (선행, 약 반나절)
-- [ ] `SqliteTestFixture` — 임시 파일 DB 생성 → `DatabaseInitializer` 스키마 초기화 → Dispose 시 삭제
-- [ ] 시드 빌더(TestData) — 학교/학생/학적(Enrollment)/과목(Course) 기본 시드 헬퍼
-- [ ] 파라미터리스 서비스(`EnrollmentService()` 등)에 dbPath 주입 생성자 보완
+- [x] `SqliteTestFixture` — 임시 파일 DB 생성 → `DatabaseInitializer` 스키마 초기화 → FK 대상(School·Teacher) 시드 → Dispose 시 풀 정리 후 삭제
+- [x] 시드 빌더(TestData) — 학생/학적 빌더 + 실규칙 학생ID 생성 (과목은 1단계에서 추가)
+- [x] 파라미터리스 서비스 4종(Enrollment·StudentLog·StudentSpecial·Course)에 dbPath 주입 생성자 추가
 - [ ] 정적 `Settings` 의존 로직 정리 — 테스트에서 경로 오버라이드하거나 순수 함수로 추출
-      (예: 졸업일 계산, GetPeriodNow 의 시각 의존)
+      (예: 졸업일 계산, GetPeriodNow 의 시각 의존) — *리포지토리 계층은 불필요 확인, 2단계 서비스 테스트 때 필요분만*
 
 ### 1단계. 리포지토리 CRUD·경계 (~60개, 1~2세션)
 대상: Enrollment · StudentLog · StudentSpecial · ClassTimetable · Course/CourseSection · Post(Board)

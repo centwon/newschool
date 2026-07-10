@@ -17,10 +17,13 @@ public sealed class EnrollmentService : IDisposable
     private readonly StudentRepository _studentRepo;
     private bool _disposed;
 
-    public EnrollmentService()
+    public EnrollmentService() : this(SchoolDatabase.DbPath) { }
+
+    /// <summary>DB 경로 주입 생성자 (테스트용 임시 DB 지원)</summary>
+    public EnrollmentService(string dbPath)
     {
-        _enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
-        _studentRepo = new StudentRepository(SchoolDatabase.DbPath);
+        _enrollmentRepo = new EnrollmentRepository(dbPath);
+        _studentRepo = new StudentRepository(dbPath);
     }
 
     #region 학급 배정
