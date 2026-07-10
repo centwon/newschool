@@ -269,7 +269,9 @@ namespace NewSchool.Repositories
                     LogInfo($"학생 수정 완료: No={student.No}");
                     
                     // Enrollment 동기화: Name, Sex, Photo
-                    using var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
+                    // 이 리포지토리와 같은 DB(_dbPath)로 동기화 — 정적 SchoolDatabase.DbPath 를
+                    // 쓰면 비표준 경로(테스트 등)에서 다른 DB 로 흘러가므로 _dbPath 사용
+                    using var enrollmentRepo = new EnrollmentRepository(_dbPath);
                     await enrollmentRepo.SyncStudentInfoAsync(
                         student.StudentID,
                         student.Name,

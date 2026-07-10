@@ -1,6 +1,6 @@
 # 테스트 확충 계획 (차후 과제)
 
-> 작성: 2026-07-09 · 상태: **1단계 완료 (2026-07-10, 테스트 87개)** — 2단계 진행 가능
+> 작성: 2026-07-09 · 상태: **2단계 완료 (2026-07-10, 테스트 105개)** — 3단계 진행 가능
 > 현황: xUnit 2.9 · 테스트 25개(헬퍼 2파일: CsvEscape, NeisHelper) / 프로덕션 약 8.5만 줄
 > 문제의식: 2026-07 점검에서 발견된 버그들(이름 저장 유실, 학기 필터 무시, MessageBox 인자 뒤바뀜,
 > 졸업일 연도 오프바이원 등)은 전부 기초적인 서비스/리포지토리 테스트로 잡혔을 부류였다.
@@ -33,13 +33,16 @@
   CourseSection 시수합계·고정날짜, 조회수 증가
 
 ### 2단계. 서비스 로직·회귀 방지 (~40개, 1세션)
-2026-07 점검에서 잡은 버그의 재발 방지가 핵심:
-- [ ] `EnrollmentService.GraduateAsync` — 졸업일 = 학년도+1년 2월 말일(윤년 2/29 포함)
-- [ ] `StudentService.UpdateBasicInfoAsync` — Student.Name 갱신 시 Enrollment.Name 자동 동기화
-- [ ] `SchoolScheduleService` — 날짜범위 상한 배타(AA_YMD < End), 학년도 종료일 = 다음 해 2월 말일
-- [ ] NEIS 동기화 중복 제외(기존 데이터와 dedupe)
-- [ ] `BoardService.UpdatePostIsCompletedAsync` / `GetMemosAsync(includeCompleted)` 계약
-- [ ] Settings 파서 — bool("true"/"false"), TimeSpan, int 라운드트립
+2026-07 점검에서 잡은 버그의 재발 방지가 핵심. **작성 중 2건의 잠재 버그 추가 발견·수정**:
+- `StudentRepository.UpdateAsync` 의 Enrollment 동기화가 주입 dbPath 대신 정적 경로 사용 → `_dbPath` 로 수정
+- `SchoolScheduleService(dbPath)` 생성자가 파라미터를 무시하고 정적 경로 대입 → 주입 반영
+- [x] `EnrollmentService.GraduateAsync` — 졸업일 학년도+1년 2월 말일(평년/윤년), 재학생만·미대상 0·타학년 무영향
+- [x] `StudentService.UpdateBasicInfoAsync` — 이름/성별 갱신 시 Enrollment 동기화, 학적 없어도 성공
+- [x] `SchoolScheduleService` — 날짜범위 상한 배타/하한 포함, 학년도 필터
+- [x] NEIS 동기화 중복 제외 — 학교+날짜+행사명 키로 재실행/배치 내 중복 스킵
+- [x] `BoardService` — SavePost 왕복, IsCompleted 토글(회귀), GetMemos includeCompleted/카테고리 필터
+- [~] Settings 파서 — 프레임워크 내장 파서(bool/TimeSpan/int.Parse) + 정적 Settings.db 결합이라 ROI 낮아 보류.
+      필요 시 SettingProperty 를 in-memory store 로 테스트 가능하게 리팩터링 후 진행
 
 ### 3단계. 헬퍼·파서 (~30개, 반 세션)
 사용자 데이터가 걸린 파싱 경로 보호:

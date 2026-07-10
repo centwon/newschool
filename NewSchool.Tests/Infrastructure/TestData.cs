@@ -149,6 +149,23 @@ public static class TestData
         PlainText = "본문 평문",
     };
 
+    public static SchoolSchedule NewSchedule(
+        DateTime date,
+        string eventName = "테스트행사",
+        int year = Year,
+        bool isManual = true) => new()
+    {
+        SCHUL_NM = "테스트학교",
+        SD_SCHUL_CODE = SchoolCode,
+        ATPT_OFCDC_SC_CODE = "B10",
+        AY = year,
+        AA_YMD = date,
+        EVENT_NM = eventName,
+        EVENT_CNTNT = string.Empty,
+        SBTR_DD_SC_NM = "해당없음",
+        IsManual = isManual,
+    };
+
     public static Enrollment NewEnrollment(
         string studentId,
         string name = "홍길동",

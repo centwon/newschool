@@ -34,7 +34,8 @@ public sealed class SchoolScheduleService : IDisposable
 
     public SchoolScheduleService(string dbPath)
     {
-        _dbPath = SchoolDatabase.DbPath;
+        // 주입된 dbPath 를 사용 (정적 SchoolDatabase.DbPath 를 쓰면 주입이 무력화됨)
+        _dbPath = dbPath;
     }
 
     private SchoolScheduleRepository Repository => 
