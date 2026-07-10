@@ -289,15 +289,7 @@ public sealed partial class AddStudentsPage : Page
     /// <summary>
     /// 성별 텍스트 정규화 ("남"/"남자"/"M" → "남", "여"/"여자"/"F" → "여", 그 외 → "남")
     /// </summary>
-    private static string NormalizeSex(string? text)
-    {
-        var v = (text ?? string.Empty).Trim();
-        if (v.StartsWith("여", StringComparison.OrdinalIgnoreCase) ||
-            v.Equals("F", StringComparison.OrdinalIgnoreCase) ||
-            v.Equals("Female", StringComparison.OrdinalIgnoreCase))
-            return "여";
-        return "남";
-    }
+    private static string NormalizeSex(string? text) => ImportParsing.NormalizeSex(text);
 
     #endregion
 
@@ -861,19 +853,7 @@ public sealed partial class AddStudentsPage : Page
     /// 텍스트에서 숫자 추출 ("1학년" → 1, "3반" → 3, "1" → 1)
     /// </summary>
     private static bool TryParseNumberFromText(string? text, out int result)
-    {
-        result = 0;
-        if (string.IsNullOrWhiteSpace(text)) return false;
-
-        text = text.Trim();
-
-        // 순수 숫자인 경우
-        if (int.TryParse(text, out result)) return true;
-
-        // 숫자 부분만 추출 ("1학년" → "1", "3반" → "3")
-        var digits = new string(text.Where(char.IsDigit).ToArray());
-        return !string.IsNullOrEmpty(digits) && int.TryParse(digits, out result);
-    }
+        => ImportParsing.TryParseNumberFromText(text, out result);
 
     /// <summary>
     /// 학년 입력 받기 (UI 스레드에서 실행)

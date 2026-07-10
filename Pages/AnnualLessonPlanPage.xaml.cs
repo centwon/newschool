@@ -2261,9 +2261,7 @@ public sealed partial class AnnualLessonPlanPage : Page
     #endregion
 
     private static int GetWeekNumber(DateTime date, DateTime startDate)
-    {
-        return (int)((date.Date - startDate.Date).TotalDays / 7) + 1;
-    }
+        => DateTimeHelper.WeekNumber(date, startDate);
 
     // OnConfirmClick 제거됨 (v2 리팩토링)
     // SchedulingEngine 기반 배치로 전환되어 구 ViewModel 기반 확정 로직 불필요

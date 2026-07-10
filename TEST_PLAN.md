@@ -1,6 +1,6 @@
 # 테스트 확충 계획 (차후 과제)
 
-> 작성: 2026-07-09 · 상태: **2단계 완료 (2026-07-10, 테스트 105개)** — 3단계 진행 가능
+> 작성: 2026-07-09 · 상태: **3단계 완료 (2026-07-10, 테스트 156개)** — 4단계(선택) 진행 가능
 > 현황: xUnit 2.9 · 테스트 25개(헬퍼 2파일: CsvEscape, NeisHelper) / 프로덕션 약 8.5만 줄
 > 문제의식: 2026-07 점검에서 발견된 버그들(이름 저장 유실, 학기 필터 무시, MessageBox 인자 뒤바뀜,
 > 졸업일 연도 오프바이원 등)은 전부 기초적인 서비스/리포지토리 테스트로 잡혔을 부류였다.
@@ -44,14 +44,15 @@
 - [~] Settings 파서 — 프레임워크 내장 파서(bool/TimeSpan/int.Parse) + 정적 Settings.db 결합이라 ROI 낮아 보류.
       필요 시 SettingProperty 를 in-memory store 로 테스트 가능하게 리팩터링 후 진행
 
-### 3단계. 헬퍼·파서 (~30개, 반 세션)
-사용자 데이터가 걸린 파싱 경로 보호:
-- [ ] Excel 헤더 탐지(번호/이름/성명/학년/반/성별 열 찾기, 10행 내)
-- [ ] `TryParseNumberFromText` — "1학년"→1, "3반"→3, 공백/비숫자
-- [ ] `NormalizeSex` — 남/여/M/F/남자/여자/기타
-- [ ] 학생ID 생성 규칙(학교코드7+연도4+일련4 = 15자리) 및 고유성 검사
-- [ ] `Functions.GetPeriodNow` — 주말/등교 전/조례/교시 경계/방과후
-- [ ] `GetWeekNumber` — 학기 시작일 기준 주차 계산
+### 3단계. 헬퍼·파서 (완료, 51개)
+순수 함수 추출(코드비하인드 정리 겸)로 테스트 가능화:
+- [x] `ImportParsing.TryParseNumberFromText` — "1학년"→1, "3반"→3, 공백/비숫자 (AddStudentsPage 에서 추출)
+- [x] `ImportParsing.NormalizeSex` — 여/여자/F/Female→여, 그 외→남 (추출)
+- [x] `Student.GenerateStudentID` — 15자리 포맷, 학교코드7·연도범위·일련번호 검증 예외, Parse 왕복
+- [x] `Functions.GetPeriodAt`(신설 순수함수) — 주말/등교 전/조례/휴식/1~5교시/점심/청소/종례/방과후 경계.
+      `GetPeriodNow` 는 `PeriodTimes.FromSettings()` + 현재시각으로 이 순수함수에 위임
+- [x] `DateTimeHelper.WeekNumber` — 학기 시작일 기준 주차 (AnnualLessonPlanPage 에서 추출)
+- [~] Excel 헤더 탐지 — DB 매칭 로직과 얽혀 있어 순수 추출 비용이 커 보류 (4단계 또는 별도 리팩터로)
 
 ### 4단계. ViewModel 변환 로직 (선택, ~20개, 반 세션)
 - [ ] StudentLogViewModel 변환(CreateAsync 포함)

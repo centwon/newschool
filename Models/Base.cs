@@ -81,6 +81,25 @@ public class Period
     public TimeSpan Duration { get; set; }
 }
 
+/// <summary>
+/// 교시 계산에 필요한 시간 설정 묶음. <see cref="Functions.GetPeriodAt"/> 를 Settings·시계에서
+/// 분리해 순수 함수로 테스트할 수 있게 한다.
+/// </summary>
+public readonly record struct PeriodTimes(
+    TimeSpan DayStarting,   // 등교(일과 시작) 시각
+    TimeSpan AssemblyTime,  // 조례 길이
+    TimeSpan BreakTime,     // 쉬는 시간 길이
+    TimeSpan OnePeriod,     // 1교시 길이
+    TimeSpan LunchTime)     // 점심 시간 길이
+{
+    public static PeriodTimes FromSettings() => new(
+        Settings.DayStarting.Value,
+        Settings.AssemblyTime.Value,
+        Settings.BreakTime.Value,
+        Settings.OnePeriod.Value,
+        Settings.LunchTime.Value);
+}
+
 #endregion
 
 #region Core Models

@@ -99,43 +99,50 @@ namespace NewSchool
         public static Period GetPeriodNow()
         {
             var now = DateTime.Now;
-            var dayOfWeek = (int)now.DayOfWeek;
+            return GetPeriodAt(
+                new TimeSpan(now.Hour, now.Minute, now.Second),
+                (int)now.DayOfWeek,
+                PeriodTimes.FromSettings());
+        }
 
+        /// <summary>
+        /// 순수 교시 계산 — 시각·요일·교시 설정만으로 현재 교시를 판정 (테스트 가능, Settings·DateTime.Now 비의존).
+        /// <paramref name="dayOfWeek"/> 는 .NET 규칙(0=일 … 6=토). 월/수는 6교시, 그 외 평일은 7교시.
+        /// </summary>
+        internal static Period GetPeriodAt(TimeSpan currentTime, int dayOfWeek, PeriodTimes t)
+        {
             // 주말 체크
             if (dayOfWeek == 0 || dayOfWeek == 6)
             {
                 return new Period { Index = 0, Name = "방과후" };
             }
 
-            var currentTime = new TimeSpan(now.Hour, now.Minute, now.Second);
-
             // 등교 전
-            if (currentTime < Settings.DayStarting)
+            if (currentTime < t.DayStarting)
             {
                 return new Period { Index = 0, Name = "방과후" };
             }
 
             // 조례 시간
-            if (currentTime < Settings.DayStarting.Value + Settings.AssemblyTime.Value)
+            if (currentTime < t.DayStarting + t.AssemblyTime)
             {
                 return new Period
                 {
                     Index = 0,
                     Name = "조례",
-                    Time = Settings.DayStarting,
-                    Duration = Settings.AssemblyTime
+                    Time = t.DayStarting,
+                    Duration = t.AssemblyTime
                 };
             }
 
             // 교시 계산
-            
-            TimeSpan firstPeriodStart = Settings.DayStarting.Value + Settings.AssemblyTime.Value + Settings.BreakTime.Value;
+            TimeSpan firstPeriodStart = t.DayStarting + t.AssemblyTime + t.BreakTime;
             int totalPeriods = (dayOfWeek == 1 || dayOfWeek == 3) ? 6 : 7;
 
             var schoolEndTime = firstPeriodStart +
-                (Settings.OnePeriod.Value * totalPeriods) +
-                (Settings.BreakTime.Value * (totalPeriods - 2)) +
-                Settings.LunchTime;
+                (t.OnePeriod * totalPeriods) +
+                (t.BreakTime * (totalPeriods - 2)) +
+                t.LunchTime;
 
             // 1교시 전 휴식
             if (currentTime < firstPeriodStart)
@@ -144,8 +151,8 @@ namespace NewSchool
                 {
                     Index = 0,
                     Name = "휴식: 조례~1교시",
-                    Time = firstPeriodStart - Settings.BreakTime,
-                    Duration = Settings.BreakTime
+                    Time = firstPeriodStart - t.BreakTime,
+                    Duration = t.BreakTime
                 };
             }
 
@@ -154,8 +161,8 @@ namespace NewSchool
             {
                 for (int i = 1; i <= totalPeriods; i++)
                 {
-                    var periodEnd = CalculatePeriodEnd(i, firstPeriodStart);
-                    var breakEnd = periodEnd + (i == 4 ? Settings.LunchTime : Settings.BreakTime);
+                    var periodEnd = CalculatePeriodEnd(i, firstPeriodStart, t);
+                    var breakEnd = periodEnd + (i == 4 ? t.LunchTime : t.BreakTime);
 
                     if (currentTime < periodEnd)
                     {
@@ -163,8 +170,8 @@ namespace NewSchool
                         {
                             Index = i,
                             Name = $"{i}교시",
-                            Time = CalculatePeriodStart(i, firstPeriodStart),
-                            Duration = Settings.OnePeriod
+                            Time = CalculatePeriodStart(i, firstPeriodStart, t),
+                            Duration = t.OnePeriod
                         };
                     }
 
@@ -176,7 +183,7 @@ namespace NewSchool
                             Index = 0,
                             Name = breakName,
                             Time = periodEnd,
-                            Duration = i == 4 ? Settings.LunchTime : Settings.BreakTime
+                            Duration = i == 4 ? t.LunchTime : t.BreakTime
                         };
                     }
                 }
@@ -301,7 +308,7 @@ namespace NewSchool
             return sb.ToString();
         }
 
-        private static TimeSpan CalculatePeriodStart(int period, TimeSpan firstPeriodStart)
+        private static TimeSpan CalculatePeriodStart(int period, TimeSpan firstPeriodStart, PeriodTimes t)
         {
             if (period <= 0) return firstPeriodStart;
 
@@ -310,14 +317,14 @@ namespace NewSchool
             var lunchCount = period > 4 ? 1 : 0;
 
             return firstPeriodStart +
-                (Settings.OnePeriod.Value * elapsedPeriods) +
-                (Settings.BreakTime.Value * breakCount) +
-                (Settings.LunchTime.Value * lunchCount);
+                (t.OnePeriod * elapsedPeriods) +
+                (t.BreakTime * breakCount) +
+                (t.LunchTime * lunchCount);
         }
 
-        private static TimeSpan CalculatePeriodEnd(int period, TimeSpan firstPeriodStart)
+        private static TimeSpan CalculatePeriodEnd(int period, TimeSpan firstPeriodStart, PeriodTimes t)
         {
-            return CalculatePeriodStart(period, firstPeriodStart) + Settings.OnePeriod;
+            return CalculatePeriodStart(period, firstPeriodStart, t) + t.OnePeriod;
         }
 
         internal static bool IsNetworkAvailable()

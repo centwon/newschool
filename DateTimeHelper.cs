@@ -9,6 +9,13 @@ namespace NewSchool;
 /// </summary>
 public static class DateTimeHelper
 {
+    /// <summary>
+    /// 학기 시작일 기준 주차(1-based). 시작일과 같은 날은 1주차, 7일 뒤는 2주차.
+    /// (연간 수업 계획의 주차 표시에 사용)
+    /// </summary>
+    public static int WeekNumber(DateTime date, DateTime startDate)
+        => (int)((date.Date - startDate.Date).TotalDays / 7) + 1;
+
     #region 상수 정의
     /// <summary>
     /// DB 저장 및 API 통신용 표준 형식 (ISO 8601/RFC 3339)
