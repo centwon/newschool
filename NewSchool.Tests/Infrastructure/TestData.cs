@@ -35,6 +35,120 @@ public static class TestData
         IsDeleted = false,
     };
 
+    public static StudentLog NewStudentLog(
+        string studentId,
+        int year = Year,
+        int semester = 1,
+        LogCategory category = LogCategory.기타,
+        string log = "테스트 기록",
+        DateTime? date = null) => new()
+    {
+        StudentID = studentId,
+        TeacherID = TeacherId,
+        Year = year,
+        Semester = semester,
+        Date = date ?? new DateTime(year, 4, 15),
+        Category = category,
+        Log = log,
+        SubjectName = string.Empty,
+        ClubName = string.Empty,
+        ActivityName = string.Empty,
+        Topic = string.Empty,
+        Description = string.Empty,
+    };
+
+    public static StudentSpecial NewSpecial(
+        string studentId,
+        int year = Year,
+        string type = "자율활동",
+        string title = "테스트 특기사항",
+        string content = "내용",
+        int courseNo = 0,
+        bool isFinalized = false) => new()
+    {
+        StudentID = studentId,
+        Year = year,
+        Type = type,
+        Title = title,
+        Content = content,
+        Date = $"{year}-05-01",
+        TeacherID = TeacherId,
+        CourseNo = courseNo,
+        SubjectName = string.Empty,
+        IsFinalized = isFinalized,
+        Tag = string.Empty,
+    };
+
+    public static ClassTimetable NewTimetableSlot(
+        int grade = 1, int classNum = 1,
+        int dayOfWeek = 1, int period = 1,
+        string subject = "국어",
+        int year = Year, int semester = 1) => new()
+    {
+        SchoolCode = SchoolCode,
+        Year = year,
+        Semester = semester,
+        Grade = grade,
+        Class = classNum,
+        DayOfWeek = dayOfWeek,
+        Period = period,
+        SubjectName = subject,
+        TeacherName = "테스트교사",
+        Room = string.Empty,
+    };
+
+    public static Course NewCourse(
+        string subject = "국어",
+        int grade = 1,
+        int year = Year,
+        int semester = 1,
+        string rooms = "1-1") => new()
+    {
+        SchoolCode = SchoolCode,
+        Year = year,
+        Semester = semester,
+        TeacherID = TeacherId,
+        Grade = grade,
+        Subject = subject,
+        Unit = 3,
+        Rooms = rooms,
+        Remark = string.Empty,
+    };
+
+    public static CourseSection NewSection(
+        int courseNo,
+        int unitNo = 1, string unitName = "1단원",
+        int sectionNo = 1, string sectionName = "1절",
+        int hours = 2) => new()
+    {
+        Course = courseNo,
+        UnitNo = unitNo,
+        UnitName = unitName,
+        ChapterNo = 1,
+        ChapterName = "1장",
+        SectionNo = sectionNo,
+        SectionName = sectionName,
+        StartPage = 1,
+        EndPage = 10,
+        EstimatedHours = hours,
+        LessonPlan = string.Empty,
+        SortOrder = sectionNo,
+    };
+
+    public static Board.Post NewPost(
+        string category = "수업",
+        string subject = "메모",
+        string title = "테스트 메모") => new()
+    {
+        User = "테스트교사",
+        DateTime = DateTime.Now,
+        Category = category,
+        Subject = subject,
+        Title = title,
+        Content = [],
+        PlainText = "본문 평문",
+    };
+
     public static Enrollment NewEnrollment(
         string studentId,
         string name = "홍길동",

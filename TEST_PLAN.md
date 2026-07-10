@@ -1,6 +1,6 @@
 # 테스트 확충 계획 (차후 과제)
 
-> 작성: 2026-07-09 · 상태: **0단계 완료 (2026-07-10)** — 1단계 진행 가능
+> 작성: 2026-07-09 · 상태: **1단계 완료 (2026-07-10, 테스트 87개)** — 2단계 진행 가능
 > 현황: xUnit 2.9 · 테스트 25개(헬퍼 2파일: CsvEscape, NeisHelper) / 프로덕션 약 8.5만 줄
 > 문제의식: 2026-07 점검에서 발견된 버그들(이름 저장 유실, 학기 필터 무시, MessageBox 인자 뒤바뀜,
 > 졸업일 연도 오프바이원 등)은 전부 기초적인 서비스/리포지토리 테스트로 잡혔을 부류였다.
@@ -23,12 +23,14 @@
 
 ### 1단계. 리포지토리 CRUD·경계 (~60개, 1~2세션)
 대상: Enrollment · StudentLog · StudentSpecial · ClassTimetable · Course/CourseSection · Post(Board)
-- [ ] CRUD 왕복(Insert→Get→Update→Delete)
-- [ ] IN 배치 조회 — 빈 목록 / 1건 / 다건 / 존재하지 않는 ID 혼재
-- [ ] `semester=0` = 학년도 전체 조회 계약
-- [ ] `IsDeleted` 논리삭제 필터
-- [ ] (학년·반·번호) 중복 방어 — DB UNIQUE 제약이 없으므로 조회 기반 검사 로직 검증
-- [ ] 트랜잭션 롤백 — Student+Enrollment 동시 저장 실패 시 원자성
+- [x] CRUD 왕복(Insert→Get→Update→Delete) — 6개 리포지토리 전부
+- [x] IN 배치 조회 — 빈/다건/미존재 혼재. *계약 확인: 요청한 모든 ID 에 키 존재(없으면 빈 리스트)*
+- [x] `semester=0` = 학년도 전체 조회 계약 (Enrollment·StudentLog)
+- [x] `IsDeleted` 논리삭제 필터 (Enrollment Delete→GetById null)
+- [x] ClassTimetable UNIQUE 제약 + IsDuplicate / Post IsCompleted·includeCompleted 필터
+- [x] 트랜잭션 Commit/Rollback 원자성 (StudentRepository)
+- 추가 확보: TeacherID 왕복 회귀 테스트, StudentSpecial IsFinalized↔IsActive 반전 매핑,
+  CourseSection 시수합계·고정날짜, 조회수 증가
 
 ### 2단계. 서비스 로직·회귀 방지 (~40개, 1세션)
 2026-07 점검에서 잡은 버그의 재발 방지가 핵심:
