@@ -1,6 +1,6 @@
 # 테스트 확충 계획 (차후 과제)
 
-> 작성: 2026-07-09 · 상태: **3단계 완료 (2026-07-10, 테스트 156개)** — 4단계(선택) 진행 가능
+> 작성: 2026-07-09 · 상태: **4단계 완료 (2026-07-12, 테스트 211개)** — 전 단계 완료
 > 현황: xUnit 2.9 · 테스트 25개(헬퍼 2파일: CsvEscape, NeisHelper) / 프로덕션 약 8.5만 줄
 > 문제의식: 2026-07 점검에서 발견된 버그들(이름 저장 유실, 학기 필터 무시, MessageBox 인자 뒤바뀜,
 > 졸업일 연도 오프바이원 등)은 전부 기초적인 서비스/리포지토리 테스트로 잡혔을 부류였다.
@@ -54,10 +54,16 @@
 - [x] `DateTimeHelper.WeekNumber` — 학기 시작일 기준 주차 (AnnualLessonPlanPage 에서 추출)
 - [~] Excel 헤더 탐지 — DB 매칭 로직과 얽혀 있어 순수 추출 비용이 커 보류 (4단계 또는 별도 리팩터로)
 
-### 4단계. ViewModel 변환 로직 (선택, ~20개, 반 세션)
-- [ ] StudentLogViewModel 변환(CreateAsync 포함)
-- [ ] SchoolScheduleGroupHelper 그룹핑(연속 일정 묶음, 방학 표시)
-- [ ] KEvent 할일/일정 필터·정렬
+### 4단계. ViewModel 변환 로직 (완료, 55개)
+DB 의존 없이 검증 가능한 **순수 변환 로직**에 집중. StudentLogViewModel 은 파라미터리스 서비스가
+정적 `SchoolDatabase.DbPath`(→ 정적 Settings)에 묶여 있어 CreateAsync/InitializeAsync 는 주입 불가 →
+카테고리 라벨·색상 매핑을 순수 정적 함수(`ToCategoryLabel`/`ToCategoryColor`)로 추출해 테스트 가능화.
+- [x] `StudentLogViewModel.ToCategoryLabel`/`ToCategoryColor` — 9개 카테고리 + 전체 폴백, 색상 ARGB 8자리 계약
+- [x] `SchoolScheduleGroupHelper.GroupSchedules` — 연속날짜 묶음/끊김 분리, 방학(휴업) 표시, 시작일 정렬, 빈/null 입력
+- [x] `SchoolScheduleGroup.DateText` — 단일일/범위 포맷
+- [x] `KEvent` — ColorIdToHex(1~11+폴백), DisplayColor 폴백 체인, TimeLabel(종일/시간), 상태(취소·임시),
+  IsTaskItem, 완료 할일 취소선(TextDecorations), ToString
+- (보류) CreateAsync/InitializeAsync·KEvent DB 필터·KEvent 정렬 — 정적 Settings/DB 결합이라 통합형으로 별도 필요 시
 
 ## 실행 방법
 

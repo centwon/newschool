@@ -590,7 +590,13 @@ namespace NewSchool.ViewModels
             : "학생 정보 로딩 중...";
 
         /// <summary>카테고리 표시용 짧은 텍스트</summary>
-        public string CategoryLabel => Category switch
+        public string CategoryLabel => ToCategoryLabel(Category);
+
+        /// <summary>카테고리별 배경색</summary>
+        public string CategoryColor => ToCategoryColor(Category);
+
+        /// <summary>카테고리 → 짧은 라벨 (순수 함수, 테스트 가능)</summary>
+        public static string ToCategoryLabel(LogCategory category) => category switch
         {
             LogCategory.교과활동 => "교과",
             LogCategory.동아리활동 => "동아리",
@@ -604,8 +610,8 @@ namespace NewSchool.ViewModels
             _ => "전체"
         };
 
-        /// <summary>카테고리별 배경색</summary>
-        public string CategoryColor => Category switch
+        /// <summary>카테고리 → 배경색 (순수 함수, 테스트 가능)</summary>
+        public static string ToCategoryColor(LogCategory category) => category switch
         {
             LogCategory.교과활동 => "#FF6B9BD1",      // 파란색
             LogCategory.동아리활동 => "#FF9B59B6",    // 보라색
