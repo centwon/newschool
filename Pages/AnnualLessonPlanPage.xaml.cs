@@ -945,7 +945,7 @@ public sealed partial class AnnualLessonPlanPage : Page
 
                 // 클릭 시 편집 모드 진입
                 int classIndex = i;
-                cellBorder.Tapped += (s, e) => OnHoursCellTapped(cellBorder, row, _classColumns[classIndex], rowGrid, columnIndex - 1 + classIndex + 1);
+                cellBorder.Tapped += (s, e) => OnHoursCellTapped(cellBorder, row, _classColumns[classIndex], rowGrid);
 
                 Grid.SetColumn(cellBorder, columnIndex++);
                 rowGrid.Children.Add(cellBorder);
@@ -1066,7 +1066,7 @@ public sealed partial class AnnualLessonPlanPage : Page
     /// <summary>
     /// 시수 셀 클릭 시 편집 모드 진입
     /// </summary>
-    private void OnHoursCellTapped(Border cellBorder, WeeklyClassHoursRow row, string className, Grid rowGrid, int colIndex)
+    private void OnHoursCellTapped(Border cellBorder, WeeklyClassHoursRow row, string className, Grid rowGrid)
     {
         // 이미 NumberBox가 있으면 무시
         if (cellBorder.Child is NumberBox) return;
@@ -1359,15 +1359,17 @@ public sealed partial class AnnualLessonPlanPage : Page
     private List<CourseSection> ParseCsv(string content)
     {
         var sections = new List<CourseSection>();
-        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
-        for (int i = 1; i < lines.Length; i++)
+        // RFC 4180 기준 파싱 — GenerateCsv 가 만드는 따옴표 이스케이프("")와
+        // 따옴표 안 줄바꿈(여러 줄 메모)을 그대로 되읽을 수 있어야 왕복이 깨지지 않는다.
+        // (기존: '\n' 단순 분리 + 이스케이프 미처리 → 줄바꿈 포함 필드에서 행이 깨짐)
+        var records = ParseCsvRecords(content);
+
+        for (int i = 1; i < records.Count; i++)  // 0번은 헤더
         {
-            var line = lines[i].Trim();
-            if (string.IsNullOrWhiteSpace(line)) continue;
-
-            var fields = ParseCsvLine(line);
+            var fields = records[i];
             if (fields.Length < 6) continue;
+            if (fields.All(string.IsNullOrWhiteSpace)) continue;
 
             try
             {
@@ -1423,31 +1425,81 @@ public sealed partial class AnnualLessonPlanPage : Page
         return sections;
     }
 
-    private string[] ParseCsvLine(string line)
+    /// <summary>
+    /// CSV 전체를 레코드 단위로 파싱 (RFC 4180).
+    /// 따옴표 필드 안의 쉼표·줄바꿈, "" 이스케이프를 처리해 GenerateCsv 출력과 왕복이 일치한다.
+    /// </summary>
+    private static List<string[]> ParseCsvRecords(string content)
     {
+        var records = new List<string[]>();
         var fields = new List<string>();
         var current = new StringBuilder();
         bool inQuotes = false;
 
-        foreach (char c in line)
+        // BOM 제거
+        if (content.Length > 0 && content[0] == '﻿')
+            content = content[1..];
+
+        for (int i = 0; i < content.Length; i++)
         {
-            if (c == '"')
+            char c = content[i];
+
+            if (inQuotes)
             {
-                inQuotes = !inQuotes;
+                if (c == '"')
+                {
+                    if (i + 1 < content.Length && content[i + 1] == '"')
+                    {
+                        current.Append('"');  // "" → 이스케이프된 따옴표
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = false;
+                    }
+                }
+                else
+                {
+                    current.Append(c);  // 따옴표 안에서는 쉼표·줄바꿈도 데이터
+                }
             }
-            else if (c == ',' && !inQuotes)
+            else if (c == '"')
+            {
+                inQuotes = true;
+            }
+            else if (c == ',')
             {
                 fields.Add(current.ToString());
                 current.Clear();
+            }
+            else if (c == '\r' || c == '\n')
+            {
+                if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                    i++;  // CRLF
+
+                // 빈 줄이 아니면 레코드 확정
+                if (fields.Count > 0 || current.Length > 0)
+                {
+                    fields.Add(current.ToString());
+                    records.Add(fields.ToArray());
+                    fields.Clear();
+                    current.Clear();
+                }
             }
             else
             {
                 current.Append(c);
             }
         }
-        fields.Add(current.ToString());
 
-        return fields.ToArray();
+        // 마지막 레코드 (줄바꿈 없이 끝난 경우)
+        if (fields.Count > 0 || current.Length > 0)
+        {
+            fields.Add(current.ToString());
+            records.Add(fields.ToArray());
+        }
+
+        return records;
     }
 
     private string GenerateCsv()
@@ -2302,6 +2354,8 @@ public sealed partial class AnnualLessonPlanPage : Page
 
             if (result.Success)
             {
+                // 배치 목록도 되돌린 상태로 다시 로드 (버튼만 갱신하면 화면이 이전 상태로 남음)
+                await RefreshPlacementListAsync();
                 await RefreshUndoRedoButtonsAsync();
             }
         }
@@ -2347,6 +2401,8 @@ public sealed partial class AnnualLessonPlanPage : Page
 
             if (result.Success)
             {
+                // 배치 목록도 다시 실행된 상태로 다시 로드
+                await RefreshPlacementListAsync();
                 await RefreshUndoRedoButtonsAsync();
             }
         }
