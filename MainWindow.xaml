@@ -290,5 +290,20 @@
                 VerticalScrollBarVisibility="Auto">
             </ScrollViewer>-->
         </NavigationView>
+
+        <!-- 전역 알림 (백그라운드 Google 동기화 실패 등) — 하단 우측 오버레이 -->
+        <InfoBar
+            x:Name="GlobalInfoBar"
+            IsOpen="False"
+            IsClosable="True"
+            Severity="Warning"
+            MaxWidth="480"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            Margin="0,0,24,24">
+            <InfoBar.ActionButton>
+                <Button x:Name="InfoBarRetryButton" Content="다시 시도" Click="OnInfoBarRetryClicked"/>
+            </InfoBar.ActionButton>
+        </InfoBar>
     </Grid>
 </Window>

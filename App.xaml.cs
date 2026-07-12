@@ -214,6 +214,7 @@ public partial class App : Application
             var apiClient = new GoogleCalendarApiClient(authService);
             _googleSyncService?.Dispose();
             _googleSyncService = new GoogleSyncService(authService, apiClient);
+            _googleSyncService.SyncCompleted += OnBackgroundSyncCompleted;
             var result = await _googleSyncService.SyncAllAsync();
 
             Debug.WriteLine($"[App] Google 시작 동기화 완료: {result.Summary}");
@@ -236,6 +237,39 @@ public partial class App : Application
         {
             Debug.WriteLine($"[App] Google 동기화 시작 오류: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 백그라운드(시작 시·주기적) Google 동기화 결과 처리 — 실패 시 MainWindow InfoBar 로 알림.
+    /// 수동 동기화(CalendarSettingsDialog)는 자체 UI 로 결과를 보여주므로 여기를 거치지 않는다.
+    /// </summary>
+    private static void OnBackgroundSyncCompleted(object? sender, SyncResult result)
+    {
+        if (result.Success) return;
+
+        (MainWindow as MainWindow)?.ShowSyncFailure(
+            NewSchool.MainWindow.SummarizeSyncErrors(result),
+            RetryGoogleSyncAsync);
+    }
+
+    /// <summary>
+    /// InfoBar '다시 시도' 용 — 기존 서비스가 살아 있으면 재사용, 없으면(자동 동기화 꺼짐 등) 새로 생성.
+    /// 새로 만든 서비스는 이벤트를 구독하지 않으므로 결과는 호출자(InfoBar)가 직접 처리한다.
+    /// </summary>
+    private static async Task<SyncResult> RetryGoogleSyncAsync()
+    {
+        var existing = _googleSyncService;
+        if (existing != null)
+        {
+            // 기존 서비스 경유 — SyncCompleted 이벤트도 함께 발생하지만
+            // 실패 시 InfoBar 메시지를 갱신할 뿐이라 중복 표시는 없음
+            return await existing.SyncAllAsync();
+        }
+
+        using var authService = new GoogleAuthService();
+        var apiClient = new GoogleCalendarApiClient(authService);
+        using var service = new GoogleSyncService(authService, apiClient);
+        return await service.SyncAllAsync();
     }
 
     /// <summary>

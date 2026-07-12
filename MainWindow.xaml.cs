@@ -23,6 +23,7 @@ namespace NewSchool;
 public sealed partial class MainWindow : Window
 {
     private Microsoft.UI.Windowing.AppWindow? _appWindow;
+    private Func<Task<Google.SyncResult>>? _infoBarRetryAction;
 
     public MainWindow()
     {
@@ -39,7 +40,79 @@ public sealed partial class MainWindow : Window
         SetAppIcon();
     }
 
-private void SetAppIcon()
+    #region 전역 알림 InfoBar (백그라운드 동기화 실패 등)
+
+    /// <summary>
+    /// 백그라운드 Google 동기화 실패를 하단 InfoBar 로 알림. 어느 스레드에서 호출해도 안전.
+    /// </summary>
+    /// <param name="message">실패 요약 (첫 오류 + 건수)</param>
+    /// <param name="retryAction">'다시 시도' 버튼 동작 — 새 동기화를 수행하고 결과를 반환</param>
+    public void ShowSyncFailure(string message, Func<Task<Google.SyncResult>> retryAction)
+    {
+        if (!DispatcherQueue.HasThreadAccess)
+        {
+            DispatcherQueue.TryEnqueue(() => ShowSyncFailure(message, retryAction));
+            return;
+        }
+
+        _infoBarRetryAction = retryAction;
+        GlobalInfoBar.Severity = InfoBarSeverity.Warning;
+        GlobalInfoBar.Title = "Google 동기화 실패";
+        GlobalInfoBar.Message = message;
+        InfoBarRetryButton.Visibility = Visibility.Visible;
+        InfoBarRetryButton.IsEnabled = true;
+        GlobalInfoBar.IsOpen = true;
+    }
+
+    private async void OnInfoBarRetryClicked(object sender, RoutedEventArgs e)
+    {
+        var retry = _infoBarRetryAction;
+        if (retry == null) return;
+
+        InfoBarRetryButton.IsEnabled = false;
+        GlobalInfoBar.Message = "다시 동기화하는 중...";
+
+        try
+        {
+            var result = await retry();
+            if (result.Success)
+            {
+                // 성공: 잠깐 성공 표시 후 자동 닫기
+                GlobalInfoBar.Severity = InfoBarSeverity.Success;
+                GlobalInfoBar.Title = "Google 동기화";
+                GlobalInfoBar.Message = result.Summary;
+                InfoBarRetryButton.Visibility = Visibility.Collapsed;
+
+                var timer = DispatcherQueue.CreateTimer();
+                timer.Interval = TimeSpan.FromSeconds(3);
+                timer.IsRepeating = false;
+                timer.Tick += (_, _) => GlobalInfoBar.IsOpen = false;
+                timer.Start();
+            }
+            else
+            {
+                GlobalInfoBar.Message = SummarizeSyncErrors(result);
+                InfoBarRetryButton.IsEnabled = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            GlobalInfoBar.Message = ex.Message;
+            InfoBarRetryButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>실패 요약 문자열 — 첫 오류 메시지 + 나머지 건수</summary>
+    public static string SummarizeSyncErrors(Google.SyncResult result)
+    {
+        if (result.ErrorMessages.Count == 0) return "알 수 없는 오류가 발생했습니다.";
+        var first = result.ErrorMessages[0];
+        return result.ErrorMessages.Count == 1 ? first : $"{first} 외 {result.ErrorMessages.Count - 1}건";
+    }
+
+    #endregion
+
+    private void SetAppIcon()
     {
         // 1. 현재 창의 HWND(윈도우 핸들) 가져오기
         IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);

@@ -26,6 +26,13 @@ public sealed class GoogleSyncService : IDisposable
     private CancellationTokenSource? _periodicCts;
     private bool _disposed;
 
+    /// <summary>
+    /// 전체 동기화(SyncAllAsync) 완료 시 발생. 백그라운드(시작 시·주기적) 동기화 실패를
+    /// UI(InfoBar)로 알리는 데 사용. 인증 없음·오프라인 등 사전 체크 탈락은 발생시키지 않는다
+    /// (주기적 동기화마다 오프라인 알림이 반복되는 것 방지).
+    /// </summary>
+    public event EventHandler<SyncResult>? SyncCompleted;
+
     public GoogleSyncService(GoogleAuthService authService, GoogleCalendarApiClient apiClient)
     {
         _authService = authService;
@@ -83,17 +90,22 @@ public sealed class GoogleSyncService : IDisposable
             totalResult.Success = totalResult.Errors == 0;
             totalResult.SyncedAt = DateTime.Now;
 
-            // 마지막 동기화 시각 저장
-            Settings.GoogleLastSyncTime.Set(DateTime.UtcNow.ToString("o"));
+            // 마지막 동기화 시각은 완전 성공 시에만 전진.
+            // 오류가 있었는데 전진시키면 Push 실패분(수정 시각 < lastSync)이 다음 주기에서
+            // 비교 대상에서 빠져 영원히 유실된다. 전진하지 않으면 다음 동기화에서 자동 재시도됨(멱등).
+            if (totalResult.Errors == 0)
+                Settings.GoogleLastSyncTime.Set(DateTime.UtcNow.ToString("o"));
 
             Debug.WriteLine($"[GoogleSync] 전체 동기화 완료: {totalResult.Summary}");
         }
         catch (Exception ex)
         {
+            totalResult.Errors++;
             totalResult.ErrorMessages.Add(ex.Message);
             Debug.WriteLine($"[GoogleSync] 전체 동기화 실패: {ex.Message}");
         }
 
+        SyncCompleted?.Invoke(this, totalResult);
         return totalResult;
     }
 
