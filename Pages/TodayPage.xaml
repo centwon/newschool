@@ -98,23 +98,37 @@
                             <ItemsControl x:Name="TeacherSlotsList" Padding="4,4,4,8" Visibility="Collapsed">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:TimetableItemViewModel">
-                                        <Grid Margin="4,1" MinHeight="20" ColumnSpacing="6">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="22"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
-                                                    CornerRadius="4" Padding="0,2" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind Period}" FontSize="11" FontWeight="SemiBold"
-                                                           HorizontalAlignment="Center"
-                                                           Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
+                                        <Grid Margin="4,1" MinHeight="20">
+                                            <!-- 현재 교시 강조 배경 -->
+                                            <Border CornerRadius="5"
+                                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                    Visibility="{x:Bind local:TodayPage.ShowIfNow(IsCurrentPeriod), Mode=OneWay}"/>
+                                            <Grid ColumnSpacing="6" Padding="2,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="22"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                                        CornerRadius="4" Padding="0,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind Period}" FontSize="11" FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind SubjectName}" FontSize="12"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{x:Bind Room}" FontSize="12"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <!-- '지금' 배지 (오버레이, 우측) -->
+                                            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0"
+                                                    CornerRadius="7" Padding="5,1"
+                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                    Visibility="{x:Bind local:TodayPage.ShowIfNow(IsCurrentPeriod), Mode=OneWay}">
+                                                <TextBlock Text="지금" FontSize="9" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                             </Border>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind SubjectName}" FontSize="12"
-                                                           TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{x:Bind Room}" FontSize="12"
-                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            </StackPanel>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -129,23 +143,37 @@
                             <ItemsControl x:Name="ClassSlotsList" Padding="4,4,4,8" Visibility="Collapsed">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="models:ClassTimetable">
-                                        <Grid Margin="4,1" MinHeight="20" ColumnSpacing="6">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="22"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
-                                                    CornerRadius="4" Padding="0,2" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind Period}" FontSize="11" FontWeight="SemiBold"
-                                                           HorizontalAlignment="Center"
-                                                           Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
+                                        <Grid Margin="4,1" MinHeight="20">
+                                            <!-- 현재 교시 강조 배경 -->
+                                            <Border CornerRadius="5"
+                                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                    Visibility="{x:Bind local:TodayPage.ShowIfNow(IsCurrentPeriod), Mode=OneWay}"/>
+                                            <Grid ColumnSpacing="6" Padding="2,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="22"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                                        CornerRadius="4" Padding="0,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind Period}" FontSize="11" FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind SubjectName}" FontSize="12"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{x:Bind TeacherName}" FontSize="12"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <!-- '지금' 배지 (오버레이, 우측) -->
+                                            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0"
+                                                    CornerRadius="7" Padding="5,1"
+                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                    Visibility="{x:Bind local:TodayPage.ShowIfNow(IsCurrentPeriod), Mode=OneWay}">
+                                                <TextBlock Text="지금" FontSize="9" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                             </Border>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind SubjectName}" FontSize="12"
-                                                           TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{x:Bind TeacherName}" FontSize="12"
-                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            </StackPanel>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

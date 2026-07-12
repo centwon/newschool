@@ -21,6 +21,7 @@ namespace NewSchool.Models
         private string _subjectName = string.Empty;
         private string _teacherName = string.Empty;
         private string _room = string.Empty;
+        private bool _isCurrentPeriod;
 
         #endregion
 
@@ -109,6 +110,13 @@ namespace NewSchool.Models
         {
             get => _room;
             set => SetProperty(ref _room, value);
+        }
+
+        /// <summary>현재 진행 중인 교시 여부 (UI 강조용, DB 비저장)</summary>
+        public bool IsCurrentPeriod
+        {
+            get => _isCurrentPeriod;
+            set => SetProperty(ref _isCurrentPeriod, value);
         }
 
         #endregion

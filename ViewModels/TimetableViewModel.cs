@@ -17,6 +17,7 @@ namespace NewSchool.ViewModels
         private int _dayOfWeek; // 1=월, 2=화, 3=수, 4=목, 5=금
         private int _period;    // 1~7교시
         private bool _isEmpty = true;
+        private bool _isCurrentPeriod;
 
         /// <summary>
         /// Lesson.No (FK)
@@ -88,6 +89,13 @@ namespace NewSchool.ViewModels
         {
             get => _isEmpty;
             set => SetProperty(ref _isEmpty, value);
+        }
+
+        /// <summary>현재 진행 중인 교시 여부 (UI 강조용, DB 비저장)</summary>
+        public bool IsCurrentPeriod
+        {
+            get => _isCurrentPeriod;
+            set => SetProperty(ref _isCurrentPeriod, value);
         }
 
         /// <summary>

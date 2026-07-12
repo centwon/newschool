@@ -31,6 +31,10 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     private bool _headerInitialized;
     private readonly bool _isHomeroom = Settings.HomeGrade.Value > 0 && Settings.HomeRoom.Value > 0;
 
+    // 현재 교시 행 강조를 위해 로드된 슬롯 참조 유지 (1분 주기로 재계산)
+    private List<TimetableItemViewModel> _teacherSlots = new();
+    private List<ClassTimetable> _classSlots = new();
+
     /// <summary>
     /// ViewModel - x:Bind를 위한 public 속성
     /// </summary>
@@ -135,7 +139,28 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         return timer;
     }
 
-    private void UpdateCurrentPeriod() => TxtCurrentPeriod.Text = Functions.GetPeriodNow().Name;
+    private void UpdateCurrentPeriod()
+    {
+        var period = Functions.GetPeriodNow();
+        TxtCurrentPeriod.Text = period.Name;
+        HighlightCurrentPeriod(period.Index);
+    }
+
+    /// <summary>
+    /// 현재 교시(1~7)와 일치하는 시간표 행에 강조 플래그 설정.
+    /// 쉬는시간·점심·방과후 등은 Index=0 이라 아무 행도 강조되지 않는다.
+    /// </summary>
+    private void HighlightCurrentPeriod(int index)
+    {
+        foreach (var s in _teacherSlots)
+            s.IsCurrentPeriod = index >= 1 && s.Period == index;
+        foreach (var s in _classSlots)
+            s.IsCurrentPeriod = index >= 1 && s.Period == index;
+    }
+
+    /// <summary>현재 교시 강조 표시 여부 → Visibility (DataTemplate x:Bind용 순수 함수)</summary>
+    public static Visibility ShowIfNow(bool isNow)
+        => isNow ? Visibility.Visible : Visibility.Collapsed;
 
     private static string GetKoreanDayOfWeek(DayOfWeek dow) => dow switch
     {
@@ -196,6 +221,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
                 .OrderBy(x => x.Period)
                 .ToList();
         }
+        _teacherSlots = teacherSlots;
         TeacherSlotsList.ItemsSource = teacherSlots;
         bool hasTeacher = teacherSlots.Count > 0;
         TeacherSlotsList.Visibility = hasTeacher ? Visibility.Visible : Visibility.Collapsed;
@@ -213,11 +239,15 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
                     Settings.HomeGrade.Value, Settings.HomeRoom.Value);
                 classSlots = all.Where(x => x.DayOfWeek == dow).OrderBy(x => x.Period).ToList();
             }
+            _classSlots = classSlots;
             ClassSlotsList.ItemsSource = classSlots;
             bool hasClass = classSlots.Count > 0;
             ClassSlotsList.Visibility = hasClass ? Visibility.Visible : Visibility.Collapsed;
             TxtNoClassSlots.Visibility = hasClass ? Visibility.Collapsed : Visibility.Visible;
         }
+
+        // 로드는 첫 타이머 틱 이후 완료되므로, 새 슬롯에 현재 교시 강조를 즉시 반영
+        HighlightCurrentPeriod(Functions.GetPeriodNow().Index);
     }
 
     #endregion
