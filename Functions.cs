@@ -107,7 +107,7 @@ namespace NewSchool
 
         /// <summary>
         /// 순수 교시 계산 — 시각·요일·교시 설정만으로 현재 교시를 판정 (테스트 가능, Settings·DateTime.Now 비의존).
-        /// <paramref name="dayOfWeek"/> 는 .NET 규칙(0=일 … 6=토). 월/수는 6교시, 그 외 평일은 7교시.
+        /// <paramref name="dayOfWeek"/> 는 .NET 규칙(0=일 … 6=토). 요일별 교시 수는 <see cref="PeriodTimes.Periods"/> 설정을 따름.
         /// </summary>
         internal static Period GetPeriodAt(TimeSpan currentTime, int dayOfWeek, PeriodTimes t)
         {
@@ -135,14 +135,22 @@ namespace NewSchool
                 };
             }
 
-            // 교시 계산
+            // 교시 계산 (요일별 교시 수는 설정값 — 기본: 월·수 6교시, 그 외 7교시)
             TimeSpan firstPeriodStart = t.DayStarting + t.AssemblyTime + t.BreakTime;
-            int totalPeriods = (dayOfWeek == 1 || dayOfWeek == 3) ? 6 : 7;
+            int totalPeriods = t.Periods.ForDay(dayOfWeek);
+            if (totalPeriods <= 0)
+            {
+                return new Period { Index = 0, Name = "방과후" };
+            }
+
+            // 교시 사이 쉬는 시간은 (교시 수 - 1)개, 그중 하나가 점심(4교시 후, 4교시 이하 시정이면 점심 없음)
+            int lunchCount = totalPeriods > 4 ? 1 : 0;
+            int breakCount = Math.Max(0, totalPeriods - 1 - lunchCount);
 
             var schoolEndTime = firstPeriodStart +
                 (t.OnePeriod * totalPeriods) +
-                (t.BreakTime * (totalPeriods - 2)) +
-                t.LunchTime;
+                (t.BreakTime * breakCount) +
+                (t.LunchTime * lunchCount);
 
             // 1교시 전 휴식
             if (currentTime < firstPeriodStart)

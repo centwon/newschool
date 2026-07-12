@@ -52,6 +52,13 @@ public sealed partial class SettingsPage : Page
             BreakTimeNumberBox.Value = Settings.BreakTime.Value.TotalMinutes;
             LunchTimeNumberBox.Value = Settings.LunchTime.Value.TotalMinutes;
 
+            var periods = Models.PeriodCounts.Parse(Settings.PeriodsPerDay.Value);
+            PeriodsMonBox.Value = periods.Mon;
+            PeriodsTueBox.Value = periods.Tue;
+            PeriodsWedBox.Value = periods.Wed;
+            PeriodsThuBox.Value = periods.Thu;
+            PeriodsFriBox.Value = periods.Fri;
+
             _isInitialized = true;
         }
         catch (Exception ex)
@@ -226,6 +233,20 @@ public sealed partial class SettingsPage : Page
         if (!_isInitialized) return;
         if (!double.IsNaN(args.NewValue))
             Settings.BreakTime.Set(TimeSpan.FromMinutes(args.NewValue));
+    }
+
+    /// <summary>요일별 교시 수 5칸 공용 핸들러 — 어느 칸이 바뀌든 전체를 직렬화해 저장</summary>
+    private void OnPeriodsPerDayChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (!_isInitialized) return;
+
+        // 어느 한 칸이라도 비어 있으면(NaN) 저장 보류 — 입력이 완성되면 그 칸의 이벤트로 다시 저장됨
+        double[] values = { PeriodsMonBox.Value, PeriodsTueBox.Value, PeriodsWedBox.Value, PeriodsThuBox.Value, PeriodsFriBox.Value };
+        foreach (var v in values)
+            if (double.IsNaN(v)) return;
+
+        var periods = new Models.PeriodCounts((int)values[0], (int)values[1], (int)values[2], (int)values[3], (int)values[4]);
+        Settings.PeriodsPerDay.Set(periods.Serialize());
     }
 
     private void OnLunchTimeChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)

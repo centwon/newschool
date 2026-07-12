@@ -82,6 +82,42 @@ public class Period
 }
 
 /// <summary>
+/// 요일별 교시 수 (월~금). 학교마다 시정이 달라 설정으로 관리한다.
+/// 직렬화 형식: "6,7,6,7,7" (월,화,수,목,금)
+/// </summary>
+public readonly record struct PeriodCounts(int Mon, int Tue, int Wed, int Thu, int Fri)
+{
+    /// <summary>기존 하드코딩과 동일한 기본값 (월·수 6교시, 화·목·금 7교시)</summary>
+    public static PeriodCounts Default => new(6, 7, 6, 7, 7);
+
+    /// <summary><paramref name="dayOfWeek"/>는 .NET 규칙(0=일 … 6=토). 주말은 0.</summary>
+    public int ForDay(int dayOfWeek) => dayOfWeek switch
+    {
+        1 => Mon, 2 => Tue, 3 => Wed, 4 => Thu, 5 => Fri,
+        _ => 0,
+    };
+
+    /// <summary>"6,7,6,7,7" 형식 파싱. 형식이 어긋나거나 범위(1~12) 밖이면 기본값.</summary>
+    public static PeriodCounts Parse(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized)) return Default;
+
+        var parts = serialized.Split(',');
+        if (parts.Length != 5) return Default;
+
+        Span<int> counts = stackalloc int[5];
+        for (int i = 0; i < 5; i++)
+        {
+            if (!int.TryParse(parts[i].Trim(), out counts[i]) || counts[i] < 1 || counts[i] > 12)
+                return Default;
+        }
+        return new PeriodCounts(counts[0], counts[1], counts[2], counts[3], counts[4]);
+    }
+
+    public string Serialize() => $"{Mon},{Tue},{Wed},{Thu},{Fri}";
+}
+
+/// <summary>
 /// 교시 계산에 필요한 시간 설정 묶음. <see cref="Functions.GetPeriodAt"/> 를 Settings·시계에서
 /// 분리해 순수 함수로 테스트할 수 있게 한다.
 /// </summary>
@@ -92,12 +128,18 @@ public readonly record struct PeriodTimes(
     TimeSpan OnePeriod,     // 1교시 길이
     TimeSpan LunchTime)     // 점심 시간 길이
 {
+    /// <summary>요일별 교시 수. 명시하지 않으면 기본 시정(월·수 6, 그 외 7).</summary>
+    public PeriodCounts Periods { get; init; } = PeriodCounts.Default;
+
     public static PeriodTimes FromSettings() => new(
         Settings.DayStarting.Value,
         Settings.AssemblyTime.Value,
         Settings.BreakTime.Value,
         Settings.OnePeriod.Value,
-        Settings.LunchTime.Value);
+        Settings.LunchTime.Value)
+    {
+        Periods = PeriodCounts.Parse(Settings.PeriodsPerDay.Value),
+    };
 }
 
 #endregion

@@ -201,6 +201,31 @@
                                 Minimum="30"
                                 Maximum="90"
                                 ValueChanged="OnLunchTimeChanged"/>
+
+                            <!-- 요일별 교시 수 (홈 화면 현재 교시 판정에 사용) -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="요일별 교시 수" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                <TextBlock Text="홈 화면의 현재 교시 표시에 사용됩니다"
+                                           FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                    <NumberBox x:Name="PeriodsMonBox" Header="월" Width="72"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                               ValueChanged="OnPeriodsPerDayChanged"/>
+                                    <NumberBox x:Name="PeriodsTueBox" Header="화" Width="72"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                               ValueChanged="OnPeriodsPerDayChanged"/>
+                                    <NumberBox x:Name="PeriodsWedBox" Header="수" Width="72"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                               ValueChanged="OnPeriodsPerDayChanged"/>
+                                    <NumberBox x:Name="PeriodsThuBox" Header="목" Width="72"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                               ValueChanged="OnPeriodsPerDayChanged"/>
+                                    <NumberBox x:Name="PeriodsFriBox" Header="금" Width="72"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                               ValueChanged="OnPeriodsPerDayChanged"/>
+                                </StackPanel>
+                            </StackPanel>
                         </StackPanel>
                     </Expander.Content>
                 </Expander>
