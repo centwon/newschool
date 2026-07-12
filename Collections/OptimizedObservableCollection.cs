@@ -12,6 +12,13 @@ namespace NewSchool.Collections
     /// </summary>
     public class OptimizedObservableCollection<T> : ObservableCollection<T>
     {
+        /// <summary>
+        /// 이 개수 이하의 소량 변경은 Reset 대신 개별 알림 사용.
+        /// Reset 은 ListView 전체 재가상화 + 스크롤 위치 초기화를 유발하므로
+        /// 항목이 적을 때는 개별 알림이 더 빠르고 스크롤도 유지된다.
+        /// </summary>
+        private const int ResetThreshold = 8;
+
         private bool _suppressNotification = false;
 
         /// <summary>
@@ -37,10 +44,20 @@ namespace NewSchool.Collections
             if (items == null)
                 throw new ArgumentNullException(nameof(items));
 
+            var list = items as IReadOnlyCollection<T> ?? new List<T>(items);
+
+            // 소량이면 개별 알림 (Reset 으로 인한 스크롤 초기화 회피)
+            if (list.Count <= ResetThreshold)
+            {
+                foreach (var item in list)
+                    Add(item);
+                return;
+            }
+
             _suppressNotification = true;
             try
             {
-                foreach (var item in items)
+                foreach (var item in list)
                 {
                     Add(item);
                 }
@@ -60,10 +77,20 @@ namespace NewSchool.Collections
             if (items == null)
                 throw new ArgumentNullException(nameof(items));
 
+            var list = items as IReadOnlyCollection<T> ?? new List<T>(items);
+
+            // 소량이면 개별 알림 (Reset 으로 인한 스크롤 초기화 회피)
+            if (list.Count <= ResetThreshold)
+            {
+                foreach (var item in list)
+                    Remove(item);
+                return;
+            }
+
             _suppressNotification = true;
             try
             {
-                foreach (var item in items)
+                foreach (var item in list)
                 {
                     Remove(item);
                 }

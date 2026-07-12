@@ -715,6 +715,20 @@ namespace NewSchool.Database
                 -- SeatPosHistory 인덱스 (자리 이력)
                 CREATE INDEX IF NOT EXISTS idx_seatposhistory_class ON SeatPosHistory(SchoolCode, Year, Grade, Class, Round DESC);
                 CREATE INDEX IF NOT EXISTS idx_seatposhistory_student ON SeatPosHistory(StudentID);
+
+                -- 좌석 이력 UNIQUE 인덱스: 같은 라운드에 같은 짝/자리가 중복 기록되는 것 방지.
+                -- 제약 없이 운영되던 시기의 중복 행을 먼저 정리해야 인덱스 생성이 실패하지 않는다.
+                DELETE FROM SeatHistory WHERE No NOT IN (
+                    SELECT MIN(No) FROM SeatHistory
+                    GROUP BY SchoolCode, Year, Grade, Class, Round, Kind, StudentID_A, StudentID_B);
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_seathistory_pair
+                    ON SeatHistory(SchoolCode, Year, Grade, Class, Round, Kind, StudentID_A, StudentID_B);
+
+                DELETE FROM SeatPosHistory WHERE No NOT IN (
+                    SELECT MIN(No) FROM SeatPosHistory
+                    GROUP BY SchoolCode, Year, Grade, Class, Round, StudentID);
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_seatposhistory_student
+                    ON SeatPosHistory(SchoolCode, Year, Grade, Class, Round, StudentID);
             ";
 
             await cmd.ExecuteNonQueryAsync();

@@ -309,8 +309,9 @@ public sealed class SeatService : IDisposable
 
                 using var ins = _connection.CreateCommand();
                 ins.Transaction = tx;
+                // UNIQUE 인덱스(ux_seathistory_pair)와 짝: 재저장 등으로 같은 키가 다시 들어와도 무시
                 ins.CommandText = @"
-                    INSERT INTO SeatHistory
+                    INSERT OR IGNORE INTO SeatHistory
                     (SchoolCode, Year, Grade, Class, StudentID_A, StudentID_B, Round, Kind, SavedAt)
                     VALUES ($sc,$y,$g,$c,$a,$b,$r,'Pair',$t);";
                 ins.Parameters.AddWithValue("$sc", a.SchoolCode);
@@ -336,8 +337,9 @@ public sealed class SeatService : IDisposable
 
             using var ins = _connection.CreateCommand();
             ins.Transaction = tx;
+            // UNIQUE 인덱스(ux_seatposhistory_student)와 짝: 같은 라운드 재저장 시 무시
             ins.CommandText = @"
-                INSERT INTO SeatPosHistory
+                INSERT OR IGNORE INTO SeatPosHistory
                 (SchoolCode, Year, Grade, Class, StudentID, Row, Col, Round, SavedAt)
                 VALUES ($sc,$y,$g,$c,$s,$r,$co,$rd,$t);";
             ins.Parameters.AddWithValue("$sc", a.SchoolCode);

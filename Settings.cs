@@ -508,36 +508,74 @@ public static class Settings
     }
 
     /// <summary>
-    /// 전체 데이터 백업 (Settings.db + 모든 DB)
+    /// 전체 데이터 백업 (Settings.db + 모든 DB) → 단일 ZIP 파일.
+    /// 각 DB는 VACUUM INTO 로 스냅샷 — 다른 연결이 쓰는 중이어도 원자적이고,
+    /// 빈 공간이 제거돼 파일도 작아진다. ZIP 압축(텍스트 위주 DB라 압축률 높음)까지 하면
+    /// 기존 폴더 복사 대비 용량이 크게 줄어든다.
     /// </summary>
     public static string? Backup()
     {
+        var staging = Path.Combine(Path.GetTempPath(), $"newschool_backup_{Guid.NewGuid():N}");
         try
         {
-            var backupDir = Path.Combine(UserDataPath, "Backups",
-                $"backup_{DateTime.Now:yyyyMMdd_HHmmss}");
-            Directory.CreateDirectory(backupDir);
+            Directory.CreateDirectory(staging);
 
             // UserDataPath의 모든 .db 파일 (Settings.db, school.db, scheduler.db, board.db 등)
             foreach (var dbFile in Directory.GetFiles(UserDataPath, "*.db"))
             {
-                // WAL 모드에서는 최근 커밋이 -wal 파일에만 있을 수 있으므로
-                // 복사 전에 체크포인트로 본 파일에 합쳐야 백업 누락이 없다
-                CheckpointWal(dbFile);
-                var fileName = Path.GetFileName(dbFile);
-                File.Copy(dbFile, Path.Combine(backupDir, fileName), true);
+                var target = Path.Combine(staging, Path.GetFileName(dbFile));
+                if (!TrySnapshotDb(dbFile, target))
+                {
+                    // VACUUM INTO 실패 시 폴백: 체크포인트 후 파일 복사
+                    CheckpointWal(dbFile);
+                    File.Copy(dbFile, target, true);
+                }
             }
+
+            var backupsRoot = Path.Combine(UserDataPath, "Backups");
+            Directory.CreateDirectory(backupsRoot);
+            var zipPath = Path.Combine(backupsRoot, $"backup_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
+            System.IO.Compression.ZipFile.CreateFromDirectory(
+                staging, zipPath, System.IO.Compression.CompressionLevel.Optimal, includeBaseDirectory: false);
 
             LastBackupTime.Set(DateTime.Now.ToString("o"));
             CleanupOldBackups();
 
-            System.Diagnostics.Debug.WriteLine($"[Settings] 백업 완료: {backupDir}");
-            return backupDir;
+            System.Diagnostics.Debug.WriteLine($"[Settings] 백업 완료: {zipPath}");
+            return zipPath;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Settings] 백업 오류: {ex.Message}");
             return null;
+        }
+        finally
+        {
+            try { if (Directory.Exists(staging)) Directory.Delete(staging, true); } catch { /* 임시 폴더 정리 실패 무시 */ }
+        }
+    }
+
+    /// <summary>
+    /// VACUUM INTO 로 DB 원자적 스냅샷 생성. WAL 내용 포함 + 빈 공간 제거.
+    /// </summary>
+    private static bool TrySnapshotDb(string dbPath, string targetPath)
+    {
+        try
+        {
+            if (File.Exists(targetPath)) File.Delete(targetPath);  // VACUUM INTO 는 대상이 있으면 실패
+
+            using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;Pooling=False");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "VACUUM INTO @Target;";
+            cmd.Parameters.AddWithValue("@Target", targetPath);
+            cmd.ExecuteNonQuery();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] VACUUM INTO 실패({Path.GetFileName(dbPath)}): {ex.Message}");
+            return false;
         }
     }
 
@@ -582,12 +620,29 @@ public static class Settings
     }
 
     /// <summary>
-    /// 백업 폴더에서 전체 복원
+    /// 백업에서 전체 복원 — ZIP 파일(신규), 백업 폴더(구버전), 단일 .db(하위호환) 모두 지원
     /// </summary>
     public static bool Restore(string backupDirOrFile)
     {
         try
         {
+            // ZIP 백업이면 임시 폴더에 풀어서 폴더 복원 경로 재사용
+            if (File.Exists(backupDirOrFile) &&
+                backupDirOrFile.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                var extractDir = Path.Combine(Path.GetTempPath(), $"newschool_restore_{Guid.NewGuid():N}");
+                try
+                {
+                    System.IO.Compression.ZipFile.ExtractToDirectory(backupDirOrFile, extractDir);
+                    return Restore(extractDir);
+                }
+                finally
+                {
+                    try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
+                    catch { /* 임시 폴더 정리 실패 무시 */ }
+                }
+            }
+
             // 단일 파일이면 기존 Settings.db 복원 (하위호환)
             if (File.Exists(backupDirOrFile) && backupDirOrFile.EndsWith(".db"))
             {
@@ -654,15 +709,18 @@ public static class Settings
             var backupsRoot = Path.Combine(UserDataPath, "Backups");
             if (!Directory.Exists(backupsRoot)) return;
 
-            var dirs = Directory.GetDirectories(backupsRoot, "backup_*")
-                .OrderByDescending(d => d)
+            // ZIP(신규)과 폴더(구버전) 백업을 함께 정렬 — 이름이 backup_yyyyMMdd_HHmmss 라 문자열 내림차순 = 최신순
+            var backups = Directory.GetFiles(backupsRoot, "backup_*.zip")
+                .Concat(Directory.GetDirectories(backupsRoot, "backup_*"))
+                .OrderByDescending(Path.GetFileNameWithoutExtension)
                 .ToArray();
 
             var retainCount = BackupRetentionCount.Value;
-            for (int i = retainCount; i < dirs.Length; i++)
+            for (int i = retainCount; i < backups.Length; i++)
             {
-                Directory.Delete(dirs[i], true);
-                System.Diagnostics.Debug.WriteLine($"[Settings] 오래된 백업 삭제: {dirs[i]}");
+                if (File.Exists(backups[i])) File.Delete(backups[i]);
+                else Directory.Delete(backups[i], true);
+                System.Diagnostics.Debug.WriteLine($"[Settings] 오래된 백업 삭제: {backups[i]}");
             }
         }
         catch (Exception ex)

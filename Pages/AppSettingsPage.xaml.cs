@@ -194,21 +194,34 @@ public sealed partial class AppSettingsPage : Page
     {
         try
         {
-            var picker = new Windows.Storage.Pickers.FolderPicker();
+            // 신규 백업은 ZIP 단일 파일. 구버전 폴더 백업은 폴더 안의 .db 를 선택하면 폴더째 복원.
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
             var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
             InitializeWithWindow.Initialize(picker, hwnd);
             picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-            picker.FileTypeFilter.Add("*");
+            picker.FileTypeFilter.Add(".zip");
+            picker.FileTypeFilter.Add(".db");
 
-            var folder = await picker.PickSingleFolderAsync();
-            if (folder != null)
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
             {
+                // 구버전 폴더 백업(backup_*) 안의 .db 를 선택했다면 폴더 전체 복원
+                string restorePath = file.Path;
+                var parent = System.IO.Path.GetDirectoryName(file.Path);
+                if (file.Path.EndsWith(".db", StringComparison.OrdinalIgnoreCase) &&
+                    parent != null &&
+                    System.IO.Path.GetFileName(parent).StartsWith("backup_", StringComparison.OrdinalIgnoreCase))
+                {
+                    restorePath = parent;
+                }
+
+                var displayName = System.IO.Path.GetFileName(restorePath);
                 var confirmed = await MessageBox.ShowConfirmAsync(
-                    $"'{folder.Name}' 백업을 복원하시겠습니까?\n현재 데이터가 덮어씌워집니다.\n복원 후 앱을 재시작해야 합니다.",
+                    $"'{displayName}' 백업을 복원하시겠습니까?\n현재 데이터가 덮어씌워집니다.\n복원 후 앱을 재시작해야 합니다.",
                     "복원 확인", "복원", "취소");
                 if (!confirmed) return;
 
-                bool success = Settings.Restore(folder.Path);
+                bool success = Settings.Restore(restorePath);
                 if (success)
                 {
                     await MessageBox.ShowAsync("복원이 완료되었습니다.\n앱을 재시작해주세요.", "복원 완료");
