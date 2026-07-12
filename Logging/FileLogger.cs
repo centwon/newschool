@@ -23,6 +23,7 @@ namespace NewSchool.Logging
 
         private string LogDirectory { get; }
         private LogLevel MinimumLevel { get; set; }
+        private DateTime _lastCleanupTime = DateTime.MinValue;
 
         private FileLogger()
         {
@@ -197,8 +198,12 @@ namespace NewSchool.Logging
                     await Task.Run(() => File.Move(logFile, archivePath));
                 }
 
-                // 오래된 로그 삭제 (30일 이상)
-                CleanupOldLogs();
+                // 오래된 로그 삭제 (30일 이상) — 플러시마다 디렉터리 스캔은 낭비라 1시간에 1회만
+                if (DateTime.Now - _lastCleanupTime > TimeSpan.FromHours(1))
+                {
+                    _lastCleanupTime = DateTime.Now;
+                    CleanupOldLogs();
+                }
             }
             catch (Exception ex)
             {
@@ -323,10 +328,14 @@ namespace NewSchool.Logging
     /// </summary>
     public static class Log
     {
-        [System.Diagnostics.Conditional("DEBUG")]
+        /// <summary>
+        /// 설정에서 로그 레벨을 Debug 로 내리면 파일에도 남는다 (릴리스 빌드 문제 진단용).
+        /// FileLogger 내부에서 MinimumLevel 로 걸러지므로 평상시(Info 이상) 오버헤드는 큐 진입 전 비교 1회뿐.
+        /// </summary>
         public static void Debug(string tag, string message)
         {
             System.Diagnostics.Debug.WriteLine($"[{tag}] {message}");
+            FileLogger.Instance.Debug($"[{tag}] {message}");
         }
 
         public static void Info(string tag, string message)

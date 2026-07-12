@@ -38,6 +38,7 @@ namespace NewSchool.Database
 
                 await CreateTablesAsync();
                 await CreateIndexesAsync();
+                await CleanupOrphansAsync();
 
                 Debug.WriteLine("[DatabaseInitializer] 데이터베이스 초기화 완료");
                 return true;
@@ -720,6 +721,74 @@ namespace NewSchool.Database
             Debug.WriteLine("  ✓ SchoolSchedule 인덱스 생성");
 
             Debug.WriteLine("[DatabaseInitializer] 인덱스 생성 완료");
+        }
+
+        /// <summary>
+        /// 외래키(PRAGMA foreign_keys)가 꺼진 채 운영되던 시기에 쌓였을 수 있는 고아 행 정리.
+        /// BaseRepository 가 연결마다 foreign_keys=ON 을 켜므로, 기존 위반 데이터를 남겨두면
+        /// 이후 UPDATE 시 FK 위반으로 실패한다. 스키마의 CASCADE/SET NULL 의도대로 일괄 보정한다.
+        /// </summary>
+        private async Task CleanupOrphansAsync()
+        {
+            if (_connection == null) return;
+
+            using var cmd = _connection.CreateCommand();
+
+            // 자식 행이 참조하는 SchoolCode 가 School 에 없으면 이후 해당 행 수정이 FK 위반으로 막히므로
+            // 최소 정보의 School 행을 만들어 참조를 살린다 (초기 설정 누락 등 방어)
+            cmd.CommandText = @"
+                INSERT INTO School (SchoolCode, SchoolName, CreatedAt, UpdatedAt)
+                SELECT DISTINCT SchoolCode, SchoolCode, @Now, @Now FROM (
+                    SELECT SchoolCode FROM Enrollment
+                    UNION SELECT SchoolCode FROM Course
+                    UNION SELECT SchoolCode FROM Club
+                    UNION SELECT SchoolCode FROM ClassTimetable
+                    UNION SELECT SchoolCode FROM ClassDiary
+                    UNION SELECT SchoolCode FROM TeacherSchoolHistory
+                )
+                WHERE SchoolCode NOT IN (SELECT SchoolCode FROM School);
+
+                -- CASCADE 관계: 부모가 사라진 자식 행 삭제 (부모→자식 순서 유지)
+                DELETE FROM StudentDetail WHERE StudentID NOT IN (SELECT StudentID FROM Student);
+                DELETE FROM TeacherSchoolHistory WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);
+                DELETE FROM Enrollment WHERE StudentID NOT IN (SELECT StudentID FROM Student);
+                DELETE FROM Course WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);
+                DELETE FROM CourseSchedule WHERE CourseNo NOT IN (SELECT No FROM Course);
+                DELETE FROM CourseEnrollment
+                    WHERE StudentID NOT IN (SELECT StudentID FROM Student)
+                       OR CourseNo NOT IN (SELECT No FROM Course);
+                DELETE FROM Lesson WHERE Course NOT IN (SELECT No FROM Course);
+                DELETE FROM StudentLog WHERE StudentID NOT IN (SELECT StudentID FROM Student);
+                DELETE FROM StudentSpecial WHERE StudentID NOT IN (SELECT StudentID FROM Student);
+                DELETE FROM Club WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);
+                DELETE FROM ClubEnrollment
+                    WHERE StudentID NOT IN (SELECT StudentID FROM Student)
+                       OR ClubNo NOT IN (SELECT No FROM Club);
+                DELETE FROM SeatAssignment WHERE ArrangementNo NOT IN (SELECT No FROM SeatArrangement);
+
+                -- SET NULL 관계: 부모가 사라진 참조는 NULL 로 보정
+                UPDATE Enrollment SET TeacherID = NULL
+                    WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
+                UPDATE StudentLog SET TeacherID = NULL
+                    WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
+                UPDATE StudentLog SET CourseNo = NULL
+                    WHERE CourseNo IS NOT NULL AND CourseNo NOT IN (SELECT No FROM Course);
+                UPDATE StudentSpecial SET TeacherID = NULL
+                    WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
+                UPDATE StudentSpecial SET CourseNo = NULL
+                    WHERE CourseNo IS NOT NULL AND CourseNo NOT IN (SELECT No FROM Course);
+                UPDATE LessonLog SET Lesson = NULL
+                    WHERE Lesson IS NOT NULL AND Lesson NOT IN (SELECT No FROM Lesson);
+                UPDATE LessonLog SET TeacherID = NULL
+                    WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
+                UPDATE ClassDiary SET TeacherID = NULL
+                    WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
+            ";
+            cmd.Parameters.AddWithValue("@Now", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
+
+            int affected = await cmd.ExecuteNonQueryAsync();
+            if (affected > 0)
+                Debug.WriteLine($"[DatabaseInitializer] 고아 행 정리: {affected}행 보정");
         }
 
         public void Dispose()

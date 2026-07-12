@@ -29,6 +29,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
     private DispatcherQueueTimer? _periodTimer;   // 현재 교시 배지 1분 주기 갱신
     private bool _headerInitialized;
+    private DateTime _headerDate;                 // 헤더에 표시된 날짜 (자정 롤오버 감지용)
     private readonly bool _isHomeroom = Settings.HomeGrade.Value > 0 && Settings.HomeRoom.Value > 0;
 
     // 현재 교시 행 강조를 위해 로드된 슬롯 참조 유지 (1분 주기로 재계산)
@@ -90,8 +91,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         {
             _headerInitialized = true;
 
-            TxtTodayDate.Text = DateTime.Today.ToString("yyyy년 M월 d일");
-            TxtTodayDow.Text = GetKoreanDayOfWeek(DateTime.Today.DayOfWeek);
+            UpdateDateHeader();
 
             if (!_isHomeroom)
             {
@@ -107,6 +107,11 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         _periodTimer.Start();
 
         // 3. 데이터 병렬 로드 (개별 실패는 서로 영향 없음)
+        await LoadTodayDataAsync();
+    }
+
+    private async Task LoadTodayDataAsync()
+    {
         try
         {
             await Task.WhenAll(
@@ -121,6 +126,14 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         {
             Debug.WriteLine($"[TodayPage] 페이지 로드 오류: {ex.GetType().Name} - {ex.Message}");
         }
+    }
+
+    /// <summary>날짜 헤더(날짜·요일) 갱신 + 표시 날짜 기억</summary>
+    private void UpdateDateHeader()
+    {
+        _headerDate = DateTime.Today;
+        TxtTodayDate.Text = _headerDate.ToString("yyyy년 M월 d일");
+        TxtTodayDow.Text = GetKoreanDayOfWeek(_headerDate.DayOfWeek);
     }
 
     private static async Task SafeLoadAsync(string name, Func<Task> load)
@@ -141,6 +154,14 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
     private void UpdateCurrentPeriod()
     {
+        // 앱을 켜둔 채 자정을 넘기면 날짜 헤더·시간표·급식이 어제 것으로 남으므로
+        // 1분 주기 타이머에서 날짜 변경을 감지해 전체를 다시 로드한다
+        if (_headerInitialized && _headerDate != DateTime.Today)
+        {
+            UpdateDateHeader();
+            _ = LoadTodayDataAsync();
+        }
+
         var period = Functions.GetPeriodNow();
         TxtCurrentPeriod.Text = period.Name;
         HighlightCurrentPeriod(period.Index);

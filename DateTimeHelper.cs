@@ -145,12 +145,12 @@ public static class DateTimeHelper
             "yyyy-MM-dd HH:mm:ss.FFF",
             "yyyy-MM-dd HH:mm:ss.FF",
             "yyyy-MM-dd HH:mm:ss.F",
-            "yyyy-MM-dd HH:mm:ss",             // 기본 형식
-            DATE_ONLY_FORMAT,                  // 날짜만
-            NEIS_DATE_FORMAT                   // NEIS API 형식
+            "yyyy-MM-dd HH:mm:ss"              // 기본 형식
         };
 
         // 형식별로 파싱 시도
+        // 성공 시 로그는 남기지 않음 — 리포지토리 대량 로드에서 행마다 호출되어
+        // Debug.WriteLine 이 심각한 병목이 됐었음(실패만 로그)
         foreach (var format in formats)
         {
             if (DateTime.TryParseExact(dateTimeString, format,
@@ -159,9 +159,19 @@ public static class DateTimeHelper
                 out var result))
             {
                 // UTC → Local 시간으로 변환
-                var localTime = result.ToLocalTime();
-                System.Diagnostics.Debug.WriteLine($"[DateTimeHelper] 변환 성공: '{dateTimeString}' → {localTime:yyyy-MM-dd HH:mm:ss} (형식: {format})");
-                return localTime;
+                return result.ToLocalTime();
+            }
+        }
+
+        // 날짜만 있는 형식은 UTC 가정 없이 그대로 파싱
+        // (AssumeUniversal 로 처리하면 로컬 변환 시 시각이 붙고, 음수 오프셋 시간대에선 날짜가 밀림)
+        string[] dateOnlyFormats = { DATE_ONLY_FORMAT, NEIS_DATE_FORMAT };
+        foreach (var format in dateOnlyFormats)
+        {
+            if (DateTime.TryParseExact(dateTimeString, format,
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOnly))
+            {
+                return dateOnly;
             }
         }
 
@@ -171,9 +181,7 @@ public static class DateTimeHelper
             DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
             out var fallbackResult))
         {
-            var localTime = fallbackResult.ToLocalTime();
-            System.Diagnostics.Debug.WriteLine($"[DateTimeHelper] 폴백 파싱: '{dateTimeString}' → {localTime:yyyy-MM-dd HH:mm:ss}");
-            return localTime;
+            return fallbackResult.ToLocalTime();
         }
 
         System.Diagnostics.Debug.WriteLine($"[DateTimeHelper] 변환 실패: '{dateTimeString}'");

@@ -517,6 +517,9 @@ public static class Settings
             // UserDataPath의 모든 .db 파일 (Settings.db, school.db, scheduler.db, board.db 등)
             foreach (var dbFile in Directory.GetFiles(UserDataPath, "*.db"))
             {
+                // WAL 모드에서는 최근 커밋이 -wal 파일에만 있을 수 있으므로
+                // 복사 전에 체크포인트로 본 파일에 합쳐야 백업 누락이 없다
+                CheckpointWal(dbFile);
                 var fileName = Path.GetFileName(dbFile);
                 File.Copy(dbFile, Path.Combine(backupDir, fileName), true);
             }
@@ -531,6 +534,46 @@ public static class Settings
         {
             System.Diagnostics.Debug.WriteLine($"[Settings] 백업 오류: {ex.Message}");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// WAL 체크포인트 — -wal 파일의 커밋을 본 DB 파일로 합침 (백업 직전 호출)
+    /// </summary>
+    internal static void CheckpointWal(string dbPath)
+    {
+        try
+        {
+            using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadWrite;Pooling=False");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            // 체크포인트 실패해도 백업 자체는 진행 (본 파일까지의 데이터는 보존됨)
+            System.Diagnostics.Debug.WriteLine($"[Settings] WAL 체크포인트 실패({Path.GetFileName(dbPath)}): {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 복원 대상 DB의 연결 풀과 잔여 WAL 파일 정리 — 복원 파일이 이전 -wal/-shm 과 섞여 오염되는 것 방지
+    /// </summary>
+    private static void PrepareForRestore(string dbPath)
+    {
+        SqliteConnection.ClearAllPools();
+        foreach (var suffix in new[] { "-wal", "-shm" })
+        {
+            var sidecar = dbPath + suffix;
+            try
+            {
+                if (File.Exists(sidecar)) File.Delete(sidecar);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Settings] WAL 파일 정리 실패({Path.GetFileName(sidecar)}): {ex.Message}");
+            }
         }
     }
 
@@ -562,9 +605,11 @@ public static class Settings
                 }
                 else
                 {
-                    // UserDataPath에 복원
+                    // UserDataPath에 복원 (열린 연결·잔여 WAL 정리 후 덮어쓰기)
                     Directory.CreateDirectory(UserDataPath);
-                    File.Copy(dbFile, Path.Combine(UserDataPath, fileName), true);
+                    var targetPath = Path.Combine(UserDataPath, fileName);
+                    PrepareForRestore(targetPath);
+                    File.Copy(dbFile, targetPath, true);
                 }
             }
 
@@ -658,7 +703,7 @@ public static class Settings
                 key.DeleteValue(AppRegistryName, false);
             }
 
-            StartWithWindows.Value = enable;
+            StartWithWindows.Set(enable);  // Value 만 바꾸면 DB에 저장되지 않아 레지스트리와 어긋남
             System.Diagnostics.Debug.WriteLine($"[Settings] StartWithWindows = {enable}");
         }
         catch (Exception ex)

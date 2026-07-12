@@ -52,8 +52,8 @@ namespace NewSchool
                 // API URL 생성
                 string requestUrl = BuildMealApiUrl(startDate, endDate, mmealScCode);
 
-                // HTTP 요청
-                Debug.WriteLine($"[Functions] 급식 API 요청: {requestUrl}");
+                // HTTP 요청 (API 키는 로그에 남기지 않음)
+                Debug.WriteLine($"[Functions] 급식 API 요청: {MaskApiKey(requestUrl)}");
                 using var response = await _httpClient.GetAsync(requestUrl).ConfigureAwait(false);
                 Debug.WriteLine($"[Functions] 급식 API 응답: {(int)response.StatusCode}, Content-Type: {response.Content.Headers?.ContentType?.MediaType}");
 
@@ -219,6 +219,30 @@ namespace NewSchool
 
         #region Helper Methods
 
+        /// <summary>숫자와 점으로만 이루어진 알레르기 표기 토큰인지 확인 (예: "1.2.13.")</summary>
+        private static bool IsAllergenToken(ReadOnlySpan<char> token)
+        {
+            if (token.IsEmpty) return false;
+            bool hasDigit = false;
+            foreach (var ch in token)
+            {
+                if (char.IsAsciiDigit(ch)) hasDigit = true;
+                else if (ch != '.') return false;
+            }
+            return hasDigit;
+        }
+
+        /// <summary>로그 출력용 — URL 쿼리의 KEY= 값을 가림</summary>
+        private static string MaskApiKey(string url)
+        {
+            int keyStart = url.IndexOf("KEY=", StringComparison.OrdinalIgnoreCase);
+            if (keyStart < 0) return url;
+            keyStart += 4;
+            int keyEnd = url.IndexOf('&', keyStart);
+            if (keyEnd < 0) keyEnd = url.Length;
+            return url[..keyStart] + "***" + url[keyEnd..];
+        }
+
         private static string BuildMealApiUrl(DateTime? startDate, DateTime? endDate, string mmealScCode)
         {
             var sb = new StringBuilder(256);
@@ -291,11 +315,20 @@ namespace NewSchool
             {
                 var cleaned = item;
 
-                // 특수 문자 제거
-                var idx = cleaned.IndexOfAny(new[] { '*', ' ', '(' });
+                // 알레르기 표기 등 부가 정보 제거 — '*' 또는 '(' 이후만 잘라냄
+                // (공백까지 자르면 "친환경 쌀밥"처럼 띄어쓰기 있는 메뉴명이 잘림)
+                var idx = cleaned.IndexOfAny(new[] { '*', '(' });
                 if (idx > 0)
                 {
                     cleaned = cleaned.Substring(0, idx);
+                }
+                cleaned = cleaned.Trim();
+
+                // 구형 포맷 방어: 끝에 붙는 "1.2.13." 형태의 알레르기 숫자 토큰 제거
+                int lastSpace = cleaned.LastIndexOf(' ');
+                if (lastSpace > 0 && IsAllergenToken(cleaned.AsSpan(lastSpace + 1)))
+                {
+                    cleaned = cleaned[..lastSpace].TrimEnd();
                 }
 
                 if (sb.Length > 0)

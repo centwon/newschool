@@ -57,7 +57,9 @@ namespace NewSchool.Repositories
                 using var cmd = Connection.CreateCommand();
                 // WAL + synchronous=NORMAL 은 권장 조합 (쓰기 안전성 유지하며 성능 향상)
                 // 기존에는 synchronous 미설정으로 기본값 FULL 이 적용되어 쓰기가 느렸음
-                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
+                // foreign_keys=ON 필수: per-connection 설정이므로 연결마다 켜야
+                // Course/Club 등 하드 삭제 시 ON DELETE CASCADE/SET NULL 이 실제로 동작함(고아 행 방지)
+                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
                 cmd.ExecuteNonQuery();
 
                 LogDebug($"{GetType().Name} 연결 열림 (WAL 모드)");

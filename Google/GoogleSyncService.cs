@@ -598,19 +598,25 @@ public sealed class GoogleSyncService : IDisposable
             return result;
         }
 
-        // 연속 날짜 같은 이벤트 그룹핑 (예: 여름방학 7/22~8/25 → 하나의 이벤트). 이름을 자연키로 사용.
+        // 연속 날짜 같은 이벤트 그룹핑 (예: 여름방학 7/22~8/25 → 하나의 이벤트).
+        // 같은 행사명이 비연속 날짜에 반복될 수 있으므로(예: 재량휴업일) "제목+시작일"을 자연키로 사용.
+        // 제목만 키로 쓰면 ToDictionary 가 중복 키 예외로 동기화 전체가 실패한다.
         var groups = SchoolScheduleGroupHelper.GroupSchedules(schedules);
-        var groupsByTitle = groups.ToDictionary(g => g.EventName);
+        var groupsByKey = groups
+            .GroupBy(g => ScheduleKey(g.EventName, g.StartDate))
+            .ToDictionary(x => x.Key, x => x.First());
 
         var existing = await service.GetEventsByCalendarAndTypeAsync(calendar.No, ScheduleItemType);
-        var existingByTitle = existing.ToDictionary(e => e.Title);
+        var existingByKey = existing
+            .GroupBy(e => ScheduleKey(e.Title, e.Start))
+            .ToDictionary(x => x.Key, x => x.First());
 
         Debug.WriteLine($"[GoogleSync] 학사일정 재조정 시작: 현재 {groups.Count}개, 기존 등록 {existing.Count}개");
 
         // 1) 신규 등록 + 날짜 변경분 수정
-        foreach (var group in groups)
+        foreach (var group in groupsByKey.Values)
         {
-            if (!existingByTitle.TryGetValue(group.EventName, out var localEvent))
+            if (!existingByKey.TryGetValue(ScheduleKey(group.EventName, group.StartDate), out var localEvent))
             {
                 try
                 {
@@ -647,7 +653,7 @@ public sealed class GoogleSyncService : IDisposable
                     Debug.WriteLine($"[GoogleSync] 학사일정 신규 등록 실패: {group.EventName} — {ex.Message}");
                 }
             }
-            else if (localEvent.Start.Date != group.StartDate.Date || localEvent.End.Date != group.EndDate.Date)
+            else if (localEvent.End.Date != group.EndDate.Date)  // 시작일은 키에 포함되어 항상 일치
             {
                 try
                 {
@@ -673,7 +679,7 @@ public sealed class GoogleSyncService : IDisposable
         }
 
         // 2) school.db 에서 사라진 학사일정 → 로컬+구글 정리
-        foreach (var stale in existing.Where(e => !groupsByTitle.ContainsKey(e.Title)))
+        foreach (var stale in existing.Where(e => !groupsByKey.ContainsKey(ScheduleKey(e.Title, e.Start))))
         {
             try
             {
@@ -696,6 +702,9 @@ public sealed class GoogleSyncService : IDisposable
         Debug.WriteLine($"[GoogleSync] 학사일정 재조정 완료: {result.Summary}");
         return result;
     }
+
+    /// <summary>학사일정 재조정용 자연키 — 같은 행사명이 비연속 날짜에 반복돼도 구분되도록 시작일 포함</summary>
+    private static string ScheduleKey(string title, DateTime start) => $"{title}|{start:yyyy-MM-dd}";
 
     private static GoogleEvent BuildScheduleGoogleEvent(SchoolScheduleGroup group) => new()
     {

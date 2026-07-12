@@ -1,5 +1,4 @@
 using System;
-using System.Text.RegularExpressions;
 using Microsoft.UI.Xaml.Data;
 
 namespace NewSchool;
@@ -28,31 +27,18 @@ public partial class Tool
     }
 
     /// <summary>
-    /// NEIS 바이트 카운트 (영문 1byte, 한글 3byte)
+    /// NEIS 바이트 카운트 (한글 3byte, 그 외 1byte)
+    /// 문자마다 정규식 2회 + ToString 을 돌리던 방식을 범위 비교로 교체
+    /// (학생부 실시간 글자수 카운트에 사용되므로 성능 중요)
+    /// 한글 범위는 기존 정규식과 동일: 음절 U+AC00~U+D7AF, 자모 U+3130~U+318F
     /// </summary>
-    [GeneratedRegex("[a-zA-Z]")]
-    private static partial Regex Abc();
-
-    [GeneratedRegex("[가-\ud7af\u3130-\u318f]")]
-    private static partial Regex Ganada();
-
     public static int CountNeisByte(string str)
     {
         int byteCount = 0;
         foreach (char ch in str)
         {
-            if (Abc().IsMatch(ch.ToString()))
-            {
-                byteCount += 1;
-            }
-            else if (Ganada().IsMatch(ch.ToString()))
-            {
-                byteCount += 3;
-            }
-            else
-            {
-                byteCount += 1;
-            }
+            bool isHangul = (ch >= '가' && ch <= '힯') || (ch >= '㄰' && ch <= '㆏');
+            byteCount += isHangul ? 3 : 1;
         }
         return byteCount;
     }

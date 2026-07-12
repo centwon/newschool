@@ -124,7 +124,12 @@ namespace NewSchool
                 string backupFileName = $"School_{DateTime.Now:yyyyMMdd_HHmmss}.db";
                 string backupPath = Path.Combine(backupDir, backupFileName);
 
-                await Task.Run(() => File.Copy(DbPath, backupPath, true));
+                await Task.Run(() =>
+                {
+                    // WAL의 미체크포인트 커밋을 본 파일에 합친 뒤 복사 (최근 데이터 누락 방지)
+                    Settings.CheckpointWal(DbPath);
+                    File.Copy(DbPath, backupPath, true);
+                });
 
                 Debug.WriteLine($"[SchoolDatabase] DB 백업 완료: {backupPath}");
                 return true;
@@ -149,7 +154,17 @@ namespace NewSchool
                     return false;
                 }
 
-                await Task.Run(() => File.Copy(backupPath, DbPath, true));
+                await Task.Run(() =>
+                {
+                    // 열린 연결 풀과 잔여 -wal/-shm 정리 후 덮어쓰기 (복원본 오염 방지)
+                    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                    foreach (var suffix in new[] { "-wal", "-shm" })
+                    {
+                        var sidecar = DbPath + suffix;
+                        if (File.Exists(sidecar)) File.Delete(sidecar);
+                    }
+                    File.Copy(backupPath, DbPath, true);
+                });
 
                 Debug.WriteLine($"[SchoolDatabase] DB 복원 완료: {backupPath}");
                 Settings.School_Inited.Set(false); // 재초기화 필요
