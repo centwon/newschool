@@ -31,8 +31,10 @@ namespace NewSchool.Board.Caching
         private readonly object _lockObject = new();
         private readonly TimeSpan _defaultExpiration = TimeSpan.FromMinutes(5);
 
-        // 메모리 최적화: 캐시 크기 제한 (기본 50MB)
-        private readonly long _maxCacheSizeBytes = 50 * 1024 * 1024; // 50MB
+        // 메모리 최적화: 캐시 크기 제한 (기본 15MB)
+        // 캐시 대상(게시글 목록/본문/댓글)이 5분 만료라 평시 점유가 작고,
+        // 상한 초과 시에도 미스는 로컬 SQLite 재조회(ms 단위)라 15MB 로 충분함.
+        private readonly long _maxCacheSizeBytes = 15 * 1024 * 1024; // 15MB
         private long _currentCacheSize = 0;
         private readonly CancellationTokenSource _cleanupCts = new();
 

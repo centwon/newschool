@@ -26,6 +26,13 @@
     <InternalsVisibleTo Include="NewSchool.Tests" />
   </ItemGroup>
 
+  <!-- 메모리 절약 GC 모드: 힙을 적극 압축·OS 반납해 상주 메모리 축소.
+       1~9(클수록 메모리 우선), 이벤트 구동형 앱이라 GC 압력이 낮아 처리량 영향은 미미.
+       Native AOT 에서도 runtimeconfig 로 내장되어 동작함. -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
+  </ItemGroup>
+
   <!-- ==========================================
        빌드 제외 항목
        ========================================== -->
@@ -118,7 +125,7 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2270" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
     <PackageReference Include="MiniExcel" Version="1.45.0" />
-    <PackageReference Include="QuestPDF" Version="2026.6.1" />
+    <PackageReference Include="QuestPDF" Version="2026.7.1" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageReference Include="SQLitePCLRaw.core" Version="3.0.3" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.9" />
@@ -307,6 +314,9 @@
     <Content Remove="prerequisites\**" />
     <None Remove="installer.iss" />
     <None Remove="prerequisites\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Installer\prerequisites\" />
   </ItemGroup>
 
   <!-- 게시 후 불필요 파일/폴더 정리 -->
