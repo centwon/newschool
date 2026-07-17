@@ -56,23 +56,24 @@ public partial class App : Application
             }
         };
 
-        // async void / fire-and-forget Task에서 터진 예외를 포착
+        // async void / fire-and-forget Task에서 터진 예외를 포착.
+        // 이 이벤트는 파이널라이저 스레드에서 발생하므로 ContentDialog(UI 스레드 친화성)를
+        // 직접 만들 수 없다 — DispatcherQueue 로 UI 스레드에 넘겨야 알림이 실제로 표시된다.
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
             Debug.WriteLine($"[App] ★ UnobservedTaskException: {e.Exception.GetType().Name} - {e.Exception.Message}");
             FileLogger.Instance.Error("[App] UnobservedTaskException", e.Exception);
-            try
-            {
+            e.SetObserved();
+
+            var dispatcher = MainWindow?.DispatcherQueue;
+            if (dispatcher == null) return; // 창 없음(시작/종료 중) — 로그로 충분
+
+            var ex = e.Exception;
+            dispatcher.TryEnqueue(() =>
                 _ = Controls.UserErrorReporter.ReportAsync(
                     "백그라운드 작업",
-                    e.Exception,
-                    "백그라운드 작업 오류");
-                e.SetObserved();
-            }
-            catch (Exception reportEx)
-            {
-                Debug.WriteLine($"[App] UnobservedTask 알림 실패: {reportEx.Message}");
-            }
+                    ex,
+                    "백그라운드 작업 오류"));
         };
 
         // AppDomain 치명적 예외 (최종 안전망 — 앱 종료 직전 로그 기록만)
@@ -113,6 +114,22 @@ public partial class App : Application
             NewSchool.SchoolDatabase.InitAsync()
         );
         Debug.WriteLine("[App] 데이터베이스 초기화 완료 (Board, Scheduler, School)");
+
+        // 2-1. DB 무결성 점검 — 손상 감지 시 조용한 크래시 대신 복원/종료 안내 후 조기 반환.
+        //   자동 백업(3-1)보다 먼저 실행해 손상된 DB 가 백업으로 덮이는 것을 막는다.
+        var corrupt = Helpers.DbIntegrity.FindCorrupt(new[]
+        {
+            SchoolDatabase.DbPath,
+            Path.Combine(Settings.UserDataPath, Settings.Board_DB.Value),
+            Path.Combine(Settings.UserDataPath, Settings.SchedulerDB.Value),
+        });
+        if (corrupt.Count > 0)
+        {
+            Debug.WriteLine($"[App] DB 손상 감지: {string.Join(", ", corrupt)}");
+            FileLogger.Instance.Critical($"[App] DB 손상 감지: {string.Join(", ", corrupt)}");
+            await HandleCorruptDatabasesAsync(corrupt);
+            return; // 복원(재시작) 또는 종료 — 정상 시작 흐름 진입 안 함
+        }
 
         // 3-1. 자동 백업 (필요 시) — 백그라운드로 밀어 시작 시간 단축
         //   File.Copy 동기 작업으로 1~3초 블로킹될 수 있어 fire-and-forget 으로 처리.
@@ -160,6 +177,84 @@ public partial class App : Application
         {
             // 초기 설정이 이미 완료된 경우 바로 MainWindow 표시
             ShowMainWindow();
+        }
+    }
+
+    /// <summary>
+    /// 시작 시 손상 DB 감지 → 백업 복원(성공 시 재시작) 또는 종료.
+    /// </summary>
+    private static async Task HandleCorruptDatabasesAsync(System.Collections.Generic.List<string> corruptFiles)
+    {
+        // ContentDialog·피커가 쓸 XamlRoot 확보용 호스트 창
+        var root = new Microsoft.UI.Xaml.Controls.TextBlock
+        {
+            Text = "데이터 파일 손상이 감지되었습니다.",
+            Margin = new Thickness(24),
+            TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
+        };
+        var host = new Window { Content = root, Title = "NewSchool — 데이터베이스 손상 감지" };
+        host.Activate();
+
+        // Content 가 시각 트리에 로드되어 XamlRoot 가 생길 때까지 대기
+        if (root.XamlRoot is null)
+        {
+            var tcs = new TaskCompletionSource();
+            root.Loaded += (_, _) => tcs.TrySetResult();
+            await tcs.Task;
+        }
+        MessageBox.Initialize(root.XamlRoot!); // Loaded 이후 XamlRoot 보장
+
+        bool restore = await MessageBox.ShowConfirmAsync(
+            $"데이터 파일이 손상되었습니다: {string.Join(", ", corruptFiles)}\n\n" +
+            $"백업(ZIP)을 선택해 복원하시겠습니까?\n자동 백업 위치: {Settings.BackupDirectory}\n\n" +
+            "'종료'를 누르면 데이터를 건드리지 않고 앱을 닫습니다.",
+            "데이터베이스 손상 감지", "백업에서 복원", "종료");
+
+        if (restore && await TryRestoreFromPickerAsync(host))
+        {
+            // 옛 연결·캐시가 새 DB 에 섞이지 않도록 깨끗한 프로세스로 재시작
+            Microsoft.Windows.AppLifecycle.AppInstance.Restart(string.Empty);
+        }
+
+        Application.Current.Exit();
+    }
+
+    /// <summary>백업 파일 선택 → Settings.Restore. AppSettingsPage 복원과 동일한 경로 규칙.</summary>
+    private static async Task<bool> TryRestoreFromPickerAsync(Window owner)
+    {
+        try
+        {
+            // ZIP 단일 파일(신규)·backup_* 폴더 안의 .db(구버전) 모두 지원
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            WinRT.Interop.InitializeWithWindow.Initialize(
+                picker, WinRT.Interop.WindowNative.GetWindowHandle(owner));
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add(".zip");
+            picker.FileTypeFilter.Add(".db");
+
+            var file = await picker.PickSingleFileAsync();
+            if (file is null) return false;
+
+            string restorePath = file.Path;
+            var parent = Path.GetDirectoryName(file.Path);
+            if (file.Path.EndsWith(".db", StringComparison.OrdinalIgnoreCase) &&
+                parent != null &&
+                Path.GetFileName(parent).StartsWith("backup_", StringComparison.OrdinalIgnoreCase))
+            {
+                restorePath = parent;
+            }
+
+            if (Settings.Restore(restorePath)) return true;
+
+            await MessageBox.ShowAsync(
+                "백업에서 복원하지 못했습니다. 올바른 백업(ZIP 또는 backup_* 폴더의 .db)인지 확인하세요.",
+                "복원 실패");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync(ex.Message, "복원 오류");
+            return false;
         }
     }
 
