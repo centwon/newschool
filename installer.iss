@@ -12,7 +12,7 @@
 #define MyAppVersion "1.1.0"
 #define MyAppPublisher "Centwon"
 #define MyAppExeName "NewSchool.exe"
-#define MyAppDescription "교사를 위한 학급 경영 도우미"
+#define MyAppDescription "교사를 위한 학교 업무 도우미"
 
 ; 게시 폴더 경로 (Visual Studio 게시 후 생성됨)
 #define PublishDir "bin\Release\Publish"
