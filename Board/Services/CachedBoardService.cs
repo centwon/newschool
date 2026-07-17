@@ -182,6 +182,7 @@ namespace NewSchool.Board.Services
             if (result)
             {
                 _cache.Remove(CacheKeys.Comments(comment.Post));
+                _cache.Remove(CacheKeys.Post(comment.Post)); // 목록의 댓글 수가 구버전으로 남지 않도록
             }
 
             return result;
@@ -300,6 +301,10 @@ namespace NewSchool.Board.Services
         {
             _cache.RemoveByPattern("board:posts:");
             _cache.RemoveByPattern($"board:count:{category}");
+            // 카테고리/주제 목록은 30분 캐시라, 새 주제·카테고리로 글을 쓰면
+            // 필터 콤보에 한참 안 나타난다 — 글 저장/삭제 시 함께 무효화
+            _cache.Remove(CacheKeys.Categories());
+            _cache.RemoveByPattern("board:subjects:");
         }
 
         /// <summary>

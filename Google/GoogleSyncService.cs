@@ -768,11 +768,16 @@ public sealed class GoogleSyncService : IDisposable
         _periodicCts = new CancellationTokenSource();
         _periodicTimer = new PeriodicTimer(interval);
 
+        // 루프는 지역 변수로 캡처 — 필드를 읽으면 동기화 진행 중 StopPeriodicSync()가
+        // 필드를 null 로 만든 뒤 다음 반복에서 NRE 가 백그라운드 Task 로 새어 나간다
+        var timer = _periodicTimer;
+        var token = _periodicCts.Token;
+
         _ = Task.Run(async () =>
         {
             try
             {
-                while (await _periodicTimer.WaitForNextTickAsync(_periodicCts.Token))
+                while (await timer.WaitForNextTickAsync(token))
                 {
                     try
                     {

@@ -266,8 +266,17 @@ public static class MessageBox
                                 ? MessageBoxResult.Yes : MessageBoxResult.OK,
             ContentDialogResult.Secondary => button == MessageBoxButton.YesNo || button == MessageBoxButton.YesNoCancel
                                 ? MessageBoxResult.No : MessageBoxResult.Cancel,
-            _ => button == MessageBoxButton.YesNoCancel
-                                ? MessageBoxResult.Cancel : MessageBoxResult.None,
+            // None(ESC·바깥 클릭 등 닫힘): 버튼 구성별 "안전한 기본 선택"으로 변환.
+            // 기존에는 OK 전용 대화상자에서 ESC 를 누르면 None 이 반환되어
+            // GetEscapeResult 의 의도(OK)와 어긋났다.
+            _ => button switch
+            {
+                MessageBoxButton.OK => MessageBoxResult.OK,          // 확인뿐이므로 닫힘 = 확인
+                MessageBoxButton.OKCancel => MessageBoxResult.Cancel,
+                MessageBoxButton.YesNo => MessageBoxResult.No,       // 안전한 선택
+                MessageBoxButton.YesNoCancel => MessageBoxResult.Cancel,
+                _ => MessageBoxResult.None,
+            },
         };
     }
 

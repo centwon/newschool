@@ -36,7 +36,8 @@
 2026-07 점검에서 잡은 버그의 재발 방지가 핵심. **작성 중 2건의 잠재 버그 추가 발견·수정**:
 - `StudentRepository.UpdateAsync` 의 Enrollment 동기화가 주입 dbPath 대신 정적 경로 사용 → `_dbPath` 로 수정
 - `SchoolScheduleService(dbPath)` 생성자가 파라미터를 무시하고 정적 경로 대입 → 주입 반영
-- [x] `EnrollmentService.GraduateAsync` — 졸업일 학년도+1년 2월 말일(평년/윤년), 재학생만·미대상 0·타학년 무영향
+- [x] `EnrollmentService.PromoteStudentsAsync` — 최고 학년 스킵(졸업 오처리 회귀), 같은 StudentID 다음 학년도 학적, 휴학 제외
+  (GraduateAsync 는 졸업 마감 불필요 판단으로 제거 — 2026-07-15, 관련 테스트는 진급 테스트로 대체)
 - [x] `StudentService.UpdateBasicInfoAsync` — 이름/성별 갱신 시 Enrollment 동기화, 학적 없어도 성공
 - [x] `SchoolScheduleService` — 날짜범위 상한 배타/하한 포함, 학년도 필터
 - [x] NEIS 동기화 중복 제외 — 학교+날짜+행사명 키로 재실행/배치 내 중복 스킵

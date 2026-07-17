@@ -273,9 +273,16 @@ public sealed class SeatService : IDisposable
     {
         using var q = _connection.CreateCommand();
         q.Transaction = tx;
+        // 1인석(Jjak<2)은 짝 이력을 쓰지 않으므로 SeatHistory 만 보면 Round 가 1에 고정되어
+        // 위치 이력이 INSERT OR IGNORE 로 전부 무시된다 — 두 이력 테이블의 MAX 를 사용
         q.CommandText = @"
-            SELECT COALESCE(MAX(Round), 0) + 1 FROM SeatHistory
-            WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c;";
+            SELECT COALESCE(MAX(r), 0) + 1 FROM (
+                SELECT MAX(Round) AS r FROM SeatHistory
+                WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c
+                UNION ALL
+                SELECT MAX(Round) AS r FROM SeatPosHistory
+                WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c
+            );";
         q.Parameters.AddWithValue("$sc", sc);
         q.Parameters.AddWithValue("$y", y);
         q.Parameters.AddWithValue("$g", g);

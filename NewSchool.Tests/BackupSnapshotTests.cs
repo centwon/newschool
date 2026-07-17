@@ -10,7 +10,7 @@ namespace NewSchool.Tests;
 /// "VACUUM INTO @param" 파라미터 바인딩이 현재 SQLitePCL 번들에서 동작하는지,
 /// 스냅샷에 WAL 미체크포인트 커밋까지 포함되는지 회귀 확인.
 /// </summary>
-public class BackupSnapshotTests : IDisposable
+public sealed class BackupSnapshotTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), $"ns_snapshot_test_{Guid.NewGuid():N}");
 

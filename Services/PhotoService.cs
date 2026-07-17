@@ -18,9 +18,18 @@ namespace NewSchool.Services
         private readonly string _baseDirectory;
 
         // 메모리 최적화: 이미지 캐시 (최근 50개 이미지 캐싱)
-        private static readonly Dictionary<string, WeakReference<BitmapImage>> _imageCache = new();
+        // LRU 판정은 접근 순번(_accessCounter)으로 한다 — Dictionary 는 삭제 후 재삽입 시
+        // 순서 보존이 보장되지 않아 Keys.First() 방식은 "가장 오래된 항목"이 아니었음
+        private static readonly Dictionary<string, ImageCacheEntry> _imageCache = new();
         private static readonly object _cacheLock = new object();
+        private static long _accessCounter;
         private const int MaxCacheSize = 50;
+
+        private sealed class ImageCacheEntry
+        {
+            public required WeakReference<BitmapImage> Ref { get; init; }
+            public long LastAccess { get; set; }
+        }
 
         public PhotoService()
         {
@@ -95,12 +104,52 @@ namespace NewSchool.Services
             string fileName = $"{studentId}{extension}";
             string destPath = Path.Combine(photoDir, fileName);
 
+            // 확장자가 다른 이전 사진 정리 (.jpg → .png 교체 시 고아 파일 방지)
+            foreach (var oldExt in new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif" })
+            {
+                if (string.Equals(oldExt, extension, StringComparison.OrdinalIgnoreCase)) continue;
+                string oldPath = Path.Combine(photoDir, $"{studentId}{oldExt}");
+                try
+                {
+                    if (File.Exists(oldPath))
+                    {
+                        File.Delete(oldPath);
+                        InvalidateCache(oldPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PhotoService] 이전 사진 정리 실패: {oldPath} — {ex.Message}");
+                }
+            }
+
             // 파일 복사
             var destFolder = await StorageFolder.GetFolderFromPathAsync(photoDir);
             await sourceFile.CopyAsync(destFolder, fileName, NameCollisionOption.ReplaceExisting);
 
+            // 같은 경로에 덮어쓰기이므로 캐시에 남은 이전 이미지를 무효화해야
+            // 교체 직후에도 새 사진이 표시된다
+            InvalidateCache(destPath);
+
             // 상대 경로 반환
             return Path.Combine("Photos", year, fileName);
+        }
+
+        /// <summary>
+        /// 특정 파일 경로의 캐시 항목(모든 디코딩 크기)을 제거.
+        /// 캐시 키가 "{경로}:{크기}" 형식이므로 경로 접두어로 일괄 삭제한다.
+        /// </summary>
+        private static void InvalidateCache(string fullPath)
+        {
+            lock (_cacheLock)
+            {
+                string prefix = fullPath + ":";
+                var stale = _imageCache.Keys
+                    .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                foreach (var key in stale)
+                    _imageCache.Remove(key);
+            }
         }
 
         #endregion
@@ -154,19 +203,15 @@ namespace NewSchool.Services
                 // 캐시 확인 (WeakReference 사용으로 메모리 압박 시 자동 해제)
                 lock (_cacheLock)
                 {
-                    if (_imageCache.TryGetValue(cacheKey, out var weakRef))
+                    if (_imageCache.TryGetValue(cacheKey, out var entry))
                     {
-                        if (weakRef.TryGetTarget(out var cachedImage))
+                        if (entry.Ref.TryGetTarget(out var cachedImage))
                         {
-                            // LRU 갱신: 제거 후 재삽입으로 최근 접근 기록
-                            _imageCache.Remove(cacheKey);
-                            _imageCache[cacheKey] = weakRef;
+                            entry.LastAccess = ++_accessCounter; // LRU 갱신
                             return cachedImage;
                         }
-                        else
-                        {
-                            _imageCache.Remove(cacheKey);
-                        }
+
+                        _imageCache.Remove(cacheKey); // GC 로 회수된 항목 정리
                     }
                 }
 
@@ -189,16 +234,36 @@ namespace NewSchool.Services
                 // 캐시에 추가 (WeakReference로 저장하여 메모리 압박 시 GC가 회수 가능)
                 lock (_cacheLock)
                 {
-                    // 캐시 크기 제한 (LRU 방식으로 오래된 항목 제거)
+                    // 캐시 크기 제한: GC 로 회수된 항목 우선, 없으면 가장 오래 접근 안 된 항목 제거
                     if (_imageCache.Count >= MaxCacheSize)
                     {
-                        // 첫 번째 항목 제거 (간단한 FIFO)
-                        var firstKey = _imageCache.Keys.First();
-                        _imageCache.Remove(firstKey);
-                        System.Diagnostics.Debug.WriteLine($"[PhotoService] 캐시 제거 (용량 초과): {Path.GetFileName(firstKey)}");
+                        string? evictKey = null;
+                        long oldest = long.MaxValue;
+                        foreach (var kvp in _imageCache)
+                        {
+                            if (!kvp.Value.Ref.TryGetTarget(out _))
+                            {
+                                evictKey = kvp.Key; // 이미 죽은 항목이 최우선
+                                break;
+                            }
+                            if (kvp.Value.LastAccess < oldest)
+                            {
+                                oldest = kvp.Value.LastAccess;
+                                evictKey = kvp.Key;
+                            }
+                        }
+                        if (evictKey != null)
+                        {
+                            _imageCache.Remove(evictKey);
+                            System.Diagnostics.Debug.WriteLine($"[PhotoService] 캐시 제거 (용량 초과): {Path.GetFileName(evictKey)}");
+                        }
                     }
 
-                    _imageCache[cacheKey] = new WeakReference<BitmapImage>(bitmap);
+                    _imageCache[cacheKey] = new ImageCacheEntry
+                    {
+                        Ref = new WeakReference<BitmapImage>(bitmap),
+                        LastAccess = ++_accessCounter,
+                    };
                     System.Diagnostics.Debug.WriteLine($"[PhotoService] 캐시 추가: {Path.GetFileName(fullPath)}");
                 }
 
@@ -240,6 +305,7 @@ namespace NewSchool.Services
 
                 // 파일 삭제
                 File.Delete(fullPath);
+                InvalidateCache(fullPath); // 같은 경로로 재등록 시 이전 이미지가 보이지 않도록
                 System.Diagnostics.Debug.WriteLine($"[PhotoService] 사진 삭제 완료: {fullPath}");
 
                 return true;

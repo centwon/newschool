@@ -98,10 +98,18 @@ public sealed class EnrollmentService : IDisposable
     #region 진급 처리
 
     /// <summary>
-    /// 학년 전체 진급 처리
+    /// 학년 전체 진급 처리 — 같은 StudentID 로 다음 학년도 1학기 학적을 생성한다.
+    /// StudentID 가 등록연도를 포함하므로(매년 재등록 시 이력 단절), 다년간 누가기록·특기사항을
+    /// 이어가려면 이 경로가 유일하다. 최고 학년(maxGrade)은 진급 대상이 아니며 아무 처리도 하지
+    /// 않는다 — 별도 졸업 마감은 두지 않는 설계(학년도 기준 조회라 옛 학적이 화면에 섞이지 않음).
+    /// ⚠ UI 미노출: 실사용 전에 반/번호 재배정 미리보기 화면이 필요하다(현재는 이전 반·번호 복사).
     /// </summary>
-    public async Task<int> PromoteStudentsAsync(string schoolCode, int fromYear, int fromGrade)
+    /// <param name="maxGrade">학교급 최고 학년 (초등 6, 중·고 3)</param>
+    public async Task<int> PromoteStudentsAsync(string schoolCode, int fromYear, int fromGrade, int maxGrade)
     {
+        if (fromGrade >= maxGrade)
+            return 0; // 최고 학년은 진급 대상 아님 (졸업 마감 처리도 하지 않음)
+
         // 진급 대상 학생 조회 (2학기 재학생)
         var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, fromYear, 2, fromGrade);
         var activeStudents = students.Where(e => e.Status == EnrollmentStatus.Enrolled).ToList();
@@ -119,14 +127,6 @@ public sealed class EnrollmentService : IDisposable
 
             foreach (var oldEnrollment in activeStudents)
             {
-                // 졸업 처리 (3학년인 경우)
-                if (fromGrade >= 3)
-                {
-                    await GraduateStudentAsync(oldEnrollment.No);
-                    count++;
-                    continue;
-                }
-
                 // 새 학년도 1학기 학적 생성
                 var newEnrollment = new Enrollment
                 {
@@ -211,61 +211,10 @@ public sealed class EnrollmentService : IDisposable
 
     #endregion
 
-    #region 졸업 처리
-
-    /// <summary>
-    /// 학년 전체 졸업 처리
-    /// </summary>
-    public async Task<int> GraduateAsync(string schoolCode, int year, int grade)
-    {
-        // 졸업 대상 학생 조회 (2학기 재학생)
-        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, year, 2, grade);
-        var activeStudents = students.Where(e => e.Status == EnrollmentStatus.Enrolled).ToList();
-
-        if (activeStudents.Count == 0)
-            return 0;
-
-        try
-        {
-            _enrollmentRepo.BeginTransaction();
-
-            int count = 0;
-            // 졸업일 = 학년도 다음 해 2월 말일 (예: 2025학년도 → 2026-02-28/29)
-            DateTime graduationDate = new DateTime(year + 1, 3, 1).AddDays(-1);
-
-            foreach (var enrollment in activeStudents)
-            {
-                await GraduateStudentAsync(enrollment.No, graduationDate);
-                count++;
-            }
-
-            _enrollmentRepo.Commit();
-            return count;
-        }
-        catch
-        {
-            _enrollmentRepo.Rollback();
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 개별 학생 졸업 처리
-    /// </summary>
-    private async Task<bool> GraduateStudentAsync(int enrollmentNo, DateTime? graduationDate = null)
-    {
-        var enrollment = await _enrollmentRepo.GetByIdAsync(enrollmentNo);
-        if (enrollment == null)
-            return false;
-
-        enrollment.Status = EnrollmentStatus.Graduated;
-        enrollment.GraduationDate = (graduationDate ?? DateTime.Now).ToString("yyyy-MM-dd");
-        enrollment.UpdatedAt = DateTime.Now;
-
-        return await _enrollmentRepo.UpdateAsync(enrollment);
-    }
-
-    #endregion
+    // 졸업 처리(GraduateAsync)는 제거됨 — 조회가 전부 학년도 기준이라 별도 졸업 마감이
+    // 불필요하고, UI 미노출 상태에서 초등(1~6학년) 진급을 졸업으로 오처리하는 버그의
+    // 온상이었다. 학적 상태값(EnrollmentStatus.Graduated)과 GraduationDate 컬럼은
+    // 과거 데이터 호환을 위해 유지한다. (2026-07-15)
 
     #region 조회
     ///<summary>
@@ -299,7 +248,7 @@ public sealed class EnrollmentService : IDisposable
     /// <returns>List<Enrollment></Enrollment></returns>
     public async Task<List<Enrollment>> GetEnrollmentsAsync(string schoolCode, int year=0, int semester=0, int grade=0, int classnum=0)
     {
-        return await _enrollmentRepo.GetEnrollmentsAsync(schoolCode: schoolCode, year: year, grade:grade, classNum:classnum);
+        return await _enrollmentRepo.GetEnrollmentsAsync(schoolCode: schoolCode, year: year, grade:grade, classNum:classnum, semester:semester);
     }
 
     /// <summary>
@@ -310,12 +259,18 @@ public sealed class EnrollmentService : IDisposable
         string schoolCode, int year, int grade, int classNo)
     {
         var enrollments = await _enrollmentRepo.GetEnrollmentsAsync(
-            schoolCode: schoolCode, 
-            year: year, 
-            grade: grade, 
+            schoolCode: schoolCode,
+            year: year,
+            grade: grade,
             classNum: classNo);
 
-        return enrollments.OrderBy(e => e.Number).ToList();
+        // 학적은 (Year, Semester) 단위 행이라 1·2학기 행이 모두 있으면 같은 학생이
+        // 두 번 나온다 — 학생당 최신 학기 행 하나만 남긴다(명부 소비처는 학기 무관 현재 명단 기대)
+        return enrollments
+            .GroupBy(e => e.StudentID)
+            .Select(g => g.OrderByDescending(e => e.Semester).First())
+            .OrderBy(e => e.Number)
+            .ToList();
     }
 
     /// <summary>

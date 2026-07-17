@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using NewSchool.Models;
 using NewSchool.Repositories;
@@ -15,7 +16,7 @@ public class EnrollmentServiceTests : IClassFixture<SqliteTestFixture>
     public EnrollmentServiceTests(SqliteTestFixture db) => _db = db;
 
     // 2학기 재학생 1명을 학년 grade 에 배치하고 그 학생의 학적 반환
-    private async Task<Enrollment> SeedGraduateCandidateAsync(int grade, int year, string status = "재학")
+    private async Task<Enrollment> SeedSecondSemesterStudentAsync(int grade, int year, string status = "재학")
     {
         using var repo = new EnrollmentRepository(_db.DbPath);
         var sid = await _db.NewStudentInDbAsync();
@@ -24,57 +25,90 @@ public class EnrollmentServiceTests : IClassFixture<SqliteTestFixture>
         return e;
     }
 
-    [Theory]
-    [InlineData(2025, "2026-02-28")]  // 평년
-    [InlineData(2027, "2028-02-29")]  // 윤년 (2028)
-    public async Task GraduateAsync_졸업일은_학년도_다음해_2월_말일(int year, string expectedDate)
-    {
-        // 회귀: 졸업일이 new DateTime(year,2,28) 로 계산돼 2025학년도→2025-02 로 찍히던 버그 + 윤년 (2026-07-10)
-        var e = await SeedGraduateCandidateAsync(grade: 3, year: year);
-        using var svc = new EnrollmentService(_db.DbPath);
-
-        int count = await svc.GraduateAsync(TestData.SchoolCode, year, 3);
-        Assert.Equal(1, count);
-
-        using var repo = new EnrollmentRepository(_db.DbPath);
-        var updated = await repo.GetByIdAsync(e.No);
-        Assert.Equal(EnrollmentStatus.Graduated, updated!.Status);
-        Assert.Equal(expectedDate, updated.GraduationDate);
-    }
-
     [Fact]
-    public async Task GraduateAsync_재학생만_대상_휴학은_제외()
+    public async Task PromoteStudentsAsync_최고학년은_진급도_졸업도_하지_않음()
     {
-        int year = TestData.Year + 10; // 격리용 연도
-        await SeedGraduateCandidateAsync(grade: 3, year: year, status: "재학");
-        await SeedGraduateCandidateAsync(grade: 3, year: year, status: "휴학");
+        // 회귀: fromGrade>=3 을 무조건 졸업 처리해 초등(1~6학년) 3학년이 졸업되던 버그 (2026-07-15)
+        int year = TestData.Year + 14;
+        var e = await SeedSecondSemesterStudentAsync(grade: 3, year: year);
 
         using var svc = new EnrollmentService(_db.DbPath);
-        int count = await svc.GraduateAsync(TestData.SchoolCode, year, 3);
+        int count = await svc.PromoteStudentsAsync(TestData.SchoolCode, year, fromGrade: 3, maxGrade: 3);
 
-        Assert.Equal(1, count); // 휴학생은 졸업 처리되지 않음
-    }
-
-    [Fact]
-    public async Task GraduateAsync_대상없으면_0반환()
-    {
-        using var svc = new EnrollmentService(_db.DbPath);
-        int count = await svc.GraduateAsync(TestData.SchoolCode, TestData.Year + 20, 3);
         Assert.Equal(0, count);
+        using var repo = new EnrollmentRepository(_db.DbPath);
+        Assert.Equal(EnrollmentStatus.Enrolled, (await repo.GetByIdAsync(e.No))!.Status); // 졸업 처리 안 됨
     }
 
     [Fact]
-    public async Task GraduateAsync_다른학년은_영향없음()
+    public async Task PromoteStudentsAsync_같은_StudentID로_다음학년도_학적_생성()
+    {
+        int year = TestData.Year + 15;
+        var e = await SeedSecondSemesterStudentAsync(grade: 3, year: year);
+
+        using var svc = new EnrollmentService(_db.DbPath);
+        int count = await svc.PromoteStudentsAsync(TestData.SchoolCode, year, fromGrade: 3, maxGrade: 6);
+
+        Assert.Equal(1, count);
+        using var repo = new EnrollmentRepository(_db.DbPath);
+        var history = await repo.GetHistoryByStudentIdAsync(e.StudentID);
+        var promoted = history.FirstOrDefault(x => x.Year == year + 1);
+        Assert.NotNull(promoted);
+        Assert.Equal(4, promoted!.Grade);
+        Assert.Equal(1, promoted.Semester);
+        Assert.Equal(e.StudentID, promoted.StudentID); // 다년 이력 연속성의 핵심
+    }
+
+    [Fact]
+    public async Task GetClassRosterAsync_학기별_학적이_둘다_있어도_학생은_한번만()
+    {
+        // 회귀: 학기 필터가 없어 1·2학기 학적 행이 둘 다 있는 학생이 명부에 두 번 나오던 문제 (2026-07-15)
+        int year = TestData.Year + 12;
+        using var repo = new EnrollmentRepository(_db.DbPath);
+        var sid = await _db.NewStudentInDbAsync();
+        await repo.CreateAsync(TestData.NewEnrollment(sid, year: year, semester: 1, grade: 2, classNum: 3, number: 7));
+        await repo.CreateAsync(TestData.NewEnrollment(sid, year: year, semester: 2, grade: 2, classNum: 3, number: 7));
+
+        using var svc = new EnrollmentService(_db.DbPath);
+        var roster = await svc.GetClassRosterAsync(TestData.SchoolCode, year, 2, 3);
+
+        var mine = roster.Where(e => e.StudentID == sid).ToList();
+        Assert.Single(mine);
+        Assert.Equal(2, mine[0].Semester); // 최신 학기 행이 남는다
+    }
+
+    [Fact]
+    public async Task GetEnrollmentsAsync_학기_인자가_실제로_필터링됨()
+    {
+        // 회귀: semester 인자가 리포지토리에 전달되지 않고 조용히 무시되던 문제 (2026-07-15)
+        int year = TestData.Year + 13;
+        using var repo = new EnrollmentRepository(_db.DbPath);
+        var sid = await _db.NewStudentInDbAsync();
+        await repo.CreateAsync(TestData.NewEnrollment(sid, year: year, semester: 1, grade: 2, classNum: 3, number: 7));
+        await repo.CreateAsync(TestData.NewEnrollment(sid, year: year, semester: 2, grade: 2, classNum: 3, number: 7));
+
+        using var svc = new EnrollmentService(_db.DbPath);
+        var sem1 = await svc.GetEnrollmentsAsync(TestData.SchoolCode, year, semester: 1, grade: 2, classnum: 3);
+        var all = await svc.GetEnrollmentsAsync(TestData.SchoolCode, year, semester: 0, grade: 2, classnum: 3);
+
+        Assert.Single(sem1, e => e.StudentID == sid);
+        Assert.Equal(1, sem1.First(e => e.StudentID == sid).Semester);
+        Assert.Equal(2, all.Count(e => e.StudentID == sid)); // 0이면 전체
+    }
+
+    [Fact]
+    public async Task PromoteStudentsAsync_휴학생은_진급대상_제외()
     {
         int year = TestData.Year + 11;
-        var g3 = await SeedGraduateCandidateAsync(grade: 3, year: year);
-        var g2 = await SeedGraduateCandidateAsync(grade: 2, year: year);
+        var active = await SeedSecondSemesterStudentAsync(grade: 2, year: year, status: "재학");
+        await SeedSecondSemesterStudentAsync(grade: 2, year: year, status: "휴학");
 
         using var svc = new EnrollmentService(_db.DbPath);
-        await svc.GraduateAsync(TestData.SchoolCode, year, 3);
+        int count = await svc.PromoteStudentsAsync(TestData.SchoolCode, year, fromGrade: 2, maxGrade: 3);
 
+        Assert.Equal(1, count); // 재학생만 진급
         using var repo = new EnrollmentRepository(_db.DbPath);
-        Assert.Equal(EnrollmentStatus.Graduated, (await repo.GetByIdAsync(g3.No))!.Status);
-        Assert.Equal(EnrollmentStatus.Enrolled, (await repo.GetByIdAsync(g2.No))!.Status); // 2학년 유지
+        var history = await repo.GetHistoryByStudentIdAsync(active.StudentID);
+        Assert.Contains(history, x => x.Year == year + 1 && x.Grade == 3);
     }
 }

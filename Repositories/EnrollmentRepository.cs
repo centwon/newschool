@@ -438,7 +438,7 @@ namespace NewSchool.Repositories
         /// 학생 목록 조회 (필터: 학교코드, 학년, 반)
         /// /// 
         /// </summary>
-        public async Task<List<Enrollment>> GetEnrollmentsAsync(string? schoolCode, int year=0, int grade=0, int classNum=0)
+        public async Task<List<Enrollment>> GetEnrollmentsAsync(string? schoolCode, int year=0, int grade=0, int classNum=0, int semester=0)
         {
             var conditions = new List<string> { "IsDeleted = 0" };
             if (!string.IsNullOrWhiteSpace(schoolCode))
@@ -446,6 +446,7 @@ namespace NewSchool.Repositories
             if (year > 0) conditions.Add("Year = @Year");
             if (grade > 0) conditions.Add("Grade = @Grade");
             if (classNum > 0) conditions.Add("Class = @Class");
+            if (semester > 0) conditions.Add("Semester = @Semester");
 
             string query = $@"SELECT * FROM Enrollment
                 WHERE {string.Join(" AND ", conditions)}
@@ -461,6 +462,7 @@ namespace NewSchool.Repositories
                 if (year > 0) cmd.Parameters.AddWithValue("@Year", year);
                 if (grade > 0) cmd.Parameters.AddWithValue("@Grade", grade);
                 if (classNum > 0) cmd.Parameters.AddWithValue("@Class", classNum);
+                if (semester > 0) cmd.Parameters.AddWithValue("@Semester", semester);
                 Debug.WriteLine("Parameters: " + string.Join(", ", cmd.Parameters.Cast<SqliteParameter>().Select(p => $"{p.ParameterName}={p.Value}")));
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
