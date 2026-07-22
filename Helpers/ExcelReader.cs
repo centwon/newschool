@@ -249,18 +249,20 @@ namespace NewSchool.Helpers
             string outputPath = excelPath ?? Path.ChangeExtension(csvPath, ".xlsx");
 
             var rows = new List<Dictionary<string, object>>();
-            var lines = File.ReadAllLines(csvPath);
 
-            if (lines.Length == 0)
+            // RFC 4180 파싱 — 따옴표 안 쉼표·줄바꿈을 올바로 처리(단순 Split(',') 는 인용 필드를 깨뜨림)
+            var records = Services.CsvExportService.ParseRecords(File.ReadAllText(csvPath));
+
+            if (records.Count == 0)
                 throw new Exception("CSV 파일이 비어있습니다.");
 
-            // 첫 줄을 헤더로 사용
-            var headers = lines[0].Split(',');
+            // 첫 레코드를 헤더로 사용
+            var headers = records[0];
 
             // 데이터 행 처리
-            for (int i = 1; i < lines.Length; i++)
+            for (int i = 1; i < records.Count; i++)
             {
-                var values = lines[i].Split(',');
+                var values = records[i];
                 var row = new Dictionary<string, object>();
 
                 for (int j = 0; j < Math.Min(headers.Length, values.Length); j++)

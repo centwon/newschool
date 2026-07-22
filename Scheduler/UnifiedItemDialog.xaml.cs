@@ -533,30 +533,34 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             return tasks;
         }
 
-        var endDate = DateTime.SpecifyKind(
-            PickerEnd?.Date?.Date ?? _taskEvent.Start.Date.AddYears(1),
-            DateTimeKind.Unspecified);
+        var endDate = PickerEnd?.Date?.Date ?? _taskEvent.Start.Date.AddYears(1);
 
-        var current = DateTime.SpecifyKind(_taskEvent.Start.Date, DateTimeKind.Unspecified);
-        int count = 0;
+        RepeatKind kind =
+            RbDaily?.IsChecked   == true ? RepeatKind.Daily   :
+            RbWeekly?.IsChecked  == true ? RepeatKind.Weekly  :
+            RbMonthly?.IsChecked == true ? RepeatKind.Monthly :
+            RbYearly?.IsChecked  == true ? RepeatKind.Yearly  :
+            RepeatKind.None;
+
+        if (kind == RepeatKind.None)
+        {
+            tasks.Add(_taskEvent);
+            return tasks;
+        }
+
+        // 발생 날짜는 앵커(원본 시작일) 기준으로 계산 — 월말·윤년 드리프트 방지(RecurrenceHelper)
+        var dates = RecurrenceHelper.GenerateDates(_taskEvent.Start.Date, endDate, kind, maxCount: 365);
 
         // 반복 생성된 항목들을 하나의 시리즈로 묶어 "이후 반복 항목 모두 삭제"를 가능하게 함
         var seriesId = Guid.NewGuid().ToString("N");
 
-        while (current <= endDate && count < 365)
+        foreach (var date in dates)
         {
             var t = CloneTaskEvent(_taskEvent);
-            t.Start = DateTime.SpecifyKind(current + _taskEvent.Start.TimeOfDay, DateTimeKind.Unspecified);
-            t.End   = t.IsAllday ? DateTime.SpecifyKind(current, DateTimeKind.Unspecified) : t.Start;
+            t.Start = DateTime.SpecifyKind(date + _taskEvent.Start.TimeOfDay, DateTimeKind.Unspecified);
+            t.End   = t.IsAllday ? DateTime.SpecifyKind(date, DateTimeKind.Unspecified) : t.Start;
             t.SeriesId = seriesId;
             tasks.Add(t);
-            count++;
-
-            if      (RbDaily?.IsChecked   == true) current = current.AddDays(1);
-            else if (RbWeekly?.IsChecked  == true) current = current.AddDays(7);
-            else if (RbMonthly?.IsChecked == true) current = current.AddMonths(1);
-            else if (RbYearly?.IsChecked  == true) current = current.AddYears(1);
-            else break;
         }
 
         return tasks;

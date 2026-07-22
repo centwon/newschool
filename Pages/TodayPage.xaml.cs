@@ -224,11 +224,27 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
     #region 오늘 시간표 (내 수업 / 우리 반)
 
+    /// <summary>오늘이 학사일정상 휴업일/공휴일이면 그 사유명(예: "휴업일"), 아니면 null.</summary>
+    private static async Task<string?> GetTodayHolidayNameAsync()
+    {
+        using var svc = new SchoolScheduleService(SchoolDatabase.DbPath);
+        var (success, _, list) = await svc.GetSchedulesByDataRangeAsync(
+            Settings.SchoolCode.Value, DateTime.Today, DateTime.Today.AddDays(1));
+        if (!success || list == null) return null;
+        return list.FirstOrDefault(s => s.IsHoliday)?.SBTR_DD_SC_NM;
+    }
+
     private async Task LoadTimetableSlotsAsync()
     {
         // .NET DayOfWeek: 0=일 … 6=토 / 시간표 DayOfWeek: 1=월 … 5=금
         int netDow = (int)DateTime.Today.DayOfWeek;
         int dow = (netDow >= 1 && netDow <= 5) ? netDow : 0;
+
+        // 학사일정상 휴업일/공휴일이면 수업·학급 시간표를 표시하지 않는다(빈 상태에 사유 표시).
+        string? holidayName = await GetTodayHolidayNameAsync();
+        if (holidayName != null) dow = 0;
+        TxtNoTeacherSlots.Text = holidayName ?? "수업 없음";
+        TxtNoClassSlots.Text   = holidayName ?? "시간표 없음";
 
         // 내 수업 (교사 시간표)
         var teacherSlots = new List<TimetableItemViewModel>();

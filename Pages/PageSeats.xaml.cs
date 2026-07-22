@@ -325,6 +325,15 @@ public sealed partial class PageSeats : Page, IDisposable
         SpaceJjak = 10;
         SpaceRow = 20;
 
+        // 학생이 없거나 배열(줄·짝)이 설정되지 않은 상태에서 초기화하면
+        // TotalStudents/(_jjak*_jul) 또는 이후 /TotalRows 가 0 나눗셈이 되어
+        // 카드 크기가 NaN 이 되고 좌석 배치가 깨진다. 이 경우 빈 좌석만 표시하고 종료.
+        TotalRows = 0;
+        if (TotalStudents == 0 || _jjak <= 0 || _jul <= 0)
+        {
+            return;
+        }
+
         TotalRows = (int)Math.Ceiling((double)TotalStudents / (_jjak * _jul));
 
         // 카드 높이 계산

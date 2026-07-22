@@ -354,20 +354,6 @@ namespace NewSchool.Services
 
         #endregion
 
-        #region NEIS 연동 (향후 확장)
-
-        /// <summary>
-        /// NEIS에서 학교 정보 가져오기 (향후 구현)
-        /// </summary>
-        public async Task<(bool Success, string Message)> ImportFromNEISAsync(string schoolCode)
-        {
-            // TODO: NEIS Open API 연동
-            await Task.Delay(0);
-            return (false, "NEIS 연동 기능은 아직 구현되지 않았습니다.");
-        }
-
-        #endregion
-
         #region IDisposable
 
         public void Dispose()

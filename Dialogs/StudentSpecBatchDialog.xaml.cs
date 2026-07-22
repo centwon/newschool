@@ -400,6 +400,7 @@ public sealed partial class StudentSpecBatchDialog : Window
             using var service = new StudentSpecialService();
             int savedCount = 0;
             int failCount = 0;
+            var savedIds = new List<string>();
 
             foreach (var studentId in _modifiedIds.ToList())
             {
@@ -416,6 +417,7 @@ public sealed partial class StudentSpecBatchDialog : Window
                         spec.No = await service.CreateAsync(spec);
                     }
                     savedCount++;
+                    savedIds.Add(studentId);
                 }
                 catch (Exception ex)
                 {
@@ -424,8 +426,10 @@ public sealed partial class StudentSpecBatchDialog : Window
                 }
             }
 
-            // 저장 후 변경 목록 초기화
-            _modifiedIds.Clear();
+            // 성공한 항목만 변경 목록에서 제거 — 실패 항목은 "수정됨" 상태로 남겨
+            // 재저장 시 다시 시도되도록(전체 Clear 하면 실패한 편집이 조용히 유실됨)
+            foreach (var id in savedIds)
+                _modifiedIds.Remove(id);
 
             // 현재 학생의 원본도 갱신
             if (_currentStudent != null && _specCache.TryGetValue(_currentStudent.StudentID, out var current))
@@ -433,7 +437,8 @@ public sealed partial class StudentSpecBatchDialog : Window
                 _currentOriginalContent = current.Content ?? string.Empty;
             }
 
-            IconModified.Visibility = Visibility.Collapsed;
+            // 아직 저장되지 않은(실패) 항목이 남아 있으면 수정 표시 유지
+            IconModified.Visibility = _modifiedIds.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             UpdateProgress();
 
             var msg = failCount > 0

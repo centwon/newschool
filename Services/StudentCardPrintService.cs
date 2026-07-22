@@ -511,6 +511,166 @@ public class StudentCardPrintService
     /// <summary>
     /// 학급 전체 학생카드 DB 로드 (Enrollment + Student + StudentDetail).
     /// </summary>
+    /// <summary>
+    /// 학급 전체 학생카드를 Excel 로 출력 — 학생 1명당 1행, 카드의 전체 항목을 컬럼으로.
+    /// 데이터 없으면 null.
+    /// </summary>
+    public async Task<string?> GenerateClassCardsExcelFromDbAsync(int year, int grade, int classNo)
+    {
+        var students = await LoadClassStudentsAsync(year, grade, classNo);
+        if (students.Count == 0) return null;
+
+        var rows = students.Select(vm => new CardExportDto
+        {
+            학년 = vm.Enrollment?.Grade ?? grade,
+            반 = vm.Enrollment?.Class ?? classNo,
+            번호 = vm.Enrollment?.Number ?? 0,
+            이름 = vm.Student?.Name ?? string.Empty,
+            성별 = vm.Student?.Sex ?? string.Empty,
+            생년월일 = vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+            연락처 = vm.Student?.Phone ?? string.Empty,
+            이메일 = vm.Student?.Email ?? string.Empty,
+            주소 = vm.Student?.Address ?? string.Empty,
+            부이름 = vm.Detail?.FatherName ?? string.Empty,
+            부연락처 = vm.Detail?.FatherPhone ?? string.Empty,
+            부직업 = vm.Detail?.FatherJob ?? string.Empty,
+            모이름 = vm.Detail?.MotherName ?? string.Empty,
+            모연락처 = vm.Detail?.MotherPhone ?? string.Empty,
+            모직업 = vm.Detail?.MotherJob ?? string.Empty,
+            보호자 = vm.Detail?.GuardianName ?? string.Empty,
+            보호자연락처 = vm.Detail?.GuardianPhone ?? string.Empty,
+            보호자관계 = vm.Detail?.GuardianRelation ?? string.Empty,
+            가족사항 = vm.Detail?.FamilyInfo ?? string.Empty,
+            교우관계 = vm.Detail?.Friends ?? string.Empty,
+            흥미 = vm.Detail?.Interests ?? string.Empty,
+            특기 = vm.Detail?.Talents ?? string.Empty,
+            진로희망 = vm.Detail?.CareerGoal ?? string.Empty,
+            건강정보 = vm.Detail?.HealthInfo ?? string.Empty,
+            알레르기 = vm.Detail?.Allergies ?? string.Empty,
+            특별지원 = vm.Detail?.SpecialNeeds ?? string.Empty,
+            메모 = vm.Detail?.Memo ?? string.Empty,
+        }).ToList();
+
+        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+        var fileName = $"학생카드_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var filePath = Path.Combine(dir, fileName);
+
+        await Task.Run(() => MiniExcelLibs.MiniExcel.SaveAs(filePath, rows));
+        return filePath;
+    }
+
+    private record CardExportDto
+    {
+        public int 학년 { get; init; }
+        public int 반 { get; init; }
+        public int 번호 { get; init; }
+        public string 이름 { get; init; } = string.Empty;
+        public string 성별 { get; init; } = string.Empty;
+        public string 생년월일 { get; init; } = string.Empty;
+        public string 연락처 { get; init; } = string.Empty;
+        public string 이메일 { get; init; } = string.Empty;
+        public string 주소 { get; init; } = string.Empty;
+        public string 부이름 { get; init; } = string.Empty;
+        public string 부연락처 { get; init; } = string.Empty;
+        public string 부직업 { get; init; } = string.Empty;
+        public string 모이름 { get; init; } = string.Empty;
+        public string 모연락처 { get; init; } = string.Empty;
+        public string 모직업 { get; init; } = string.Empty;
+        public string 보호자 { get; init; } = string.Empty;
+        public string 보호자연락처 { get; init; } = string.Empty;
+        public string 보호자관계 { get; init; } = string.Empty;
+        public string 가족사항 { get; init; } = string.Empty;
+        public string 교우관계 { get; init; } = string.Empty;
+        public string 흥미 { get; init; } = string.Empty;
+        public string 특기 { get; init; } = string.Empty;
+        public string 진로희망 { get; init; } = string.Empty;
+        public string 건강정보 { get; init; } = string.Empty;
+        public string 알레르기 { get; init; } = string.Empty;
+        public string 특별지원 { get; init; } = string.Empty;
+        public string 메모 { get; init; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 학급 명렬표(학생정보 요약) PDF — 번호·이름·성별·생년월일·연락처·주소·보호자 연락처 표.
+    /// 데이터 없으면 null.
+    /// </summary>
+    public async Task<string?> GenerateClassInfoPdfFromDbAsync(int year, int grade, int classNo)
+    {
+        var students = await LoadClassStudentsAsync(year, grade, classNo);
+        if (students.Count == 0) return null;
+
+        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+        var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+        var filePath = Path.Combine(dir, fileName);
+
+        await Task.Run(() =>
+        {
+            Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(30);
+                    page.PageColor(Colors.White);
+
+                    page.Header().Column(col =>
+                    {
+                        col.Item().AlignCenter().Text($"{year}학년도 {grade}학년 {classNo}반 학생정보")
+                            .FontSize(16).Bold();
+                        col.Item().AlignRight().Text($"출력일시: {DateTime.Now:yyyy-MM-dd HH:mm}")
+                            .FontSize(8).FontColor(Colors.Grey.Darken1);
+                        col.Item().PaddingBottom(8);
+                    });
+
+                    page.Content().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(34);   // 번호
+                            columns.ConstantColumn(64);   // 이름
+                            columns.ConstantColumn(34);   // 성별
+                            columns.ConstantColumn(76);   // 생년월일
+                            columns.ConstantColumn(92);   // 연락처
+                            columns.RelativeColumn(3);    // 주소
+                            columns.ConstantColumn(64);   // 보호자
+                            columns.ConstantColumn(92);   // 보호자 연락처
+                        });
+
+                        static QuestPDF.Infrastructure.IContainer Head(QuestPDF.Infrastructure.IContainer c) =>
+                            c.Border(0.5f).BorderColor(Colors.Grey.Medium)
+                             .Background(Colors.Grey.Lighten3).Padding(4).AlignCenter().AlignMiddle();
+                        static QuestPDF.Infrastructure.IContainer Cell(QuestPDF.Infrastructure.IContainer c) =>
+                            c.Border(0.5f).BorderColor(Colors.Grey.Medium).Padding(4).AlignMiddle();
+
+                        table.Header(header =>
+                        {
+                            foreach (var h in new[] { "번호", "이름", "성별", "생년월일", "연락처", "주소", "보호자", "보호자 연락처" })
+                                header.Cell().Element(Head).Text(h).FontSize(9).Bold();
+                        });
+
+                        foreach (var vm in students)
+                        {
+                            table.Cell().Element(Cell).AlignCenter().Text((vm.Enrollment?.Number ?? 0).ToString()).FontSize(9);
+                            table.Cell().Element(Cell).Text(vm.Student?.Name ?? "").FontSize(9);
+                            table.Cell().Element(Cell).AlignCenter().Text(vm.Student?.Sex ?? "").FontSize(9);
+                            table.Cell().Element(Cell).AlignCenter().Text(vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? "").FontSize(9);
+                            table.Cell().Element(Cell).Text(vm.Student?.Phone ?? "").FontSize(9);
+                            table.Cell().Element(Cell).Text(vm.Student?.Address ?? "").FontSize(9);
+                            table.Cell().Element(Cell).Text(vm.Detail?.GetPrimaryGuardianName() ?? "").FontSize(9);
+                            table.Cell().Element(Cell).Text(vm.Detail?.GetPrimaryContact() ?? "").FontSize(9);
+                        }
+                    });
+
+                    page.Footer().AlignRight().Text("NewSchool").FontSize(8).FontColor(Colors.Grey.Medium);
+                });
+            }).GeneratePdf(filePath);
+        });
+
+        return filePath;
+    }
+
     internal static async Task<List<StudentCardViewModel>> LoadClassStudentsAsync(int year, int grade, int classNo)
     {
         string schoolCode = Settings.SchoolCode.Value;

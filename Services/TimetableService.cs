@@ -176,40 +176,39 @@ namespace NewSchool.Services
         {
             try
             {
-                // 1. Course 생성
-                using var courseRepo = new CourseRepository(_dbPath);
-                int courseNo = await courseRepo.CreateAsync(course);
-
-                if (courseNo <= 0)
+                // Course + Lesson 을 단일 연결·단일 트랜잭션으로 원자적으로 생성 —
+                // 과목 생성 후 시간표 생성이 실패하면 시간표 없는 고아 과목이 남던 문제를 방지(실패 시 롤백).
+                using var uow = new TimetableUnitOfWork(_dbPath);
+                return await uow.ExecuteInTransactionAsync(async () =>
                 {
-                    Debug.WriteLine($"[TimetableService] Course 생성 실패");
-                    return -1;
-                }
+                    // 1. Course 생성
+                    int courseNo = await uow.Courses.CreateAsync(course);
+                    if (courseNo <= 0)
+                        throw new InvalidOperationException("Course 생성 실패");
 
-                // 2. Lesson 생성
-                if (lessons != null && lessons.Count > 0)
-                {
-                    using var lessonRepo = new LessonRepository(_dbPath);
-                    
-                    foreach (var lesson in lessons)
+                    // 2. Lesson 생성
+                    if (lessons != null && lessons.Count > 0)
                     {
-                        lesson.Course = courseNo;
-                        lesson.Teacher = course.TeacherID;
-                        lesson.Year = course.Year;
-                        lesson.Semester = course.Semester;
-                        lesson.Grade = course.Grade;
-                        lesson.IsRecurring = true;
-                        await lessonRepo.CreateAsync(lesson);
+                        foreach (var lesson in lessons)
+                        {
+                            lesson.Course = courseNo;
+                            lesson.Teacher = course.TeacherID;
+                            lesson.Year = course.Year;
+                            lesson.Semester = course.Semester;
+                            lesson.Grade = course.Grade;
+                            lesson.IsRecurring = true;
+                            await uow.Lessons.CreateAsync(lesson);
+                        }
+
+                        Debug.WriteLine($"[TimetableService] Lesson {lessons.Count}개 생성 완료");
                     }
 
-                    Debug.WriteLine($"[TimetableService] Lesson {lessons.Count}개 생성 완료");
-                }
-
-                return courseNo;
+                    return courseNo;
+                });
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[TimetableService] Course+Lesson 생성 실패: {ex.Message}");
+                Debug.WriteLine($"[TimetableService] Course+Lesson 생성 실패(롤백): {ex.Message}");
                 return -1;
             }
         }
@@ -221,20 +220,20 @@ namespace NewSchool.Services
         {
             try
             {
-                // 1. 관련 Lesson 삭제
-                using var lessonRepo = new LessonRepository(_dbPath);
-                await lessonRepo.DeleteByCourseAsync(courseNo);
-
-                // 2. Course 삭제
-                using var courseRepo = new CourseRepository(_dbPath);
-                bool success = await courseRepo.DeleteAsync(courseNo);
-
-                if (success)
+                // Lesson 삭제 → Course 삭제를 단일 트랜잭션으로 (FK 순서 유지, 실패 시 롤백).
+                using var uow = new TimetableUnitOfWork(_dbPath);
+                return await uow.ExecuteInTransactionAsync(async () =>
                 {
-                    Debug.WriteLine($"[TimetableService] Course 삭제 완료: No={courseNo}");
-                }
+                    // 1. 관련 Lesson 삭제 (FK 제약상 Course 보다 먼저)
+                    await uow.Lessons.DeleteByCourseAsync(courseNo);
 
-                return success;
+                    // 2. Course 삭제
+                    bool success = await uow.Courses.DeleteAsync(courseNo);
+                    if (success)
+                        Debug.WriteLine($"[TimetableService] Course 삭제 완료: No={courseNo}");
+
+                    return success;
+                });
             }
             catch (Exception ex)
             {
@@ -249,17 +248,20 @@ namespace NewSchool.Services
         public async Task<bool> UpdateCourseScheduleAsync(
             int courseNo, List<Lesson> lessons)
         {
+            using var lessonRepo = new LessonRepository(_dbPath);
+
+            // 삭제 후 재생성을 단일 트랜잭션으로 — 중간 실패 시 기존 시간표만 사라지고
+            // 새 시간표는 일부만 남는 것을 방지(실패 시 원자적 롤백).
+            lessonRepo.BeginTransaction();
             try
             {
-                using var lessonRepo = new LessonRepository(_dbPath);
-
                 // 1. 기존 정기 수업 삭제
                 await lessonRepo.DeleteByCourseAsync(courseNo);
 
                 // 2. 새 정기 수업 생성
+                int count = 0;
                 if (lessons != null && lessons.Count > 0)
                 {
-                    int count = 0;
                     foreach (var lesson in lessons)
                     {
                         lesson.Course = courseNo;
@@ -267,15 +269,15 @@ namespace NewSchool.Services
                         await lessonRepo.CreateAsync(lesson);
                         count++;
                     }
-
-                    Debug.WriteLine($"[TimetableService] Lesson 업데이트 완료: {count}개");
-                    return count > 0;
                 }
 
-                return true;
+                lessonRepo.Commit();
+                Debug.WriteLine($"[TimetableService] Lesson 업데이트 완료: {count}개");
+                return lessons == null || lessons.Count == 0 || count > 0;
             }
             catch (Exception ex)
             {
+                lessonRepo.Rollback();
                 Debug.WriteLine($"[TimetableService] Lesson 업데이트 실패: {ex.Message}");
                 return false;
             }
@@ -292,14 +294,17 @@ namespace NewSchool.Services
             string schoolCode, int year, int semester, int grade, int classNo,
             List<ClassTimetable> timetables)
         {
+            using var timetableRepo = new ClassTimetableRepository(_dbPath);
+
+            // 삭제 후 일괄 생성을 단일 트랜잭션으로 — 중간 실패 시 기존 시간표만 사라지는 것을 방지.
+            timetableRepo.BeginTransaction();
             try
             {
-                using var timetableRepo = new ClassTimetableRepository(_dbPath);
-
                 // 1. 기존 시간표 삭제
                 await timetableRepo.DeleteByClassAsync(schoolCode, year, semester, grade, classNo);
 
                 // 2. 새 시간표 생성
+                int count = 0;
                 if (timetables != null && timetables.Count > 0)
                 {
                     // 학급 정보 채우기
@@ -312,15 +317,16 @@ namespace NewSchool.Services
                         timetable.Class = classNo;
                     }
 
-                    int count = await timetableRepo.CreateBatchAsync(timetables);
-                    Debug.WriteLine($"[TimetableService] ClassTimetable {count}개 생성 완료");
-                    return count;
+                    count = await timetableRepo.CreateBatchAsync(timetables);
                 }
 
-                return 0;
+                timetableRepo.Commit();
+                Debug.WriteLine($"[TimetableService] ClassTimetable {count}개 생성 완료");
+                return count;
             }
             catch (Exception ex)
             {
+                timetableRepo.Rollback();
                 Debug.WriteLine($"[TimetableService] ClassTimetable 생성 실패: {ex.Message}");
                 return -1;
             }

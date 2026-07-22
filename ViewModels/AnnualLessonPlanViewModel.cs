@@ -113,7 +113,6 @@ namespace NewSchool.ViewModels
                 _currentPlan = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasCurrentPlan));
-                OnPropertyChanged(nameof(CanConfirm));
             }
         }
 
@@ -155,10 +154,6 @@ namespace NewSchool.ViewModels
             set { if (_totalWeeks == value) return; _totalWeeks = value; OnPropertyChanged(); }
         }
 
-        public bool CanConfirm => HasCurrentPlan &&
-                                  CurrentPlan?.Status == "DRAFT" &&
-                                  TotalPlannedHours > 0 &&
-                                  Units.Count > 0;
 
         // 학기 정보
         public int Year { get; set; } = DateTime.Today.Year;
@@ -564,32 +559,6 @@ namespace NewSchool.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"[AnnualLessonPlanVM] 시수 일괄 추가 오류: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region Confirm Plan
-
-        /// <summary>
-        /// 계획 확정
-        /// </summary>
-        public async Task ConfirmPlanAsync()
-        {
-            if (CurrentPlan == null) return;
-
-            try
-            {
-                using var planRepo = new SubjectYearPlanRepository(_dbPath);
-                await planRepo.UpdateStatusAsync(CurrentPlan.No, "CONFIRMED");
-
-                CurrentPlan.Status = "CONFIRMED";
-                OnPropertyChanged(nameof(CurrentPlan));
-                OnPropertyChanged(nameof(CanConfirm));
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[AnnualLessonPlanVM] 계획 확정 오류: {ex.Message}");
             }
         }
 

@@ -16,6 +16,9 @@ namespace NewSchool.Repositories
     {
         public CourseRepository(string dbPath) : base(dbPath) { }
 
+        /// <summary>공유 연결 생성자 (UnitOfWork 전용). 테이블은 이미 존재한다고 가정하므로 DDL 을 실행하지 않는다.</summary>
+        public CourseRepository(SqliteConnection connection) : base(connection) { }
+
         #region Create
 
         /// <summary>

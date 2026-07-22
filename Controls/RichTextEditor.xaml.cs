@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
@@ -191,10 +192,61 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 인쇄. WinUIRichEditor 는 시스템 인쇄 다이얼로그가 없어 PDF 로 렌더 후 기본 뷰어로 열어 인쇄하게 한다
-    /// (JoditEditor 의 브라우저 인쇄 다이얼로그와 UX 가 다름 — 추후 PrintManager 연동 검토).
+    /// 인쇄. 시스템 인쇄 다이얼로그(PrintManager)를 띄우고, 띄울 수 없으면 PDF 로 렌더해 기본 뷰어로 연다.
+    ///
+    /// <para>⚠ 현재 배포 구성(Native AOT)에서는 <b>항상 PDF 경로</b>를 탄다.
+    /// <c>PrintManagerInterop.ShowPrintUIForWindowAsync</c> 가 결과를 <c>IAsyncOperation&lt;bool&gt;</c> 로
+    /// 동적 캐스팅하는데, CsWinRT 2.2 는 동적 코드가 꺼진 호스트에서 이 ABI 헬퍼를 찾지 못해
+    /// <see cref="NotSupportedException"/> 을 던진다(<c>PublishAot</c> 는 Debug 빌드의 runtimeconfig 에도
+    /// <c>IsDynamicCodeSupported=false</c> 를 박는다). 라이브러리가 이를 감지해 대화상자를 띄우기 전에
+    /// 물러나므로, 죽은 인쇄창이 뜨거나 PDF 뷰어와 겹치는 일은 없다.
+    /// AOT 를 끄면 인쇄 대화상자가 자동으로 동작한다.</para>
     /// </summary>
-    public async Task PrintAsync()
+    public async Task PrintAsync(string jobTitle = "NewSchool")
+    {
+        if (_editor == null) return;
+
+        // 시스템 인쇄 다이얼로그는 호스트 창의 HWND 가 필요하다.
+        // 이 컨트롤은 MainWindow 와 RichTextEditorWin(전체화면 편집) 양쪽에 얹히므로
+        // 실제로 올라가 있는 창을 XamlRoot 로 역추적한다(App.MainWindow 고정 참조 금지 — 다이얼로그가 엉뚱한 창에 붙음).
+        nint hwnd = TryGetHostWindowHandle();
+        if (hwnd != 0 &&
+            await RichEditorPrintHelper.ShowPrintUIAsync(_editor, hwnd, jobTitle))
+        {
+            return;
+        }
+
+        await PrintViaPdfFallbackAsync();
+    }
+
+    /// <summary>이 컨트롤이 올라가 있는 창의 HWND. 못 구하면 0.</summary>
+    private nint TryGetHostWindowHandle()
+    {
+        try
+        {
+            var island = XamlRoot?.ContentIslandEnvironment;
+            if (island != null)
+                return Win32Interop.GetWindowFromWindowId(island.AppWindowId);
+        }
+        catch
+        {
+            // 아래 폴백으로
+        }
+
+        try
+        {
+            if (App.MainWindow != null)
+                return WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        }
+        catch
+        {
+            // 창 핸들 확보 실패 — 호출부에서 PDF 폴백
+        }
+        return 0;
+    }
+
+    /// <summary>인쇄 다이얼로그를 쓸 수 없을 때: PDF 로 렌더 후 기본 뷰어로 열어 사용자가 인쇄하게 한다.</summary>
+    private async Task PrintViaPdfFallbackAsync()
     {
         if (_editor == null) return;
         string dir = Path.Combine(Path.GetTempPath(), "NewSchool", "Print");

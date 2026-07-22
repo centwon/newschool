@@ -118,9 +118,12 @@ public sealed partial class UnifiedExportPage : Page
         try
         {
             var service = new UnifiedExportService();
-            string? csv = dataType == UnifiedExportService.DataType.StudentSpec
-                ? await service.BuildClassSpecsCsvAsync(year, grade, classNo)
-                : await service.BuildClassLogsCsvAsync(year, grade, classNo);
+            string? csv = dataType switch
+            {
+                UnifiedExportService.DataType.StudentSpec => await service.BuildClassSpecsCsvAsync(year, grade, classNo),
+                UnifiedExportService.DataType.StudentInfo => await service.BuildClassInfoCsvAsync(year, grade, classNo),
+                _ => await service.BuildClassLogsCsvAsync(year, grade, classNo)
+            };
 
             if (string.IsNullOrEmpty(csv))
             {
@@ -204,12 +207,13 @@ public sealed partial class UnifiedExportPage : Page
         if (RbStudentSpec.IsChecked == true) return UnifiedExportService.DataType.StudentSpec;
         if (RbSeats.IsChecked == true) return UnifiedExportService.DataType.Seats;
         if (RbStudentCard?.IsChecked == true) return UnifiedExportService.DataType.StudentCard;
+        if (RbStudentInfo?.IsChecked == true) return UnifiedExportService.DataType.StudentInfo;
         return UnifiedExportService.DataType.StudentLog;
     }
 
     /// <summary>
     /// 데이터 타입 변경 시 형식 옵션을 타입별로 제한한다.
-    /// 좌석배정 = PDF/HTML 전용, 나머지는 Excel/PDF/HTML.
+    /// Excel 은 전 타입 지원. CSV·클립보드 복사는 표 형태(누가기록·학생부·학생정보)만.
     /// </summary>
     private void DataType_Checked(object sender, RoutedEventArgs e)
     {
@@ -217,16 +221,15 @@ public sealed partial class UnifiedExportPage : Page
 
         bool isSeats = RbSeats?.IsChecked == true;
         bool isCard = RbStudentCard?.IsChecked == true;
-        bool tabularDisabled = isSeats || isCard;  // Excel/CSV는 표 데이터에만 해당
+        bool csvDisabled = isSeats || isCard;  // 좌석 그리드·카드형은 CSV 표현이 무의미
 
-        RbFmtExcel.IsEnabled = !tabularDisabled;
-        if (RbFmtCsv != null) RbFmtCsv.IsEnabled = !tabularDisabled;
-        if (BtnCopyClipboard != null) BtnCopyClipboard.IsEnabled = !tabularDisabled;
+        if (RbFmtCsv != null) RbFmtCsv.IsEnabled = !csvDisabled;
+        if (BtnCopyClipboard != null) BtnCopyClipboard.IsEnabled = !csvDisabled;
 
-        if (tabularDisabled)
+        if (csvDisabled && RbFmtCsv?.IsChecked == true)
         {
-            if (RbFmtExcel.IsChecked == true) { RbFmtExcel.IsChecked = false; RbFmtPdf.IsChecked = true; }
-            if (RbFmtCsv?.IsChecked == true)  { RbFmtCsv.IsChecked  = false; RbFmtPdf.IsChecked = true; }
+            RbFmtCsv.IsChecked = false;
+            RbFmtPdf.IsChecked = true;
         }
     }
 

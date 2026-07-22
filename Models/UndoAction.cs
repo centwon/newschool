@@ -122,6 +122,7 @@ public class UndoAction
 [JsonSerializable(typeof(ShiftActionData))]
 [JsonSerializable(typeof(ScheduleActionData))]
 [JsonSerializable(typeof(BulkGenerateActionData))]
+[JsonSerializable(typeof(BulkScheduleSlot))]
 [JsonSerializable(typeof(MergeActionData))]
 internal partial class UndoActionJsonContext : JsonSerializerContext
 {
@@ -279,9 +280,16 @@ public class ScheduleActionData
 public class BulkGenerateActionData
 {
     /// <summary>
-    /// 생성된 일정 ID 목록
+    /// 생성된 일정 ID 목록. (구 기록 호환용 — Undo 삭제의 폴백 경로에서 사용)
     /// </summary>
     public List<int> CreatedScheduleIds { get; set; } = new();
+
+    /// <summary>
+    /// 배치 슬롯 스냅샷 — Undo/Redo 를 스케줄 ID 가 아닌 (날짜·교시) 내용으로 대칭 처리하기 위한 것.
+    /// Redo 재생성 시 ID 가 새로 발급돼도 이 스냅샷으로 정확히 복원된다(Undo→Redo→Undo 반복 안전).
+    /// 비어 있으면 구 기록이므로 Undo 는 <see cref="CreatedScheduleIds"/> 로, Redo 는 미지원 처리.
+    /// </summary>
+    public List<BulkScheduleSlot> Slots { get; set; } = new();
 
     /// <summary>
     /// 시작일
@@ -292,6 +300,19 @@ public class BulkGenerateActionData
     /// 종료일
     /// </summary>
     public DateTime EndDate { get; set; }
+}
+
+/// <summary>
+/// 자동 배치로 채워진 한 슬롯의 내용 스냅샷 (과목·학급은 <see cref="UndoAction"/> 에서 가져오므로 생략).
+/// </summary>
+public class BulkScheduleSlot
+{
+    public DateTime Date { get; set; }
+    public int Period { get; set; }
+    public bool IsPinned { get; set; }
+
+    /// <summary>이 슬롯에 매핑된 단원(CourseSection) ID 목록.</summary>
+    public List<int> SectionIds { get; set; } = new();
 }
 
 /// <summary>

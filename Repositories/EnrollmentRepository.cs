@@ -267,11 +267,8 @@ namespace NewSchool.Repositories
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader));
-                }
+                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
+                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
 
                 LogInfo($"학적 이력 조회 완료: StudentID={studentId}, Count={enrollments.Count}");
                 return enrollments;
@@ -298,11 +295,8 @@ namespace NewSchool.Repositories
             {
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader));
-                }
+                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
+                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
                 LogInfo($"학교별 전체 학생 조회 완료: SchoolCode={schoolCode}, Count={enrollments.Count}");
                 return enrollments;
             }
@@ -338,11 +332,8 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Year", year);
                 if (semester ==1 || semester==2) cmd.Parameters.AddWithValue("@Semester", semester);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader));
-                }
+                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
+                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
 
                 LogInfo($"학교별 학적 조회 완료: SchoolCode={schoolCode}, Count={enrollments.Count}");
                 return enrollments;
@@ -378,11 +369,8 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Grade", grade);
                 cmd.Parameters.AddWithValue("@Class", classNum);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader));
-                }
+                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
+                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
 
                 LogInfo($"반별 학생 조회 완료: {grade}학년 {classNum}반, Count={enrollments.Count}");
                 return enrollments;
@@ -419,11 +407,8 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Semester", semester);
                 if (grade > 0) cmd.Parameters.AddWithValue("@Grade", grade);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader));
-                }
+                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
+                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
 
                 LogInfo($"학년별 학생 조회 완료: {grade}학년, Count={enrollments.Count}");
                 return enrollments;
@@ -464,11 +449,8 @@ namespace NewSchool.Repositories
                 if (classNum > 0) cmd.Parameters.AddWithValue("@Class", classNum);
                 if (semester > 0) cmd.Parameters.AddWithValue("@Semester", semester);
                 Debug.WriteLine("Parameters: " + string.Join(", ", cmd.Parameters.Cast<SqliteParameter>().Select(p => $"{p.ParameterName}={p.Value}")));
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader));
-                }
+                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
+                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
 
                 LogInfo($"반별 학생 조회 완료: {grade}학년 {classNum}반, Count={enrollments.Count}");
                 return enrollments;
@@ -500,11 +482,8 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@TeacherID", teacherId);
                 cmd.Parameters.AddWithValue("@Year", year);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader));
-                }
+                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
+                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
 
                 LogInfo($"담임교사별 학생 조회 완료: TeacherID={teacherId}, Count={enrollments.Count}");
                 return enrollments;

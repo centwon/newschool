@@ -256,7 +256,11 @@ public sealed partial class RosterTableDialog : ContentDialog
                         ShowError("반을 선택하세요.");
                         return string.Empty;
                     }
-                    var classNum = int.Parse(classStr.Replace("반", ""));
+                    if (!int.TryParse(classStr.Replace("반", "").Trim(), out var classNum))
+                    {
+                        ShowError("반 번호를 해석할 수 없습니다.");
+                        return string.Empty;
+                    }
                     students = await LoadClassStudentsAsync(grade, classNum);
                     scopeLabel = $"{Settings.WorkYear.Value}학년도 {grade}학년 {classNum}반";
                     break;
@@ -429,14 +433,17 @@ public sealed partial class RosterTableDialog : ContentDialog
         var enrollments = await courseService.GetCourseEnrollmentsAsync(
             Settings.SchoolCode, Settings.WorkYear.Value, Settings.WorkSemester.Value, courseNo);
 
-        var studentIds = enrollments.Select(e => e.StudentID).ToList();
+        var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
         using var enrollService = new EnrollmentService();
+        // 학기를 지정하지 않으면 1·2학기 학적이 모두 반환돼, 양 학기 재적 학생에서
+        // StudentID 중복으로 ToDictionary 가 예외를 던진다 — 현재 학기로 한정해 학생당 1행만.
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
-            Settings.SchoolCode, Settings.WorkYear.Value);
+            Settings.SchoolCode, Settings.WorkYear.Value, Settings.WorkSemester.Value);
 
         var studentMap = allEnrollments
             .Where(e => studentIds.Contains(e.StudentID))
-            .ToDictionary(e => e.StudentID, e => (e.Grade, e.Class, e.Number, e.Name));
+            .GroupBy(e => e.StudentID)
+            .ToDictionary(g => g.Key, g => (g.First().Grade, g.First().Class, g.First().Number, g.First().Name));
 
         var result = new Dictionary<string, List<(int Grade, int Class, int Number, string Name)>>();
         foreach (var ce in enrollments.OrderBy(e => e.Room))
@@ -470,14 +477,17 @@ public sealed partial class RosterTableDialog : ContentDialog
         var enrollments = await courseService.GetCourseEnrollmentsAsync(
             Settings.SchoolCode, Settings.WorkYear.Value, Settings.WorkSemester.Value, courseNo);
 
-        var studentIds = enrollments.Select(e => e.StudentID).ToList();
+        var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
         using var enrollService = new EnrollmentService();
+        // 학기 미지정 시 1·2학기 학적이 모두 반환돼 StudentID 중복으로 ToDictionary 가 예외를 던짐 —
+        // 현재 학기로 한정 + GroupBy 로 학생당 1행 보장
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
-            Settings.SchoolCode, Settings.WorkYear.Value);
+            Settings.SchoolCode, Settings.WorkYear.Value, Settings.WorkSemester.Value);
 
         var studentMap = allEnrollments
             .Where(e => studentIds.Contains(e.StudentID))
-            .ToDictionary(e => e.StudentID, e => (e.Number, e.Name));
+            .GroupBy(e => e.StudentID)
+            .ToDictionary(g => g.Key, g => (g.First().Number, g.First().Name));
 
         var result = new Dictionary<string, List<(int Number, string Name)>>();
         foreach (var ce in enrollments.OrderBy(e => e.Room))
@@ -512,7 +522,7 @@ public sealed partial class RosterTableDialog : ContentDialog
         }
 
         // CourseEnrollment에는 Name이 없으므로 Enrollment에서 조회
-        var studentIds = enrollments.Select(e => e.StudentID).ToList();
+        var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
         using var enrollService = new EnrollmentService();
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
             Settings.SchoolCode, Settings.WorkYear.Value);
@@ -529,7 +539,7 @@ public sealed partial class RosterTableDialog : ContentDialog
         using var clubRepo = new Repositories.ClubEnrollmentRepository(SchoolDatabase.DbPath);
         var enrollments = await clubRepo.GetByClubAsync(clubNo);
 
-        var studentIds = enrollments.Select(e => e.StudentID).ToList();
+        var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
         using var enrollService = new EnrollmentService();
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
             Settings.SchoolCode, Settings.WorkYear.Value);
@@ -546,7 +556,7 @@ public sealed partial class RosterTableDialog : ContentDialog
         using var clubRepo = new Repositories.ClubEnrollmentRepository(SchoolDatabase.DbPath);
         var enrollments = await clubRepo.GetByClubAsync(clubNo);
 
-        var studentIds = enrollments.Select(e => e.StudentID).ToList();
+        var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
         using var enrollService = new EnrollmentService();
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
             Settings.SchoolCode, Settings.WorkYear.Value);

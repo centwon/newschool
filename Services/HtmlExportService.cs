@@ -321,6 +321,57 @@ public class HtmlExportService
         return filePath;
     }
 
+    /// <summary>학급 명렬표(학생정보 요약) HTML 문자열 — 번호·이름·성별·생년월일·연락처·주소·보호자 연락처.</summary>
+    public string BuildClassInfoHtml(
+        int year, int grade, int classNo,
+        List<NewSchool.ViewModels.StudentCardViewModel> students)
+    {
+        var sb = new StringBuilder(BuildHtmlHeader($"학생정보 - {grade}학년 {classNo}반", landscape: true));
+        sb.AppendLine($"<h1>{year}학년도 {grade}학년 {classNo}반 학생정보</h1>");
+        sb.AppendLine($"<div class=\"meta\">총 {students.Count}명</div>");
+
+        sb.AppendLine("<table>");
+        sb.AppendLine("<thead><tr>");
+        sb.AppendLine("<th style=\"width:40px\">번호</th>");
+        sb.AppendLine("<th style=\"width:70px\">이름</th>");
+        sb.AppendLine("<th style=\"width:40px\">성별</th>");
+        sb.AppendLine("<th style=\"width:90px\">생년월일</th>");
+        sb.AppendLine("<th style=\"width:110px\">연락처</th>");
+        sb.AppendLine("<th>주소</th>");
+        sb.AppendLine("<th style=\"width:70px\">보호자</th>");
+        sb.AppendLine("<th style=\"width:110px\">보호자 연락처</th>");
+        sb.AppendLine("</tr></thead><tbody>");
+
+        foreach (var vm in students)
+        {
+            sb.Append("<tr>");
+            sb.Append($"<td class=\"center\">{vm.Enrollment?.Number ?? 0}</td>");
+            sb.Append($"<td class=\"center\">{E(vm.Student?.Name)}</td>");
+            sb.Append($"<td class=\"center\">{E(vm.Student?.Sex)}</td>");
+            sb.Append($"<td class=\"center\">{vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? ""}</td>");
+            sb.Append($"<td>{E(vm.Student?.Phone)}</td>");
+            sb.Append($"<td>{E(vm.Student?.Address)}</td>");
+            sb.Append($"<td class=\"center\">{E(vm.Detail?.GetPrimaryGuardianName())}</td>");
+            sb.Append($"<td>{E(vm.Detail?.GetPrimaryContact())}</td>");
+            sb.AppendLine("</tr>");
+        }
+        sb.AppendLine("</tbody></table>");
+
+        sb.Append(BuildHtmlFooter());
+        return sb.ToString();
+    }
+
+    /// <summary>학급 명렬표 HTML 파일 저장</summary>
+    public string ExportClassInfoToHtml(
+        int year, int grade, int classNo,
+        List<NewSchool.ViewModels.StudentCardViewModel> students)
+    {
+        var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+        var filePath = Path.Combine(GetOutputDir(), fileName);
+        File.WriteAllText(filePath, BuildClassInfoHtml(year, grade, classNo, students), Encoding.UTF8);
+        return filePath;
+    }
+
     private static void AppendSpecTable(StringBuilder sb, List<StudentSpecial> specs)
     {
         sb.AppendLine("<table><thead><tr>");

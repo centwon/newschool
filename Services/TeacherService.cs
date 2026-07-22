@@ -414,42 +414,6 @@ namespace NewSchool.Services
 
         #endregion
 
-        #region 로그인 관리
-
-        /// <summary>
-        /// 교사 로그인
-        /// </summary>
-        public async Task<(bool Success, string Message, Teacher? Teacher)> LoginAsync(
-            string loginId,
-            string password)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-
-            try
-            {
-                var teacher = await teacherRepo.GetByLoginIdAsync(loginId);
-                if (teacher == null)
-                {
-                    return (false, "존재하지 않는 사용자입니다.", null);
-                }
-
-                // TODO: 비밀번호 검증 (암호화된 비밀번호와 비교)
-                // 현재는 임시로 생략
-
-                // 마지막 로그인 시간 업데이트
-                await teacherRepo.UpdateLastLoginAsync(teacher.No);
-
-                return (true, "로그인에 성공했습니다.", teacher);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 로그인 실패: {ex.Message}");
-                return (false, $"로그인 중 오류가 발생했습니다: {ex.Message}", null);
-            }
-        }
-
-        #endregion
-
         #region IDisposable
 
         public void Dispose()

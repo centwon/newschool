@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
@@ -14,6 +15,13 @@ public class ScheduleUnitMapRepository : BaseRepository
 {
     public ScheduleUnitMapRepository(string dbPath) : base(dbPath)
     {
+        EnsureTableExists();
+    }
+
+    /// <summary>공유 연결 생성자 — 다른 리포지토리와 한 연결·한 트랜잭션을 공유할 때 사용(자동 배치 원자화).</summary>
+    public ScheduleUnitMapRepository(Microsoft.Data.Sqlite.SqliteConnection connection) : base(connection)
+    {
+        // ScheduleUnitMap 테이블은 DatabaseInitializer 가 만들지 않으므로 공유 연결에서도 DDL 을 보장한다
         EnsureTableExists();
     }
 
@@ -175,6 +183,34 @@ public class ScheduleUnitMapRepository : BaseRepository
             LogError($"스케줄별 매핑 조회 실패: ScheduleId={scheduleId}", ex);
             throw;
         }
+    }
+
+    /// <summary>
+    /// 여러 스케줄의 매핑을 IN 절로 한 번에 조회 — 스케줄마다 개별 조회하는 N+1 을 제거한다.
+    /// </summary>
+    public async Task<List<ScheduleUnitMap>> GetBySchedulesAsync(IReadOnlyCollection<int> scheduleIds)
+    {
+        if (scheduleIds.Count == 0)
+            return new List<ScheduleUnitMap>();
+
+        // 파라미터 바인딩으로 IN 절 구성 (SQLite 기본 파라미터 상한 999 대비 청크 분할)
+        const int chunkSize = 500;
+        var results = new List<ScheduleUnitMap>();
+
+        foreach (var chunk in scheduleIds.Chunk(chunkSize))
+        {
+            var placeholders = string.Join(", ", chunk.Select((_, i) => $"@p{i}"));
+            using var cmd = CreateCommand($@"
+                SELECT * FROM ScheduleUnitMap
+                WHERE ScheduleId IN ({placeholders})
+                ORDER BY ScheduleId, OrderInSlot");
+            for (int i = 0; i < chunk.Length; i++)
+                cmd.Parameters.AddWithValue($"@p{i}", chunk[i]);
+
+            results.AddRange(await ExecuteQueryAsync(cmd));
+        }
+
+        return results;
     }
 
     /// <summary>

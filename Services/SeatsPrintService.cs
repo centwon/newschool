@@ -124,6 +124,80 @@ public class SeatsPrintService
     }
 
     /// <summary>
+    /// DB에 저장된 학급 좌석 배치를 Excel 로 출력 — 시트1 "좌석배치"(교탁에서 바라본 그리드),
+    /// 시트2 "명단"(번호·이름). 저장된 배치가 없으면 null.
+    /// </summary>
+    public async Task<string?> GenerateSeatsExcelFromDbAsync(int year, int grade, int classNo)
+    {
+        var loaded = await LoadCellsAsync(year, grade, classNo);
+        if (loaded == null) return null;
+        var (cells, jul, jjak, _, _) = loaded.Value;
+
+        int totalCols = jul * jjak;
+        int totalRows = cells.Count > 0
+            ? (int)Math.Ceiling((double)cells.Count / totalCols)
+            : 1;
+
+        // HTML/PDF 와 같은 시선(교탁에서 바라본 배치): 행은 뒤→앞, 열은 오른쪽→왼쪽 순
+        var grid = new List<Dictionary<string, object>>();
+        for (int row = totalRows - 1; row >= 0; row--)
+        {
+            var line = new Dictionary<string, object>();
+            int colIdx = 1;
+            for (int g = jul - 1; g >= 0; g--)
+            {
+                for (int j = jjak - 1; j >= 0; j--)
+                {
+                    int col = g * jjak + j;
+                    var card = cells.FirstOrDefault(c => c.Row == row && c.Col == col);
+                    line[colIdx.ToString()] = SeatCellText(card);
+                    colIdx++;
+                }
+            }
+            grid.Add(line);
+        }
+
+        var roster = cells
+            .Where(c => c.StudentData != null && !c.IsHidden && !c.IsUnUsed)
+            .Select(c => c.StudentData!)
+            .GroupBy(s => s.StudentID)
+            .Select(g => g.First())
+            .OrderBy(s => s.Number)
+            .Select(s => new RosterExportDto { 번호 = s.Number, 이름 = s.Name })
+            .ToList();
+
+        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+        var fileName = $"좌석배정표_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var filePath = Path.Combine(dir, fileName);
+
+        var sheets = new Dictionary<string, object>
+        {
+            ["좌석배치"] = grid,
+            ["명단"] = roster
+        };
+        await Task.Run(() => MiniExcelLibs.MiniExcel.SaveAs(filePath, sheets));
+        return filePath;
+    }
+
+    private record RosterExportDto
+    {
+        public int 번호 { get; init; }
+        public string 이름 { get; init; } = string.Empty;
+    }
+
+    /// <summary>좌석 셀의 Excel 표시 텍스트 (HTML 셀과 동일 규칙).</summary>
+    private static string SeatCellText(SeatCellData? card)
+    {
+        if (card != null && card.IsHidden) return string.Empty;
+        if (card == null || card.IsUnUsed) return "×";
+        if (card.StudentData == null) return string.Empty;
+
+        var s = card.StudentData;
+        return $"{s.Name}({s.Number}){(card.IsFixed ? " 📌" : "")}";
+    }
+
+    /// <summary>
     /// DB + 명단에서 좌석 셀 목록을 구성한다.
     /// </summary>
     private async Task<(List<SeatCellData> Cells, int Jul, int Jjak, string Message, bool ShowPhoto)?>

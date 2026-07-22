@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="using:NewSchool.Pages"
+    xmlns:control="using:NewSchool.Controls"
     mc:Ignorable="d">
 
     <Grid>
@@ -127,6 +128,55 @@
                                 PlaceholderText="학교 주소를 입력하세요"
                                 LostFocus="OnSchoolAddressChanged"
                                 IsReadOnly="True"/>
+
+                            <!-- NEIS 에서 받아온 추가 학교 정보 (표시 전용, School DB 에서 로드) -->
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox
+                                    x:Name="SchoolTypeTextBox"
+                                    Grid.Column="0"
+                                    Header="학교 종류"
+                                    PlaceholderText="예: 중학교"
+                                    IsReadOnly="True"/>
+
+                                <TextBox
+                                    x:Name="FoundationDateTextBox"
+                                    Grid.Column="1"
+                                    Header="개교기념일"
+                                    PlaceholderText="예: 19800301"
+                                    IsReadOnly="True"/>
+                            </Grid>
+
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox
+                                    x:Name="SchoolPhoneTextBox"
+                                    Grid.Column="0"
+                                    Header="전화번호"
+                                    PlaceholderText="학교 전화번호"
+                                    IsReadOnly="True"/>
+
+                                <TextBox
+                                    x:Name="SchoolFaxTextBox"
+                                    Grid.Column="1"
+                                    Header="팩스번호"
+                                    PlaceholderText="학교 팩스번호"
+                                    IsReadOnly="True"/>
+                            </Grid>
+
+                            <TextBox
+                                x:Name="SchoolWebsiteTextBox"
+                                Header="홈페이지"
+                                PlaceholderText="학교 홈페이지 주소"
+                                IsReadOnly="True"/>
                         </StackPanel>
                     </Expander.Content>
                 </Expander>
@@ -163,16 +213,14 @@
                     <Expander.Content>
                         <StackPanel Spacing="12" Padding="16">
 
-                            <TimePicker
+                            <control:CompactTimeButton
                                 x:Name="DayStartingTimePicker"
                                 Header="등교 시간"
-                                ClockIdentifier="24HourClock"
                                 TimeChanged="OnDayStartingChanged"/>
 
-                            <TimePicker
+                            <control:CompactTimeButton
                                 x:Name="AssemblyTimePicker"
                                 Header="조회 시간 (분)"
-                                ClockIdentifier="24HourClock"
                                 TimeChanged="OnAssemblyTimeChanged"/>
 
                             <NumberBox
@@ -209,20 +257,20 @@
                                            FontSize="12"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                    <NumberBox x:Name="PeriodsMonBox" Header="월" Width="72"
-                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                    <NumberBox x:Name="PeriodsMonBox" Header="월" Width="96"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Inline"
                                                ValueChanged="OnPeriodsPerDayChanged"/>
-                                    <NumberBox x:Name="PeriodsTueBox" Header="화" Width="72"
-                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                    <NumberBox x:Name="PeriodsTueBox" Header="화" Width="96"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Inline"
                                                ValueChanged="OnPeriodsPerDayChanged"/>
-                                    <NumberBox x:Name="PeriodsWedBox" Header="수" Width="72"
-                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                    <NumberBox x:Name="PeriodsWedBox" Header="수" Width="96"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Inline"
                                                ValueChanged="OnPeriodsPerDayChanged"/>
-                                    <NumberBox x:Name="PeriodsThuBox" Header="목" Width="72"
-                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                    <NumberBox x:Name="PeriodsThuBox" Header="목" Width="96"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Inline"
                                                ValueChanged="OnPeriodsPerDayChanged"/>
-                                    <NumberBox x:Name="PeriodsFriBox" Header="금" Width="72"
-                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact"
+                                    <NumberBox x:Name="PeriodsFriBox" Header="금" Width="96"
+                                               Minimum="1" Maximum="12" SpinButtonPlacementMode="Inline"
                                                ValueChanged="OnPeriodsPerDayChanged"/>
                                 </StackPanel>
                             </StackPanel>

@@ -497,7 +497,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
                 return;
             }
 
-            await PreviewEditor.PrintAsync();
+            await PreviewEditor.PrintAsync("학생 정보");
         }
         catch (InvalidOperationException ex)
         {

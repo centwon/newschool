@@ -174,23 +174,30 @@ public class CourseSectionRepository : BaseRepository
     {
         try
         {
-            // 1. 기존 단원 삭제
-            await DeleteByCourseAsync(courseNo);
-
-            // 2. 새 단원 일괄 생성
-            int count = 0;
-            int sortOrder = 1;
-
-            foreach (var section in sections)
+            // 전체를 하나의 트랜잭션으로 처리 — 기존 단원(+진도·매핑 연쇄삭제)을 지운 뒤
+            // 새 단원을 삽입하므로, 중간 실패 시 롤백되지 않으면 기존 데이터가 통째로 유실됨.
+            // (CSV 가져오기 경로에서 호출됨) DeleteByCourseAsync·CreateAsync 는 CreateCommand 로
+            // 활성 트랜잭션을 이어받으므로 여기서 감싸면 모두 원자적으로 커밋/롤백된다.
+            return await ExecuteInTransactionAsync(async () =>
             {
-                section.Course = courseNo;
-                section.SortOrder = sortOrder++;
-                await CreateAsync(section);
-                count++;
-            }
+                // 1. 기존 단원 삭제
+                await DeleteByCourseAsync(courseNo);
 
-            LogInfo($"단원 일괄 생성 완료: Course={courseNo}, {count}개");
-            return count;
+                // 2. 새 단원 일괄 생성
+                int count = 0;
+                int sortOrder = 1;
+
+                foreach (var section in sections)
+                {
+                    section.Course = courseNo;
+                    section.SortOrder = sortOrder++;
+                    await CreateAsync(section);
+                    count++;
+                }
+
+                LogInfo($"단원 일괄 생성 완료: Course={courseNo}, {count}개");
+                return count;
+            });
         }
         catch (Exception ex)
         {

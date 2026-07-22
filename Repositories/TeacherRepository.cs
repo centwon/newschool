@@ -394,32 +394,6 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 마지막 로그인 시간 업데이트
-        /// </summary>
-        public async Task<bool> UpdateLastLoginAsync(int no)
-        {
-            const string query = @"
-                UPDATE Teacher 
-                SET LastLoginAt = @LastLoginAt 
-                WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-                cmd.Parameters.AddWithValue("@LastLoginAt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                return rowsAffected > 0;
-            }
-            catch (Exception ex)
-            {
-                LogError($"마지막 로그인 시간 업데이트 실패: No={no}", ex);
-                throw;
-            }
-        }
-
         #endregion
 
         #region Delete

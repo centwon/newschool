@@ -121,6 +121,45 @@ public class CsvExportService
         return sb.ToString();
     }
 
+    /// <summary>학급 명렬표(학생정보 요약) CSV 파일 저장.</summary>
+    public string ExportClassInfoToCsv(
+        int year, int grade, int classNo,
+        List<NewSchool.ViewModels.StudentCardViewModel> students)
+    {
+        var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        var filePath = Path.Combine(GetOutputDir(), fileName);
+        File.WriteAllText(filePath, BuildClassInfoCsv(grade, classNo, students), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        return filePath;
+    }
+
+    /// <summary>학급 명렬표 CSV 문자열 — 클립보드 복사용 공용 빌더.</summary>
+    public string BuildClassInfoCsv(
+        int grade, int classNo,
+        List<NewSchool.ViewModels.StudentCardViewModel> students)
+    {
+        var sb = new StringBuilder();
+        AppendRow(sb,
+            "학년", "반", "번호", "이름", "성별", "생년월일",
+            "연락처", "이메일", "주소", "보호자", "보호자 연락처");
+
+        foreach (var vm in students)
+        {
+            AppendRow(sb,
+                (vm.Enrollment?.Grade ?? grade).ToString(),
+                (vm.Enrollment?.Class ?? classNo).ToString(),
+                (vm.Enrollment?.Number ?? 0).ToString(),
+                vm.Student?.Name ?? string.Empty,
+                vm.Student?.Sex ?? string.Empty,
+                vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+                vm.Student?.Phone ?? string.Empty,
+                vm.Student?.Email ?? string.Empty,
+                vm.Student?.Address ?? string.Empty,
+                vm.Detail?.GetPrimaryGuardianName() ?? string.Empty,
+                vm.Detail?.GetPrimaryContact() ?? string.Empty);
+        }
+        return sb.ToString();
+    }
+
     #region CSV 쓰기 유틸
 
     private static void AppendRow(StringBuilder sb, params string[] fields)
@@ -146,6 +185,85 @@ public class CsvExportService
         if (!needsQuote && !injection) return value;
         var escaped = value.Replace("\"", "\"\"");
         return $"\"{escaped}\"";
+    }
+
+    /// <summary>
+    /// RFC 4180 파싱 — <see cref="Escape"/> 로 만든 출력과 왕복이 일치한다.
+    /// 따옴표 필드 안의 쉼표·줄바꿈, "" 이스케이프, BOM, CRLF/LF 를 모두 처리한다.
+    /// (기존 '\n' 단순 분리 방식은 줄바꿈·쉼표 포함 필드에서 행이 깨졌음)
+    /// </summary>
+    public static List<string[]> ParseRecords(string content)
+    {
+        var records = new List<string[]>();
+        if (string.IsNullOrEmpty(content)) return records;
+
+        var fields = new List<string>();
+        var current = new StringBuilder();
+        bool inQuotes = false;
+
+        // BOM 제거
+        if (content[0] == '﻿')
+            content = content[1..];
+
+        for (int i = 0; i < content.Length; i++)
+        {
+            char c = content[i];
+
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    if (i + 1 < content.Length && content[i + 1] == '"')
+                    {
+                        current.Append('"'); // "" → 이스케이프된 따옴표
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = false;
+                    }
+                }
+                else
+                {
+                    current.Append(c); // 따옴표 안에서는 쉼표·줄바꿈도 데이터
+                }
+            }
+            else if (c == '"')
+            {
+                inQuotes = true;
+            }
+            else if (c == ',')
+            {
+                fields.Add(current.ToString());
+                current.Clear();
+            }
+            else if (c == '\r' || c == '\n')
+            {
+                if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                    i++; // CRLF
+
+                if (fields.Count > 0 || current.Length > 0)
+                {
+                    fields.Add(current.ToString());
+                    records.Add(fields.ToArray());
+                    fields.Clear();
+                    current.Clear();
+                }
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+
+        // 마지막 레코드 (줄바꿈 없이 끝난 경우)
+        if (fields.Count > 0 || current.Length > 0)
+        {
+            fields.Add(current.ToString());
+            records.Add(fields.ToArray());
+        }
+
+        return records;
     }
 
     #endregion

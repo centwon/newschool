@@ -17,8 +17,9 @@ public class UnifiedExportService
     {
         StudentLog,   // 누가기록
         StudentSpec,  // 학생부 특기사항
-        Seats,        // 좌석배정 (PDF/HTML 전용)
-        StudentCard   // 학생카드 (PDF/HTML 전용)
+        Seats,        // 좌석배정 (Excel/PDF/HTML)
+        StudentCard,  // 학생카드 (Excel/PDF/HTML)
+        StudentInfo   // 학생정보 명렬 (Excel/PDF/HTML/CSV)
     }
 
     public enum ExportFormat
@@ -43,6 +44,7 @@ public class UnifiedExportService
             DataType.StudentSpec => await ExportClassSpecsAsync(format, year, grade, classNo),
             DataType.Seats => await ExportClassSeatsAsync(format, year, grade, classNo),
             DataType.StudentCard => await ExportClassCardsAsync(format, year, grade, classNo),
+            DataType.StudentInfo => await ExportClassInfoAsync(format, year, grade, classNo),
             _ => null
         };
     }
@@ -82,12 +84,19 @@ public class UnifiedExportService
                 return new HtmlExportService()
                     .BuildClassCardsHtml(year, grade, classNo, data);
             }
+            case DataType.StudentInfo:
+            {
+                var data = await StudentCardPrintService.LoadClassStudentsAsync(year, grade, classNo);
+                if (data.Count == 0) return null;
+                return new HtmlExportService()
+                    .BuildClassInfoHtml(year, grade, classNo, data);
+            }
             default:
                 return null;
         }
     }
 
-    #region 좌석배정 (PDF/HTML 전용)
+    #region 좌석배정 (Excel/PDF/HTML)
 
     private static async Task<string?> ExportClassSeatsAsync(
         ExportFormat format, int year, int grade, int classNo)
@@ -95,19 +104,25 @@ public class UnifiedExportService
         var service = new SeatsPrintService();
         return format switch
         {
-            ExportFormat.Pdf  => await service.GenerateSeatsPdfFromDbAsync(year, grade, classNo),
-            ExportFormat.Html => await service.GenerateSeatsHtmlFromDbAsync(year, grade, classNo),
+            ExportFormat.Excel => await service.GenerateSeatsExcelFromDbAsync(year, grade, classNo),
+            ExportFormat.Pdf   => await service.GenerateSeatsPdfFromDbAsync(year, grade, classNo),
+            ExportFormat.Html  => await service.GenerateSeatsHtmlFromDbAsync(year, grade, classNo),
             _ => null
         };
     }
 
     #endregion
 
-    #region 학생카드 (PDF/HTML 전용)
+    #region 학생카드 (Excel/PDF/HTML)
 
     private static async Task<string?> ExportClassCardsAsync(
         ExportFormat format, int year, int grade, int classNo)
     {
+        if (format == ExportFormat.Excel)
+        {
+            return await new StudentCardPrintService()
+                .GenerateClassCardsExcelFromDbAsync(year, grade, classNo);
+        }
         if (format == ExportFormat.Pdf)
         {
             return await new StudentCardPrintService()
@@ -121,6 +136,81 @@ public class UnifiedExportService
                 .ExportClassCardsToHtml(year, grade, classNo, data);
         }
         return null;
+    }
+
+    #endregion
+
+    #region 학생정보 명렬 (Excel/PDF/HTML/CSV)
+
+    private static async Task<string?> ExportClassInfoAsync(
+        ExportFormat format, int year, int grade, int classNo)
+    {
+        if (format == ExportFormat.Pdf)
+        {
+            return await new StudentCardPrintService()
+                .GenerateClassInfoPdfFromDbAsync(year, grade, classNo);
+        }
+
+        var data = await StudentCardPrintService.LoadClassStudentsAsync(year, grade, classNo);
+        if (data.Count == 0) return null;
+
+        return format switch
+        {
+            ExportFormat.Excel => await ExportClassInfoToExcelAsync(year, grade, classNo, data),
+            ExportFormat.Html  => new HtmlExportService().ExportClassInfoToHtml(year, grade, classNo, data),
+            ExportFormat.Csv   => new CsvExportService().ExportClassInfoToCsv(year, grade, classNo, data),
+            _ => null
+        };
+    }
+
+    /// <summary>학생정보 명렬을 CSV 문자열로 빌드 (클립보드 복사용).</summary>
+    public async Task<string?> BuildClassInfoCsvAsync(int year, int grade, int classNo)
+    {
+        var data = await StudentCardPrintService.LoadClassStudentsAsync(year, grade, classNo);
+        if (data.Count == 0) return null;
+        return new CsvExportService().BuildClassInfoCsv(grade, classNo, data);
+    }
+
+    private static async Task<string?> ExportClassInfoToExcelAsync(
+        int year, int grade, int classNo, List<StudentCardViewModel> students)
+    {
+        var rows = students.Select(vm => new InfoExportDto
+        {
+            학년 = vm.Enrollment?.Grade ?? grade,
+            반 = vm.Enrollment?.Class ?? classNo,
+            번호 = vm.Enrollment?.Number ?? 0,
+            이름 = vm.Student?.Name ?? string.Empty,
+            성별 = vm.Student?.Sex ?? string.Empty,
+            생년월일 = vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+            연락처 = vm.Student?.Phone ?? string.Empty,
+            이메일 = vm.Student?.Email ?? string.Empty,
+            주소 = vm.Student?.Address ?? string.Empty,
+            보호자 = vm.Detail?.GetPrimaryGuardianName() ?? string.Empty,
+            보호자연락처 = vm.Detail?.GetPrimaryContact() ?? string.Empty,
+        }).ToList();
+
+        var dir = System.IO.Path.Combine(Settings.UserDataPath, "Prints");
+        if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+        var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var filePath = System.IO.Path.Combine(dir, fileName);
+
+        await Task.Run(() => MiniExcelLibs.MiniExcel.SaveAs(filePath, rows));
+        return filePath;
+    }
+
+    private record InfoExportDto
+    {
+        public int 학년 { get; init; }
+        public int 반 { get; init; }
+        public int 번호 { get; init; }
+        public string 이름 { get; init; } = string.Empty;
+        public string 성별 { get; init; } = string.Empty;
+        public string 생년월일 { get; init; } = string.Empty;
+        public string 연락처 { get; init; } = string.Empty;
+        public string 이메일 { get; init; } = string.Empty;
+        public string 주소 { get; init; } = string.Empty;
+        public string 보호자 { get; init; } = string.Empty;
+        public string 보호자연락처 { get; init; } = string.Empty;
     }
 
     #endregion

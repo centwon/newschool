@@ -17,6 +17,9 @@ public class LessonRepository : BaseRepository
         EnsureTableExists();
     }
 
+    /// <summary>공유 연결 생성자 (UnitOfWork 전용). 테이블은 이미 존재한다고 가정하므로 DDL 을 실행하지 않는다.</summary>
+    public LessonRepository(SqliteConnection connection) : base(connection) { }
+
     #region Table Management
 
     private void EnsureTableExists()

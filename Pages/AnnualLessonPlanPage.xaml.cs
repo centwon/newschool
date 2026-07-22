@@ -1426,81 +1426,11 @@ public sealed partial class AnnualLessonPlanPage : Page
     }
 
     /// <summary>
-    /// CSV 전체를 레코드 단위로 파싱 (RFC 4180).
+    /// CSV 전체를 레코드 단위로 파싱 (RFC 4180). 공용 파서(CsvExportService)로 위임 —
     /// 따옴표 필드 안의 쉼표·줄바꿈, "" 이스케이프를 처리해 GenerateCsv 출력과 왕복이 일치한다.
     /// </summary>
     private static List<string[]> ParseCsvRecords(string content)
-    {
-        var records = new List<string[]>();
-        var fields = new List<string>();
-        var current = new StringBuilder();
-        bool inQuotes = false;
-
-        // BOM 제거
-        if (content.Length > 0 && content[0] == '﻿')
-            content = content[1..];
-
-        for (int i = 0; i < content.Length; i++)
-        {
-            char c = content[i];
-
-            if (inQuotes)
-            {
-                if (c == '"')
-                {
-                    if (i + 1 < content.Length && content[i + 1] == '"')
-                    {
-                        current.Append('"');  // "" → 이스케이프된 따옴표
-                        i++;
-                    }
-                    else
-                    {
-                        inQuotes = false;
-                    }
-                }
-                else
-                {
-                    current.Append(c);  // 따옴표 안에서는 쉼표·줄바꿈도 데이터
-                }
-            }
-            else if (c == '"')
-            {
-                inQuotes = true;
-            }
-            else if (c == ',')
-            {
-                fields.Add(current.ToString());
-                current.Clear();
-            }
-            else if (c == '\r' || c == '\n')
-            {
-                if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
-                    i++;  // CRLF
-
-                // 빈 줄이 아니면 레코드 확정
-                if (fields.Count > 0 || current.Length > 0)
-                {
-                    fields.Add(current.ToString());
-                    records.Add(fields.ToArray());
-                    fields.Clear();
-                    current.Clear();
-                }
-            }
-            else
-            {
-                current.Append(c);
-            }
-        }
-
-        // 마지막 레코드 (줄바꿈 없이 끝난 경우)
-        if (fields.Count > 0 || current.Length > 0)
-        {
-            fields.Add(current.ToString());
-            records.Add(fields.ToArray());
-        }
-
-        return records;
-    }
+        => Services.CsvExportService.ParseRecords(content);
 
     private string GenerateCsv()
     {
@@ -1877,7 +1807,9 @@ public sealed partial class AnnualLessonPlanPage : Page
         try
         {
             using var scheduleRepo = new ScheduleRepository(SchoolDatabase.DbPath);
-            using var mapRepo = new ScheduleUnitMapRepository(SchoolDatabase.DbPath);
+            // mapRepo 는 scheduleRepo 와 연결을 공유 — 자동 배치의 삭제+배치 전체가
+            // 단일 트랜잭션으로 커밋/롤백된다(SchedulingEngine 이 공유 연결을 감지해 원자화)
+            using var mapRepo = new ScheduleUnitMapRepository(scheduleRepo.GetConnection());
             using var sectionRepo = new CourseSectionRepository(SchoolDatabase.DbPath);
             using var lessonRepo = new LessonRepository(SchoolDatabase.DbPath);
             using var schoolScheduleRepo = new SchoolScheduleRepository(SchoolDatabase.DbPath);
@@ -1913,11 +1845,41 @@ public sealed partial class AnnualLessonPlanPage : Page
             ShowLoading("단원을 자동 배치하는 중...");
 
             var result = await engine.GenerateScheduleAsync(
-                _selectedCourse.No, room, startDate, endDate, clearExisting: true);
+                _selectedCourse.No, room, startDate, endDate);
 
             Debug.WriteLine($"[GenerateSchedule] Success={result.Success}, TotalPlaced={result.TotalPlaced}, " +
                 $"Anchored={result.AnchoredCount}, Filled={result.FilledCount}, Unplaced={result.UnplacedCount}, " +
                 $"Slots={result.TotalAvailableSlots}, Message={result.Message}");
+
+            // 자동 배치 Undo 기록 — 배치가 하나라도 수행됐으면 저장(Undo 버튼으로 되돌리기 가능).
+            // 주의: Undo 는 이번에 생성된 스케줄만 삭제한다(배치 전 기존 배치는 이미 삭제되어 복원 불가).
+            if (result.CreatedScheduleIds.Count > 0)
+            {
+                // Redo(다시 실행)를 위해 생성된 슬롯의 내용(날짜·교시·고정여부·단원 매핑)을 스냅샷으로 기록.
+                // Undo 가 스케줄을 하드 삭제하므로, ID 가 아닌 이 스냅샷이 있어야 정확히 복원할 수 있다.
+                var slots = await BuildBulkSlotsSnapshotAsync(
+                    scheduleRepo, mapRepo, _selectedCourse.No, room, result.CreatedScheduleIds);
+
+                using var undoRepo = new UndoHistoryRepository(SchoolDatabase.DbPath);
+                await undoRepo.ClearRedoStackAsync(_selectedCourse.No, room);
+
+                var undoAction = new UndoAction
+                {
+                    CourseId = _selectedCourse.No,
+                    Room = room,
+                    ActionType = UndoActionType.BulkGenerate,
+                    Description = $"자동 배치 ({slots.Count}개 슬롯)",
+                    CreatedAt = DateTime.Now
+                };
+                undoAction.SetData(new BulkGenerateActionData
+                {
+                    CreatedScheduleIds = result.CreatedScheduleIds,
+                    Slots = slots,
+                    StartDate = startDate,
+                    EndDate = endDate
+                });
+                await undoRepo.CreateAsync(undoAction);
+            }
 
             // 5. 결과 표시 (ContentDialog)
             var resultMsg = new StringBuilder();
@@ -1938,6 +1900,12 @@ public sealed partial class AnnualLessonPlanPage : Page
                 }
             }
 
+            // 슬롯 부족으로 필요 시수의 일부만 배치된 단원 경고
+            foreach (var warning in result.FillWarnings)
+            {
+                resultMsg.AppendLine($"⚠️ {warning.Section?.SectionName}: {warning.Reason}");
+            }
+
             resultMsg.AppendLine($"시수: {result.RequiredHours}필요 / {result.AvailableHours}가용 (여유 {result.ExcessHours})");
 
             await MessageBox.ShowAsync(resultMsg.ToString().TrimEnd(),
@@ -1953,6 +1921,100 @@ public sealed partial class AnnualLessonPlanPage : Page
         {
             Debug.WriteLine($"[AnnualLessonPlanPage] 자동 배치 실패: {ex.Message}");
             ShowSectionError($"자동 배치 중 오류가 발생했습니다.\n{ex.Message}");
+        }
+        finally
+        {
+            HideLoading();
+        }
+    }
+
+    /// <summary>
+    /// 자동 배치로 생성된 스케줄들의 슬롯 스냅샷(날짜·교시·고정여부·단원 매핑)을 만든다 — Redo 복원용.
+    /// 한 슬롯이 여러 단원을 담을 수 있으므로 스케줄 ID 기준으로 중복 제거해 슬롯당 1개로 묶는다.
+    /// </summary>
+    private static async Task<List<BulkScheduleSlot>> BuildBulkSlotsSnapshotAsync(
+        ScheduleRepository scheduleRepo, ScheduleUnitMapRepository mapRepo,
+        int courseNo, string room, List<int> createdScheduleIds)
+    {
+        var createdIds = createdScheduleIds.Distinct().ToList();
+        var byId = (await scheduleRepo.GetByCourseAndRoomAsync(courseNo, room))
+            .ToDictionary(s => s.No);
+        var sectionsById = (await mapRepo.GetBySchedulesAsync(createdIds))
+            .GroupBy(m => m.ScheduleId)
+            .ToDictionary(g => g.Key, g => g.Select(m => m.CourseSectionId).ToList());
+
+        var slots = new List<BulkScheduleSlot>();
+        foreach (var id in createdIds)
+        {
+            if (!byId.TryGetValue(id, out var schedule)) continue;
+            slots.Add(new BulkScheduleSlot
+            {
+                Date = schedule.Date,
+                Period = schedule.Period,
+                IsPinned = schedule.IsPinned,
+                SectionIds = sectionsById.GetValueOrDefault(id) ?? new List<int>()
+            });
+        }
+        return slots;
+    }
+
+    /// <summary>
+    /// 배치 검사 — 미배치 단원·시수 초과 배치를 확인해 결과를 대화상자로 표시
+    /// </summary>
+    private async void OnValidatePlanClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedCourse == null)
+        {
+            ShowSectionError("먼저 수업을 선택해주세요.");
+            return;
+        }
+
+        if (CmbRoom.SelectedItem == null || CmbRoom.SelectedItem.ToString() == "전체")
+        {
+            ShowSectionError("배치 검사를 실행하려면 개별 학급을 선택해주세요.");
+            return;
+        }
+
+        string room = CmbRoom.SelectedItem.ToString()!;
+
+        try
+        {
+            ShowLoading("배치를 검사하는 중...");
+
+            using var scheduleRepo = new ScheduleRepository(SchoolDatabase.DbPath);
+            using var mapRepo = new ScheduleUnitMapRepository(scheduleRepo.GetConnection());
+            using var sectionRepo = new CourseSectionRepository(SchoolDatabase.DbPath);
+            using var lessonRepo = new LessonRepository(SchoolDatabase.DbPath);
+            using var schoolScheduleRepo = new SchoolScheduleRepository(SchoolDatabase.DbPath);
+
+            var engine = new SchedulingEngine(
+                scheduleRepo, mapRepo, sectionRepo, lessonRepo, schoolScheduleRepo);
+
+            var validation = await engine.ValidateScheduleAsync(_selectedCourse.No, room);
+
+            HideLoading();
+
+            var msg = new StringBuilder();
+            if (validation.Errors.Count == 0 && validation.Warnings.Count == 0)
+            {
+                msg.AppendLine("문제가 발견되지 않았습니다.");
+                msg.AppendLine("모든 단원이 배치되었고 초과 배치도 없습니다.");
+            }
+            else
+            {
+                foreach (var error in validation.Errors)
+                    msg.AppendLine($"❌ {error}");
+                foreach (var warning in validation.Warnings)
+                    msg.AppendLine($"⚠️ {warning}");
+            }
+
+            await MessageBox.ShowAsync(msg.ToString().TrimEnd(),
+                $"배치 검사 — {room}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AnnualLessonPlanPage] 배치 검사 실패: {ex.Message}");
+            ShowSectionError($"배치 검사 중 오류가 발생했습니다.\n{ex.Message}");
         }
         finally
         {
@@ -2001,17 +2063,16 @@ public sealed partial class AnnualLessonPlanPage : Page
             var semesterStart = schedules.First().Date;
             var displayItems = new List<PlacementDisplayItem>();
 
-            // 주차별 그룹화를 위한 임시 수집
-            var weekSchedules = new List<(Schedule schedule, List<ScheduleUnitMap> maps)>();
+            // 주차별 그룹화를 위한 임시 수집 — 매핑은 IN 절로 한 번에 조회(스케줄마다 개별 조회하던 N+1 제거)
+            var mapsBySchedule = (await mapRepo.GetBySchedulesAsync(schedules.Select(s => s.No).ToList()))
+                .GroupBy(m => m.ScheduleId)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
-            int totalMaps = 0;
-            foreach (var schedule in schedules)
-            {
-                var maps = await mapRepo.GetByScheduleWithSectionAsync(schedule.No);
-                totalMaps += maps.Count;
-                weekSchedules.Add((schedule, maps));
-            }
-            Debug.WriteLine($"[LoadPlacement] 전체 매핑: {totalMaps}개 (schedules={schedules.Count})");
+            var weekSchedules = schedules
+                .Select(s => (schedule: s, maps: mapsBySchedule.GetValueOrDefault(s.No) ?? new List<ScheduleUnitMap>()))
+                .ToList();
+
+            Debug.WriteLine($"[LoadPlacement] 전체 매핑: {mapsBySchedule.Values.Sum(m => m.Count)}개 (schedules={schedules.Count})");
 
             // 주차별 그룹화
             var weekGroups = weekSchedules
@@ -2110,13 +2171,14 @@ public sealed partial class AnnualLessonPlanPage : Page
             var semesterStart = allSchedules.First().Date;
             var displayItems = new List<PlacementDisplayItem>();
 
-            // 스케줄별 매핑 로드
-            var weekSchedules = new List<(Schedule schedule, List<ScheduleUnitMap> maps)>();
-            foreach (var schedule in allSchedules)
-            {
-                var maps = await mapRepo.GetByScheduleWithSectionAsync(schedule.No);
-                weekSchedules.Add((schedule, maps));
-            }
+            // 스케줄별 매핑 로드 — IN 절 일괄 조회 (N+1 제거)
+            var mapsBySchedule = (await mapRepo.GetBySchedulesAsync(allSchedules.Select(s => s.No).ToList()))
+                .GroupBy(m => m.ScheduleId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var weekSchedules = allSchedules
+                .Select(s => (schedule: s, maps: mapsBySchedule.GetValueOrDefault(s.No) ?? new List<ScheduleUnitMap>()))
+                .ToList();
 
             // 주차별 그룹화
             var weekGroups = weekSchedules
@@ -2206,6 +2268,8 @@ public sealed partial class AnnualLessonPlanPage : Page
         bool isSlotSelected = UnitPlanListView.SelectedItem is PlacementDisplayItem item && !item.IsHeader;
         BtnChangeUnit.IsEnabled = isSlotSelected;
         BtnRemoveUnit.IsEnabled = isSlotSelected;
+        BtnPushSchedules.IsEnabled = isSlotSelected;
+        BtnPullSchedules.IsEnabled = isSlotSelected;
     }
 
     /// <summary>
@@ -2213,16 +2277,11 @@ public sealed partial class AnnualLessonPlanPage : Page
     /// </summary>
     private void OnPlacementItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
     {
-        if (UnitPlanListView.SelectedItem is PlacementDisplayItem item && !item.IsHeader)
-        {
-            BtnChangeUnit.IsEnabled = true;
-            BtnRemoveUnit.IsEnabled = true;
-        }
-        else
-        {
-            BtnChangeUnit.IsEnabled = false;
-            BtnRemoveUnit.IsEnabled = false;
-        }
+        bool isSlot = UnitPlanListView.SelectedItem is PlacementDisplayItem item && !item.IsHeader;
+        BtnChangeUnit.IsEnabled = isSlot;
+        BtnRemoveUnit.IsEnabled = isSlot;
+        BtnPushSchedules.IsEnabled = isSlot;
+        BtnPullSchedules.IsEnabled = isSlot;
     }
 
     /// <summary>
@@ -2315,9 +2374,124 @@ public sealed partial class AnnualLessonPlanPage : Page
     private static int GetWeekNumber(DateTime date, DateTime startDate)
         => DateTimeHelper.WeekNumber(date, startDate);
 
-    // OnConfirmClick 제거됨 (v2 리팩토링)
-    // SchedulingEngine 기반 배치로 전환되어 구 ViewModel 기반 확정 로직 불필요
-    // TODO: 필요 시 SchedulingEngine 결과 기반으로 재구현
+    #endregion
+
+    #region 밀기/당기기 (미리보기 후 적용)
+
+    private async void OnPushSchedulesClick(object sender, RoutedEventArgs e)
+        => await RunShiftWithPreviewAsync(isPush: true);
+
+    private async void OnPullSchedulesClick(object sender, RoutedEventArgs e)
+        => await RunShiftWithPreviewAsync(isPush: false);
+
+    /// <summary>
+    /// 선택 슬롯부터 이후 수업을 밀기/당기기 — 이동 계획을 먼저 보여주고 확인 후 적용한다.
+    /// </summary>
+    private async Task RunShiftWithPreviewAsync(bool isPush)
+    {
+        if (UnitPlanListView.SelectedItem is not PlacementDisplayItem item || item.IsHeader) return;
+        if (_selectedCourse == null || CmbRoom.SelectedItem == null ||
+            CmbRoom.SelectedItem.ToString() == "전체")
+        {
+            ShowSectionError("수업을 이동하려면 개별 학급을 선택해주세요.");
+            return;
+        }
+
+        string room = CmbRoom.SelectedItem.ToString()!;
+        string verb = isPush ? "밀기" : "당기기";
+
+        // 경계일: 배치 기간 설정을 우선 사용, 없으면 기준일 ±6개월
+        DateTime boundary = isPush
+            ? (DpEndDate.Date?.DateTime ?? item.Date.AddMonths(6))
+            : (DpStartDate.Date?.DateTime ?? item.Date.AddMonths(-6));
+
+        try
+        {
+            ShowLoading("이동 계획을 계산하는 중...");
+
+            using var scheduleRepo = new ScheduleRepository(SchoolDatabase.DbPath);
+            using var mapRepo = new ScheduleUnitMapRepository(SchoolDatabase.DbPath);
+            using var undoRepo = new UndoHistoryRepository(SchoolDatabase.DbPath);
+            using var lessonRepo = new LessonRepository(SchoolDatabase.DbPath);
+            using var schoolScheduleRepo = new SchoolScheduleRepository(SchoolDatabase.DbPath);
+
+            var shiftService = new ScheduleShiftService(
+                scheduleRepo, mapRepo, undoRepo, lessonRepo, schoolScheduleRepo);
+
+            // 1. 계획 산출 (DB 변경 없음)
+            var plan = isPush
+                ? await shiftService.BuildPushPlanAsync(_selectedCourse.No, room, item.Date, item.Period, boundary)
+                : await shiftService.BuildPullPlanAsync(_selectedCourse.No, room, item.Date, item.Period, boundary);
+
+            HideLoading();
+
+            if (plan.Moves.Count == 0)
+            {
+                await MessageBox.ShowAsync(plan.OverflowCount > 0
+                    ? $"빈 슬롯이 없어 이동할 수 있는 수업이 없습니다. ({plan.OverflowCount}개 이동 불가)"
+                    : "이동할 수업이 없습니다.", verb);
+                return;
+            }
+
+            // 2. 미리보기 대화상자 (시간순 정렬)
+            var moveLines = plan.Moves
+                .OrderBy(m => m.Schedule.Date).ThenBy(m => m.Schedule.Period)
+                .Select(m => m.Display)
+                .ToList();
+
+            var content = new StackPanel { Spacing = 8 };
+            content.Children.Add(new TextBlock { Text = $"{plan.Moves.Count}개 수업이 이동합니다." });
+            if (plan.OverflowCount > 0)
+            {
+                content.Children.Add(new TextBlock
+                {
+                    Text = $"⚠️ {plan.OverflowCount}개는 빈 슬롯이 없어 이동하지 못합니다."
+                });
+            }
+            content.Children.Add(new ListView
+            {
+                ItemsSource = moveLines,
+                MaxHeight = 320,
+                SelectionMode = ListViewSelectionMode.None
+            });
+
+            var dialog = new ContentDialog
+            {
+                Title = $"{verb} 미리보기 — {item.DateDisplay} {item.PeriodDisplay}부터",
+                Content = content,
+                PrimaryButtonText = "적용",
+                CloseButtonText = "취소",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.XamlRoot
+            };
+
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+            // 3. 확인된 계획 그대로 적용
+            ShowLoading("수업을 이동하는 중...");
+            var result = isPush
+                ? await shiftService.PushSchedulesAsync(_selectedCourse.No, room, item.Date, item.Period, boundary, plan)
+                : await shiftService.PullSchedulesAsync(_selectedCourse.No, room, item.Date, item.Period, boundary, plan);
+            HideLoading();
+
+            await MessageBox.ShowAsync(result.Message, result.Success ? $"{verb} 완료" : $"{verb} 실패");
+
+            if (result.Success)
+            {
+                await RefreshPlacementListAsync();
+                await RefreshUndoRedoButtonsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AnnualLessonPlanPage] {verb} 실패: {ex.Message}");
+            ShowSectionError($"수업 이동 중 오류가 발생했습니다.\n{ex.Message}");
+        }
+        finally
+        {
+            HideLoading();
+        }
+    }
 
     #endregion
 

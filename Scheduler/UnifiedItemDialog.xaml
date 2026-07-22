@@ -71,7 +71,7 @@
                             Margin="10,4,2,4" Spacing="10">
                     <CalendarDatePicker x:Name="TaskDueDatePicker"
                                         DateChanged="TaskDueDatePicker_DateChanged"/>
-                    <control:CompactTimePicker x:Name="TaskDueTimePicker"
+                    <control:CompactTimeButton x:Name="TaskDueTimePicker"
                                 TimeChanged="TaskDueTimePicker_TimeChanged"/>
                     <CheckBox x:Name="ChkTaskAllday" Content="종일"
                               VerticalAlignment="Center" Click="ChkTaskAllday_Click"/>
@@ -187,7 +187,7 @@
                             Margin="10,4,2,4" Spacing="10">
                     <CalendarDatePicker x:Name="EventStartDatePicker"
                                         DateChanged="EventStartDatePicker_DateChanged"/>
-                    <control:CompactTimePicker x:Name="EventStartTimePicker"
+                    <control:CompactTimeButton x:Name="EventStartTimePicker"
                                 TimeChanged="EventStartTimePicker_TimeChanged"/>
                     <CheckBox x:Name="ChkEventAllday" Content="종일"
                               VerticalAlignment="Center" Click="ChkEventAllday_Click"/>
@@ -199,7 +199,7 @@
                             Margin="10,4,2,4" Spacing="10">
                     <CalendarDatePicker x:Name="EventEndDatePicker"
                                         DateChanged="EventEndDatePicker_DateChanged"/>
-                    <control:CompactTimePicker x:Name="EventEndTimePicker"
+                    <control:CompactTimeButton x:Name="EventEndTimePicker"
                                 TimeChanged="EventEndTimePicker_TimeChanged"/>
                 </StackPanel>
 

@@ -13,6 +13,12 @@ namespace NewSchool.Dialogs
 {
     public sealed partial class SchoolSearchDialog : ContentDialog
     {
+        // 검색마다 new HttpClient() 하면 소켓 고갈(TIME_WAIT) 위험 → 공유 인스턴스 사용
+        private static readonly HttpClient _httpClient = new()
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+
         private bool _isSchoolSelected = false;
         public bool IsSchoolSelected
         {
@@ -63,17 +69,14 @@ namespace NewSchool.Dialogs
                 SchoolNameTextBox.IsEnabled = false;
                 InfoTextBlock.Text = "검색 중...";
 
-                // API 호출
-                using var httpClient = new HttpClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(10);
-
+                // API 호출 (공유 HttpClient)
                 string apiEndpoint = "https://open.neis.go.kr/hub/schoolInfo";
                 string apiKey = Settings.NeisApiKey.Value;
                 string requestUrl = $"{apiEndpoint}?KEY={apiKey}&Type=xml&pSize=100&SCHUL_NM={Uri.EscapeDataString(schoolName)}";
 
                 Debug.WriteLine($"[SchoolSearch] 요청 URL: {requestUrl}");
 
-                HttpResponseMessage response = await httpClient.GetAsync(requestUrl);
+                HttpResponseMessage response = await _httpClient.GetAsync(requestUrl);
                 response.EnsureSuccessStatusCode();
                 string responseBody = await response.Content.ReadAsStringAsync();
 

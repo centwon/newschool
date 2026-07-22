@@ -118,6 +118,10 @@ public partial class DateTimeToDateTimeOffsetConverter : IValueConverter
     {
         if (value is DateTime dateTime)
         {
+            // 기본값 MinValue(0001-01-01) 등은 로컬 오프셋(KST=UTC+9) 적용 시 UTC 로 환산하면
+            // DateTimeOffset 범위를 벗어나 ArgumentOutOfRangeException 이 난다 — 미설정으로 간주해 null 반환.
+            if (dateTime < DateTime.MinValue.AddDays(1))
+                return null;
             return new DateTimeOffset(dateTime);
         }
         return null;

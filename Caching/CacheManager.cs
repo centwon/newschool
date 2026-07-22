@@ -58,10 +58,22 @@ namespace NewSchool.Board.Caching
             {
                 long itemSize = EstimateSize(value);
 
-                // 기존 항목이 있으면 크기 차감
+                // 상한보다 큰 단일 항목은 캐시하지 않음 — 아래 정리 루프가 캐시를 다 비우고도
+                // 그대로 저장해 상한을 초과하는 것을 방지(미스 시 SQLite 재조회로 충분).
+                if (itemSize > _maxCacheSizeBytes)
+                {
+                    Debug.WriteLine($"[Cache] 저장 생략(상한 초과): {key} (크기: {FormatBytes(itemSize)})");
+                    return;
+                }
+
+                // 기존 항목이 있으면 크기 차감 + 즉시 제거
+                // 저장 당시 확정된 oldEntry.Size 를 사용(재계산 시 컬렉션 변형·1000개 순회 상한으로
+                // 값이 달라져 _currentCacheSize 가 실제와 어긋나는 것을 방지).
+                // 제거하지 않으면 아래 정리 루프의 LRU 희생자로 같은 항목이 뽑혀 이중 차감된다.
                 if (_cache.TryGetValue(key, out var oldEntry))
                 {
-                    _currentCacheSize -= EstimateSize(oldEntry.Value);
+                    _currentCacheSize -= oldEntry.Size;
+                    _cache.Remove(key);
                 }
 
                 // 메모리 제한 체크 및 정리

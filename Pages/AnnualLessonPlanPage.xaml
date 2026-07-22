@@ -691,8 +691,14 @@
                                                    FontWeight="SemiBold"
                                                    FontSize="16"/>
 
-                                        <!-- Undo/Redo 버튼 -->
+                                        <!-- 배치 검사 + Undo/Redo 버튼 -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                            <Button x:Name="BtnValidatePlan"
+                                                    Click="OnValidatePlanClick"
+                                                    ToolTipService.ToolTip="배치 검사 (미배치·중복 배치 확인)"
+                                                    Padding="8">
+                                                <FontIcon Glyph="&#xE9D5;" FontSize="14"/>
+                                            </Button>
                                             <Button x:Name="BtnUndo"
                                                     Click="OnUndoClick"
                                                     ToolTipService.ToolTip="실행 취소 (Ctrl+Z)"
@@ -846,16 +852,19 @@
                                                 Click="OnRemoveUnitClick"
                                                 IsEnabled="False"
                                                 Padding="12,6"/>
+                                        <Button x:Name="BtnPushSchedules"
+                                                Content="밀기"
+                                                Click="OnPushSchedulesClick"
+                                                ToolTipService.ToolTip="선택 슬롯부터 이후 수업을 다음 빈 슬롯으로 밀기 (미리보기 후 적용)"
+                                                IsEnabled="False"
+                                                Padding="12,6"/>
+                                        <Button x:Name="BtnPullSchedules"
+                                                Content="당기기"
+                                                Click="OnPullSchedulesClick"
+                                                ToolTipService.ToolTip="선택 슬롯부터 이후 수업을 이전 빈 슬롯으로 당기기 (미리보기 후 적용)"
+                                                IsEnabled="False"
+                                                Padding="12,6"/>
                                     </StackPanel>
-
-                                    <!-- 확정 버튼 (TODO: SchedulingEngine 기반으로 재구현 필요) -->
-                                    <!--<Button Grid.Row="3"
-                                            x:Name="BtnConfirmPlan"
-                                            Content="계획 확정"
-                                            HorizontalAlignment="Stretch"
-                                            Style="{StaticResource AccentButtonStyle}"
-                                            Margin="0,16,0,0"
-                                            Click="OnConfirmClick"/>-->
                                 </Grid>
                             </Border>
                         </Grid>

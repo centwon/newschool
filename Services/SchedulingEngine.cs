@@ -42,13 +42,11 @@ public class SchedulingEngine
     /// <param name="room">학급/강의실</param>
     /// <param name="startDate">학기 시작일</param>
     /// <param name="endDate">학기 종료일</param>
-    /// <param name="clearExisting">기존 스케줄 삭제 여부</param>
     public async Task<SchedulingResult> GenerateScheduleAsync(
         int courseId,
         string room,
         DateTime startDate,
-        DateTime endDate,
-        bool clearExisting = true)
+        DateTime endDate)
     {
         var result = new SchedulingResult
         {
@@ -60,13 +58,8 @@ public class SchedulingEngine
 
         try
         {
-            // 0. 기존 스케줄 삭제 (옵션)
-            if (clearExisting)
-            {
-                await _scheduleRepo.DeleteByCourseAndRoomAsync(courseId, room);
-            }
-
-            // 1. 데이터 로드
+            // 1. 데이터 로드 + 검증 (읽기 전용 — 기존 배치 삭제는 검증 통과 후에만 수행한다.
+            //    이전에는 검증 전에 삭제해, "단원 없음" 등으로 조기 반환해도 기존 배치가 사라졌음)
             var sections = await _sectionRepo.GetByCourseAsync(courseId);
             var lessons = await _lessonRepo.GetByCourseAsync(courseId);
             var holidays = await GetHolidaysAsync(startDate, endDate);
@@ -109,16 +102,53 @@ public class SchedulingEngine
             var pinnedSections = sections.Where(s => s.IsFixed).ToList();
             var normalSections = sections.Where(s => !s.IsFixed).ToList();
 
-            // 4. Step 1: Anchor - 고정 단원 배치
-            var anchorResult = await PlaceAnchorSectionsAsync(
-                courseId, room, pinnedSections, availableSlots);
+            // 4~5. 쓰기 단계(기존 삭제 → Anchor → Fill)를 단일 트랜잭션으로 —
+            //  · 원자성: 중간 실패 시 롤백되어 "기존 배치만 지워지고 새 배치는 일부만" 남는 것을 방지
+            //  · 성능: 수백 건의 INSERT/UPDATE 를 자동커밋(건당 fsync) 대신 한 번에 커밋
+            // 두 리포지토리가 연결을 공유할 때만 가능(호출부에서 공유 연결로 생성). 아니면 종전대로 개별 커밋.
+            bool atomic = ReferenceEquals(_scheduleRepo.GetConnection(), _mapRepo.GetConnection());
+            if (atomic)
+            {
+                _scheduleRepo.BeginTransaction();
+                _mapRepo.SetTransaction(_scheduleRepo.GetTransaction());
+            }
+
+            PlacementResult anchorResult, fillResult;
+            try
+            {
+                // 기존 스케줄 삭제 (ON DELETE CASCADE 로 ScheduleUnitMap 도 함께)
+                await _scheduleRepo.DeleteByCourseAndRoomAsync(courseId, room);
+
+                // Step 1: Anchor - 고정 단원 배치
+                anchorResult = await PlaceAnchorSectionsAsync(
+                    courseId, room, pinnedSections, availableSlots);
+
+                // Step 2: Fill - 일반 단원 순차 배치
+                fillResult = await FillRemainingSlotsAsync(
+                    courseId, room, normalSections, availableSlots);
+
+                if (atomic)
+                {
+                    _scheduleRepo.Commit();
+                    _mapRepo.SetTransaction(null);
+                }
+            }
+            catch
+            {
+                if (atomic)
+                {
+                    _scheduleRepo.Rollback();
+                    _mapRepo.SetTransaction(null);
+                }
+                throw;
+            }
+
             result.AnchoredCount = anchorResult.PlacedCount;
             result.AnchorFailures.AddRange(anchorResult.Failures);
-
-            // 5. Step 2: Fill - 일반 단원 순차 배치
-            var fillResult = await FillRemainingSlotsAsync(
-                courseId, room, normalSections, availableSlots);
             result.FilledCount = fillResult.PlacedCount;
+            result.FillWarnings.AddRange(fillResult.Failures);
+            result.CreatedScheduleIds.AddRange(anchorResult.CreatedScheduleIds);
+            result.CreatedScheduleIds.AddRange(fillResult.CreatedScheduleIds);
 
             // 6. Step 3: Alert - 미배치 단원 확인
             var unplacedSections = sections
@@ -143,6 +173,10 @@ public class SchedulingEngine
             result.Message = result.Success
                 ? $"배치 완료: {result.TotalPlaced}개 단원 배치됨"
                 : $"배치 완료: {result.TotalPlaced}개 배치, {result.UnplacedCount}개 미배치";
+            if (result.FillWarnings.Count > 0)
+            {
+                result.Message += $" ({result.FillWarnings.Count}개 단원 시수 부족)";
+            }
 
             return result;
         }
@@ -189,10 +223,12 @@ public class SchedulingEngine
 
             if (slot == null)
             {
-                // 해당 날짜에 슬롯이 없으면 가장 가까운 날짜 찾기
+                // 해당 날짜에 슬롯이 없으면 지정일 이후 가장 이른 슬롯에 배치.
+                // (지필/수행 등 고정 단원을 지정일보다 앞당기지 않도록 이후 슬롯만 대상으로 함)
                 slot = availableSlots
                     .Where(s => !s.IsOccupied && s.Date.Date >= targetDate)
-                    .OrderBy(s => Math.Abs((s.Date - targetDate).TotalDays))
+                    .OrderBy(s => s.Date)
+                    .ThenBy(s => s.Period)
                     .FirstOrDefault();
 
                 if (slot != null)
@@ -209,7 +245,8 @@ public class SchedulingEngine
             if (slot != null)
             {
                 // 배치 실행
-                await PlaceSectionToSlotAsync(courseId, room, section, slot);
+                result.CreatedScheduleIds.Add(
+                    await PlaceSectionToSlotAsync(courseId, room, section, slot));
                 slot.IsOccupied = true;
                 slot.OccupiedBySectionId = section.No;
                 result.PlacedCount++;
@@ -263,7 +300,8 @@ public class SchedulingEngine
                 var slot = emptySlots[slotIndex];
 
                 // 배치 실행
-                await PlaceSectionToSlotAsync(courseId, room, section, slot);
+                result.CreatedScheduleIds.Add(
+                    await PlaceSectionToSlotAsync(courseId, room, section, slot));
                 slot.IsOccupied = true;
                 slot.OccupiedBySectionId = section.No;
 
@@ -275,6 +313,18 @@ public class SchedulingEngine
             {
                 result.PlacedCount++;
                 result.PlacedSectionIds.Add(section.No);
+
+                // 필요 시수의 일부만 배치된 경우 — "배치됨"으로만 집계하면 시수 부족이
+                // 총계(ExcessHours)로만 간접 확인 가능하므로 단원별 경고로 명시한다
+                if (placedSlots < requiredSlots)
+                {
+                    result.Failures.Add(new PlacementFailure
+                    {
+                        Section = section,
+                        Reason = $"시수 부족 배치: {placedSlots}/{requiredSlots}차시",
+                        IsWarning = true
+                    });
+                }
             }
 
             // 모든 슬롯 소진 시 중단
@@ -370,9 +420,9 @@ public class SchedulingEngine
     #region Placement Execution
 
     /// <summary>
-    /// 단원을 슬롯에 배치 (DB 저장)
+    /// 단원을 슬롯에 배치 (DB 저장). 생성/사용된 Schedule No 를 반환한다(Undo 기록용).
     /// </summary>
-    private async Task PlaceSectionToSlotAsync(
+    private async Task<int> PlaceSectionToSlotAsync(
         int courseId,
         string room,
         CourseSection section,
@@ -395,6 +445,8 @@ public class SchedulingEngine
         {
             await _mapRepo.AddUnitToScheduleAsync(schedule.No, section.No);
         }
+
+        return schedule.No;
     }
 
     #endregion
@@ -412,15 +464,17 @@ public class SchedulingEngine
         var sections = await _sectionRepo.GetByCourseAsync(courseId);
         var schedules = await _scheduleRepo.GetByCourseAndRoomAsync(courseId, room);
 
-        // 2. 모든 단원이 배치되었는지 확인
+        // 2. 매핑을 IN 절로 한 번에 조회 (기존: 스케줄마다 개별 조회를 두 루프에서 반복 — 2N회 쿼리)
+        var allMaps = await _mapRepo.GetBySchedulesAsync(schedules.Select(s => s.No).ToList());
+
+        // 3. 모든 단원이 배치되었는지 + 단원별 배치 횟수를 한 패스로 집계
         var placedSectionIds = new HashSet<int>();
-        foreach (var schedule in schedules)
+        var sectionScheduleCount = new Dictionary<int, int>();
+        foreach (var map in allMaps)
         {
-            var maps = await _mapRepo.GetByScheduleAsync(schedule.No);
-            foreach (var map in maps)
-            {
-                placedSectionIds.Add(map.CourseSectionId);
-            }
+            placedSectionIds.Add(map.CourseSectionId);
+            sectionScheduleCount[map.CourseSectionId] =
+                sectionScheduleCount.GetValueOrDefault(map.CourseSectionId) + 1;
         }
 
         var unplacedSections = sections.Where(s => !placedSectionIds.Contains(s.No)).ToList();
@@ -428,19 +482,6 @@ public class SchedulingEngine
         {
             result.Warnings.Add($"미배치 단원 {unplacedSections.Count}개: " +
                 string.Join(", ", unplacedSections.Take(3).Select(s => s.SectionName)));
-        }
-
-        // 3. 중복 배치 확인
-        var sectionScheduleCount = new Dictionary<int, int>();
-        foreach (var schedule in schedules)
-        {
-            var maps = await _mapRepo.GetByScheduleAsync(schedule.No);
-            foreach (var map in maps)
-            {
-                if (!sectionScheduleCount.ContainsKey(map.CourseSectionId))
-                    sectionScheduleCount[map.CourseSectionId] = 0;
-                sectionScheduleCount[map.CourseSectionId]++;
-            }
         }
 
         // EstimatedHours보다 많이 배치된 단원 확인
@@ -552,6 +593,12 @@ public class SchedulingResult
     public List<CourseSection> UnplacedSections { get; set; } = new();
     public List<PlacementFailure> AnchorFailures { get; set; } = new();
 
+    /// <summary>순차 배치 경고 — 슬롯 부족으로 필요 시수의 일부만 배치된 단원(IsWarning=true).</summary>
+    public List<PlacementFailure> FillWarnings { get; set; } = new();
+
+    /// <summary>이번 배치에서 생성된 Schedule No 목록 — BulkGenerate Undo 기록에 사용.</summary>
+    public List<int> CreatedScheduleIds { get; set; } = new();
+
     public double CompletionRate => TotalSections > 0 ? (double)TotalPlaced / TotalSections * 100 : 0;
 }
 
@@ -563,6 +610,9 @@ public class PlacementResult
     public int PlacedCount { get; set; }
     public HashSet<int> PlacedSectionIds { get; set; } = new();
     public List<PlacementFailure> Failures { get; set; } = new();
+
+    /// <summary>이 단계에서 생성/사용된 Schedule No 목록 (Undo 기록용).</summary>
+    public List<int> CreatedScheduleIds { get; set; } = new();
 }
 
 /// <summary>

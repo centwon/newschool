@@ -60,6 +60,10 @@ public sealed partial class SettingsPage : Page
             PeriodsFriBox.Value = periods.Fri;
 
             _isInitialized = true;
+
+            // NEIS 추가 정보(학교종류·개교기념일·전화·팩스·홈페이지)는 Settings 에 없고 School DB 에만 있으므로
+            // 저장된 학교 코드로 조회해 표시 전용 필드를 채운다(비동기 — UI 는 이미 로드됨).
+            _ = LoadSchoolExtraInfoAsync();
         }
         catch (Exception ex)
         {
@@ -121,6 +125,7 @@ public sealed partial class SettingsPage : Page
                 ProvinceCodeTextBox.Text = school.ATPT_OFCDC_SC_CODE;
                 ProvinceNameTextBox.Text = school.ATPT_OFCDC_SC_NAME;
                 SchoolAddressTextBox.Text = school.Address;
+                ShowSchoolExtraInfo(school);
 
                 SchoolSearchInfoBar.Title = "학교 정보가 저장되었습니다";
                 SchoolSearchInfoBar.Message = $"{school.SchoolName}의 정보가 Settings와 데이터베이스에 저장되었습니다.";
@@ -147,6 +152,47 @@ public sealed partial class SettingsPage : Page
             Debug.WriteLine($"[SettingsPage] School 테이블 저장 실패: {ex.Message}");
             throw;
         }
+    }
+
+    /// <summary>School DB 에서 NEIS 추가 정보를 읽어 표시 전용 필드를 채운다. 저장된 학교가 없으면 비운다.</summary>
+    private async Task LoadSchoolExtraInfoAsync()
+    {
+        try
+        {
+            string code = Settings.SchoolCode.Value;
+            if (string.IsNullOrEmpty(code)) return;
+
+            using var schoolService = new SchoolService(SchoolDatabase.DbPath);
+            var school = await schoolService.GetSchoolByCodeAsync(code);
+            if (school == null) return;
+
+            ShowSchoolExtraInfo(school);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[SettingsPage] 학교 추가 정보 로드 실패: {ex.Message}");
+        }
+    }
+
+    /// <summary>NEIS 추가 정보를 표시 전용 필드에 반영(개교기념일은 8자리 YYYYMMDD → YYYY-MM-DD 로 정리).</summary>
+    private void ShowSchoolExtraInfo(School school)
+    {
+        SchoolTypeTextBox.Text = school.SchoolType;
+        FoundationDateTextBox.Text = FormatFoundationDate(school.FoundationDate);
+        SchoolPhoneTextBox.Text = school.Phone;
+        SchoolFaxTextBox.Text = school.Fax;
+        SchoolWebsiteTextBox.Text = school.Website;
+    }
+
+    private static string FormatFoundationDate(string raw)
+    {
+        if (raw.Length == 8 &&
+            DateTime.TryParseExact(raw, "yyyyMMdd", null,
+                System.Globalization.DateTimeStyles.None, out var d))
+        {
+            return d.ToString("yyyy-MM-dd");
+        }
+        return raw;
     }
 
     private void OnSchoolNameChanged(object sender, RoutedEventArgs e)
@@ -209,16 +255,16 @@ public sealed partial class SettingsPage : Page
 
     #region 시간표 이벤트 핸들러
 
-    private void OnDayStartingChanged(object sender, TimePickerValueChangedEventArgs e)
+    private void OnDayStartingChanged(object sender, TimeSpan e)
     {
         if (!_isInitialized) return;
-        Settings.DayStarting.Set(e.NewTime);
+        Settings.DayStarting.Set(e);
     }
 
-    private void OnAssemblyTimeChanged(object sender, TimePickerValueChangedEventArgs e)
+    private void OnAssemblyTimeChanged(object sender, TimeSpan e)
     {
         if (!_isInitialized) return;
-        Settings.AssemblyTime.Set(e.NewTime);
+        Settings.AssemblyTime.Set(e);
     }
 
     private void OnOnePeriodChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)

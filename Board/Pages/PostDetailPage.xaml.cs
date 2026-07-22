@@ -87,7 +87,8 @@ public sealed partial class PostDetailPage : Page
 
         try
         {
-            await ContentViewer.PrintAsync();
+            // 인쇄 작업 이름 = 글 제목 (프린터 대기열에서 식별)
+            await ContentViewer.PrintAsync(ViewModel.Post.Title ?? "게시글");
         }
         catch (Exception ex)
         {

@@ -17,6 +17,13 @@ public class ScheduleRepository : BaseRepository
         EnsureTableExists();
     }
 
+    /// <summary>공유 연결 생성자 — 다른 리포지토리와 한 연결·한 트랜잭션을 공유할 때 사용(자동 배치 원자화).</summary>
+    public ScheduleRepository(Microsoft.Data.Sqlite.SqliteConnection connection) : base(connection)
+    {
+        // Schedule 테이블은 DatabaseInitializer 가 만들지 않으므로 공유 연결에서도 DDL 을 보장한다
+        EnsureTableExists();
+    }
+
     #region Table Management
 
     private void EnsureTableExists()
