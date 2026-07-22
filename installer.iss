@@ -9,7 +9,7 @@
 ;   5. installer_output 폴더에 NewSchoolSetup_x.x.x.exe 생성됨
 
 #define MyAppName "NewSchool"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Centwon"
 #define MyAppExeName "NewSchool.exe"
 #define MyAppDescription "교사를 위한 학교 업무 도우미"
