@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -32,6 +33,53 @@ public enum MessageBoxDefaultButton
 public static class MessageBox
 {
     private static XamlRoot? _xamlRoot;
+
+    // WinUI 3 는 ContentDialog 를 동시에 하나만 허용하고, 이미 열려 있는데 ShowAsync 를
+    // 다시 호출하면 예외를 던진다. await 없이 던지는 호출(`_ = MessageBox.ShowAsync(...)`)이
+    // 연달아 발생하면(예: 좌석 미사용 토글 연타 → CheckSeat 경고 2회) 두 번째가 터지면서
+    // 정작 안내 메시지는 사라지고 엉뚱한 오류창이 떴다. 게이트로 직렬화한다.
+    private static readonly SemaphoreSlim _dialogGate = new(1, 1);
+
+    // 이 클래스를 거치지 않는 ad-hoc ContentDialog 가 열려 있을 수도 있다(게이트가 알 수 없음).
+    // 그 경우 ShowAsync 가 실패하므로, 사용자가 해당 대화상자를 닫을 때까지 잠시 재시도한다.
+    private const int DialogRetryDelayMs = 250;
+    private const int DialogRetryMaxAttempts = 120; // 최대 약 30초
+
+    /// <summary>
+    /// ContentDialog 를 앱 전역에서 한 번에 하나만 열리도록 직렬화하여 표시한다.
+    /// 직접 만든 ContentDialog 도 이 메서드를 통해 띄우면 동시 표시 예외를 피할 수 있다.
+    /// </summary>
+    public static async Task<ContentDialogResult> ShowDialogAsync(ContentDialog dialog)
+    {
+        await _dialogGate.WaitAsync();
+        try
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    return await dialog.ShowAsync();
+                }
+                catch (Exception ex) when (attempt < DialogRetryMaxAttempts)
+                {
+                    // 다른 대화상자가 열려 있는 상황 — 닫힐 때까지 대기 후 재시도
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[MessageBox] 대화상자 표시 재시도({attempt + 1}): {ex.Message}");
+                    await Task.Delay(DialogRetryDelayMs);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // 끝내 표시하지 못한 경우 — 앱을 죽이지 않고 로그만 남긴다.
+            System.Diagnostics.Debug.WriteLine($"[MessageBox] 대화상자 표시 실패: {ex.Message}");
+            return ContentDialogResult.None;
+        }
+        finally
+        {
+            _dialogGate.Release();
+        }
+    }
 
     // XamlRoot 설정 (앱 시작 시 한 번 설정)
     public static void Initialize(XamlRoot xamlRoot)
@@ -148,7 +196,7 @@ public static class MessageBox
         // ESC 키 처리
         SetupKeyHandling(dialog, button);
 
-        var result = await dialog.ShowAsync();
+        var result = await ShowDialogAsync(dialog);
 
         // 결과를 MessageBoxResult로 변환
         return ConvertResult(result, button);
@@ -181,7 +229,7 @@ public static class MessageBox
             XamlRoot = _xamlRoot
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await ShowDialogAsync(dialog);
         return result == ContentDialogResult.Primary;
     }
 

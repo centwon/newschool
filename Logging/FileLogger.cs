@@ -19,7 +19,10 @@ namespace NewSchool.Logging
         private readonly SemaphoreSlim _signal;
         private readonly CancellationTokenSource _cts;
         private readonly Task _writerTask;
-        private bool _disposed;
+        private volatile bool _disposed;
+
+        // 백그라운드 라이터와 동기 Flush()가 같은 파일에 동시에 쓰는 것을 막는다.
+        private readonly object _fileLock = new();
 
         private string LogDirectory { get; }
         private LogLevel MinimumLevel { get; set; }
@@ -85,7 +88,45 @@ namespace NewSchool.Logging
             };
 
             _logQueue.Enqueue(entry);
-            _signal.Release();
+
+            // Dispose 이후(종료 중)에는 라이터가 이미 멈췄고 _signal 도 해제됐다.
+            // 큐에만 넣고 끝내면 유실되므로 즉시 동기 기록한다.
+            if (_disposed)
+            {
+                FlushCore();
+                return;
+            }
+
+            try
+            {
+                _signal.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Dispose 와 경합 — 위와 동일하게 동기 기록으로 처리
+                FlushCore();
+            }
+        }
+
+        /// <summary>
+        /// 큐에 남은 로그를 즉시 동기 기록한다.
+        /// 앱이 곧 종료될 수 있는 지점(치명적 예외 처리기 등)에서 호출하면
+        /// 백그라운드 라이터가 스케줄되지 못해 로그가 유실되는 것을 막을 수 있다.
+        /// </summary>
+        public void Flush() => FlushCore();
+
+        private void FlushCore()
+        {
+            var entries = new System.Collections.Generic.List<LogEntry>();
+            while (_logQueue.TryDequeue(out var entry))
+            {
+                entries.Add(entry);
+            }
+
+            if (entries.Count > 0)
+            {
+                WriteEntriesToFile(entries);
+            }
         }
 
         #endregion
@@ -94,11 +135,15 @@ namespace NewSchool.Logging
 
         private async Task ProcessLogQueueAsync()
         {
-            while (!_cts.Token.IsCancellationRequested)
+            // 토큰을 한 번만 캡처한다. Dispose 가 대기 시간을 초과해 _cts 를 먼저 해제한 경우
+            // 루프 조건에서 _cts.Token 을 다시 읽으면 ObjectDisposedException 이 난다.
+            var token = _cts.Token;
+
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    await _signal.WaitAsync(_cts.Token);
+                    await _signal.WaitAsync(token);
 
                     var entries = new System.Collections.Generic.List<LogEntry>();
                     while (_logQueue.TryDequeue(out var entry))
@@ -108,11 +153,13 @@ namespace NewSchool.Logging
 
                     if (entries.Count > 0)
                     {
-                        await WriteLogsAsync(entries);
+                        WriteEntriesToFile(entries);
                     }
                 }
                 catch (OperationCanceledException)
                 {
+                    // 종료 신호 — 남은 큐를 비우고 나간다(Dispose 가 유실을 막는 핵심 경로).
+                    FlushCore();
                     break;
                 }
                 catch (Exception ex)
@@ -122,11 +169,14 @@ namespace NewSchool.Logging
             }
         }
 
-        private async Task WriteLogsAsync(System.Collections.Generic.List<LogEntry> entries)
+        /// <summary>
+        /// 실제 파일 기록. 백그라운드 라이터와 Flush() 양쪽에서 호출되므로
+        /// _fileLock 으로 직렬화한다(같은 파일 동시 append 방지).
+        /// </summary>
+        private void WriteEntriesToFile(System.Collections.Generic.List<LogEntry> entries)
         {
             try
             {
-                string logFile = GetLogFilePath();
                 var sb = new StringBuilder();
 
                 foreach (var entry in entries)
@@ -134,10 +184,14 @@ namespace NewSchool.Logging
                     sb.AppendLine(FormatLogEntry(entry));
                 }
 
-                await File.AppendAllTextAsync(logFile, sb.ToString());
+                lock (_fileLock)
+                {
+                    string logFile = GetLogFilePath();
+                    File.AppendAllText(logFile, sb.ToString());
 
-                // 로그 파일 크기 확인 및 회전
-                await RotateLogIfNeededAsync(logFile);
+                    // 로그 파일 크기 확인 및 회전
+                    RotateLogIfNeeded(logFile);
+                }
             }
             catch (Exception ex)
             {
@@ -179,7 +233,7 @@ namespace NewSchool.Logging
             return Path.Combine(LogDirectory, fileName);
         }
 
-        private async Task RotateLogIfNeededAsync(string logFile)
+        private void RotateLogIfNeeded(string logFile)
         {
             try
             {
@@ -195,7 +249,7 @@ namespace NewSchool.Logging
                         Directory.CreateDirectory(archiveDir);
                     }
 
-                    await Task.Run(() => File.Move(logFile, archivePath));
+                    File.Move(logFile, archivePath);
                 }
 
                 // 오래된 로그 삭제 (30일 이상) — 플러시마다 디렉터리 스캔은 낭비라 1시간에 1회만
@@ -248,25 +302,34 @@ namespace NewSchool.Logging
 
         public void Dispose()
         {
-            if (!_disposed)
+            if (_disposed) return;
+
+            // 순서가 중요하다. 취소를 먼저 걸면 라이터의 WaitAsync(token) 이 즉시 예외로 빠져
+            // 큐가 비워지지 않은 채 종료된다(= 종료 직전 로그 유실).
+            // 따라서 ① 남은 큐를 먼저 동기 기록하고 ② 그 다음 라이터를 정지시킨다.
+            FlushCore();
+
+            _cts.Cancel();
+
+            try
             {
-                _cts.Cancel();
-                _signal.Release(); // 대기 중인 작업 깨우기
-
-                try
-                {
-                    if (!_writerTask.IsCompleted)
-                        _writerTask.Wait(TimeSpan.FromSeconds(2));
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[FileLogger] Writer task 종료 대기 실패: {ex.Message}");
-                }
-
-                _cts.Dispose();
-                _signal.Dispose();
-                _disposed = true;
+                if (!_writerTask.IsCompleted)
+                    _writerTask.Wait(TimeSpan.FromSeconds(2));
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FileLogger] Writer task 종료 대기 실패: {ex.Message}");
+            }
+
+            // 라이터 종료 대기 중에 추가로 쌓인 항목까지 마무리
+            FlushCore();
+
+            // _disposed 를 먼저 세워야 이후 Log() 호출이 해제된 _signal 을 만지지 않고
+            // 동기 기록 경로로 빠진다.
+            _disposed = true;
+
+            _cts.Dispose();
+            _signal.Dispose();
         }
 
         #endregion

@@ -516,13 +516,8 @@ public sealed partial class PageStudentInfo : Page, IDisposable
 
             System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] 조회된 로그: {logs.Count}건");
 
-            // ViewModel 변환
-            var logViewModels = new List<StudentLogViewModel>();
-            foreach (var log in logs)
-            {
-                var logVm = await StudentLogViewModel.CreateAsync(log);
-                logViewModels.Add(logVm);
-            }
+            // ViewModel 변환 — 배치 조회(단일 학생이라도 기록 수만큼 재조회하던 N+1 제거)
+            var logViewModels = await StudentLogViewModel.CreateManyAsync(logs);
 
             LogList.LoadLogs(logViewModels);
 

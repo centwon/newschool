@@ -37,8 +37,11 @@ public partial class App : Application
                 Debug.WriteLine($"[App] ★ InnerStackTrace: {e.Exception.InnerException.StackTrace}");
             }
 
-            // 파일 로그에 기록
+            // 파일 로그에 기록 — 여기서 앱이 곧 종료될 수 있으므로 즉시 디스크로 내린다.
+            // (Flush 가 없으면 백그라운드 라이터가 스케줄되기 전에 프로세스가 사라져
+            //  정작 원인을 알려줄 로그가 유실된다.)
             FileLogger.Instance.Critical($"[App] UnhandledException: {e.Exception.GetType().Name}", e.Exception);
+            FileLogger.Instance.Flush();
 
             // 사용자에게 알린 뒤 앱이 죽지 않도록 처리(e.Handled = true)
             // 기존에는 조용히 로그만 남겨 사용자가 원인을 알 수 없었다
@@ -83,7 +86,13 @@ public partial class App : Application
             FileLogger.Instance.Critical(
                 $"[AppDomain] UnhandledException (IsTerminating={e.IsTerminating})",
                 ex ?? new Exception("Unknown non-Exception object"));
+
+            // 종료가 확정된 경로 — 반드시 디스크에 내린 뒤 빠져나간다.
+            FileLogger.Instance.Flush();
         };
+
+        // 정상 종료 경로에서도 큐 잔여분을 반드시 기록한다.
+        AppDomain.CurrentDomain.ProcessExit += (sender, e) => FileLogger.Instance.Dispose();
     }
 
     protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
@@ -270,6 +279,9 @@ public partial class App : Application
         {
             _googleSyncService?.Dispose();
             _googleSyncService = null;
+
+            // 창이 닫히면 프로세스가 곧 끝난다 — 큐에 남은 로그를 확정 기록.
+            FileLogger.Instance.Dispose();
         };
         _window.Activate();
 

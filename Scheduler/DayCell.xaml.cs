@@ -247,6 +247,11 @@ public sealed partial class DayCell : UserControl
 
     private bool _isInitialized = false;
     private DayInfo? _pendingDayInfo;
+
+    // TasksRepeater 가 아직 로드되지 않았을 때 마지막으로 요청된 표시 대상.
+    // 구독은 _tasksLoadedHooked 로 1회만 걸어 핸들러 누적을 막는다.
+    private DayInfo? _pendingTasksDayInfo;
+    private bool _tasksLoadedHooked;
     #endregion
 
     #region Properties
@@ -365,6 +370,12 @@ public sealed partial class DayCell : UserControl
 
         try
         {
+            // 되돌리기용 이전 상태 보관 — DB 저장이 실패하면 화면과 DB 가 갈라지므로
+            // 반드시 원상 복구해야 한다.
+            bool prevIsDone = task.IsDone;
+            string prevUpdated = task.Updated;
+            string prevCompleted = task.Completed;
+
             task.IsDone = !task.IsDone;
             task.Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
@@ -388,7 +399,22 @@ public sealed partial class DayCell : UserControl
             }
             catch (Exception ex)
             {
+                // 사용자가 직접 누른 동작이 실패한 경우다.
+                // 조용히 삼키면 화면은 완료, DB 는 미완료로 갈라진 채 다음 새로고침에
+                // 소리 없이 되돌아간다 → 상태를 복구하고 사용자에게 알린다.
                 Debug.WriteLine($"[DayCell] 작업 상태 업데이트 오류: {ex.Message}");
+
+                task.IsDone = prevIsDone;
+                task.Updated = prevUpdated;
+                task.Completed = prevCompleted;
+
+                if (Dayinfo != null)
+                {
+                    await UpdateDayDisplayAsync(Dayinfo);
+                }
+
+                await UserErrorReporter.ReportAsync("할 일 상태 변경", ex);
+                return;
             }
 
             // 표시 업데이트 (필요시)
@@ -557,49 +583,12 @@ public sealed partial class DayCell : UserControl
                     EventsRepeater.ItemsSource = new List<KEvent>(dayInfo.Events);
             }
 
-            // ✅ 작업 표시 (ItemsRepeater 사용) — 새 리스트로 참조 변경하여 UI 갱신 보장
-            if (TasksRepeater != null)
-            {
-                if (dayInfo.Tasks?.Count > 0)
-                {
-                    Debug.WriteLine($"[DayCell] 작업 표시 시작: {dayInfo.Tasks.Count}개");
-
-                    try
-                    {
-                        TasksRepeater.ItemsSource = null;
-                        TasksRepeater.ItemsSource = new List<KEvent>(dayInfo.Tasks);
-
-                        Debug.WriteLine($"[DayCell] 작업 표시 완료: {dayInfo.Tasks.Count}개");
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[DayCell] ItemsRepeater 설정 오류: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    TasksRepeater.ItemsSource = null;
-                }
-            }
-            else
-            {
-                Debug.WriteLine($"[DayCell] 경고: TasksRepeater가 null입니다.");
-            }
-
-            // ✅ 작업 개수 배지 표시
-            if (TaskCountBadge != null && TaskCountText != null)
-            {
-                int taskCount = dayInfo.Tasks?.Count ?? 0;
-                if (taskCount > 0)
-                {
-                    TaskCountText.Text = taskCount.ToString();
-                    TaskCountBadge.Visibility = Visibility.Visible;
-                }
-                else
-                {
-                    TaskCountBadge.Visibility = Visibility.Collapsed;
-                }
-            }
+            // ✅ 작업 표시 + 개수 배지 — UpdateTasksDisplay 에 위임한다.
+            // 예전에는 여기서 dayInfo.Tasks 를 필터 없이 그대로 뿌렸는데,
+            // UpdateTasksDisplay 는 Settings.ShowTasks(완료 항목 표시) 필터를 적용한다.
+            // 두 경로가 갈려 있어 "할 일 표시" 를 꺼둔 상태에서 완료 체크를 하면
+            // 숨겨져야 할 항목이 남고 배지 숫자도 줄지 않았다. 한쪽으로 통일.
+            UpdateTasksDisplay(dayInfo);
 
             Debug.WriteLine($"[DayCell] 표시 업데이트 완료: {dayInfo.Date:yyyy-MM-dd}");
         }
@@ -686,6 +675,23 @@ public sealed partial class DayCell : UserControl
         }
     }
 
+    /// <summary>
+    /// TasksRepeater 로드 완료 시 1회 실행 — 가장 최근에 요청된 dayInfo 로만 갱신한다.
+    /// </summary>
+    private void OnTasksRepeaterLoaded(object sender, RoutedEventArgs e)
+    {
+        if (TasksRepeater != null)
+            TasksRepeater.Loaded -= OnTasksRepeaterLoaded;
+
+        _tasksLoadedHooked = false;
+
+        var pending = _pendingTasksDayInfo;
+        _pendingTasksDayInfo = null;
+
+        if (pending != null)
+            UpdateTasksDisplay(pending);
+    }
+
     private void UpdateTasksDisplay(DayInfo dayInfo)
     {
         try
@@ -709,14 +715,17 @@ public sealed partial class DayCell : UserControl
             {
                 Debug.WriteLine("[DayCell] TasksRepeater가 아직 로드되지 않음");
 
-                // Loaded 이벤트 대기 후 업데이트
-                void OnLoaded(object sender, RoutedEventArgs e)
-                {
-                    TasksRepeater.Loaded -= OnLoaded;
-                    UpdateTasksDisplay(dayInfo);
-                }
+                // 로드 완료 후 재시도한다. 지역 함수를 매번 새로 구독하면 호출마다
+                // 다른 델리게이트 인스턴스가 쌓이고(-= 는 자기 것만 제거) 로드 시점에
+                // 전부 발동하면서 오래된 dayInfo 로 덮어쓸 수 있다.
+                // → 대기 중인 dayInfo 만 갱신하고 구독은 1회로 고정한다.
+                _pendingTasksDayInfo = dayInfo;
 
-                TasksRepeater.Loaded += OnLoaded;
+                if (!_tasksLoadedHooked)
+                {
+                    _tasksLoadedHooked = true;
+                    TasksRepeater.Loaded += OnTasksRepeaterLoaded;
+                }
                 return;
             }
 

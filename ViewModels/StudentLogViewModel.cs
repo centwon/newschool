@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -80,6 +82,62 @@ namespace NewSchool.ViewModels
         }
 
         /// <summary>
+        /// 여러 StudentLog 를 한 번에 ViewModel 로 변환한다 (N+1 방지).
+        ///
+        /// CreateAsync 를 루프로 돌리면 기록 1건마다 학적·기본정보 조회가 2회씩 발생한다.
+        /// 특히 한 학생의 기록 목록에서는 매번 "같은 학생"을 다시 읽어 결과가 전부 동일한
+        /// 순수 낭비였다(기록 50건 → 쿼리 100회). 여기서는 등장하는 학생 ID 를 모아
+        /// 배치 조회 2회로 끝낸다.
+        /// </summary>
+        public static async Task<List<StudentLogViewModel>> CreateManyAsync(
+            IEnumerable<StudentLog> logs)
+        {
+            var logList = logs?.ToList() ?? new List<StudentLog>();
+            var result = new List<StudentLogViewModel>(logList.Count);
+            if (logList.Count == 0) return result;
+
+            var studentIds = logList
+                .Select(l => l.StudentID)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList();
+
+            var enrollmentsById = new Dictionary<string, Enrollment>();
+            var studentsById = new Dictionary<string, Student>();
+
+            try
+            {
+                using var enrollmentService = new EnrollmentService();
+                using var studentService = new StudentService(SchoolDatabase.DbPath);
+
+                var enrollments = await enrollmentService.GetCurrentEnrollmentsAsync(studentIds);
+                foreach (var e in enrollments)
+                    enrollmentsById[e.StudentID] = e;
+
+                var students = await studentService.GetStudentsByIdsAsync(studentIds);
+                foreach (var s in students)
+                    studentsById[s.StudentID] = s;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[StudentLogViewModel] 학생 정보 배치 로드 실패: {ex.Message}");
+                // 실패해도 기본값으로 진행 (개별 InitializeAsync 와 동일한 정책)
+            }
+
+            foreach (var log in logList)
+            {
+                var vm = new StudentLogViewModel(log);
+                enrollmentsById.TryGetValue(log.StudentID ?? string.Empty, out var enrollment);
+                studentsById.TryGetValue(log.StudentID ?? string.Empty, out var student);
+                vm.ApplyStudentInfo(enrollment, student);
+                result.Add(vm);
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// 비동기 초기화
         /// </summary>
         public async Task InitializeAsync()
@@ -106,6 +164,21 @@ namespace NewSchool.ViewModels
             {
                 IsLoading = false;
             }
+        }
+
+        /// <summary>
+        /// 배치 조회로 이미 확보한 학생 정보를 주입한다 (DB 재조회 없음).
+        /// </summary>
+        private void ApplyStudentInfo(Enrollment? enrollment, Student? student)
+        {
+            _enrollment = enrollment;
+            _student = student;
+
+            OnPropertyChanged(nameof(Grade));
+            OnPropertyChanged(nameof(Class));
+            OnPropertyChanged(nameof(Number));
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(StudentInfo));
         }
 
         #endregion

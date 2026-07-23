@@ -130,12 +130,8 @@ public sealed partial class ClassDiaryPage : Page
                 _currentClass,
                 _currentDate);
 
-            var viewModels = new List<StudentLogViewModel>();
-            foreach (var log in logs)
-            {
-                var vm = await StudentLogViewModel.CreateAsync(log);
-                viewModels.Add(vm);
-            }
+            // 배치 조회로 변환 (기록 건마다 학적·기본정보를 재조회하던 N+1 제거)
+            var viewModels = await StudentLogViewModel.CreateManyAsync(logs);
 
             DailyLogList.LoadLogs(viewModels);
 
@@ -295,12 +291,8 @@ public sealed partial class ClassDiaryPage : Page
 
             var filtered = logs.Where(l => l.StudentID == student.StudentID).ToList();
 
-            var viewModels = new List<StudentLogViewModel>();
-            foreach (var log in filtered)
-            {
-                var vm = await StudentLogViewModel.CreateAsync(log);
-                viewModels.Add(vm);
-            }
+            // 배치 조회로 변환 (기록 건마다 학적·기본정보를 재조회하던 N+1 제거)
+            var viewModels = await StudentLogViewModel.CreateManyAsync(filtered);
 
             DailyLogList.LoadLogs(viewModels);
 

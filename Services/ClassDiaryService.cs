@@ -460,16 +460,8 @@ namespace NewSchool.Services
                 date);
 
             // StudentLogViewModel으로 변환
-            var result = new List<ViewModels.StudentLogViewModel>();
-
-            foreach(var log in logs)
-            {
-                // 학생 정보 조회 필요 (Student 테이블에서)
-                // 현재는 기본값으로 설정
-                var viewModel = await StudentLogViewModel.CreateAsync(log);
-                result.Add(viewModel);
-            }
-            return result;
+            // 배치 조회 (기록 건마다 학적·기본정보를 재조회하던 N+1 제거)
+            return await StudentLogViewModel.CreateManyAsync(logs);
         }
 
         /// <summary>

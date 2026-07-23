@@ -639,6 +639,7 @@ public sealed partial class PageSeats : Page, IDisposable
         }
 
         int maxAttempts = _options.MaxAttempts > 0 ? _options.MaxAttempts : 500;
+        bool satisfied = false;
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
@@ -703,7 +704,10 @@ public sealed partial class PageSeats : Page, IDisposable
 
             // 3) 제약 검증 (기존 짝 제약 + 이력 짝 + 남녀 교차)
             if (IsValidArrangement(recentPairs))
+            {
+                satisfied = true;
                 break;
+            }
         }
 
         UpdateStudentList();
@@ -713,6 +717,35 @@ public sealed partial class PageSeats : Page, IDisposable
 
         // 정위치 배치
         await SeatAssignAsync();
+
+        // 시도 횟수를 모두 소진했는데도 제약을 만족하지 못한 경우.
+        // 예전에는 마지막 시도(= 제약 위반 배치)를 아무 안내 없이 확정해버려,
+        // 교사가 분리·고정·남녀 교차가 지켜진 줄 알고 그대로 저장했다.
+        if (!satisfied)
+        {
+            await MessageBox.ShowAsync(
+                $"{maxAttempts}회를 시도했지만 모든 조건을 동시에 만족하는 배치를 찾지 못했습니다.\n" +
+                $"{DescribeActiveConstraints()}\n\n" +
+                "현재 화면의 배치는 일부 조건을 어겼을 수 있습니다.\n" +
+                "조건을 줄이거나(배치 옵션) 다시 시도해 주세요.",
+                "조건 충족 실패");
+        }
+    }
+
+    /// <summary>실패 안내에 쓸 현재 활성 제약 요약</summary>
+    private string DescribeActiveConstraints()
+    {
+        var parts = new List<string>();
+        if (_exclusionPairs.Count > 0) parts.Add($"분리 {_exclusionPairs.Count}쌍");
+        if (_fixedPairs.Count > 0) parts.Add($"고정 {_fixedPairs.Count}쌍");
+        if (_options.PreferMixedGenderPair) parts.Add("남녀 교차");
+        if (_options.RecentPairAvoidRounds > 0) parts.Add($"이전 짝 회피 {_options.RecentPairAvoidRounds}회차");
+        if (_options.RecentPositionAvoidRounds > 0) parts.Add($"이전 자리 회피 {_options.RecentPositionAvoidRounds}회차");
+        if (_options.FrontPriorityStudentIds.Count > 0) parts.Add($"앞자리 우선 {_options.FrontPriorityStudentIds.Count}명");
+
+        return parts.Count > 0
+            ? "적용된 조건: " + string.Join(", ", parts)
+            : "적용된 조건이 없습니다.";
     }
 
     /// <summary>특정 학생을 특정 좌표에 배치하면 최근 이력과 겹치는가?</summary>
@@ -933,23 +966,32 @@ public sealed partial class PageSeats : Page, IDisposable
         // 랜덤 위치로 흩뿌리기
         foreach (var card in Cards)
         {
-            double l = r.Next(0, (int)(Room.ActualWidth - card.ActualWidth));
-            double t = r.Next(0, (int)(Room.ActualHeight - card.ActualHeight));
-            Canvas.SetLeft(card, l);
-            Canvas.SetTop(card, t);
+            ScatterCard(r, card);
         }
 
         for (int j = 0; j < repeat; j++)
         {
             foreach (var card in Cards)
             {
-                double l = r.Next(0, (int)(Room.ActualWidth - card.ActualWidth));
-                double t = r.Next(0, (int)(Room.ActualHeight - card.ActualHeight));
-                Canvas.SetLeft(card, l);
-                Canvas.SetTop(card, t);
+                ScatterCard(r, card);
                 await Task.Delay(speed);
             }
         }
+    }
+
+    /// <summary>
+    /// 카드를 Room 안의 임의 위치로 옮긴다.
+    /// 초기화 이후 창을 줄이면 Room 이 카드보다 작아질 수 있는데
+    /// (GridBody_SizeChanged 가 카드 크기를 재계산하지 않음),
+    /// 그대로 Random.Next 에 넘기면 상한이 음수가 되어 예외가 난다 → 0 으로 하한 처리.
+    /// </summary>
+    private void ScatterCard(Random r, PhotoCard card)
+    {
+        int maxLeft = Math.Max(0, (int)(Room.ActualWidth - card.ActualWidth));
+        int maxTop = Math.Max(0, (int)(Room.ActualHeight - card.ActualHeight));
+
+        Canvas.SetLeft(card, r.Next(0, maxLeft + 1));
+        Canvas.SetTop(card, r.Next(0, maxTop + 1));
     }
 
     private async Task SeatAssignAsync()
