@@ -15,6 +15,19 @@ namespace NewSchool.Database
     /// </summary>
     public sealed class DatabaseInitializer : IDisposable
     {
+        /// <summary>
+        /// 현재 스키마 세대 번호(<c>PRAGMA user_version</c>).
+        ///
+        /// 지금까지는 값을 안 써서 모든 DB 가 0 이었고, "이 파일이 어느 시점 스키마인지"
+        /// 판별할 방법이 없었다. 초기화 끝에 이 값을 찍어두면, 향후 제약 변경 등으로
+        /// 테이블 재작성이 필요할 때 <c>if (user_version &lt; N) { …변환…; user_version = N; }</c>
+        /// 형태의 버전 기반 마이그레이션을 짤 수 있다.
+        ///
+        /// 데이터를 건드리지 않는 메타값이라 기존 DB·새 DB 모두에 무해하다.
+        /// 스키마를 바꿀 때마다 이 상수를 올리고 대응 마이그레이션을 추가한다.
+        /// </summary>
+        public const int SchemaVersion = 1;
+
         private readonly string _dbPath;
         private SqliteConnection? _connection;
         private bool _disposed;
@@ -39,6 +52,7 @@ namespace NewSchool.Database
                 await CreateTablesAsync();
                 await CreateIndexesAsync();
                 await CleanupOrphansAsync();
+                await StampSchemaVersionAsync();
 
                 Debug.WriteLine("[DatabaseInitializer] 데이터베이스 초기화 완료");
                 return true;
@@ -748,6 +762,21 @@ namespace NewSchool.Database
         /// BaseRepository 가 연결마다 foreign_keys=ON 을 켜므로, 기존 위반 데이터를 남겨두면
         /// 이후 UPDATE 시 FK 위반으로 실패한다. 스키마의 CASCADE/SET NULL 의도대로 일괄 보정한다.
         /// </summary>
+        /// <summary>
+        /// 스키마 세대 번호를 <c>PRAGMA user_version</c> 에 기록한다.
+        /// 이미 같은 값이 찍혀 있으면 실질적으로 no-op. (PRAGMA 는 파라미터 바인딩을
+        /// 지원하지 않지만 <see cref="SchemaVersion"/> 은 코드 내 int 상수라 주입 위험이 없다.)
+        /// </summary>
+        private async Task StampSchemaVersionAsync()
+        {
+            if (_connection == null) return;
+
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = $"PRAGMA user_version = {SchemaVersion};";
+            await cmd.ExecuteNonQueryAsync();
+            Debug.WriteLine($"[DatabaseInitializer] 스키마 버전 기록: {SchemaVersion}");
+        }
+
         private async Task CleanupOrphansAsync()
         {
             if (_connection == null) return;

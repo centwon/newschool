@@ -39,6 +39,19 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
         return names;
     }
 
+    [Fact]
+    public async Task 초기화_후_스키마_버전이_찍힌다()
+    {
+        using var conn = new SqliteConnection($"Data Source={_fx.DbPath}");
+        await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA user_version";
+        var version = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+        Assert.Equal(NewSchool.Database.DatabaseInitializer.SchemaVersion, version);
+        Assert.True(version >= 1);
+    }
+
     [Theory]
     [InlineData("CourseSection")]
     [InlineData("Schedule")]
