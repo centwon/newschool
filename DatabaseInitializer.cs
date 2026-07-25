@@ -381,26 +381,8 @@ namespace NewSchool.Database
             // 기존 테이블들 (유지)
             // ==========================================
 
-            // Lesson 테이블
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS Lesson (
-                    No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Course INTEGER NOT NULL,
-                    Teacher TEXT NOT NULL,
-                    Year INTEGER NOT NULL,
-                    Semester INTEGER NOT NULL,
-                    Date TEXT,
-                    DayOfWeek INTEGER NOT NULL,
-                    Period INTEGER NOT NULL,
-                    Grade INTEGER,
-                    Class INTEGER DEFAULT 0,
-                    Room TEXT,
-                    Topic TEXT,
-                    IsRecurring INTEGER DEFAULT 1,
-                    IsCompleted INTEGER DEFAULT 0,
-                    IsCancelled INTEGER DEFAULT 0,
-                    FOREIGN KEY (Course) REFERENCES Course(No) ON DELETE CASCADE
-                );";
+            // Lesson 테이블 — 정의는 LessonRepository.SchemaSql 하나뿐(이중 정의 제거)
+            cmd.CommandText = Repositories.LessonRepository.SchemaSql;
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] Lesson 테이블 생성 완료");
 
@@ -444,23 +426,8 @@ namespace NewSchool.Database
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] ClubEnrollment 테이블 생성 완료");
 
-            // LessonLog 테이블
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS LessonLog (
-                    No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Lesson INTEGER,
-                    TeacherID TEXT NULL,
-                    Year INTEGER NOT NULL,
-                    Semester INTEGER NOT NULL,
-                    Date TEXT NOT NULL,
-                    Period INTEGER,
-                    Subject TEXT,
-                    Room TEXT,
-                    Topic TEXT,
-                    Content TEXT,
-                    FOREIGN KEY (Lesson) REFERENCES Lesson(No) ON DELETE SET NULL,
-                    FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL
-                );";
+            // LessonLog 테이블 — 정의는 LessonLogRepository.SchemaSql 하나뿐(이중 정의 제거)
+            cmd.CommandText = Repositories.LessonLogRepository.SchemaSql;
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] LessonLog 테이블 생성 완료");
 
@@ -601,7 +568,46 @@ namespace NewSchool.Database
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("  ✓ SeatPosHistory 테이블 생성");
 
+            await CreateRepositoryOwnedTablesAsync(cmd);
+
             Debug.WriteLine("[DatabaseInitializer] 모든 테이블 생성 완료");
+        }
+
+        /// <summary>
+        /// 정의를 각 리포지토리가 들고 있는 테이블들을 초기화 시점에 미리 만든다.
+        ///
+        /// 예전에는 해당 리포지토리 생성자가 처음 호출될 때만 만들어졌는데,
+        /// 이 중 <c>Schedule</c>·<c>CourseSection</c>·<c>SubjectYearPlan</c> 은 다른 테이블의
+        /// FK 부모다. <c>foreign_keys=ON</c> 에서 부모 테이블이 없으면 자식 테이블에 대한
+        /// INSERT/UPDATE 가 준비 단계에서 <c>no such table</c> 로 실패한다
+        /// (예: ScheduleRepository 를 한 번도 만들지 않은 채 LessonProgress 를 갱신).
+        /// 지금까지는 화면들이 우연히 부모 리포지토리를 먼저 열어서 가려져 있었을 뿐이므로,
+        /// 순서 의존을 없애기 위해 여기서 한 번에 만든다.
+        ///
+        /// 전부 <c>CREATE TABLE IF NOT EXISTS</c> 라 기존 DB 에는 아무 영향이 없다.
+        /// 각 리포지토리의 컬럼 추가·재작성 마이그레이션은 종전대로 생성자에서 돈다.
+        /// 순서는 FK 부모 → 자식.
+        /// </summary>
+        private static async Task CreateRepositoryOwnedTablesAsync(SqliteCommand cmd)
+        {
+            var schemas = new (string Name, string Sql)[]
+            {
+                ("CourseSection",     Repositories.CourseSectionRepository.SchemaSql),
+                ("Schedule",          Repositories.ScheduleRepository.SchemaSql),
+                ("ScheduleUnitMap",   Repositories.ScheduleUnitMapRepository.SchemaSql),
+                ("LessonProgress",    Repositories.LessonProgressRepository.SchemaSql),
+                ("SubjectYearPlan",   Repositories.SubjectYearPlanRepository.SchemaSql),
+                ("WeeklyLessonHours", Repositories.WeeklyLessonHoursRepository.SchemaSql),
+                ("WeeklyUnitPlan",    Repositories.WeeklyUnitPlanRepository.SchemaSql),
+                ("UndoHistory",       Repositories.UndoHistoryRepository.SchemaSql),
+            };
+
+            foreach (var (name, sql) in schemas)
+            {
+                cmd.CommandText = sql;
+                await cmd.ExecuteNonQueryAsync();
+                Debug.WriteLine($"  ✓ {name} 테이블 생성(리포지토리 정의)");
+            }
         }
 
         private async Task CreateIndexesAsync()

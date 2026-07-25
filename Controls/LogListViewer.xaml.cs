@@ -576,46 +576,70 @@ public sealed partial class LogListViewer : UserControl
         Logs.Clear();
     }
 
-    /// <summary>변경된 로그 저장</summary>
-    public async System.Threading.Tasks.Task SaveChangedLogsAsync()
+    /// <summary>
+    /// 저장 대상 로그를 저장한다.
+    /// 체크된 항목뿐 아니라 아직 DB 에 없는 신규 항목(No &lt;= 0)도 포함한다
+    /// — 신규 항목은 기본적으로 체크가 안 된 상태라 예전에는 조용히 사라졌다.
+    /// </summary>
+    /// <returns>(저장 시도 건수, 실제 반영 건수)</returns>
+    public async System.Threading.Tasks.Task<(int Attempted, int Saved)> SaveChangedLogsAsync()
     {
-        var logService = new Services.StudentLogService();
-        
-        foreach (var log in Logs.Where(l => l.IsSelected))
+        var targets = Logs.Where(l => l.IsSelected || l.No <= 0).ToList();
+        if (targets.Count == 0)
+            return (0, 0);
+
+        using var logService = new Services.StudentLogService();
+        int saved = 0;
+
+        foreach (var log in targets)
         {
             if (log.No > 0)
             {
                 // 기존 로그 업데이트
-                await logService.UpdateAsync(log.StudentLog);
+                if (await logService.UpdateAsync(log.StudentLog))
+                    saved++;
             }
             else
             {
                 // 새 로그 삽입
                 var no = await logService.InsertAsync(log.StudentLog);
-                log.No = no;
+                if (no > 0)
+                {
+                    log.No = no;
+                    saved++;
+                }
             }
             log.IsSelected = false;
         }
-        
-        logService.Dispose();
+
+        return (targets.Count, saved);
     }
 
     /// <summary>선택된 로그 삭제</summary>
-    public async System.Threading.Tasks.Task DeleteSelectedLogsAsync()
+    /// <returns>(삭제 시도 건수, 실제 삭제 건수)</returns>
+    public async System.Threading.Tasks.Task<(int Attempted, int Deleted)> DeleteSelectedLogsAsync()
     {
-        var logService = new Services.StudentLogService();
         var logsToDelete = Logs.Where(l => l.IsSelected).ToList();
-        
+        if (logsToDelete.Count == 0)
+            return (0, 0);
+
+        using var logService = new Services.StudentLogService();
+        int deleted = 0;
+
         foreach (var logVm in logsToDelete)
         {
             if (logVm.No > 0)
             {
-                await logService.DeleteAsync(logVm.No);
+                // DB 삭제가 실패하면 목록에서도 지우지 않는다(표시/DB 불일치 방지)
+                if (!await logService.DeleteAsync(logVm.No))
+                    continue;
             }
+
             Logs.Remove(logVm);
+            deleted++;
         }
-        
-        logService.Dispose();
+
+        return (logsToDelete.Count, deleted);
     }
 
     #endregion

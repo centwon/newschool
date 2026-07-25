@@ -27,9 +27,8 @@ public class ScheduleUnitMapRepository : BaseRepository
 
     #region Table Management
 
-    private void EnsureTableExists()
-    {
-        const string sql = @"
+    /// <summary>ScheduleUnitMap 스키마 정본 — <c>DatabaseInitializer</c> 가 함께 실행한다.</summary>
+    internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS ScheduleUnitMap (
                 No INTEGER PRIMARY KEY AUTOINCREMENT,
                 ScheduleId INTEGER NOT NULL,
@@ -45,9 +44,11 @@ public class ScheduleUnitMapRepository : BaseRepository
             CREATE UNIQUE INDEX IF NOT EXISTS idx_schedule_unit_map_unique ON ScheduleUnitMap(ScheduleId, CourseSectionId);
         ";
 
+    private void EnsureTableExists()
+    {
         try
         {
-            using var cmd = CreateCommand(sql);
+            using var cmd = CreateCommand(SchemaSql);
             cmd.ExecuteNonQuery();
         }
         catch (Exception ex)

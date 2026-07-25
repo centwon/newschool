@@ -21,12 +21,8 @@ public sealed class UndoHistoryRepository : IDisposable
 
     #region Table Management
 
-    private void EnsureTableExists()
-    {
-        using var conn = new SqliteConnection(_connectionString);
-        conn.Open();
-
-        var sql = @"
+    /// <summary>UndoHistory 스키마 정본 — <c>DatabaseInitializer</c> 가 함께 실행한다.</summary>
+    internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS UndoHistory (
                 No INTEGER PRIMARY KEY AUTOINCREMENT,
                 CourseId INTEGER NOT NULL,
@@ -42,11 +38,16 @@ public sealed class UndoHistoryRepository : IDisposable
             CREATE INDEX IF NOT EXISTS idx_undohistory_course_room 
             ON UndoHistory(CourseId, Room);
 
-            CREATE INDEX IF NOT EXISTS idx_undohistory_created 
+            CREATE INDEX IF NOT EXISTS idx_undohistory_created
             ON UndoHistory(CreatedAt DESC);
         ";
 
-        using var cmd = new SqliteCommand(sql, conn);
+    private void EnsureTableExists()
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = new SqliteCommand(SchemaSql, conn);
         cmd.ExecuteNonQuery();
     }
 

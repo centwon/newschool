@@ -25,35 +25,49 @@ public class LessonLogRepository : IDisposable
     #region Table Management
 
     /// <summary>
+    /// LessonLog 스키마 정본.
+    ///
+    /// 예전에는 <c>DatabaseInitializer</c> 와 이 리포지토리가 서로 다른 정의를 갖고 있었고
+    /// <c>CREATE TABLE IF NOT EXISTS</c> 특성상 먼저 실행한 쪽이 이겼다. 그 결과
+    /// "FK 있음 + TeacherID NULL 허용"(초기화기 우선, 실사용 DB) 과
+    /// "FK 없음 + TeacherID NOT NULL"(리포지토리 우선) 두 종류가 생길 수 있었다.
+    ///
+    /// 정본은 <b>실사용 DB 의 현재 실효 스키마</b> 로 맞춘다 — 초기화기의 컬럼 순서·제약에
+    /// 아래 2번에서 ALTER 로 붙던 7개 컬럼을 같은 순서로 이어 붙인 형태. 이렇게 해야
+    /// 새로 만든 DB 와 기존 DB 의 스키마가 일치한다.
+    /// </summary>
+    internal const string SchemaSql = @"
+            CREATE TABLE IF NOT EXISTS LessonLog (
+                No INTEGER PRIMARY KEY AUTOINCREMENT,
+                Lesson INTEGER,
+                TeacherID TEXT NULL,
+                Year INTEGER NOT NULL,
+                Semester INTEGER NOT NULL,
+                Date TEXT NOT NULL,
+                Period INTEGER,
+                Subject TEXT,
+                Room TEXT,
+                Topic TEXT,
+                Content TEXT,
+                Grade INTEGER DEFAULT 0,
+                Class INTEGER DEFAULT 0,
+                CourseSectionNo INTEGER,
+                SectionName TEXT,
+                Note TEXT,
+                CreatedAt TEXT,
+                UpdatedAt TEXT,
+                FOREIGN KEY (Lesson) REFERENCES Lesson(No) ON DELETE SET NULL,
+                FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL
+            );
+        ";
+
+    /// <summary>
     /// 테이블 존재 확인 및 생성
     /// </summary>
     private void EnsureTableExists()
     {
         // 1. 테이블 생성 (새 DB용)
-        const string createSql = @"
-            CREATE TABLE IF NOT EXISTS LessonLog (
-                No INTEGER PRIMARY KEY AUTOINCREMENT,
-                Lesson INTEGER,
-                TeacherID TEXT NOT NULL,
-                Year INTEGER NOT NULL,
-                Semester INTEGER NOT NULL,
-                Date TEXT NOT NULL,
-                Period INTEGER,
-                Subject TEXT NOT NULL,
-                Grade INTEGER DEFAULT 0,
-                Class INTEGER DEFAULT 0,
-                Room TEXT,
-                CourseSectionNo INTEGER,
-                SectionName TEXT,
-                Topic TEXT,
-                Content TEXT,
-                Note TEXT,
-                CreatedAt TEXT,
-                UpdatedAt TEXT
-            );
-        ";
-
-        using (var cmd = new SqliteCommand(createSql, _connection))
+        using (var cmd = new SqliteCommand(SchemaSql, _connection))
             cmd.ExecuteNonQuery();
 
         // 2. 기존 DB 마이그레이션: 새 컬럼 추가 (이미 있으면 무시)

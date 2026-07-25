@@ -50,6 +50,9 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     private StudentService? _studentService;
     private StudentLogService? _studentLogService;
 
+    /// <summary>저장 실패로 목록 선택을 되돌리는 중 (StudentSelected 재진입 차단)</summary>
+    private bool _restoringSelection;
+
     #endregion
 
     #region Constructor
@@ -85,13 +88,18 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         SCard.StudentChanged -= SCard_StudentChanged;
 
         // 자동 저장 — Dispose 전에 완료를 보장 (미저장 편집 유실/경합 방지)
+        // 페이지가 이미 트리에서 떨어지는 중이라 대화상자는 띄울 수 없으므로 로그로 남긴다.
         try
         {
-            await SaveChangedAsync();
+            if (!await SaveChangedAsync())
+            {
+                Logging.Log.Warning("PageStudentInfo",
+                    $"페이지 이탈 시 자동 저장 실패: StudentID={_currentStudentId}");
+            }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] 자동 저장 실패: {ex.Message}");
+            Logging.Log.Error("PageStudentInfo", "페이지 이탈 시 자동 저장 예외", ex);
         }
 
         // Service Dispose
@@ -151,10 +159,21 @@ public sealed partial class PageStudentInfo : Page, IDisposable
 
     private async void StudentList_StudentSelected(object? sender, Enrollment e)
     {
+        if (_restoringSelection) return;
+
         System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] StudentList_StudentSelected: StudentID={e.StudentID}");
 
-        // 기존 학생 정보 저장
-        await SaveChangedAsync();
+        // 기존 학생 정보 저장 — 실패하면 편집 내용을 지키기 위해 선택을 되돌린다
+        if (!await FlushPendingCardEditsAsync())
+        {
+            if (!string.IsNullOrEmpty(_currentStudentId))
+            {
+                _restoringSelection = true;
+                try { StudentList.SelectStudent(_currentStudentId); }
+                finally { _restoringSelection = false; }
+            }
+            return;
+        }
 
         // 새 학생 로드
         _currentStudentId = e.StudentID;
@@ -325,8 +344,23 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         try
         {
             // LogListViewer에서 변경된 로그들 저장
-            await LogList.SaveChangedLogsAsync();
-            await MessageBox.ShowAsync("누가기록이 저장되었습니다.", "저장");
+            var (attempted, saved) = await LogList.SaveChangedLogsAsync();
+
+            if (attempted == 0)
+            {
+                await MessageBox.ShowAsync(
+                    "저장할 기록이 없습니다.\n수정한 기록의 체크박스를 선택한 뒤 저장하세요.", "저장");
+            }
+            else if (saved == attempted)
+            {
+                await MessageBox.ShowAsync($"누가기록 {saved}건이 저장되었습니다.", "저장");
+            }
+            else
+            {
+                Logging.Log.Warning("PageStudentInfo", $"누가기록 저장 일부 실패: {saved}/{attempted}");
+                await MessageBox.ShowAsync(
+                    $"{attempted}건 중 {saved}건만 저장되었습니다.\n저장되지 않은 기록을 다시 확인해 주세요.", "저장 실패");
+            }
         }
         catch (Exception ex)
         {
@@ -342,8 +376,22 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         try
         {
             // LogListViewer에서 선택된 로그들 삭제
-            await LogList.DeleteSelectedLogsAsync();
-            await MessageBox.ShowAsync("선택된 누가기록이 삭제되었습니다.", "삭제");
+            var (attempted, deleted) = await LogList.DeleteSelectedLogsAsync();
+
+            if (attempted == 0)
+            {
+                await MessageBox.ShowAsync("삭제할 기록을 선택하세요.", "삭제");
+            }
+            else if (deleted == attempted)
+            {
+                await MessageBox.ShowAsync($"누가기록 {deleted}건이 삭제되었습니다.", "삭제");
+            }
+            else
+            {
+                Logging.Log.Warning("PageStudentInfo", $"누가기록 삭제 일부 실패: {deleted}/{attempted}");
+                await MessageBox.ShowAsync(
+                    $"{attempted}건 중 {deleted}건만 삭제되었습니다.", "삭제 실패");
+            }
         }
         catch (Exception ex)
         {
@@ -431,6 +479,10 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     /// </summary>
     private async Task LoadStudentListAsync()
     {
+        // 목록을 다시 읽으면 StudentCard 가 Clear() 되어 미저장 편집이 사라진다.
+        // 학년/반·학기 전환 등 어느 경로로 들어오든 먼저 내려쓴다.
+        await FlushPendingCardEditsAsync();
+
         using var enrollmentService = new EnrollmentService();
         try
         {
@@ -565,6 +617,37 @@ public sealed partial class PageStudentInfo : Page, IDisposable
             await MessageBox.ShowAsync($"저장 오류: {ex.Message}", "오류");
             return false;
         }
+    }
+
+    /// <summary>
+    /// 미저장 학생카드 편집을 내려쓰고, 실패하면 사용자에게 알린다.
+    /// </summary>
+    /// <returns>저장할 것이 없거나 저장에 성공하면 true</returns>
+    private async Task<bool> FlushPendingCardEditsAsync()
+    {
+        if (string.IsNullOrEmpty(_currentStudentId) || !SCard.IsChanged)
+            return true;
+
+        string name = SCard.ViewModel.Name;
+
+        try
+        {
+            if (await SCard.ViewModel.SaveAsync())
+                return true;
+        }
+        catch (Exception ex)
+        {
+            Logging.Log.Error("PageStudentInfo", $"학생 정보 저장 예외: {_currentStudentId}", ex);
+            await UserErrorReporter.ReportAsync("학생 정보 저장", ex);
+            return false;
+        }
+
+        Logging.Log.Warning("PageStudentInfo", $"학생 정보 저장 실패(0행): {_currentStudentId}");
+        await MessageBox.ShowAsync(
+            $"{(string.IsNullOrEmpty(name) ? "선택한" : name)} 학생의 변경 내용을 저장하지 못했습니다.\n" +
+            "학적 정보를 다시 확인한 뒤 저장해 주세요.",
+            "저장 실패");
+        return false;
     }
 
     /// <summary>

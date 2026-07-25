@@ -26,9 +26,12 @@ public class ScheduleRepository : BaseRepository
 
     #region Table Management
 
-    private void EnsureTableExists()
-    {
-        const string sql = @"
+    /// <summary>
+    /// Schedule 스키마 정본. <c>DatabaseInitializer</c> 가 초기화 시 함께 실행해
+    /// 이 리포지토리를 한 번도 만들지 않은 상태에서도 테이블이 존재하도록 보장한다
+    /// (LessonProgress·ScheduleUnitMap 이 Schedule 을 FK 부모로 참조하기 때문).
+    /// </summary>
+    internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS Schedule (
                 No INTEGER PRIMARY KEY AUTOINCREMENT,
                 CourseId INTEGER NOT NULL,
@@ -52,9 +55,11 @@ public class ScheduleRepository : BaseRepository
             CREATE UNIQUE INDEX IF NOT EXISTS idx_schedule_slot ON Schedule(CourseId, Room, Date, Period);
         ";
 
+    private void EnsureTableExists()
+    {
         try
         {
-            using var cmd = CreateCommand(sql);
+            using var cmd = CreateCommand(SchemaSql);
             cmd.ExecuteNonQuery();
         }
         catch (Exception ex)

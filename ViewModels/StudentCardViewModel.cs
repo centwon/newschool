@@ -291,9 +291,15 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
 
         try
         {
-            // 1. Student 업데이트
+            // 1. Student 업데이트 — 0행 갱신(정본 없음)은 실패로 취급해야
+            //    IsChanged 를 유지하고 호출부가 사용자에게 알릴 수 있다.
             Student.UpdatedAt = DateTime.Now;
-            await _studentService.UpdateBasicInfoAsync(Student);
+            if (!await _studentService.UpdateBasicInfoAsync(Student))
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[StudentCardViewModel] 기본정보 갱신 0행: StudentID={Student.StudentID}, No={Student.No}");
+                return false;
+            }
 
             // 2. StudentDetail 업데이트 (있는 경우)
             if (Detail != null)
@@ -307,7 +313,12 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
                 {
                     // 업데이트
                     Detail.No = existing.No; // PK 유지
-                    await _studentDetailService.UpdateAsync(Detail);
+                    if (!await _studentDetailService.UpdateAsync(Detail))
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[StudentCardViewModel] 상세정보 갱신 0행: No={Detail.No}");
+                        return false;
+                    }
                 }
                 else
                 {
@@ -519,8 +530,14 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
     /// </summary>
     private void OnModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // 모델이 변경되면 IsChanged = true
-        IsChanged = true;
+        // 편집 대상(Student/Detail)이 바뀔 때만 IsChanged 를 세운다.
+        // Enrollment 는 읽기 전용이므로 여기서 플래그를 건드리면 안 된다
+        // (예전에는 무조건 true 로 올린 뒤 Enrollment 분기에서 false 로 되돌려,
+        //  편집 도중 학적 갱신이 들어오면 미저장 편집이 통째로 유실됐다).
+        if (sender == Student || sender == Detail)
+        {
+            IsChanged = true;
+        }
 
         // 특정 프로퍼티 변경 시 관련 계산 프로퍼티 업데이트
         if (sender == Student)
@@ -561,7 +578,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
         else if (sender == Enrollment)
         {
             // Enrollment 변경은 IsChanged를 발생시키지 않음 (읽기 전용)
-            // 계산 프로퍼티만 업데이트
+            // 계산 프로퍼티만 업데이트 — IsChanged 는 그대로 둔다.
             switch (e.PropertyName)
             {
                 case nameof(Enrollment.Grade):
@@ -570,9 +587,6 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
                     OnPropertyChanged(nameof(ClassInfo));
                     break;
             }
-            
-            // IsChanged를 false로 되돌림 (읽기 전용 모델이므로)
-            IsChanged = false;
         }
     }
 

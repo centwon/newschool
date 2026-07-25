@@ -417,7 +417,16 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                 }
             }
 
-            await MessageBox.ShowAsync($"{successCount}명의 학생 정보가 저장되었습니다.", "완료");
+            if (successCount == targetStudents.Count)
+            {
+                await MessageBox.ShowAsync($"{successCount}명의 학생 정보가 저장되었습니다.", "완료");
+            }
+            else
+            {
+                await MessageBox.ShowAsync(
+                    $"{targetStudents.Count}명 중 {successCount}명만 저장되었습니다.\n" +
+                    "저장되지 않은 학생은 수정 표시가 남아 있습니다.", "저장 실패");
+            }
 
             // 선택 해제
             ChkSelectAll.IsChecked = false;
@@ -463,8 +472,14 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             {
                 try
                 {
-                    // Enrollment 삭제
-                    await enrollmentRepo.DeleteAsync(vm.EnrollmentNo);
+                    // Enrollment 삭제 — 0행이면 목록에서도 지우지 않는다
+                    // (지우면 화면에서만 사라지고 새로고침 시 되살아나 DB 와 어긋난다)
+                    if (!await enrollmentRepo.DeleteAsync(vm.EnrollmentNo))
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[StudentManagement] 삭제 0행 - {vm.Name}(EnrollmentNo={vm.EnrollmentNo})");
+                        continue;
+                    }
 
                     // Student 삭제 (선택적 - 다른 학적이 없는 경우만)
                     // await studentRepo.DeleteAsync(vm.StudentID);
@@ -479,7 +494,15 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                 }
             }
 
-            await MessageBox.ShowAsync($"{successCount}명의 학생이 삭제되었습니다.", "완료");
+            if (successCount == selectedStudents.Count)
+            {
+                await MessageBox.ShowAsync($"{successCount}명의 학생이 삭제되었습니다.", "완료");
+            }
+            else
+            {
+                await MessageBox.ShowAsync(
+                    $"{selectedStudents.Count}명 중 {successCount}명만 삭제되었습니다.", "삭제 실패");
+            }
             UpdateUI();
         }
         catch (Exception ex)

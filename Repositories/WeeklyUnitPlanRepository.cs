@@ -19,9 +19,8 @@ namespace NewSchool.Repositories
 
         #region Table Setup
 
-        private void EnsureTableExists()
-        {
-            const string sql = @"
+        /// <summary>WeeklyUnitPlan 스키마 정본 — <c>DatabaseInitializer</c> 가 함께 실행한다.</summary>
+        internal const string SchemaSql = @"
                 CREATE TABLE IF NOT EXISTS WeeklyUnitPlan (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     YearPlanNo INTEGER NOT NULL,
@@ -41,8 +40,10 @@ namespace NewSchool.Repositories
                     ON WeeklyUnitPlan(YearPlanNo, SectionNo);
             ";
 
+        private void EnsureTableExists()
+        {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = sql;
+            cmd.CommandText = SchemaSql;
             cmd.ExecuteNonQuery();
 
             // 기존 테이블에 UnitNo가 있으면 SectionNo로 변경 (마이그레이션)

@@ -22,9 +22,12 @@ public class LessonRepository : BaseRepository
 
     #region Table Management
 
-    private void EnsureTableExists()
-    {
-        const string sql = @"
+    /// <summary>
+    /// Lesson 스키마 정본. 예전에는 <c>DatabaseInitializer</c> 에도 따로 정의돼 있어
+    /// 먼저 실행한 쪽에 따라 제약(DayOfWeek NOT NULL, Class 기본값, FK CASCADE)이 갈렸다.
+    /// 정의를 이곳 하나로 모으고 초기화기가 이 상수를 실행한다.
+    /// </summary>
+    internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS Lesson (
                 No INTEGER PRIMARY KEY AUTOINCREMENT,
                 Course INTEGER NOT NULL,
@@ -32,16 +35,16 @@ public class LessonRepository : BaseRepository
                 Year INTEGER NOT NULL,
                 Semester INTEGER NOT NULL,
                 Date TEXT,
-                DayOfWeek INTEGER,
+                DayOfWeek INTEGER NOT NULL,
                 Period INTEGER NOT NULL,
                 Grade INTEGER,
-                Class INTEGER,
+                Class INTEGER DEFAULT 0,
                 Room TEXT,
                 Topic TEXT,
                 IsRecurring INTEGER DEFAULT 1,
                 IsCompleted INTEGER DEFAULT 0,
                 IsCancelled INTEGER DEFAULT 0,
-                FOREIGN KEY (Course) REFERENCES Course(No)
+                FOREIGN KEY (Course) REFERENCES Course(No) ON DELETE CASCADE
             );
             
             CREATE INDEX IF NOT EXISTS idx_lesson_course ON Lesson(Course);
@@ -49,6 +52,10 @@ public class LessonRepository : BaseRepository
             CREATE INDEX IF NOT EXISTS idx_lesson_schedule ON Lesson(DayOfWeek, Period);
             CREATE INDEX IF NOT EXISTS idx_lesson_date ON Lesson(Date);
         ";
+
+    private void EnsureTableExists()
+    {
+        const string sql = SchemaSql;
 
         try
         {

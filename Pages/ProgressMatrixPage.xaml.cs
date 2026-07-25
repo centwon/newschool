@@ -205,21 +205,33 @@ public sealed partial class ProgressMatrixPage : Page
         {
             using var progressRepo = new LessonProgressRepository(SchoolDatabase.DbPath);
 
+            int attempted = _selectedCells.Count;
+            int done = 0;
+
             foreach (var (sectionId, room) in _selectedCells)
             {
-                await progressRepo.MarkAsCompletedAsync(sectionId, room, DateTime.Today);
+                if (!await progressRepo.MarkAsCompletedAsync(sectionId, room, DateTime.Today))
+                    continue;
+
                 UpdateCellCompletion(sectionId, room, true);
+                done++;
             }
 
-            int count = _selectedCells.Count;
             ClearSelection();
             await LoadMatrixAsync();
-            ShowSuccess($"{count}개 단원 완료 처리됨");
+
+            if (done == attempted)
+                ShowSuccess($"{done}개 단원 완료 처리됨");
+            else
+                ShowWarning($"{attempted}개 중 {done}개만 완료 처리됐습니다.");
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[ProgressMatrixPage] 완료 처리 실패: {ex.Message}");
             ShowError($"완료 처리 실패: {ex.Message}");
+            // 루프 중간에 터졌으면 일부만 반영된 상태 — 화면을 DB 와 다시 맞춘다
+            ClearSelection();
+            await LoadMatrixAsync();
         }
         finally
         {
@@ -237,21 +249,33 @@ public sealed partial class ProgressMatrixPage : Page
         {
             using var progressRepo = new LessonProgressRepository(SchoolDatabase.DbPath);
 
+            int attempted = _selectedCells.Count;
+            int done = 0;
+
             foreach (var (sectionId, room) in _selectedCells)
             {
-                await progressRepo.MarkAsIncompleteAsync(sectionId, room);
+                if (!await progressRepo.MarkAsIncompleteAsync(sectionId, room))
+                    continue;
+
                 UpdateCellCompletion(sectionId, room, false);
+                done++;
             }
 
-            int count = _selectedCells.Count;
             ClearSelection();
             await LoadMatrixAsync();
-            ShowSuccess($"{count}개 단원 미완료 처리됨");
+
+            if (done == attempted)
+                ShowSuccess($"{done}개 단원 미완료 처리됨");
+            else
+                ShowWarning($"{attempted}개 중 {done}개만 미완료 처리됐습니다.\n(진도 기록이 없는 단원은 처리 대상이 아닙니다)");
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[ProgressMatrixPage] 미완료 처리 실패: {ex.Message}");
             ShowError($"미완료 처리 실패: {ex.Message}");
+            // 루프 중간에 터졌으면 일부만 반영된 상태 — 화면을 DB 와 다시 맞춘다
+            ClearSelection();
+            await LoadMatrixAsync();
         }
         finally
         {

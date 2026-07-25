@@ -21,12 +21,8 @@ public sealed class LessonProgressRepository : IDisposable
 
     #region Table Management
 
-    private void EnsureTableExists()
-    {
-        using var conn = new SqliteConnection(_connectionString);
-        conn.Open();
-
-        var sql = @"
+    /// <summary>LessonProgress 스키마 정본 — <c>DatabaseInitializer</c> 가 함께 실행한다.</summary>
+    internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS LessonProgress (
                 No INTEGER PRIMARY KEY AUTOINCREMENT,
                 CourseSectionId INTEGER NOT NULL,
@@ -51,11 +47,16 @@ public sealed class LessonProgressRepository : IDisposable
             CREATE INDEX IF NOT EXISTS idx_lessonprogress_section_room 
             ON LessonProgress(CourseSectionId, Room);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_lessonprogress_unique 
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_lessonprogress_unique
             ON LessonProgress(CourseSectionId, Room);
         ";
 
-        using var cmd = new SqliteCommand(sql, conn);
+    private void EnsureTableExists()
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = new SqliteCommand(SchemaSql, conn);
         cmd.ExecuteNonQuery();
     }
 
@@ -87,7 +88,8 @@ public sealed class LessonProgressRepository : IDisposable
     /// <summary>
     /// 진도 기록 업데이트
     /// </summary>
-    public async Task UpdateAsync(LessonProgress progress)
+    /// <returns>실제로 갱신된 행이 있으면 true</returns>
+    public async Task<bool> UpdateAsync(LessonProgress progress)
     {
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync();
@@ -112,7 +114,7 @@ public sealed class LessonProgressRepository : IDisposable
         cmd.Parameters.AddWithValue("@Memo", progress.Memo ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now.ToString("o"));
 
-        await cmd.ExecuteNonQueryAsync();
+        return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
     /// <summary>
@@ -348,24 +350,26 @@ public sealed class LessonProgressRepository : IDisposable
     /// <summary>
     /// 완료 상태 변경
     /// </summary>
-    public async Task MarkAsCompletedAsync(int sectionId, string room, DateTime? date = null, int? scheduleId = null)
+    /// <returns>실제로 반영됐으면 true</returns>
+    public async Task<bool> MarkAsCompletedAsync(int sectionId, string room, DateTime? date = null, int? scheduleId = null)
     {
         var progress = await GetOrCreateAsync(sectionId, room);
         progress.MarkAsCompleted(date, scheduleId);
-        await UpdateAsync(progress);
+        return await UpdateAsync(progress);
     }
 
     /// <summary>
     /// 완료 취소
     /// </summary>
-    public async Task MarkAsIncompleteAsync(int sectionId, string room)
+    /// <returns>실제로 반영됐으면 true (대상 진도 없음도 false)</returns>
+    public async Task<bool> MarkAsIncompleteAsync(int sectionId, string room)
     {
         var progress = await GetBySectionAndRoomAsync(sectionId, room);
-        if (progress != null)
-        {
-            progress.MarkAsIncomplete();
-            await UpdateAsync(progress);
-        }
+        if (progress == null)
+            return false;
+
+        progress.MarkAsIncomplete();
+        return await UpdateAsync(progress);
     }
 
     /// <summary>

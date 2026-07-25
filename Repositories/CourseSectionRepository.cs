@@ -19,10 +19,13 @@ public class CourseSectionRepository : BaseRepository
 
     #region Table Management
 
-    private void EnsureTableExists()
-    {
-        // 1. 테이블 생성 (기본 컬럼만 - 기존 DB 호환)
-        const string createTableSql = @"
+    /// <summary>
+    /// CourseSection 스키마 정본(기본 컬럼만 — 기존 DB 호환).
+    /// v2 추가 컬럼과 인덱스는 이 리포지토리 생성 시 <c>AddNewColumnsIfNeeded</c> 가 붙인다.
+    /// <c>DatabaseInitializer</c> 가 이 상수를 함께 실행한다
+    /// (LessonProgress·ScheduleUnitMap·WeeklyUnitPlan 이 FK 부모로 참조).
+    /// </summary>
+    internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS CourseSection (
                 No INTEGER PRIMARY KEY AUTOINCREMENT,
                 Course INTEGER NOT NULL,
@@ -40,9 +43,12 @@ public class CourseSectionRepository : BaseRepository
             );
         ";
 
+    private void EnsureTableExists()
+    {
         try
         {
-            using var cmd = CreateCommand(createTableSql);
+            // 1. 테이블 생성 (기본 컬럼만 - 기존 DB 호환)
+            using var cmd = CreateCommand(SchemaSql);
             cmd.ExecuteNonQuery();
 
             // 2. 기존 테이블에 새 컬럼 추가 (v2 마이그레이션)

@@ -19,9 +19,8 @@ namespace NewSchool.Repositories
 
         #region Table Setup
 
-        private void EnsureTableExists()
-        {
-            const string sql = @"
+        /// <summary>WeeklyLessonHours 스키마 정본 — <c>DatabaseInitializer</c> 가 함께 실행한다.</summary>
+        internal const string SchemaSql = @"
                 CREATE TABLE IF NOT EXISTS WeeklyLessonHours (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     YearPlanNo INTEGER NOT NULL,
@@ -41,8 +40,10 @@ namespace NewSchool.Repositories
                     ON WeeklyLessonHours(YearPlanNo, Week);
             ";
 
+        private void EnsureTableExists()
+        {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = sql;
+            cmd.CommandText = SchemaSql;
             cmd.ExecuteNonQuery();
 
             LogInfo("WeeklyLessonHours 테이블 확인/생성 완료");
