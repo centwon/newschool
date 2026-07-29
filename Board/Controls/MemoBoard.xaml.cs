@@ -378,15 +378,17 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             // 최신 메모를 닫는 경우, 편집 중이던 내용 먼저 저장
             if (memo == _recentPost && _isModified) await SaveRecentMemoAsync();
 
-            memo.IsCompleted = true;
-
-            // 아직 저장 안 된 빈 메모(No<=0)는 DB 갱신 없이 목록에서만 제거
+            // 아직 저장 안 된 빈 메모(No<=0)는 DB 갱신 없이 목록에서만 제거.
+            // DB 갱신을 먼저 확정한 뒤에 IsCompleted/목록을 바꿔야, 저장 실패 시
+            // 체크만 켜진 채 DB 는 미완료로 남는 무음 불일치를 막을 수 있다.
             if (memo.No > 0)
             {
                 using var service = Board.CreateService();
-                await service.UpdatePostIsCompletedAsync(memo.No, true);
+                if (!await service.UpdatePostIsCompletedAsync(memo.No, true))
+                    throw new InvalidOperationException("완료 상태를 저장하지 못했습니다(대상 없음).");
             }
 
+            memo.IsCompleted = true;
             _memos.Remove(memo);
             Render();
             Debug.WriteLine($"[MemoBoard] 완료(숨김): No={memo.No}");
@@ -394,6 +396,10 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         catch (Exception ex)
         {
             Debug.WriteLine($"[MemoBoard] 완료 처리 실패: {ex.Message}");
+            // 사용자가 클릭한 체크박스가 켜진 채로 남지 않도록 상태·목록 원복 후 알린다.
+            memo.IsCompleted = false;
+            Render();
+            await UserErrorReporter.ReportAsync("메모 완료 처리", ex);
         }
     }
 

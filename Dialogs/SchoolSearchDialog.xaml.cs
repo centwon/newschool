@@ -74,7 +74,10 @@ namespace NewSchool.Dialogs
                 string apiKey = Settings.NeisApiKey.Value;
                 string requestUrl = $"{apiEndpoint}?KEY={apiKey}&Type=xml&pSize=100&SCHUL_NM={Uri.EscapeDataString(schoolName)}";
 
-                Debug.WriteLine($"[SchoolSearch] 요청 URL: {requestUrl}");
+                // API 키가 로그에 남지 않도록 KEY 값을 가린다(급식·연간계획 로그와 동일 정책).
+                // 빈 키면 Replace("") 가 예외를 내므로 그대로 출력.
+                string maskedUrl = string.IsNullOrEmpty(apiKey) ? requestUrl : requestUrl.Replace(apiKey, "***");
+                Debug.WriteLine($"[SchoolSearch] 요청 URL: {maskedUrl}");
 
                 HttpResponseMessage response = await _httpClient.GetAsync(requestUrl);
                 response.EnsureSuccessStatusCode();
@@ -170,7 +173,6 @@ namespace NewSchool.Dialogs
                         XmlNode? phone = schoolNode["ORG_TELNO"]; // 전화번호
                         XmlNode? fax = schoolNode["ORG_FAXNO"]; // 팩스번호
                         XmlNode? website = schoolNode["HMPG_ADRES"]; // 홈페이지주소
-                        XmlNode? principalName = schoolNode["COEDU_SC_NM"]; // 교장명은 API에 없음
 
                         // 필수 필드 체크
                         if (schoolCode == null || schoolName == null || address == null ||

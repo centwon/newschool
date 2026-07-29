@@ -130,7 +130,12 @@ public partial class BoardService:IDisposable
         // ✅ 각 Repository를 독립적으로 사용 (CASCADE로 DB 정합성 보장)
         try
         {
-            // 1. 먼저 물리적 파일들 삭제 (데이터 조회)
+            // 1. 삭제 대상 물리 파일명만 먼저 수집 (아직 삭제하지 않음).
+            //    파일을 DB 삭제보다 먼저 지우면, DeleteAsync 가 예외로 실패했을 때
+            //    "파일은 사라졌는데 게시글 행은 남는" 역-고아 상태가 된다.
+            //    → DeleteComment/DeletePostFile 과 동일하게 "DB 확정 후 파일 삭제" 순서로 통일.
+            var filesToDelete = new List<string>();
+
             using (var commentRepo = new CommentRepository(_dbPath))
             {
                 var comments = await commentRepo.GetByPostAsync(postNo);
@@ -138,7 +143,7 @@ public partial class BoardService:IDisposable
                 {
                     if (comment.HasFile && !string.IsNullOrEmpty(comment.FileName))
                     {
-                        DeletePhysicalFile(comment.FileName, category);
+                        filesToDelete.Add(comment.FileName);
                     }
                 }
             }
@@ -148,15 +153,28 @@ public partial class BoardService:IDisposable
                 var postFiles = await postFileRepo.GetByPostAsync(postNo);
                 foreach (var file in postFiles)
                 {
-                    DeletePhysicalFile(file.FileName, category);
+                    if (!string.IsNullOrEmpty(file.FileName))
+                        filesToDelete.Add(file.FileName);
                 }
             }
 
             // 2. Post 삭제 (CASCADE로 Comment, PostFile도 자동 삭제)
+            bool deleted;
             using (var postRepo = new PostRepository(_dbPath))
             {
-                return await postRepo.DeleteAsync(postNo);
+                deleted = await postRepo.DeleteAsync(postNo);
             }
+
+            // 3. DB 삭제가 확정된 뒤에만 물리 파일 삭제
+            if (deleted)
+            {
+                foreach (var fileName in filesToDelete)
+                {
+                    DeletePhysicalFile(fileName, category);
+                }
+            }
+
+            return deleted;
         }
         catch (Exception ex)
         {
@@ -222,7 +240,7 @@ public partial class BoardService:IDisposable
     public virtual async Task<bool> DeleteCommentAsync(int commentNo, string category)
     {
         using var uow = new UnitOfWork(_dbPath);
-        string? fileToDelete = null;
+        var filesToDelete = new List<string>();
 
         try
         {
@@ -234,7 +252,28 @@ public partial class BoardService:IDisposable
 
                 int postNo = comment.Post;
 
+                // 최상위 댓글(ParentNo=0)을 지우면 그 답글(ParentNo=이 댓글 No)은 부모를 잃는다.
+                // Comment.ParentNo 에는 FK/CASCADE 가 없어(Post 에만 있음) 답글이 DB 에 고아로 남고,
+                // 화면(BuildThreadedOrder)에서는 부모가 없어 아예 사라진다 → 답글도 함께 정리한다.
+                if (comment.ParentNo == 0)
+                {
+                    var siblings = await uow.Comments.GetByPostAsync(postNo);
+                    foreach (var reply in siblings)
+                    {
+                        if (reply.ParentNo == commentNo)
+                        {
+                            if (reply.HasFile && !string.IsNullOrEmpty(reply.FileName))
+                                filesToDelete.Add(reply.FileName);
+                            await uow.Comments.DeleteAsync(reply.No);
+                        }
+                    }
+                }
+
                 // Comment 삭제 + 남은 댓글 확인 + Post 플래그 업데이트를 하나의 트랜잭션으로 처리
+                if (comment.HasFile && !string.IsNullOrEmpty(comment.FileName))
+                {
+                    filesToDelete.Add(comment.FileName);
+                }
                 await uow.Comments.DeleteAsync(commentNo);
 
                 int remainingComments = await uow.Comments.GetCountByPostAsync(postNo);
@@ -243,18 +282,14 @@ public partial class BoardService:IDisposable
                     await uow.Posts.UpdateHasCommentAsync(postNo, false);
                 }
 
-                if (comment.HasFile && !string.IsNullOrEmpty(comment.FileName))
-                {
-                    fileToDelete = comment.FileName;
-                }
-
                 return true;
             });
 
             // DB 트랜잭션 커밋이 확정된 뒤에만 물리 파일 삭제 (롤백 시 고아 파일 방지)
-            if (deleted && fileToDelete != null)
+            if (deleted)
             {
-                DeletePhysicalFile(fileToDelete, category);
+                foreach (var fileName in filesToDelete)
+                    DeletePhysicalFile(fileName, category);
             }
 
             return deleted;

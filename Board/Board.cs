@@ -244,6 +244,33 @@ namespace NewSchool.Board
         }
 
         /// <summary>
+        /// 학교 공용 PC에서 실수로 실행/배포되면 위험한 첨부 확장자(실행·스크립트·바로가기 계열).
+        /// 첨부 파일은 <c>Process.Start(UseShellExecute=true)</c> 로 열리므로 첨부 시점에 이 목록으로
+        /// 차단해 목록 밖(문서·이미지·압축 등)만 저장되게 한다. 목록이 여러 곳에 흩어져 서로 어긋나지
+        /// 않도록 게시글/댓글 첨부가 이 한 벌을 공유한다. (예전에는 실행형 13종만 막아 .lnk/.url/.hta
+        /// 같은 클릭 실행 확장자가 통과됐다.)
+        /// </summary>
+        private static readonly HashSet<string> _blockedAttachmentExtensions =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                ".exe", ".bat", ".cmd", ".com", ".scr", ".msi", ".msp",
+                ".ps1", ".psm1", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh", ".hta",
+                ".lnk", ".url", ".pif", ".scf", ".reg", ".inf", ".msc", ".cpl", ".jar", ".gadget", ".application"
+            };
+
+        /// <summary>차단 확장자 목록(읽기 전용 뷰).</summary>
+        public static IReadOnlyCollection<string> BlockedAttachmentExtensions => _blockedAttachmentExtensions;
+
+        /// <summary>파일명의 확장자가 실행 유발 차단 목록에 있으면 true.</summary>
+        public static bool IsBlockedAttachment(string fileName)
+        {
+            var ext = Path.GetExtension(fileName);
+            // HashSet.Contains(인스턴스 메서드) 사용 — IReadOnlyCollection 에는 Contains 가 없어
+            // LINQ(using System.Linq) 가 필요한데 이 파일엔 없으므로 구체 타입으로 호출한다.
+            return !string.IsNullOrEmpty(ext) && _blockedAttachmentExtensions.Contains(ext);
+        }
+
+        /// <summary>
         /// 카테고리 디렉토리 확인 및 생성
         /// </summary>
         public static void EnsureCategoryDirectory(string category)

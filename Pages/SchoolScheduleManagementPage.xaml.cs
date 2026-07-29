@@ -260,8 +260,15 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
                 schedule.CreatedAt = DateTime.Now;
                 schedule.UpdatedAt = DateTime.Now;
             }
-            Settings.IsNeisEventDownloaded.Set(true); // NEIS 일정 다운로드 플래그 설정
             var value = await _scheduleservice.CreateBulkScheduleAsync(neisSchedules.Schedules);
+            if (!value.Success)
+            {
+                // 저장 실패인데 플래그를 세우거나 음수 Count(-1)로 이상한 집계를 내지 않도록 먼저 처리
+                await MessageBox.ShowAsync($"학사일정 저장에 실패했습니다.\n{value.Message}", "오류");
+                return;
+            }
+
+            Settings.IsNeisEventDownloaded.Set(true); // 저장 성공 후에 다운로드 플래그 설정
             var savedCount = value.Count;
             var duplicateCount = neisSchedules.Schedules.Count - savedCount;
 
@@ -373,31 +380,35 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
                 var schedule = viewModel.Schedule;
                 schedule.UpdatedAt = DateTime.Now;
 
+                bool ok;
                 if (schedule.No == 0)
                 {
-                    // 신규 저장
+                    // 신규 저장 — 결과를 확인한다(실패해도 성공 집계에 넣던 문제 수정)
                     schedule.CreatedAt = DateTime.Now;
-                    await _scheduleservice.CreateScheduleAsync(schedule);
-                    savedCount++;
+                    var created = await _scheduleservice.CreateScheduleAsync(schedule);
+                    ok = created.Success;
+                    // 성공 시 새 PK 를 반영 — 안 하면 No 가 0 그대로라 다시 저장할 때 중복 생성됨
+                    if (ok) schedule.No = created.No;
                 }
                 else
                 {
                     // 업데이트
-                    if ((await _scheduleservice.UpdateScheduleAsync(schedule)).Success)
-                        savedCount++;
+                    ok = (await _scheduleservice.UpdateScheduleAsync(schedule)).Success;
                 }
 
                 viewModel.IsSelected = false; // 체크 해제
+                if (ok)
+                {
+                    savedCount++;
+                    viewModel.ResetModified();   // 성공한 항목만 ✏️ 표시 해제(실패는 남겨 재시도 가능)
+                }
             }
 
-            await MessageBox.ShowAsync($"{savedCount}개 항목이 저장되었습니다.", "알림");
-            
-            // 수정 상태 초기화 (새로고침 대신)
-            foreach (var item in selected)
-            {
-                item.ResetModified();
-            }
-            
+            string saveMsg = savedCount == selected.Count
+                ? $"{savedCount}개 항목이 저장되었습니다."
+                : $"{selected.Count}개 중 {savedCount}개가 저장되었습니다. 나머지는 실패해 수정 표시를 남겨두었습니다.";
+            await MessageBox.ShowAsync(saveMsg, "알림");
+
             UpdateUI(); // UI 업데이트
         }
         catch (Exception ex)
@@ -454,15 +465,30 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
                 .Select(s => s.No)
                 .ToList();
 
-            _ = await _scheduleservice.DeleteBulkScheduleAsync(deleteList);
-            // UI에서도 제거 (No가 0인 항목 포함)
-            foreach (var item in selected)
-            {
-                _schedules.Remove(item);
-            }
+            var result = await _scheduleservice.DeleteBulkScheduleAsync(deleteList);
 
-            await MessageBox.ShowAsync($"{selected.Count}개 항목이 삭제되었습니다.", "알림");
-            UpdateUI();
+            // 저장 안 된 항목(No==0)은 UI 전용이라 결과와 무관하게 제거
+            foreach (var item in selected.Where(s => s.No == 0).ToList())
+                _schedules.Remove(item);
+
+            if (result.Success)
+            {
+                // 전건 삭제 확정 — DB 항목도 UI에서 제거
+                foreach (var item in selected.Where(s => s.No > 0).ToList())
+                    _schedules.Remove(item);
+
+                await MessageBox.ShowAsync($"{selected.Count}개 항목이 삭제되었습니다.", "알림");
+                UpdateUI();
+            }
+            else
+            {
+                // 부분/전체 실패 — 개수만으로는 어떤 행이 남았는지 알 수 없으므로
+                // 목록에서 임의로 지우지 말고 DB 에서 다시 읽어 화면을 실제 상태와 맞춘다.
+                await MessageBox.ShowAsync(
+                    $"{deleteList.Count}개 중 {Math.Max(result.Count, 0)}개만 삭제되었습니다.\n{result.Message}",
+                    "삭제 일부 실패");
+                await LoadSchedulesAsync();
+            }
         }
         catch (Exception ex)
         {

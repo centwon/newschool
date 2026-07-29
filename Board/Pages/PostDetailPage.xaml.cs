@@ -17,12 +17,6 @@ public sealed partial class PostDetailPage : Page
     /// <summary>댓글 첨부파일 최대 크기 (100MB)</summary>
     private const long MaxCommentFileSizeBytes = 100L * 1024 * 1024;
 
-    /// <summary>학교 공용 PC에서 실수로 실행/배포되면 위험한 확장자 (PostFileListBox와 동일 기준)</summary>
-    private static readonly string[] BlockedCommentExtensions =
-    {
-        ".exe", ".bat", ".cmd", ".com", ".scr", ".msi", ".ps1", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh"
-    };
-
     public PostDetailViewModel ViewModel { get; }
     private int _postNo;
     private StorageFile? _commentAttachedFile;
@@ -137,10 +131,9 @@ public sealed partial class PostDetailPage : Page
 
             if (file != null)
             {
-                var extension = Path.GetExtension(file.Name);
-                if (!string.IsNullOrEmpty(extension) && Array.IndexOf(BlockedCommentExtensions, extension.ToLowerInvariant()) >= 0)
+                if (Board.IsBlockedAttachment(file.Name))
                 {
-                    await ShowErrorAsync($"실행 파일({extension})은 첨부할 수 없습니다.");
+                    await ShowErrorAsync($"실행 파일({Path.GetExtension(file.Name)})은 첨부할 수 없습니다.");
                     return;
                 }
 

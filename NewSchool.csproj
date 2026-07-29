@@ -134,10 +134,15 @@
   <!-- 미사용 전이 의존성(WebView2·Windows AI/ML)의 런타임 자산 게시 제외는
        파일 하단 RemoveUnusedWinAppSdkAssets Target 에서 처리한다(ResolvedFileToPublish 필터). -->
 
-  <!-- WinUIRichEditor: Jodit(WebView2) 대체용 Win2D 네이티브 리치에디터.
-       마이그레이션 중엔 ProjectReference 로 빠르게 반복 (API 유동적 + 본인 저장소). -->
+  <!-- WinUIRichEditor: Jodit(WebView2) 대체용 Win2D 네이티브 리치에디터. nuget.org 패키지 참조.
+       ⚠ 버전 선택 제약: 이 패키지가 선언하는 Microsoft.WindowsAppSDK.WinUI 하한선이
+       위 메타패키지(2.3.1)가 제공하는 WinUI 2.3.0 을 "넘지 않아야" 한다. 넘으면 NuGet 이 위로
+       통일하면서 .Runtime 2.3.1 의 컴포넌트 버전 검사에 걸려 빌드가 실패하고, 이를 피하려
+       self-contained 로 돌리면 게시가 9개 → 70개(44MB → 97MB)로 불어난다.
+       0.8.1 = 하한선 2.2.1 → 2.3.0 으로 해석되어 적합. (0.9.0 은 하한선이 2.3.2 라 부적합 —
+       편집기 쪽에서 하한선을 2.2.1 로 내린 0.9.1 이 게시되면 그때 올릴 것.) -->
   <ItemGroup>
-    <ProjectReference Include="..\..\WinUIRichEditor\src\WinUIRichEditor\WinUIRichEditor.csproj" />
+    <PackageReference Include="WinUIRichEditor" Version="0.8.1" />
   </ItemGroup>
 
   <!-- ==========================================
@@ -248,6 +253,13 @@
     <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
     <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
     <WindowsPackageType>None</WindowsPackageType>
+    <!-- WinAppSDK 는 프레임워크 의존으로 배포한다(기본값이지만 의도를 못박아 둔다).
+         런타임은 설치 프로그램의 prerequisites\WindowsAppRuntimeInstall-x64.exe 가 설치하고,
+         게시 폴더에는 앱 파일만 남는다(9개 / 44MB).
+         true 로 바꾸면 WinAppSDK 런타임 전체가 게시 폴더로 들어와 70개 / 97MB 가 된다.
+         전제: 메타패키지 Microsoft.WindowsAppSDK 참조 + 전이 참조들의 WinUI 하한선이
+         메타패키지가 주는 WinUI(2.3.1 → 2.3.0)를 넘지 않을 것. -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest></ApplicationManifest>
     <ApplicationIcon>newschool.ico</ApplicationIcon>
@@ -366,6 +378,12 @@
   <Target Name="RemoveUnusedWinAppSdkAssets" AfterTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Web.WebView2'))&#xD;&#xA;                  or '%(Filename)' == 'WebView2Loader'&#xD;&#xA;                  or '%(Filename)' == 'Microsoft.ML.OnnxRuntime'&#xD;&#xA;                  or $([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Windows.AI'))&#xD;&#xA;                  or '%(Filename)' == 'Microsoft.Graphics.Imaging.Projection'&#xD;&#xA;                  or '%(Filename)' == 'onnxruntime'&#xD;&#xA;                  or '%(Filename)' == 'DirectML'" />
+      <!-- WinUI 다국어 리소스(.mui) 중 ko/en 외 제거 — 안전망.
+           프레임워크 의존(현재 기본)에서는 .mui 가 설치된 런타임에 있어 게시 폴더에 오지 않으므로
+           이 필터는 동작하지 않는다. self-contained 로 전환하면 WinAppSDK 의 ~85개 언어 폴더
+           (af-ZA … zh-TW)가 딸려오는데, 한국어 앱이라 ko-KR 만 있으면 충분하고 미매칭 언어는
+           DLL 내장 영문으로 폴백하므로 en 만 함께 남긴다(그 경우 ~84개 폴더·3.4MB 절약). -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.mui'&#xD;&#xA;                  and !$([System.String]::Copy('%(RelativePath)').StartsWith('ko'))&#xD;&#xA;                  and !$([System.String]::Copy('%(RelativePath)').StartsWith('en'))" />
     </ItemGroup>
   </Target>
 </Project>

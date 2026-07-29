@@ -184,91 +184,113 @@ public class GoogleCalendarApiClient
     }
 
     /// <summary>401 자동 재시도 + 429/5xx 지수 백오프 + 네트워크 오류 재시도</summary>
-    private async Task<HttpResponseMessage> SendWithRetryAsync(HttpRequestMessage request, int retryCount = 0)
+    private async Task<HttpResponseMessage> SendWithRetryAsync(HttpRequestMessage request)
     {
         const int MaxTransientRetries = 3;
-        HttpResponseMessage response;
 
-        try
+        // 요청 본문을 한 번만 버퍼링한다. HttpClient 는 전송 후 요청의 Content 를 폐기하므로,
+        // 재시도 때 같은 HttpContent 를 다시 붙여 보내면 ObjectDisposedException 이 난다
+        // (기존 코드는 본문 있는 요청—이벤트/캘린더 생성·수정—의 401·429·5xx 재시도가 사실상 항상
+        //  실패했다). 그래서 재시도마다 버퍼에서 새 Content 를 만든다.
+        byte[]? body = null;
+        string? contentType = null;
+        if (request.Content != null)
         {
-            response = await _httpClient.SendAsync(request);
+            body = await request.Content.ReadAsByteArrayAsync();
+            contentType = request.Content.Headers.ContentType?.ToString();
         }
-        catch (HttpRequestException httpEx) when (retryCount < MaxTransientRetries)
-        {
-            // 네트워크 오류(연결 실패/타임아웃 등) → 지수 백오프 재시도
-            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
-            Debug.WriteLine($"[GoogleCalAPI] 네트워크 오류 ({httpEx.Message}) — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
-            await Task.Delay(delay);
-            var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
-            if (request.Content != null) retryRequest.Content = request.Content;
-            return await SendWithRetryAsync(retryRequest, retryCount + 1);
-        }
-        catch (TaskCanceledException tcEx) when (retryCount < MaxTransientRetries && !tcEx.CancellationToken.IsCancellationRequested)
-        {
-            // HttpClient 자체 타임아웃 (CancellationToken 아닌 것만)
-            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
-            Debug.WriteLine($"[GoogleCalAPI] 타임아웃 — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
-            await Task.Delay(delay);
-            var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
-            if (request.Content != null) retryRequest.Content = request.Content;
-            return await SendWithRetryAsync(retryRequest, retryCount + 1);
-        }
+        var method = request.Method;
+        var url = request.RequestUri!.ToString();
+        request.Dispose();
 
-        // 401 Unauthorized → 토큰 갱신 후 재시도
-        if (response.StatusCode == HttpStatusCode.Unauthorized && retryCount < 1)
+        int retryCount = 0;
+        while (true)
         {
-            Debug.WriteLine("[GoogleCalAPI] 401 — 토큰 갱신 시도");
-            if (await _authService.RefreshTokenAsync())
+            var attempt = await CreateAuthRequestAsync(method, url);
+            if (body != null)
             {
-                var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
-                if (request.Content != null)
-                {
-                    // Content는 한 번만 읽을 수 있으므로 새로 만들어야 할 수 있음
-                    // 여기서는 이미 전송된 request의 content를 재사용 시도
-                    retryRequest.Content = request.Content;
-                }
-                return await SendWithRetryAsync(retryRequest, retryCount + 1);
+                var content = new ByteArrayContent(body);
+                if (!string.IsNullOrEmpty(contentType))
+                    content.Headers.TryAddWithoutValidation("Content-Type", contentType);
+                attempt.Content = content;
             }
-        }
 
-        // 429 Too Many Requests → 백오프
-        if (response.StatusCode == (HttpStatusCode)429 && retryCount < MaxTransientRetries)
-        {
-            var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
-            Debug.WriteLine($"[GoogleCalAPI] 429 — {retryAfter.TotalSeconds}초 대기 후 재시도");
-            await Task.Delay(retryAfter);
-            var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
-            if (request.Content != null) retryRequest.Content = request.Content;
-            return await SendWithRetryAsync(retryRequest, retryCount + 1);
-        }
+            HttpResponseMessage response;
+            try
+            {
+                response = await _httpClient.SendAsync(attempt);
+            }
+            catch (HttpRequestException httpEx) when (retryCount < MaxTransientRetries)
+            {
+                // 네트워크 오류(연결 실패/타임아웃 등) → 지수 백오프 재시도
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
+                Debug.WriteLine($"[GoogleCalAPI] 네트워크 오류 ({httpEx.Message}) — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
+                await Task.Delay(delay);
+                retryCount++;
+                continue;
+            }
+            catch (TaskCanceledException tcEx) when (retryCount < MaxTransientRetries && !tcEx.CancellationToken.IsCancellationRequested)
+            {
+                // HttpClient 자체 타임아웃 (CancellationToken 아닌 것만)
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
+                Debug.WriteLine($"[GoogleCalAPI] 타임아웃 — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
+                await Task.Delay(delay);
+                retryCount++;
+                continue;
+            }
 
-        // 5xx 서버 오류 → 지수 백오프 재시도 (500, 502, 503, 504)
-        int sc = (int)response.StatusCode;
-        if (sc >= 500 && sc < 600 && retryCount < MaxTransientRetries)
-        {
-            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
-            Debug.WriteLine($"[GoogleCalAPI] HTTP {sc} — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
-            await Task.Delay(delay);
-            var retryRequest = await CreateAuthRequestAsync(request.Method, request.RequestUri!.ToString());
-            if (request.Content != null) retryRequest.Content = request.Content;
-            return await SendWithRetryAsync(retryRequest, retryCount + 1);
-        }
+            // 401 Unauthorized → 토큰 갱신 후 재시도 (딱 1회)
+            if (response.StatusCode == HttpStatusCode.Unauthorized && retryCount < 1)
+            {
+                Debug.WriteLine("[GoogleCalAPI] 401 — 토큰 갱신 시도");
+                if (await _authService.RefreshTokenAsync())
+                {
+                    response.Dispose();
+                    retryCount++;
+                    continue;
+                }
+                // 갱신 실패 → 아래 공통 오류 처리(EnsureSuccessStatusCode)로 떨어져 그대로 throw
+            }
 
-        // 410 Gone → syncToken 만료 (전체 동기화 필요)
-        if (response.StatusCode == HttpStatusCode.Gone)
-        {
-            Debug.WriteLine("[GoogleCalAPI] 410 Gone — syncToken 만료, 전체 동기화 필요");
-            // 호출자에서 처리하도록 그대로 반환
-        }
+            // 429 Too Many Requests → 백오프
+            if (response.StatusCode == (HttpStatusCode)429 && retryCount < MaxTransientRetries)
+            {
+                var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
+                Debug.WriteLine($"[GoogleCalAPI] 429 — {retryAfter.TotalSeconds}초 대기 후 재시도");
+                response.Dispose();
+                await Task.Delay(retryAfter);
+                retryCount++;
+                continue;
+            }
 
-        if (!response.IsSuccessStatusCode && response.StatusCode != HttpStatusCode.Gone)
-        {
-            var errorBody = await response.Content.ReadAsStringAsync();
-            Debug.WriteLine($"[GoogleCalAPI] HTTP {(int)response.StatusCode}: {errorBody}");
-            response.EnsureSuccessStatusCode(); // throw
-        }
+            // 5xx 서버 오류 → 지수 백오프 재시도 (500, 502, 503, 504)
+            int sc = (int)response.StatusCode;
+            if (sc >= 500 && sc < 600 && retryCount < MaxTransientRetries)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount + 1));
+                Debug.WriteLine($"[GoogleCalAPI] HTTP {sc} — {delay.TotalSeconds}초 후 재시도 ({retryCount + 1}/{MaxTransientRetries})");
+                response.Dispose();
+                await Task.Delay(delay);
+                retryCount++;
+                continue;
+            }
 
-        return response;
+            // 410 Gone → syncToken 만료 (호출자가 전체 동기화로 폴백)
+            if (response.StatusCode == HttpStatusCode.Gone)
+            {
+                Debug.WriteLine("[GoogleCalAPI] 410 Gone — syncToken 만료, 전체 동기화 필요");
+                return response;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                Debug.WriteLine($"[GoogleCalAPI] HTTP {(int)response.StatusCode}: {errorBody}");
+                response.EnsureSuccessStatusCode(); // throw
+            }
+
+            return response;
+        }
     }
 
     #endregion

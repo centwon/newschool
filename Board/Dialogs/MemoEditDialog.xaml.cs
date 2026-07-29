@@ -154,7 +154,14 @@ public sealed partial class MemoEditDialog : Window
             // 1. Post 저장
             int postNo = await service.SavePostAsync(_post);
 
-            if (postNo > 0)
+            if (postNo <= 0)
+            {
+                // 저장 실패인데도 아래에서 Result=true 로 창을 닫으면 편집이 조용히 유실된다.
+                // 창을 열어둔 채 실패를 알려 사용자가 다시 시도하게 한다(PostEditPage 와 동일 정책).
+                await MessageBox.ShowErrorAsync("메모 저장에 실패했습니다.");
+                return;
+            }
+
             {
                 string fileCategory = _post.Category;
 

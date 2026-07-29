@@ -177,6 +177,20 @@ public sealed class GoogleAuthService : IDisposable
             if (!response.IsSuccessStatusCode)
             {
                 Debug.WriteLine($"[GoogleAuth] 토큰 갱신 실패: {json}");
+
+                // invalid_grant = 리프레시 토큰이 만료·취소됨(6개월 미사용, 계정 비번 변경,
+                // 토큰 재발급 한도 초과 등). 이 토큰으로는 영원히 갱신이 안 되는데도 저장돼 있으면
+                // IsAuthenticated 가 계속 true 라 앱은 "연결됨"인 채 모든 동기화가 조용히 실패한다.
+                // → 죽은 토큰을 지워 IsAuthenticated 를 false 로 만들고 재인증을 유도한다.
+                // (일시적 네트워크 오류나 OneDrive 포터블의 DPAPI 복호화 실패로는 여기 오지 않는다
+                //  — 복호화 실패 시엔 위에서 refreshToken 이 빈 문자열이라 HTTP 호출 전에 반환됨.)
+                if (response.StatusCode == HttpStatusCode.BadRequest && json.Contains("invalid_grant"))
+                {
+                    Settings.GoogleAccessToken.Set("");
+                    Settings.GoogleRefreshToken.Set("");
+                    Settings.GoogleTokenExpiry.Set("");
+                    Debug.WriteLine("[GoogleAuth] invalid_grant — 저장된 토큰 삭제(재인증 필요)");
+                }
                 return false;
             }
 

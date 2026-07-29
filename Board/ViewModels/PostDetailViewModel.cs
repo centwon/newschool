@@ -70,7 +70,26 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             if (Post == null || Post.IsCompleted == value) return;
             Post.IsCompleted = value;
-            _ = _service.UpdatePostIsCompletedAsync(Post.No, value);
+            // 완료 토글의 DB 반영은 fire-and-forget 이지만, 실패하면 UI 만 바뀌고 DB 는 안 바뀐
+            // 채로 예외가 관측되지 않는다 → 실패 시 플래그를 원복하고 사용자에게 알린다.
+            _ = PersistIsCompletedAsync(Post, value);
+        }
+    }
+
+    private async Task PersistIsCompletedAsync(Post post, bool value)
+    {
+        try
+        {
+            bool ok = await _service.UpdatePostIsCompletedAsync(post.No, value);
+            if (!ok)
+                throw new InvalidOperationException("완료 상태를 저장하지 못했습니다(대상 없음).");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"완료 상태 저장 실패: {ex.Message}");
+            post.IsCompleted = !value;              // UI 원복
+            OnPropertyChanged(nameof(IsCompleted));
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("완료 상태 변경", ex);
         }
     }
 
@@ -216,20 +235,28 @@ public class PostDetailViewModel : INotifyPropertyChanged
     /// </summary>
     private static List<Comment> BuildThreadedOrder(List<Comment> comments)
     {
-        var topLevel = comments.Where(c => c.ParentNo == 0).ToList();
+        var topLevelNos = new HashSet<int>(comments.Where(c => c.ParentNo == 0).Select(c => c.No));
         var repliesByParent = comments
             .Where(c => c.ParentNo != 0)
             .GroupBy(c => c.ParentNo)
             .ToDictionary(g => g.Key, g => g.OrderBy(c => c.DateTime).ToList());
 
         var ordered = new List<Comment>(comments.Count);
-        foreach (var parent in topLevel)
+        foreach (var parent in comments.Where(c => c.ParentNo == 0))
         {
             ordered.Add(parent);
             if (repliesByParent.TryGetValue(parent.No, out var replies))
             {
                 ordered.AddRange(replies);
             }
+        }
+
+        // 부모가 이미 삭제된 고아 답글(ParentNo 가 현존 최상위 댓글이 아님)은 위 루프에서 누락돼
+        // 화면에서 사라진다. 예전 삭제로 이미 생긴 고아를 잃지 않도록 최상위로 승격해 표시한다.
+        foreach (var reply in comments.Where(c => c.ParentNo != 0 && !topLevelNos.Contains(c.ParentNo))
+                                      .OrderBy(c => c.DateTime))
+        {
+            ordered.Add(reply);
         }
 
         return ordered;
@@ -292,13 +319,23 @@ public class PostDetailViewModel : INotifyPropertyChanged
 
             if (success)
             {
-                Comments.Remove(comment);
+                // 최상위 댓글 삭제는 답글까지 함께 지우므로(BoardService 참고), 단건 제거가 아니라
+                // 전체를 다시 읽어 화면을 DB 와 맞춘다.
+                await LoadCommentsAsync(Post.No);
                 Debug.WriteLine($"댓글 삭제 완료: No={comment.No}");
+            }
+            else
+            {
+                // 삭제 0행 — 목록에 그대로 남는데 사용자는 삭제됐다고 오인할 수 있어 알린다.
+                await NewSchool.Controls.UserErrorReporter.ReportAsync(
+                    "댓글 삭제",
+                    new InvalidOperationException("이미 삭제되었거나 대상을 찾을 수 없습니다."));
             }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"댓글 삭제 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("댓글 삭제", ex);
         }
     }
 
@@ -325,10 +362,18 @@ public class PostDetailViewModel : INotifyPropertyChanged
                 if (Post != null)
                     await LoadCommentsAsync(Post.No);
             }
+            else
+            {
+                // 0행 반영 — 수정이 저장되지 않았음을 알린다(무음 실패 방지).
+                await NewSchool.Controls.UserErrorReporter.ReportAsync(
+                    "댓글 수정",
+                    new InvalidOperationException("수정 내용을 저장하지 못했습니다(대상 없음)."));
+            }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"댓글 수정 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("댓글 수정", ex);
         }
         finally
         {
@@ -371,9 +416,10 @@ public class PostDetailViewModel : INotifyPropertyChanged
             };
 
             // 파일이 있으면 저장
+            string? savedFileName = null;
             if (attachedFile != null)
             {
-                var savedFileName = await SaveCommentFileAsync(attachedFile, Post.Category);
+                savedFileName = await SaveCommentFileAsync(attachedFile, Post.Category);
                 if (!string.IsNullOrEmpty(savedFileName))
                 {
                     comment.FileName = savedFileName;
@@ -382,7 +428,11 @@ public class PostDetailViewModel : INotifyPropertyChanged
                 }
                 else
                 {
+                    // 첨부 저장 실패 — 파일 없이 조용히 등록되면 사용자가 첨부된 줄 오인한다.
                     comment.HasFile = false;
+                    await NewSchool.Controls.UserErrorReporter.ReportAsync(
+                        "첨부파일 저장",
+                        new InvalidOperationException("첨부파일을 저장하지 못해 파일 없이 댓글만 등록합니다."));
                 }
             }
 
@@ -399,10 +449,35 @@ public class PostDetailViewModel : INotifyPropertyChanged
 
                 Debug.WriteLine($"댓글 추가 완료: ID={commentId}, 파일={comment.HasFile}");
             }
+            else
+            {
+                // 댓글 생성 실패 — 방금 저장한 첨부 물리 파일이 고아로 남지 않도록 정리 후 알린다.
+                if (!string.IsNullOrEmpty(savedFileName))
+                    DeleteCommentFileQuietly(savedFileName, Post.Category);
+                await NewSchool.Controls.UserErrorReporter.ReportAsync(
+                    "댓글 등록",
+                    new InvalidOperationException("댓글을 저장하지 못했습니다."));
+            }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"댓글 추가 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("댓글 등록", ex);
+        }
+    }
+
+    /// <summary>고아가 된 댓글 첨부 물리 파일을 조용히 삭제 (실패해도 무시).</summary>
+    private static void DeleteCommentFileQuietly(string fileName, string category)
+    {
+        try
+        {
+            var path = Board.GetFilePath(fileName, category);
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"고아 첨부 파일 정리 실패: {ex.Message}");
         }
     }
 

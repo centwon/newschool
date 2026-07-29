@@ -263,50 +263,6 @@ namespace NewSchool.Services
                 _ => 0
             };
         }
-
-        /// <summary>
-        /// 재계산 (학사일정 변경 시)
-        /// 사용자가 수정한 주차(IsModified=1)는 유지
-        /// </summary>
-        public async Task<List<WeeklyLessonHours>> RecalculateAsync(
-            int yearPlanNo,
-            int fromWeek,
-            List<WeeklyLessonHours> existingHours,
-            int courseNo,
-            int targetGrade,
-            int? targetClass,
-            DateTime semesterStart,
-            DateTime semesterEnd)
-        {
-            // 새로 계산
-            var newHours = await CalculateAsync(
-                courseNo, yearPlanNo, targetGrade, targetClass,
-                semesterStart, semesterEnd);
-
-            // 사용자가 수정한 주차는 유지
-            foreach (var existing in existingHours.Where(e => e.Week >= fromWeek))
-            {
-                var newWeek = newHours.FirstOrDefault(n => n.Week == existing.Week);
-                if (newWeek != null && existing.IsModified == 1)
-                {
-                    newWeek.PlannedHours = existing.PlannedHours;
-                    newWeek.IsModified = 1;
-                    newWeek.Notes = existing.Notes;
-                }
-            }
-
-            return newHours;
-        }
-
-        /// <summary>
-        /// 특정 날짜가 몇 주차인지 계산
-        /// </summary>
-        public int GetWeekNumberForDate(DateTime date, DateTime semesterStart)
-        {
-            var weeks = GetSemesterWeeks(semesterStart, date.AddDays(7));
-            var week = weeks.FirstOrDefault(w => date >= w.StartDate && date <= w.EndDate);
-            return week?.Number ?? 0;
-        }
     }
 
     /// <summary>
