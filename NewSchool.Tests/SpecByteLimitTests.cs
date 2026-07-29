@@ -50,6 +50,37 @@ public class SpecByteLimitTests
 
     #endregion
 
+    #region 한도 경계 (IsOverLimit) — "이하 허용"
+
+    /// <summary>
+    /// 경계 규칙: 한도와 정확히 같은 바이트는 초과가 아니다(500자=1500바이트를 온전히 사용).
+    /// 2026-07-30 사용자 확인으로 확정한 의도된 동작 — 바꾸려면 이 테스트부터 고쳐야 한다.
+    /// </summary>
+    [Theory]
+    [InlineData(1499, 1500, false)]
+    [InlineData(1500, 1500, false)]   // 딱 채운 경우는 정상
+    [InlineData(1501, 1500, true)]    // 1바이트만 넘어도 초과
+    [InlineData(0, 1500, false)]
+    [InlineData(2100, 2100, false)]
+    [InlineData(2101, 2100, true)]
+    public void IsOverLimit_BoundaryIsInclusive(int byteCount, int maxBytes, bool expectedOver)
+    {
+        Assert.Equal(expectedOver, NeisHelper.IsOverLimit(byteCount, maxBytes));
+    }
+
+    /// <summary>한글 500자를 꽉 채우면 1500바이트이고, 초과로 판정되지 않아야 한다.</summary>
+    [Fact]
+    public void IsOverLimit_Exactly500KoreanChars_NotOver()
+    {
+        string text = new string('가', 500);
+        int bytes = NeisHelper.CountByte(text);
+        Assert.Equal(1500, bytes);
+        Assert.False(NeisHelper.IsOverLimit(bytes, 1500));
+        Assert.True(NeisHelper.IsOverLimit(NeisHelper.CountByte(text + "가"), 1500));
+    }
+
+    #endregion
+
     #region 우선순위 (ResolveSpecMaxBytes)
 
     [Fact]

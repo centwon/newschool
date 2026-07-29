@@ -317,7 +317,7 @@ public sealed partial class StudentSpecBox : UserControl
         TxtByteInfo.Text = $"{currentBytes} / {maxBytes} Byte ({charCount}자)";
 
         // 색상 변경 (초과 시 빨간색)
-        if (currentBytes > maxBytes)
+        if (NeisHelper.IsOverLimit(currentBytes, maxBytes))
         {
             TxtByteInfo.Foreground = new SolidColorBrush(Colors.Red);
         }

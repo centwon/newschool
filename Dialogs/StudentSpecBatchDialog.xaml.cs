@@ -532,7 +532,7 @@ public sealed partial class StudentSpecBatchDialog : Window
 
         TxtByteInfo.Text = $"{currentBytes} / {maxBytes} Byte ({charCount}자)";
 
-        TxtByteInfo.Foreground = currentBytes > maxBytes
+        TxtByteInfo.Foreground = NeisHelper.IsOverLimit(currentBytes, maxBytes)
             ? new SolidColorBrush(Colors.Red)
             : (SolidColorBrush)Application.Current.Resources["TextFillColorSecondaryBrush"];
     }

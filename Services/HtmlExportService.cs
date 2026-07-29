@@ -287,7 +287,7 @@ public class HtmlExportService
             {
                 var byteCount = NeisHelper.CountByte(spec.Content ?? string.Empty);
                 var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
-                var over = byteCount > maxBytes;
+                var over = NeisHelper.IsOverLimit(byteCount, maxBytes);
 
                 sb.Append("<tr>");
                 if (first)
@@ -385,7 +385,7 @@ public class HtmlExportService
         {
             var byteCount = NeisHelper.CountByte(spec.Content ?? string.Empty);
             var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
-            var over = byteCount > maxBytes;
+            var over = NeisHelper.IsOverLimit(byteCount, maxBytes);
 
             sb.Append("<tr>");
             sb.Append($"<td class=\"center\">{E(spec.Type)}</td>");

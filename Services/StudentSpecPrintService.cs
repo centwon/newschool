@@ -175,7 +175,7 @@ public class StudentSpecPrintService
                 table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten2)
                     .Background(bg).Padding(5).AlignCenter()
                     .Text($"{byteCount}/{maxBytes}").FontSize(8)
-                    .FontColor(byteCount > maxBytes ? Colors.Red.Medium : Colors.Grey.Darken1);
+                    .FontColor(Helpers.NeisHelper.IsOverLimit(byteCount, maxBytes) ? Colors.Red.Medium : Colors.Grey.Darken1);
             }
         });
     }
@@ -255,7 +255,7 @@ public class StudentSpecPrintService
                     table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten2)
                         .Background(bg).Padding(3).AlignCenter()
                         .Text($"{byteCount}/{maxBytes}").FontSize(7)
-                        .FontColor(byteCount > maxBytes ? Colors.Red.Medium : Colors.Grey.Darken1);
+                        .FontColor(Helpers.NeisHelper.IsOverLimit(byteCount, maxBytes) ? Colors.Red.Medium : Colors.Grey.Darken1);
                 }
 
                 rowIdx++;

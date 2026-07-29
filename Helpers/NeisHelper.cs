@@ -35,6 +35,16 @@ public static class NeisHelper
         return byteCount;
     }
 
+    /// <summary>
+    /// 한도 초과 판정 — <b>경계는 "이하 허용"</b>이다. 즉 한도와 정확히 같은 바이트는 초과가 아니고
+    /// 한도를 1바이트라도 넘을 때만 초과다(예: 500자=1500바이트 한도에서 1500 은 정상, 1501 은 초과).
+    ///
+    /// ⚠ 의도된 결정이다(2026-07-30 확인). NEIS 지침이 "500자까지 입력 가능"이라는 뜻이므로
+    /// 500자를 온전히 쓸 수 있어야 한다. 예전에는 이 비교(<c>&gt;</c>)가 입력·일괄입력·HTML·PDF
+    /// 6곳에 흩어져 있어 한 곳만 <c>&gt;=</c> 로 바뀌어도 알아채기 어려웠다 — 이 메서드로 모았다.
+    /// </summary>
+    public static bool IsOverLimit(int byteCount, int maxBytes) => byteCount > maxBytes;
+
     /// <summary>학생부 영역 정의 — 키(저장값), 표시 이름, 코드 기본 바이트.</summary>
     public sealed record SpecArea(string Key, string Label, int DefaultBytes);
 
