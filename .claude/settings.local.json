@@ -382,7 +382,10 @@
       "Bash(curl -s \"https://api.nuget.org/v3-flatcontainer/winuiricheditor/0.9.1/winuiricheditor.nuspec\")",
       "Bash(cd \"C:/Users/centw/source/repos/Centwons/NewSchool\" && sed -n '60,95p' \"$HOME/.nuget/packages/microsoft.windowsappsdk.base/2.0.4/buildTransitive/Microsoft.WindowsAppSDK.Base.targets\" 2>/dev/null)",
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft Visual Studio/Installer/vswhere.exe\" -latest -property installationPath)",
-      "Bash(\"/c/Program Files/Microsoft Visual Studio/18/Community/MSBuild/Current/Bin/MSBuild.exe\" NewSchool.csproj -t:Publish -p:PublishProfile=FolderProfile -p:Configuration=Release -p:Platform=x64 -p:_TargetId=Folder -v:m -nologo)"
+      "Bash(\"/c/Program Files/Microsoft Visual Studio/18/Community/MSBuild/Current/Bin/MSBuild.exe\" NewSchool.csproj -t:Publish -p:PublishProfile=FolderProfile -p:Configuration=Release -p:Platform=x64 -p:_TargetId=Folder -v:m -nologo)",
+      "Bash(grep -qiE '경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bv0qoc7sk.output\")",
+      "Bash(sed -i 's|— 26차까지|— 26차까지|' /dev/null)",
+      "Bash(grep -o '2026-07 전수 검사.\\\\{0,120\\\\}' \"C:\\\\Users\\\\centw\\\\.claude\\\\projects\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\memory\\\\MEMORY.md\")"
     ]
   }
 }

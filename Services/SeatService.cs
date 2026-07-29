@@ -291,6 +291,30 @@ public sealed class SeatService : IDisposable
         return Convert.ToInt32(v);
     }
 
+    /// <summary>
+    /// 지금까지 누적된 배치 회차 수(= 최대 Round). 옵션 다이얼로그 안내용.
+    /// 짝 이력만 세면 1인석(Jjak&lt;2) 학급은 짝 이력이 아예 없어 항상 0 으로 보이므로,
+    /// <see cref="GetNextRoundAsync"/> 와 동일하게 짝·위치 두 이력의 MAX 를 본다.
+    /// </summary>
+    public async Task<int> GetRoundCountAsync(string sc, int y, int g, int c)
+    {
+        using var q = _connection.CreateCommand();
+        q.CommandText = @"
+            SELECT COALESCE(MAX(r), 0) FROM (
+                SELECT MAX(Round) AS r FROM SeatHistory
+                WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c
+                UNION ALL
+                SELECT MAX(Round) AS r FROM SeatPosHistory
+                WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c
+            );";
+        q.Parameters.AddWithValue("$sc", sc);
+        q.Parameters.AddWithValue("$y", y);
+        q.Parameters.AddWithValue("$g", g);
+        q.Parameters.AddWithValue("$c", c);
+        var v = await q.ExecuteScalarAsync();
+        return v == null || v == DBNull.Value ? 0 : Convert.ToInt32(v);
+    }
+
     private async Task InsertPairHistoryAsync(SeatArrangement a, int jjak, int round, SqliteTransaction tx)
     {
         if (jjak < 2) return; // 1인석은 짝 이력 없음

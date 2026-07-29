@@ -640,9 +640,18 @@ public sealed partial class PageSeats : Page, IDisposable
 
         int maxAttempts = _options.MaxAttempts > 0 ? _options.MaxAttempts : 500;
         bool satisfied = false;
+        // 남녀 교차는 옵션 이름 그대로 "우선"이다. 성비가 불균형한 학급(예: 남 20·여 10)에서는
+        // 모든 짝을 남녀로 만드는 것이 수학적으로 불가능해, 필수 제약으로 두면 시도를 모두
+        // 소진하고 매번 실패 경고만 뜬다. 1차 통과에 실패하면 이 조건만 풀고 다시 찾는다.
+        bool mixedGenderRelaxed = false;
+        // 앞쪽 maxAttempts 회는 남녀 교차를 필수로, 그래도 못 찾으면 뒤쪽 maxAttempts 회는
+        // 남녀 교차만 풀고 재시도한다(옵션이 꺼져 있으면 앞쪽 한 바퀴만 돈다).
+        int totalAttempts = _options.PreferMixedGenderPair ? maxAttempts * 2 : maxAttempts;
 
-        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        for (int attempt = 0; attempt < totalAttempts; attempt++)
         {
+            bool requireMixedGender = _options.PreferMixedGenderPair && attempt < maxAttempts;
+
             if (attempt > 0)
             {
                 foreach (var card in Cards)
@@ -703,9 +712,11 @@ public sealed partial class PageSeats : Page, IDisposable
             }
 
             // 3) 제약 검증 (기존 짝 제약 + 이력 짝 + 남녀 교차)
-            if (IsValidArrangement(recentPairs))
+            if (IsValidArrangement(recentPairs, requireMixedGender))
             {
                 satisfied = true;
+                // 남녀 교차를 켰는데 그 조건을 푼 뒤에야 찾았다면 사용자에게 알린다.
+                mixedGenderRelaxed = _options.PreferMixedGenderPair && !requireMixedGender;
                 break;
             }
         }
@@ -724,11 +735,21 @@ public sealed partial class PageSeats : Page, IDisposable
         if (!satisfied)
         {
             await MessageBox.ShowAsync(
-                $"{maxAttempts}회를 시도했지만 모든 조건을 동시에 만족하는 배치를 찾지 못했습니다.\n" +
+                $"{totalAttempts}회를 시도했지만 모든 조건을 동시에 만족하는 배치를 찾지 못했습니다.\n" +
                 $"{DescribeActiveConstraints()}\n\n" +
                 "현재 화면의 배치는 일부 조건을 어겼을 수 있습니다.\n" +
                 "조건을 줄이거나(배치 옵션) 다시 시도해 주세요.",
                 "조건 충족 실패");
+        }
+        else if (mixedGenderRelaxed)
+        {
+            // 나머지 조건(분리·고정·이력)은 지켜졌고 남녀 교차만 완전히 만족하지 못한 경우.
+            // 성비가 맞지 않으면 정상적인 결과이므로 실패가 아니라 안내로 알린다.
+            await MessageBox.ShowAsync(
+                "남녀 교차를 모든 짝에 적용하지는 못했습니다(같은 성별 짝이 일부 있습니다).\n" +
+                "학급 성비상 모든 짝을 남녀로 만들 수 없을 때 생기는 정상적인 결과입니다.\n\n" +
+                "분리·고정·지난 짝 등 나머지 조건은 모두 지켜졌습니다.",
+                "남녀 교차 일부 적용");
         }
     }
 
@@ -757,7 +778,11 @@ public sealed partial class PageSeats : Page, IDisposable
     }
 
     /// <summary>현재 배치가 모든 제약(분리·고정·이력·남녀)을 만족하는가?</summary>
-    private bool IsValidArrangement(HashSet<(string, string)> recentPairs)
+    /// <param name="requireMixedGender">
+    /// 남녀 교차를 필수로 볼지 여부. 성비가 불균형한 학급에서는 모든 짝을 남녀로 만드는 것이
+    /// 불가능하므로, 1차 시도가 모두 실패하면 이 조건만 풀고 재시도한다(옵션 이름이 "우선").
+    /// </param>
+    private bool IsValidArrangement(HashSet<(string, string)> recentPairs, bool requireMixedGender)
     {
         // 분리/고정 (기존)
         if ((_exclusionPairs.Count > 0 || _fixedPairs.Count > 0) && HasPairViolation())
@@ -790,7 +815,7 @@ public sealed partial class PageSeats : Page, IDisposable
         }
 
         // 남녀 교차 우선: 가능한 쌍에서 동성 짝이 있으면 실패 처리
-        if (_options.PreferMixedGenderPair)
+        if (requireMixedGender)
         {
             foreach (var (a, b) in pairs)
             {
@@ -878,10 +903,10 @@ public sealed partial class PageSeats : Page, IDisposable
     private async Task<int> CountRoundsAsync()
     {
         if (seatService == null) return 0;
-        // GetRecentPairsAsync(큰값) 호출하면 전체 round 수와 동등 — 간이 구현.
-        var all = await seatService.GetRecentPairsAsync(
-            Settings.SchoolCode.Value, Settings.WorkYear.Value, Grade, ClassRoom, int.MaxValue);
-        return all.Count > 0 ? 1 : 0; // pair가 있으면 최소 1회차. 정확 카운트는 불필요.
+        // 짝 이력만 보던 간이 구현은 (1) 회차를 0/1 로만 알려주고 (2) 1인석 학급은 짝 이력이
+        // 없어 아무리 저장해도 0 으로 보였다(위치 이력은 쌓이는데도). 두 이력의 실제 최대 Round 사용.
+        return await seatService.GetRoundCountAsync(
+            Settings.SchoolCode.Value, Settings.WorkYear.Value, Grade, ClassRoom);
     }
 
     /// <summary>저장 버튼</summary>
@@ -1042,6 +1067,10 @@ public sealed partial class PageSeats : Page, IDisposable
     /// </summary>
     private bool AreNeighbors(PhotoCard a, PhotoCard b)
     {
+        // 짝 모드(2인석)가 아니면 '짝' 개념 자체가 없다.
+        // _jjak 은 저장된 배치에서 그대로 로드되므로(구 데이터·초기화 실패 시 0 가능)
+        // 아래 나눗셈 전에 반드시 막아야 한다 — 0 이면 DivideByZeroException 으로 앱이 죽는다.
+        if (_jjak < 2) return false;
         if (a.Row != b.Row) return false;
         int groupA = a.Col / _jjak;
         int groupB = b.Col / _jjak;
@@ -1063,13 +1092,19 @@ public sealed partial class PageSeats : Page, IDisposable
                 return true;
         }
 
-        // 고정 쌍이 짝이 아니면 위반
-        foreach (var (idA, idB) in _fixedPairs)
+        // 고정 쌍이 짝이 아니면 위반.
+        // 단 1인석(짝 모드 아님)에서는 '짝'이 존재하지 않아 AreNeighbors 가 항상 false 다.
+        // 그대로 두면 고정 쌍이 하나라도 있으면 매 시도가 위반으로 판정돼 배치가 영원히
+        // 성공하지 못하고 실패 경고만 반복된다 → 짝 모드일 때만 검사한다.
+        if (_jjak >= 2)
         {
-            var cardA = Cards.FirstOrDefault(c => c.StudentData?.StudentID == idA);
-            var cardB = Cards.FirstOrDefault(c => c.StudentData?.StudentID == idB);
-            if (cardA != null && cardB != null && !AreNeighbors(cardA, cardB))
-                return true;
+            foreach (var (idA, idB) in _fixedPairs)
+            {
+                var cardA = Cards.FirstOrDefault(c => c.StudentData?.StudentID == idA);
+                var cardB = Cards.FirstOrDefault(c => c.StudentData?.StudentID == idB);
+                if (cardA != null && cardB != null && !AreNeighbors(cardA, cardB))
+                    return true;
+            }
         }
 
         return false;
