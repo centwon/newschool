@@ -171,7 +171,7 @@ public class StudentSpecPrintService
                 Cell(table.Cell(), spec.Content ?? string.Empty, true);
 
                 var byteCount = Helpers.NeisHelper.CountByte(spec.Content ?? string.Empty);
-                var maxBytes = Settings.GetSpecMaxBytes(spec.Type);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
+                var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
                 table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten2)
                     .Background(bg).Padding(5).AlignCenter()
                     .Text($"{byteCount}/{maxBytes}").FontSize(8)
@@ -251,7 +251,7 @@ public class StudentSpecPrintService
 
                     // Byte
                     var byteCount = Helpers.NeisHelper.CountByte(spec.Content ?? string.Empty);
-                    var maxBytes = Settings.GetSpecMaxBytes(spec.Type);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
+                    var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
                     table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten2)
                         .Background(bg).Padding(3).AlignCenter()
                         .Text($"{byteCount}/{maxBytes}").FontSize(7)

@@ -87,28 +87,20 @@
                     <Expander.Content>
                         <StackPanel Spacing="12" Padding="16">
                             <TextBlock
-                                Text="NEIS 학생부 특기사항의 유형별 바이트 제한입니다. 교육부 정책이 바뀌면 여기서 수정하세요(재빌드 불필요). 한글 1자 = 보통 3바이트."
+                                Text="NEIS 학생부 특기사항의 영역별 바이트 제한입니다. 교육부 지침이 바뀌면 여기서 수정하세요(재빌드 불필요). 한글 1자 = 보통 3바이트."
                                 TextWrapping="Wrap"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-                            <NumberBox x:Name="SpecBytes교과활동" Header="교과활동(세특)" Tag="교과활동"
-                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
-                                       ValueChanged="OnSpecByteChanged"/>
-                            <NumberBox x:Name="SpecBytes개인별세특" Header="개인별 세특" Tag="개인별세특"
-                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
-                                       ValueChanged="OnSpecByteChanged"/>
-                            <NumberBox x:Name="SpecBytes자율활동" Header="자율활동" Tag="자율활동"
-                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
-                                       ValueChanged="OnSpecByteChanged"/>
-                            <NumberBox x:Name="SpecBytes동아리활동" Header="동아리활동" Tag="동아리활동"
-                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
-                                       ValueChanged="OnSpecByteChanged"/>
-                            <NumberBox x:Name="SpecBytes진로활동" Header="진로활동" Tag="진로활동"
-                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
-                                       ValueChanged="OnSpecByteChanged"/>
-                            <NumberBox x:Name="SpecBytes종합의견" Header="행동특성 및 종합의견" Tag="종합의견"
-                                       SpinButtonPlacementMode="Inline" Minimum="0" Maximum="9000" SmallChange="100"
-                                       ValueChanged="OnSpecByteChanged"/>
+                            <ComboBox x:Name="CBoxSpecByteYear" Header="적용 학년도"
+                                      HorizontalAlignment="Left" MinWidth="200"
+                                      SelectionChanged="OnSpecByteYearChanged"/>
+
+                            <TextBlock x:Name="TxtSpecByteScope"
+                                TextWrapping="Wrap" FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                            <!-- 입력칸은 NeisHelper.Areas 정의표에서 코드로 생성한다(영역 추가·삭제는 그 표만 수정). -->
+                            <StackPanel x:Name="PanelSpecBytes" Spacing="12"/>
                         </StackPanel>
                     </Expander.Content>
                 </Expander>

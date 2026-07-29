@@ -105,10 +105,8 @@ public sealed partial class StudentSpecBatchDialog : Window
 
     private void InitializeTypeComboBox(string? defaultType)
     {
-        var types = new List<string>
-        {
-            "교과활동", "개인별세특", "자율활동", "동아리활동", "진로활동", "종합의견"
-        };
+        // 영역 목록은 NeisHelper.Areas 정의표에서 가져온다(하드코딩 시 정의표와 어긋남 — 봉사활동 누락 전례).
+        var types = NeisHelper.Areas.Select(a => a.Key).ToList();
         CBoxType.ItemsSource = types;
 
         if (!string.IsNullOrEmpty(defaultType) && types.Contains(defaultType))
@@ -529,7 +527,7 @@ public sealed partial class StudentSpecBatchDialog : Window
     {
         string text = TxtContent.Text ?? string.Empty;
         int currentBytes = NeisHelper.CountByte(text);
-        int maxBytes = Settings.GetSpecMaxBytes(_selectedType);   // 설정 오버라이드 우선
+        int maxBytes = Settings.GetSpecMaxBytes(_selectedType, _year);   // 설정 오버라이드 우선
         int charCount = text.Length;
 
         TxtByteInfo.Text = $"{currentBytes} / {maxBytes} Byte ({charCount}자)";

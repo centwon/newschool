@@ -469,33 +469,84 @@ public static class Settings
     }
 
     /// <summary>
-    /// 학생부 유형의 유효 바이트 제한 — 설정 오버라이드 우선, 없으면 코드 기본값(<see cref="Helpers.NeisHelper.GetMaxBytes"/>).
+    /// 학생부 영역의 최대 바이트. 지침이 학년도마다 바뀌므로 학년도별 오버라이드를 지원한다.
+    ///
+    /// 저장 형식(<see cref="SpecByteLimits"/>, 세미콜론 구분):
+    ///   <c>진로활동=2100</c>        — 학년도 무관(전체 적용). 구버전 설정이 이 형태다.
+    ///   <c>2026:진로활동=2100</c>   — 2026학년도에만 적용
+    ///
+    /// 우선순위: <b>해당 학년도 지정값 → 학년도 무관 값 → 코드 기본값</b>.
+    /// 덕분에 새 지침을 올해 학년도에만 적용해도 지난 학년도 기록이 갑자기 "초과"로 바뀌지 않는다.
     /// </summary>
-    public static int GetSpecMaxBytes(string type)
+    /// <param name="year">학년도. 0이면 학년도 무관 값과 코드 기본값만 본다.</param>
+    public static int GetSpecMaxBytes(string type, int year = 0)
+        => ResolveSpecMaxBytes(SpecByteLimits?.Value ?? "", type, year);
+
+    /// <summary>
+    /// <see cref="GetSpecMaxBytes"/> 의 순수 함수 부분 — 설정 문자열만 받아 유효 한도를 계산한다.
+    /// (저장소와 분리해 두어야 학년도 우선순위 규칙을 테스트할 수 있다.)
+    /// </summary>
+    internal static int ResolveSpecMaxBytes(string raw, string type, int year)
     {
-        foreach (var pair in (SpecByteLimits?.Value ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
+        int? global = null;
+        foreach (var (y, t, v) in ParseSpecByteLimits(raw))
         {
-            int eq = pair.IndexOf('=');
-            if (eq > 0 && pair[..eq] == type && int.TryParse(pair[(eq + 1)..], out int v) && v > 0)
-                return v;
+            if (t != type) continue;
+            if (year > 0 && y == year) return v;   // 해당 학년도 지정값이 최우선
+            if (y == 0) global = v;                // 학년도 무관 값은 후보로 보관
         }
-        return Helpers.NeisHelper.GetMaxBytes(type);
+        return global ?? Helpers.NeisHelper.GetMaxBytes(type);
     }
 
-    /// <summary>학생부 유형의 바이트 제한 오버라이드 설정. 코드 기본값과 같으면 항목 제거(빈 값 유지).</summary>
-    public static void SetSpecByteOverride(string type, int value)
+    /// <summary>저장된 오버라이드를 (학년도, 영역, 바이트) 로 파싱. 학년도 없으면 0.</summary>
+    private static IEnumerable<(int Year, string Type, int Value)> ParseSpecByteLimits(string raw)
     {
-        var map = new Dictionary<string, int>();
-        foreach (var pair in (SpecByteLimits?.Value ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var pair in (raw ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
             int eq = pair.IndexOf('=');
-            if (eq > 0 && int.TryParse(pair[(eq + 1)..], out int v)) map[pair[..eq]] = v;
+            if (eq <= 0) continue;
+            if (!int.TryParse(pair[(eq + 1)..], out int v) || v <= 0) continue;
+
+            var key = pair[..eq];
+            int colon = key.IndexOf(':');
+            if (colon > 0 && int.TryParse(key[..colon], out int y))
+                yield return (y, key[(colon + 1)..], v);
+            else
+                yield return (0, key, v);
+        }
+    }
+
+    /// <summary>
+    /// 학생부 영역의 바이트 제한 오버라이드 설정.
+    /// 코드 기본값과 같으면 항목을 지워 설정을 깔끔하게 유지한다.
+    /// </summary>
+    /// <param name="year">0이면 학년도 무관으로 저장, 그 외에는 해당 학년도에만 적용.</param>
+    public static void SetSpecByteOverride(string type, int value, int year = 0)
+        => SpecByteLimits?.Set(ApplySpecByteOverride(SpecByteLimits.Value ?? "", type, value, year));
+
+    /// <summary><see cref="SetSpecByteOverride"/> 의 순수 함수 부분 — 새 설정 문자열을 만들어 반환.</summary>
+    internal static string ApplySpecByteOverride(string raw, string type, int value, int year)
+    {
+        // 원래 순서를 보존하면서 대상 항목만 교체/삭제
+        var entries = ParseSpecByteLimits(raw)
+            .Where(e => !(e.Year == year && e.Type == type))
+            .ToList();
+
+        // 이 항목을 지웠을 때 실제로 적용될 값(= 폴백).
+        // 학년도 지정값은 "학년도 무관 오버라이드 → 코드 기본값" 순으로 떨어지므로,
+        // 기본값과 같다는 이유만으로 지우면 학년도 무관 값이 되살아나 의도가 뒤집힌다.
+        int fallback = Helpers.NeisHelper.GetMaxBytes(type);
+        if (year > 0)
+        {
+            foreach (var e in entries)
+                if (e.Year == 0 && e.Type == type) { fallback = e.Value; break; }
         }
 
-        if (value == Helpers.NeisHelper.GetMaxBytes(type)) map.Remove(type);  // 기본값이면 오버라이드 불필요
-        else map[type] = value;
+        if (value != fallback)
+            entries.Add((year, type, value));
 
-        SpecByteLimits?.Set(string.Join(';', map.Select(kv => $"{kv.Key}={kv.Value}")));
+        return string.Join(';', entries.Select(
+            e => e.Year > 0 ? $"{e.Year}:{e.Type}={e.Value}" : $"{e.Type}={e.Value}"));
     }
 
     /// <summary>

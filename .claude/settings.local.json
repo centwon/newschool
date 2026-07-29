@@ -388,7 +388,12 @@
       "Bash(grep -o '2026-07 전수 검사.\\\\{0,120\\\\}' \"C:\\\\Users\\\\centw\\\\.claude\\\\projects\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\memory\\\\MEMORY.md\")",
       "Bash(awk '{print $NF}')",
       "Bash(grep -qiE '경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\b1zrjj6w8.output\")",
-      "Bash(grep -qiE '경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bqh6f4swz.output\")"
+      "Bash(grep -qiE '경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bqh6f4swz.output\")",
+      "Bash(grep -qiE '경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\biio2x80c.output\")",
+      "Bash(grep -iE '통과!|실패:|: error|CS[0-9]{3,}|Assert')",
+      "Bash(grep -qiE '통과!|실패:|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bsw89o43d.output\")",
+      "Bash(grep -iE '통과!|실패:|: error|CS[0-9]{3,}|Assert\\\\.')",
+      "Bash(grep -qiE '통과!|실패:|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\b1dqbs3si.output\")"
     ]
   }
 }
