@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using MiniExcelLibs;
@@ -37,7 +37,7 @@ public class StudentSpecExportService
             foreach (var spec in specs)
             {
                 var byteCount = NeisHelper.CountByte(spec.Content ?? string.Empty);
-                var maxBytes = NeisHelper.GetMaxBytes(spec.Type);
+                var maxBytes = Settings.GetSpecMaxBytes(spec.Type);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
 
                 allDtos.Add(new SpecExportDto
                 {

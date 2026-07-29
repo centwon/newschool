@@ -382,6 +382,13 @@ public sealed partial class StudentSpecBatchDialog : Window
     #region Event Handlers — Buttons
 
     private async void BtnSaveAll_Click(object sender, RoutedEventArgs e)
+        => await SaveAllAsync();
+
+    /// <summary>
+    /// 변경분 일괄 저장. 닫기 경로에서도 <c>await</c> 로 완료를 기다려야 하므로
+    /// 이벤트 핸들러(async void)와 분리해 Task 를 반환한다.
+    /// </summary>
+    private async Task SaveAllAsync()
     {
         // 현재 편집 중인 학생 캐시 저장
         SaveCurrentToCache();
@@ -477,8 +484,20 @@ public sealed partial class StudentSpecBatchDialog : Window
             var result = await dialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
-                BtnSaveAll_Click(sender, e);
-                // 저장 완료 후 닫기 (저장 실패 시에도 닫음)
+                // 반드시 await — 예전에는 async void 핸들러를 그냥 호출해 저장이 진행 중인 채로
+                // 곧바로 Close() 가 실행됐다(주석은 "저장 완료 후 닫기"였지만 실제로는 기다리지 않음).
+                // 사용자가 "저장 후 닫기"를 골랐는데 저장이 끝나기 전에 창이 닫히면 편집이 유실된다.
+                await SaveAllAsync();
+
+                // 저장에 실패해 변경분이 남았으면 닫지 않고 재시도할 기회를 준다.
+                if (_modifiedIds.Count > 0)
+                {
+                    await MessageBox.ShowAsync(
+                        $"{_modifiedIds.Count}건이 저장되지 않아 창을 닫지 않았습니다.\n" +
+                        "다시 저장하거나 '저장 안 함'으로 닫아 주세요.",
+                        "저장 실패");
+                    return;
+                }
             }
             else if (result == ContentDialogResult.None)
             {

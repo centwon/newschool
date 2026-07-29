@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using NewSchool.Helpers;
 using NewSchool.Models;
@@ -232,7 +232,7 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
         }
 
         int currentBytes = NeisHelper.CountByte(_special.Content);
-        int maxBytes = NeisHelper.GetMaxBytes(_special.Type);
+        int maxBytes = Settings.GetSpecMaxBytes(_special.Type);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
         int charCount = _special.Content?.Length ?? 0;
 
         ByteInfo = $"{currentBytes} / {maxBytes} Byte ({charCount}자)";
