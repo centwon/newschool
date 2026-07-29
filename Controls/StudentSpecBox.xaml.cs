@@ -85,8 +85,10 @@ public sealed partial class StudentSpecBox : UserControl
         TxtType.Text = _special.Type;
         TxtSubject.Text = _special.SubjectName;
 
-        // 학기 표시 여부 (교과활동인 경우만)
-        bool showSemester = _special.Type == "교과활동";
+        // 학기 표시 (교과 세특만 학기별 — 판단은 NeisHelper.Areas 정의표 하나로)
+        // 예전에는 표시 조건만 있고 값을 채우는 코드가 없어 빈칸이었다(모델에 Semester 가 없던 시절).
+        bool showSemester = NeisHelper.IsSemesterScoped(_special.Type) && _special.Semester > 0;
+        TxtSemester.Text = _special.Semester.ToString();
         TxtSemester.Visibility = showSemester ? Visibility.Visible : Visibility.Collapsed;
         TxtSemesterLabel.Visibility = showSemester ? Visibility.Visible : Visibility.Collapsed;
 

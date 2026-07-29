@@ -1,4 +1,4 @@
-<UserControl
+﻿<UserControl
     x:Class="NewSchool.Controls.SpecListViewer"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -43,7 +43,7 @@
                     <!-- 학년도 -->
                     <ColumnDefinition x:Name="ColTypeHeader" Width="100"/>
                     <!-- 유형 -->
-                    <ColumnDefinition x:Name="ColSubjectHeader" Width="100"/>
+                    <ColumnDefinition x:Name="ColSubjectHeader" Width="130"/>
                     <!-- 과목 -->
                     <ColumnDefinition x:Name="ColGradeHeader" Width="40"/>
                     <!-- 학년 -->
@@ -72,7 +72,7 @@
 
                 <TextBlock Grid.Column="1" x:Name="TxtYearHeader" Text="학년도" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" x:Name="TxtTypeHeader" Text="유형" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="3" x:Name="TxtSubjectHeader" Text="과목" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" x:Name="TxtSubjectHeader" Text="과목/학기" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="4" x:Name="TxtGradeHeader" Text="학년" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="5" x:Name="TxtClassHeader" Text="반" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="6" x:Name="TxtNumberHeader" Text="번호" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -140,9 +140,9 @@
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"/>
 
-                                    <!-- 과목 -->
+                                    <!-- 과목/학기 (교과 세특은 "국어 (2학기)" 처럼 함께 표시) -->
                                     <TextBlock Grid.Column="3" 
-                                               Text="{x:Bind SubjectName}"
+                                               Text="{x:Bind SubjectDisplay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="12"

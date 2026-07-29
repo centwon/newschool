@@ -143,6 +143,26 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
     public string TeacherID => _special.TeacherID;
     public int CourseNo => _special.CourseNo;
     public string SubjectName => _special.SubjectName;
+    public int Semester => _special.Semester;
+
+    /// <summary>
+    /// 목록의 "과목/분야" 칸 표시값. 영역에 따라 담기는 정보가 달라서 한 칸에 모아 보여준다.
+    ///  · 교과활동   → 과목명 + 학기("국어 (2학기)") — 교과 세특만 학기별이므로 학기를 함께 노출
+    ///  · 개인별세특 → 과목명만(학년 단위라 학기 없음)
+    ///  · 그 외      → 빈칸
+    /// </summary>
+    public string SubjectDisplay
+    {
+        get
+        {
+            var subject = _special.SubjectName ?? string.Empty;
+            if (Helpers.NeisHelper.IsSemesterScoped(_special.Type) && _special.Semester > 0)
+                return string.IsNullOrEmpty(subject)
+                    ? $"{_special.Semester}학기"
+                    : $"{subject} ({_special.Semester}학기)";
+            return subject;
+        }
+    }
     public bool IsFinalized => _special.IsFinalized;
     public string Tag => _special.Tag;
 
