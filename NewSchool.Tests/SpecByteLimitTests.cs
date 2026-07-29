@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NewSchool;
 using NewSchool.Helpers;
 using Xunit;
@@ -86,7 +86,8 @@ public class SpecByteLimitTests
     [Fact]
     public void Resolve_Empty_UsesCodeDefault()
     {
-        Assert.Equal(2100, Settings.ResolveSpecMaxBytes("", "진로활동", 2026));
+        Assert.Equal(NeisHelper.GetMaxBytes("진로활동"),
+            Settings.ResolveSpecMaxBytes("", "진로활동", 2026));
     }
 
     [Fact]
@@ -113,7 +114,8 @@ public class SpecByteLimitTests
         // 올해만 바꿔도 지난 학년도 기록이 갑자기 "초과"로 바뀌면 안 된다
         const string raw = "2026:진로활동=900";
         Assert.Equal(900, Settings.ResolveSpecMaxBytes(raw, "진로활동", 2026));
-        Assert.Equal(2100, Settings.ResolveSpecMaxBytes(raw, "진로활동", 2025));
+        Assert.Equal(NeisHelper.GetMaxBytes("진로활동"),
+            Settings.ResolveSpecMaxBytes(raw, "진로활동", 2025));
     }
 
     [Fact]
@@ -131,7 +133,8 @@ public class SpecByteLimitTests
     [InlineData("=1500")]
     public void Resolve_MalformedEntry_Ignored(string raw)
     {
-        Assert.Equal(2100, Settings.ResolveSpecMaxBytes(raw, "진로활동", 2026));
+        Assert.Equal(NeisHelper.GetMaxBytes("진로활동"),
+            Settings.ResolveSpecMaxBytes(raw, "진로활동", 2026));
     }
 
     #endregion
@@ -141,7 +144,8 @@ public class SpecByteLimitTests
     [Fact]
     public void Apply_DefaultValue_RemovesEntry()
     {
-        var raw = Settings.ApplySpecByteOverride("진로활동=1800", "진로활동", 2100, 0);
+        var raw = Settings.ApplySpecByteOverride(
+            "진로활동=1800", "진로활동", NeisHelper.GetMaxBytes("진로활동"), 0);
         Assert.Equal("", raw);
     }
 
@@ -174,16 +178,18 @@ public class SpecByteLimitTests
     [Fact]
     public void Apply_YearSpecificEqualToCodeDefault_KeptWhenGlobalDiffers()
     {
-        var raw = Settings.ApplySpecByteOverride("진로활동=1800", "진로활동", 2100, 2026);
-        Assert.Contains("2026:진로활동=2100", raw);
-        Assert.Equal(2100, Settings.ResolveSpecMaxBytes(raw, "진로활동", 2026));
+        int codeDefault = NeisHelper.GetMaxBytes("진로활동");
+        var raw = Settings.ApplySpecByteOverride("진로활동=1800", "진로활동", codeDefault, 2026);
+        Assert.Contains($"2026:진로활동={codeDefault}", raw);
+        Assert.Equal(codeDefault, Settings.ResolveSpecMaxBytes(raw, "진로활동", 2026));
         Assert.Equal(1800, Settings.ResolveSpecMaxBytes(raw, "진로활동", 2025));
     }
 
     [Fact]
     public void Apply_YearSpecificEqualToFallback_RemovedWhenNoGlobal()
     {
-        var raw = Settings.ApplySpecByteOverride("2026:진로활동=900", "진로활동", 2100, 2026);
+        var raw = Settings.ApplySpecByteOverride(
+            "2026:진로활동=900", "진로활동", NeisHelper.GetMaxBytes("진로활동"), 2026);
         Assert.Equal("", raw);
     }
 

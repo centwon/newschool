@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -37,7 +37,6 @@ public sealed partial class AppSettingsPage : Page
         EnableCacheToggle.IsOn = Settings.EnableCache.Value;
         DefaultPageSizeNumberBox.Value = Settings.DefaultPageSize.Value;
 
-        BuildSpecByteEditors();
 
         AutoBackupToggle.IsOn = Settings.AutoBackup.Value;
         AutoBackupIntervalDaysNumberBox.Value = Settings.AutoBackupIntervalDays.Value;
@@ -130,105 +129,6 @@ public sealed partial class AppSettingsPage : Page
         if (!_isInitialized) return;
         if (!double.IsNaN(args.NewValue))
             Settings.DefaultPageSize.Set((int)args.NewValue);
-    }
-
-    #endregion
-
-    #region 학생부 글자 제한
-
-    /// <summary>0 = 모든 학년도(기본), 그 외 = 해당 학년도에만 적용</summary>
-    private int SelectedSpecByteYear =>
-        CBoxSpecByteYear?.SelectedItem is ComboBoxItem { Tag: string t } && int.TryParse(t, out int y) ? y : 0;
-
-    /// <summary>
-    /// 학생부 한도 입력칸을 <see cref="Helpers.NeisHelper.Areas"/> 정의표에서 생성한다.
-    /// 영역을 추가·삭제해도 이 화면은 자동으로 따라간다(예전에는 XAML 에 6개가 고정돼 있어
-    /// 정의표와 어긋날 수 있었고, 실제로 "봉사활동"이 빠져 있었다).
-    /// </summary>
-    private void BuildSpecByteEditors()
-    {
-        // 학년도 선택 목록은 최초 1회만 구성 (올해 기준 ±2년 + '모든 학년도')
-        if (CBoxSpecByteYear.Items.Count == 0)
-        {
-            CBoxSpecByteYear.Items.Add(new ComboBoxItem { Content = "모든 학년도(기본)", Tag = "0" });
-            int thisYear = Settings.WorkYear.Value > 0 ? Settings.WorkYear.Value : DateTime.Now.Year;
-            for (int y = thisYear + 1; y >= thisYear - 2; y--)
-                CBoxSpecByteYear.Items.Add(new ComboBoxItem { Content = $"{y}학년도", Tag = y.ToString() });
-            CBoxSpecByteYear.SelectedIndex = 0;
-        }
-
-        int year = SelectedSpecByteYear;
-        TxtSpecByteScope.Text = year > 0
-            ? $"{year}학년도에만 적용됩니다. 비워 둔 영역은 '모든 학년도' 값을 따릅니다."
-            : "모든 학년도에 적용됩니다. 특정 학년도만 다르게 하려면 위에서 학년도를 고르세요.";
-
-        // 재생성 시 이전 컨트롤 참조가 남지 않도록 매핑도 함께 비운다
-        PanelSpecBytes.Children.Clear();
-        _specCharToHint.Clear();
-
-        foreach (var area in Helpers.NeisHelper.Areas)
-        {
-            int bytes = Settings.GetSpecMaxBytes(area.Key, year);
-
-            // 지침은 "500자"처럼 글자 수로 나오므로 입력은 글자 수 하나만 받고,
-            // 실제 판정 단위인 바이트는 옆에 읽기 전용으로 보여준다(칸을 두 개 두면 중복).
-            var charBox = new NumberBox
-            {
-                Header = area.Label,
-                Tag = area.Key,
-                SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline,
-                Minimum = 0,
-                Maximum = 3000,
-                SmallChange = 50,
-                Width = 200,
-                Value = bytes / BytesPerKoreanChar
-            };
-
-            var hint = new TextBlock
-            {
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 0, 6),
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-                Text = FormatSpecByteHint(bytes)
-            };
-
-            _specCharToHint[charBox] = hint;
-            charBox.ValueChanged += OnSpecCharCountChanged;
-
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-            row.Children.Add(charBox);
-            row.Children.Add(hint);
-            PanelSpecBytes.Children.Add(row);
-        }
-    }
-
-    /// <summary>글자 수 옆에 붙는 바이트 안내 문구.</summary>
-    private static string FormatSpecByteHint(int bytes) => $"= {bytes:N0} Byte (실제 판정 단위)";
-
-    /// <summary>NEIS 바이트 계산에서 한글 1자 = 3바이트.</summary>
-    private const int BytesPerKoreanChar = 3;
-
-    /// <summary>글자 수 입력칸 → 옆에 붙은 바이트 안내 문구</summary>
-    private readonly Dictionary<NumberBox, TextBlock> _specCharToHint = new();
-
-    private void OnSpecCharCountChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (!_isInitialized) return;
-        if (double.IsNaN(args.NewValue)) return;
-        if (sender.Tag is not string type) return;
-
-        int bytes = (int)args.NewValue * BytesPerKoreanChar;
-
-        if (_specCharToHint.TryGetValue(sender, out var hint))
-            hint.Text = FormatSpecByteHint(bytes);
-
-        Settings.SetSpecByteOverride(type, bytes, SelectedSpecByteYear);
-    }
-
-    private void OnSpecByteYearChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_isInitialized) return;
-        BuildSpecByteEditors();   // 선택 학년도 기준으로 현재값 다시 표시
     }
 
     #endregion

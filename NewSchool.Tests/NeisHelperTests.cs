@@ -1,4 +1,4 @@
-using NewSchool.Helpers;
+﻿using NewSchool.Helpers;
 using Xunit;
 
 namespace NewSchool.Tests;
@@ -80,20 +80,26 @@ public class NeisHelperTests
     #region GetMaxBytes
 
     [Theory]
-    [InlineData("교과활동", 1500)]
-    [InlineData("개인별세특", 1500)]
-    [InlineData("자율활동", 1500)]
-    [InlineData("동아리활동", 1500)]
-    [InlineData("종합의견", 1500)]
-    public void GetMaxBytes_StandardAreas_Returns1500(string area, int expected)
+    // 2027·2028~ 입시 기준(한글 1자 = 3바이트).
+    // 2026 입시는 진로 700자·종합의견 500자·봉사 250자로 달랐으므로, 그 학년도는
+    // 설정의 학년도별 오버라이드로 처리한다(Settings.GetSpecMaxBytes).
+    [InlineData("교과활동", 1500)]     // 과목별 500자
+    [InlineData("개인별세특", 1500)]   // 500자
+    [InlineData("자율활동", 1500)]     // 연간 500자
+    [InlineData("동아리활동", 1500)]   // 연간 500자
+    [InlineData("진로활동", 1500)]     // 연간 500자
+    [InlineData("종합의견", 900)]      // 연간 300자
+    [InlineData("봉사활동", 150)]      // 실적 50자
+    public void GetMaxBytes_영역별_지침값(string area, int expected)
     {
         Assert.Equal(expected, NeisHelper.GetMaxBytes(area));
     }
 
     [Fact]
-    public void GetMaxBytes_진로활동_Returns2100()
+    public void GetMaxBytes_진로활동_연간500자()
     {
-        Assert.Equal(2100, NeisHelper.GetMaxBytes("진로활동"));
+        // 2026 입시에는 700자(2100바이트)였으나 2027 입시부터 500자로 축소됐다.
+        Assert.Equal(1500, NeisHelper.GetMaxBytes("진로활동"));
     }
 
     [Theory]
