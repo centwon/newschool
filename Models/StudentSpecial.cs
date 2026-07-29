@@ -14,6 +14,7 @@ namespace NewSchool.Models
         private int _no = -1;
         private string _studentId = string.Empty;
         private int _year = DateTime.Today.Year;
+        private int _semester;   // 0 = 학년 단위(연간)
         private string _type = string.Empty;
         private string _title = string.Empty;
         private string _content = string.Empty;
@@ -47,6 +48,22 @@ namespace NewSchool.Models
         {
             get => _year;
             set => SetProperty(ref _year, value);
+        }
+
+        /// <summary>
+        /// 학기. <b>0 = 학년 단위(연간)</b>, 1·2 = 해당 학기.
+        ///
+        /// 교과 세부능력 및 특기사항(<c>교과활동</c>)만 학기별로 따로 작성하므로 1·2 를 갖는다.
+        /// 개인별세특·자율활동·동아리활동·봉사활동·진로활동·종합의견은 학년 단위라 0 이다.
+        ///
+        /// ⚠ 학기를 <c>CourseNo → Course.Semester</c> 로 유도하지 않고 직접 저장하는 이유:
+        /// <c>StudentSpecial.CourseNo</c> 는 <c>ON DELETE SET NULL</c> 이라 교과목을 삭제하면
+        /// NULL 이 되고, 그러면 그 세특이 어느 학기 것인지 영구히 알 수 없게 된다.
+        /// </summary>
+        public int Semester
+        {
+            get => _semester;
+            set => SetProperty(ref _semester, value);
         }
 
         #endregion

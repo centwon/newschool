@@ -235,6 +235,8 @@ public sealed partial class StudentSpecBatchDialog : Window
             No = 0,
             StudentID = studentId,
             Year = _year,
+            // 교과 세특만 학기별. 개인별세특 등은 학년 단위라 0.
+            Semester = NeisHelper.IsSemesterScoped(_selectedType) ? (course?.Semester ?? _semester) : 0,
             Type = _selectedType,
             Title = isCourse ? (course?.Subject ?? string.Empty) : string.Empty,
             Content = string.Empty,

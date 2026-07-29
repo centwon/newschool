@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -220,6 +220,8 @@ public sealed partial class CourseSpecPage : Page, IDisposable
             No = 0,
             StudentID = studentId,
             Year = year,
+            // 교과 세특은 학기별 — 교과목의 학기를 그대로 저장(CourseNo 가 지워져도 학기가 남는다)
+            Semester = Helpers.NeisHelper.IsSemesterScoped(SpecType) ? course.Semester : 0,
             Type = SpecType,
             Title = course.Subject,
             Content = string.Empty,

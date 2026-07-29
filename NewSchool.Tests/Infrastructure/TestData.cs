@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using NewSchool.Models;
 
@@ -64,10 +64,12 @@ public static class TestData
         string title = "테스트 특기사항",
         string content = "내용",
         int courseNo = 0,
-        bool isFinalized = false) => new()
+        bool isFinalized = false,
+        int semester = 0) => new()
     {
         StudentID = studentId,
         Year = year,
+        Semester = semester,
         Type = type,
         Title = title,
         Content = content,

@@ -362,10 +362,13 @@ public sealed partial class LessonActivityPage : Page
             using var service = new StudentSpecialService();
             var specials = await service.GetByStudentAsync(_selectedStudent.StudentID, Settings.WorkYear.Value);
 
-            // 교과활동 타입 + 과목명으로 검색
+            // 교과 세특은 학기별이고 교과목(Course)도 학기별로 등록되므로 CourseNo 로 찾는다.
+            // 과목명(Title)으로 찾던 예전 코드는 학년도 전체를 훑기 때문에, 1·2학기에 같은 과목을
+            // 가르치면 다른 학기 기록을 집어와 덮어썼다. CourseNo 없는 구 기록만 과목명으로 보조 매칭.
             string type = "교과활동";
-            var special = specials.FirstOrDefault(s => 
-                s.Type == type && s.Title == _selectedCourse.Subject);
+            var special = specials.FirstOrDefault(s => s.Type == type && s.CourseNo == _selectedCourse.No)
+                ?? specials.FirstOrDefault(s => s.Type == type && s.CourseNo == 0
+                                                && s.Title == _selectedCourse.Subject);
 
             if (special != null)
             {
@@ -378,6 +381,8 @@ public sealed partial class LessonActivityPage : Page
                 {
                     StudentID = _selectedStudent.StudentID,
                     Year = Settings.WorkYear.Value,
+                    // 교과 세특은 학기별 — 교과목의 학기를 저장(CourseNo 가 지워져도 학기는 남는다)
+                    Semester = Helpers.NeisHelper.IsSemesterScoped(type) ? _selectedCourse.Semester : 0,
                     Type = type,
                     Title = _selectedCourse.Subject,
                     SubjectName = _selectedCourse.Subject,

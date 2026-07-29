@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -415,6 +415,8 @@ public sealed partial class StudentSpecPage : Page, IDisposable
             No = 0,
             StudentID = studentId,
             Year = YearSemPicker.Year,
+            Semester = Helpers.NeisHelper.IsSemesterScoped(_selectedCategory.ToString())
+                ? YearSemPicker.Semester : 0,
             Type = _selectedCategory.ToString(),
             Title = string.Empty,
             Content = string.Empty,

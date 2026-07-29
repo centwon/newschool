@@ -25,8 +25,10 @@ namespace NewSchool.Database
         ///
         /// 데이터를 건드리지 않는 메타값이라 기존 DB·새 DB 모두에 무해하다.
         /// 스키마를 바꿀 때마다 이 상수를 올리고 대응 마이그레이션을 추가한다.
+        ///
+        /// 2: StudentSpecial.Semester 추가(교과활동만 학기별, 나머지 0=학년 단위).
         /// </summary>
-        public const int SchemaVersion = 1;
+        public const int SchemaVersion = 2;
 
         private readonly string _dbPath;
         private SqliteConnection? _connection;
@@ -375,6 +377,9 @@ namespace NewSchool.Database
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     StudentID TEXT NOT NULL,
                     Year INTEGER NOT NULL,
+                    -- 0 = 학년 단위(연간), 1·2 = 해당 학기. 교과활동(교과 세특)만 학기별이다.
+                    -- CourseNo 는 ON DELETE SET NULL 이라 교과목을 지우면 학기를 유도할 수 없으므로 직접 저장한다.
+                    Semester INTEGER NOT NULL DEFAULT 0,
                     Type TEXT NOT NULL,
                     Title TEXT NOT NULL,
                     Content TEXT NOT NULL,
@@ -390,6 +395,10 @@ namespace NewSchool.Database
                 );";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] StudentSpecial 테이블 생성 완료");
+
+            // 기존 DB 마이그레이션: Semester 컬럼 추가 + 학기 백필.
+            // 이미 있으면 ALTER 가 실패하므로 컬럼 존재 여부를 먼저 확인한다.
+            await AddStudentSpecialSemesterAsync(cmd);
 
             // ==========================================
             // 기존 테이블들 (유지)
@@ -775,6 +784,39 @@ namespace NewSchool.Database
             cmd.CommandText = $"PRAGMA user_version = {SchemaVersion};";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine($"[DatabaseInitializer] 스키마 버전 기록: {SchemaVersion}");
+        }
+
+        /// <summary>
+        /// 기존 DB 에 <c>StudentSpecial.Semester</c> 컬럼을 추가하고 학기를 백필한다.
+        ///
+        /// 백필 규칙: 교과활동(교과 세특)만 학기별이므로, 살아있는 <c>CourseNo</c> 가 있으면
+        /// 그 교과목의 학기를 가져온다. 그 외(개인별세특·자율·동아리·봉사·진로·종합의견,
+        /// 그리고 교과목이 이미 삭제돼 CourseNo 가 NULL 인 행)는 0(학년 단위)으로 남는다.
+        /// CourseNo 가 NULL 인 과거 교과활동은 학기를 복원할 방법이 없다 — 이 마이그레이션을
+        /// 도입한 이유 자체가 그 유실을 앞으로 막으려는 것이다.
+        ///
+        /// 컬럼이 이미 있으면 아무것도 하지 않는다(신규 DB 는 CREATE TABLE 에 포함됨).
+        /// </summary>
+        private static async Task AddStudentSpecialSemesterAsync(SqliteCommand cmd)
+        {
+            // 컬럼 존재 확인
+            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('StudentSpecial') WHERE name='Semester';";
+            var exists = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+            if (exists) return;
+
+            cmd.CommandText = "ALTER TABLE StudentSpecial ADD COLUMN Semester INTEGER NOT NULL DEFAULT 0;";
+            await cmd.ExecuteNonQueryAsync();
+
+            // 교과활동만 백필 — Course 가 남아 있는 행에 한해 학기를 복원
+            cmd.CommandText = @"
+                UPDATE StudentSpecial
+                   SET Semester = COALESCE((
+                           SELECT c.Semester FROM Course c WHERE c.No = StudentSpecial.CourseNo
+                       ), 0)
+                 WHERE Type = '교과활동' AND CourseNo IS NOT NULL;";
+            int filled = await cmd.ExecuteNonQueryAsync();
+
+            Debug.WriteLine($"[DatabaseInitializer] StudentSpecial.Semester 컬럼 추가 + 교과활동 {filled}행 학기 백필");
         }
 
         private async Task CleanupOrphansAsync()

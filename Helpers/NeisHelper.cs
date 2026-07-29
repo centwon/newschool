@@ -45,8 +45,14 @@ public static class NeisHelper
     /// </summary>
     public static bool IsOverLimit(int byteCount, int maxBytes) => byteCount > maxBytes;
 
-    /// <summary>학생부 영역 정의 — 키(저장값), 표시 이름, 코드 기본 바이트.</summary>
-    public sealed record SpecArea(string Key, string Label, int DefaultBytes);
+    /// <summary>
+    /// 학생부 영역 정의 — 키(저장값), 표시 이름, 코드 기본 바이트, 학기별 작성 여부.
+    /// </summary>
+    /// <param name="IsSemesterScoped">
+    /// 학기별로 따로 작성하는 영역인가. 교과 세부능력 및 특기사항(<c>교과활동</c>)만 true 다.
+    /// 개인별세특은 교과 영역이지만 <b>학년 단위</b>이므로 false(=<c>Semester 0</c>).
+    /// </param>
+    public sealed record SpecArea(string Key, string Label, int DefaultBytes, bool IsSemesterScoped = false);
 
     /// <summary>
     /// 학생부 영역 단일 정의표. NEIS 기준(2024학년도~)의 코드 기본값이다.
@@ -61,8 +67,9 @@ public static class NeisHelper
     /// </summary>
     public static readonly IReadOnlyList<SpecArea> Areas =
     [
-        new("교과활동",   "교과활동(세특)",       1500),  // 교과 세부능력 및 특기사항 (과목당)
-        new("개인별세특", "개인별 세특",          1500),
+        // 교과 세특만 학기별(과목당·학기당). 나머지는 전부 학년 단위.
+        new("교과활동",   "교과활동(세특)",       1500, IsSemesterScoped: true),
+        new("개인별세특", "개인별 세특",          1500),   // 교과 영역이지만 학년 단위
         new("자율활동",   "자율활동",             1500),
         new("동아리활동", "동아리활동",           1500),
         new("봉사활동",   "봉사활동",             1500),
@@ -79,6 +86,17 @@ public static class NeisHelper
         foreach (var area in Areas)
             if (area.Key == type) return area.DefaultBytes;
         return 1500;   // 표에 없는 영역의 안전 기본값
+    }
+
+    /// <summary>
+    /// 해당 영역이 학기별로 작성되는가(= <c>StudentSpecial.Semester</c> 에 1·2 를 넣어야 하는가).
+    /// false 면 학년 단위이므로 0 을 넣는다. 판단 근거는 <see cref="Areas"/> 정의표 하나뿐이다.
+    /// </summary>
+    public static bool IsSemesterScoped(string type)
+    {
+        foreach (var area in Areas)
+            if (area.Key == type) return area.IsSemesterScoped;
+        return false;   // 모르는 영역은 안전하게 학년 단위
     }
 
     // 미사용 메서드 제거 (2026-04-22):

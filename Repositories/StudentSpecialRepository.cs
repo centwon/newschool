@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,10 +25,10 @@ namespace NewSchool.Repositories
         {
             const string query = @"
                 INSERT INTO StudentSpecial (
-                    StudentID, Year, Type, Title, Content, Date, TeacherID, 
+                    StudentID, Year, Semester, Type, Title, Content, Date, TeacherID, 
                     CourseNo, SubjectName, IsActive, Tag
                 ) VALUES (
-                    @StudentID, @Year, @Type, @Title, @Content, @Date, @TeacherID,
+                    @StudentID, @Year, @Semester, @Type, @Title, @Content, @Date, @TeacherID,
                     @CourseNo, @SubjectName, @IsActive, @Tag
                 );
                 SELECT last_insert_rowid();";
@@ -451,6 +451,7 @@ namespace NewSchool.Repositories
                 UPDATE StudentSpecial SET
                     StudentID = @StudentID,
                     Year = @Year,
+                    Semester = @Semester,
                     Type = @Type,
                     Title = @Title,
                     Content = @Content,
@@ -552,6 +553,7 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@No", special.No);
             cmd.Parameters.AddWithValue("@StudentID", special.StudentID ?? string.Empty);
             cmd.Parameters.AddWithValue("@Year", special.Year);
+            cmd.Parameters.AddWithValue("@Semester", special.Semester);
             cmd.Parameters.AddWithValue("@Type", special.Type ?? string.Empty);
             cmd.Parameters.AddWithValue("@Title", special.Title ?? string.Empty);
             cmd.Parameters.AddWithValue("@Content", special.Content ?? string.Empty);
@@ -570,6 +572,7 @@ namespace NewSchool.Repositories
                 No = reader.GetInt32(reader.GetOrdinal("No")),
                 StudentID = reader.GetString(reader.GetOrdinal("StudentID")),
                 Year = reader.GetInt32(reader.GetOrdinal("Year")),
+                Semester = reader.IsDBNull(reader.GetOrdinal("Semester")) ? 0 : reader.GetInt32(reader.GetOrdinal("Semester")),
                 Type = reader.GetString(reader.GetOrdinal("Type")),
                 Title = reader.GetString(reader.GetOrdinal("Title")),
                 Content = reader.GetString(reader.GetOrdinal("Content")),
