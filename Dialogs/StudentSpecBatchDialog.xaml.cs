@@ -192,9 +192,26 @@ public sealed partial class StudentSpecBatchDialog : Window
 
         if (_selectedType == "교과활동" || _selectedType == "개인별세특")
         {
-            // 과목으로 매칭
-            string subjectName = (CBoxCourse.SelectedItem as Course)?.Subject ?? string.Empty;
-            spec = specials.FirstOrDefault(s => s.Type == _selectedType && s.SubjectName == subjectName);
+            // 교과 세특은 학기별이다. 교과목(Course)이 학기별로 따로 등록되므로 CourseNo 로 매칭해야
+            // 1·2학기에 같은 과목을 가르칠 때 세특이 섞이지 않는다.
+            // 과목명으로만 매칭하던 예전 코드는, 조회가 학년도 전체(GetByStudentAsync(_, _year))를
+            // 훑기 때문에 2학기에 열어도 1학기 기록을 집어와 그 위에 덮어썼다.
+            // (CourseSpecPage 는 이미 GetByCourseAsync(course.No, year) 로 CourseNo 기준이다.)
+            var course = CBoxCourse.SelectedItem as Course;
+            int courseNo = course?.No ?? 0;
+            string subjectName = course?.Subject ?? string.Empty;
+
+            if (courseNo > 0)
+            {
+                spec = specials.FirstOrDefault(s => s.Type == _selectedType && s.CourseNo == courseNo)
+                    // CourseNo 가 없던 구 기록은 과목명으로 보조 매칭(학기 구분 불가 — 최선의 추정)
+                    ?? specials.FirstOrDefault(s => s.Type == _selectedType && s.CourseNo == 0
+                                                    && s.SubjectName == subjectName);
+            }
+            else
+            {
+                spec = specials.FirstOrDefault(s => s.Type == _selectedType && s.SubjectName == subjectName);
+            }
         }
         else
         {

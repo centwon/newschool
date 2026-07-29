@@ -164,109 +164,71 @@ public sealed partial class AppSettingsPage : Page
 
         // 재생성 시 이전 컨트롤 참조가 남지 않도록 매핑도 함께 비운다
         PanelSpecBytes.Children.Clear();
-        _specCharToByte.Clear();
-        _specByteToChar.Clear();
+        _specCharToHint.Clear();
 
         foreach (var area in Helpers.NeisHelper.Areas)
         {
             int bytes = Settings.GetSpecMaxBytes(area.Key, year);
 
-            // 지침은 "500자"처럼 글자 수로 나오고 NEIS 는 바이트로 제한한다.
-            // 두 칸을 나란히 두고 서로 연동해, 교사가 지침 숫자를 그대로 넣을 수 있게 한다.
-            // 저장·판정의 기준은 바이트다(영문·숫자가 섞이면 글자 수와 정확히 비례하지 않음).
+            // 지침은 "500자"처럼 글자 수로 나오므로 입력은 글자 수 하나만 받고,
+            // 실제 판정 단위인 바이트는 옆에 읽기 전용으로 보여준다(칸을 두 개 두면 중복).
             var charBox = new NumberBox
             {
-                Header = "글자 수(한글)",
+                Header = area.Label,
                 Tag = area.Key,
                 SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline,
                 Minimum = 0,
                 Maximum = 3000,
                 SmallChange = 50,
-                Width = 170,
+                Width = 200,
                 Value = bytes / BytesPerKoreanChar
             };
-            var byteBox = new NumberBox
+
+            var hint = new TextBlock
             {
-                Header = "바이트",
-                Tag = area.Key,
-                SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline,
-                Minimum = 0,
-                Maximum = 9000,
-                SmallChange = 100,
-                Width = 170,
-                Value = bytes
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 0, 6),
+                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                Text = FormatSpecByteHint(bytes)
             };
 
-            // 상대 칸을 서로 참조시켜 한쪽을 바꾸면 다른 쪽이 따라오게 한다.
-            _specCharToByte[charBox] = byteBox;
-            _specByteToChar[byteBox] = charBox;
-
+            _specCharToHint[charBox] = hint;
             charBox.ValueChanged += OnSpecCharCountChanged;
-            byteBox.ValueChanged += OnSpecByteChanged;
 
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
             row.Children.Add(charBox);
-            row.Children.Add(byteBox);
-
-            PanelSpecBytes.Children.Add(new TextBlock
-            {
-                Text = area.Label,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                Margin = new Thickness(0, 4, 0, 0)
-            });
+            row.Children.Add(hint);
             PanelSpecBytes.Children.Add(row);
         }
     }
 
+    /// <summary>글자 수 옆에 붙는 바이트 안내 문구.</summary>
+    private static string FormatSpecByteHint(int bytes) => $"= {bytes:N0} Byte (실제 판정 단위)";
+
     /// <summary>NEIS 바이트 계산에서 한글 1자 = 3바이트.</summary>
     private const int BytesPerKoreanChar = 3;
 
-    private readonly Dictionary<NumberBox, NumberBox> _specCharToByte = new();
-    private readonly Dictionary<NumberBox, NumberBox> _specByteToChar = new();
-
-    /// <summary>두 칸이 서로를 갱신하며 무한 재귀하지 않도록 하는 가드.</summary>
-    private bool _syncingSpecLimit;
+    /// <summary>글자 수 입력칸 → 옆에 붙은 바이트 안내 문구</summary>
+    private readonly Dictionary<NumberBox, TextBlock> _specCharToHint = new();
 
     private void OnSpecCharCountChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
-        if (!_isInitialized || _syncingSpecLimit) return;
+        if (!_isInitialized) return;
         if (double.IsNaN(args.NewValue)) return;
         if (sender.Tag is not string type) return;
 
         int bytes = (int)args.NewValue * BytesPerKoreanChar;
 
-        _syncingSpecLimit = true;
-        try
-        {
-            if (_specCharToByte.TryGetValue(sender, out var byteBox)) byteBox.Value = bytes;
-            Settings.SetSpecByteOverride(type, bytes, SelectedSpecByteYear);
-        }
-        finally { _syncingSpecLimit = false; }
+        if (_specCharToHint.TryGetValue(sender, out var hint))
+            hint.Text = FormatSpecByteHint(bytes);
+
+        Settings.SetSpecByteOverride(type, bytes, SelectedSpecByteYear);
     }
 
     private void OnSpecByteYearChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_isInitialized) return;
         BuildSpecByteEditors();   // 선택 학년도 기준으로 현재값 다시 표시
-    }
-
-    private void OnSpecByteChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (!_isInitialized || _syncingSpecLimit) return;
-        if (double.IsNaN(args.NewValue)) return;
-        if (sender.Tag is not string type) return;
-
-        int bytes = (int)args.NewValue;
-
-        _syncingSpecLimit = true;
-        try
-        {
-            // 글자 수 칸도 따라 갱신 (한글 기준 환산값이라 나머지는 버림)
-            if (_specByteToChar.TryGetValue(sender, out var charBox))
-                charBox.Value = bytes / BytesPerKoreanChar;
-            Settings.SetSpecByteOverride(type, bytes, SelectedSpecByteYear);
-        }
-        finally { _syncingSpecLimit = false; }
     }
 
     #endregion
