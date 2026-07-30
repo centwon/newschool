@@ -342,11 +342,26 @@ public sealed partial class AppSettingsPage : Page
         }
     }
 
-    private void OnDownloadLinkClick(object sender, RoutedEventArgs e)
+    private async void OnDownloadLinkClick(object sender, RoutedEventArgs e)
     {
-        if (!string.IsNullOrEmpty(_downloadUrl))
+        // ⚠ _downloadUrl 은 GitHub API 응답에서 온 외부 문자열이다. UseShellExecute 로 그대로
+        //    넘기면 URL 이 아닌 값이 왔을 때 셸이 그걸 실행해 버린다. http/https 만 연다.
+        //    (MainWindow 의 업데이트 안내도 Launcher 로 여는데 여기만 달랐다)
+        if (!Uri.TryCreate(_downloadUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            Process.Start(new ProcessStartInfo(_downloadUrl) { UseShellExecute = true });
+            UpdateStatusText.Text = "다운로드 주소가 올바르지 않습니다. 릴리스 페이지에서 직접 받아주세요.";
+            return;
+        }
+
+        try
+        {
+            await Windows.System.Launcher.LaunchUriAsync(uri);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AppSettingsPage] 다운로드 링크 열기 실패: {ex}");
+            UpdateStatusText.Text = $"브라우저를 열지 못했습니다: {ex.Message}";
         }
     }
 

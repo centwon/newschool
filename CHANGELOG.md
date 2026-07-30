@@ -2,6 +2,23 @@
 
 ## 미출시
 
+### 32차 전수조사 - 업데이트·초기 설정 (2026-07-30)
+`UpdateService` 와 업데이트 확인 화면 2곳, `InitialSetupWindow` 를 점검했다.
+테스트 354개 유지, 빌드 경고 0.
+
+- **업데이트 진행 대화상자가 미관측 태스크였다** - `_ = dialog.ShowAsync()` 로 버려서, 다른 대화상자가
+  열려 있을 때 나는 예외가 아무에게도 잡히지 않았다. 게다가 22차에 넣은 **대화상자 직렬화 게이트를
+  우회**해 바로 뒤의 결과 대화상자와 충돌할 수 있었다 -> 업데이트 관련 대화상자 4개를 모두
+  `MessageBox.ShowDialogAsync` 경유로 바꾸고, 진행 표시는 실패를 로그로 관측한다
+- **다운로드 링크가 외부 문자열을 셸에 그대로 넘겼다** - 앱 설정의 다운로드 버튼이
+  `Process.Start(..., UseShellExecute = true)` 로 GitHub 응답값을 실행했다. URL 이 아닌 값이 오면
+  셸이 그걸 실행한다 -> **http/https 만** 열고, 그마저도 `Launcher` 로 연다(홈 화면과 동일한 방식).
+  실패 시 안내도 추가
+- 확인만 하고 넘어간 것: `UpdateService` 의 버전 비교(`<Version>1.2.0</Version>` -> 1.2.0.0 과
+  태그 `v1.2.0` 비교)는 의도대로 동작한다. `InitialSetupWindow` 는 저장 실패를 예외로 올려
+  사용자에게 알리고 있어 이상 없음
+
+
 ### 31차 전수조사 - 학급일지·오늘·학교일정 (2026-07-30)
 `ClassDiaryService`·`ClassDiaryBox`·`ClassDiaryPage`·`TodayPage`·`SchoolScheduleService` 를 점검했다.
 테스트 354개 유지, 빌드 경고 0.

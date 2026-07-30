@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Board.Pages;
+using NewSchool.Controls;
 using NewSchool.Pages;
 using NewSchool.Scheduler;
 using Windows.Media.Miracast;
@@ -397,8 +398,15 @@ public sealed partial class MainWindow : Window
         // 비동기로 업데이트 확인 시작
         var checkTask = UpdateService.CheckForUpdateAsync();
 
-        // ProgressDialog를 잠깐 표시했다가 결과 나오면 닫기
-        _ = progressDialog.ShowAsync();
+        // ProgressDialog를 잠깐 표시했다가 결과 나오면 닫는다.
+        //
+        // ⚠ MessageBox.ShowDialogAsync 를 거친다. 예전에는 ContentDialog.ShowAsync 를 직접
+        //    `_ =` 로 버려서 (1) 다른 대화상자가 열려 있으면 나는 예외가 미관측 태스크 예외가 되고
+        //    (2) 대화상자 직렬화 게이트를 우회해 바로 뒤의 결과 대화상자와 충돌할 수 있었다.
+        _ = MessageBox.ShowDialogAsync(progressDialog).ContinueWith(
+            t => System.Diagnostics.Debug.WriteLine($"[MainWindow] 업데이트 진행 표시 실패: {t.Exception?.InnerException?.Message}"),
+            TaskContinuationOptions.OnlyOnFaulted);
+
         var result = await checkTask;
         progressDialog.Hide();
 
@@ -412,7 +420,7 @@ public sealed partial class MainWindow : Window
                 CloseButtonText = "확인",
                 XamlRoot = this.Content.XamlRoot
             };
-            await errorDialog.ShowAsync();
+            await MessageBox.ShowDialogAsync(errorDialog);
             return;
         }
 
@@ -446,7 +454,7 @@ public sealed partial class MainWindow : Window
                 XamlRoot = this.Content.XamlRoot
             };
 
-            if (await updateDialog.ShowAsync() == ContentDialogResult.Primary)
+            if (await MessageBox.ShowDialogAsync(updateDialog) == ContentDialogResult.Primary)
             {
                 if (!string.IsNullOrEmpty(info.DownloadUrl))
                 {
@@ -463,7 +471,7 @@ public sealed partial class MainWindow : Window
                 CloseButtonText = "확인",
                 XamlRoot = this.Content.XamlRoot
             };
-            await upToDateDialog.ShowAsync();
+            await MessageBox.ShowDialogAsync(upToDateDialog);
         }
     }
 
