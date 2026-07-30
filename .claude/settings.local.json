@@ -427,7 +427,9 @@
       "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/revert_sem.py\")",
       "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/prune_enroll.py\")",
       "Bash(grep -nE \"await .*\\(Delete|Update|Create|Save\\)[A-Za-z]*Async\\\\\\([^\\)]*\\\\\\);\\\\s*$\" Pages/ClubActivityPage.xaml.cs Pages/ClubManagementPage.xaml.cs Dialogs/ClubEnrollmentDialog.xaml.cs Dialogs/ClubEditDialog.xaml.cs)",
-      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/fix_club.py\")"
+      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/fix_club.py\")",
+      "Bash(grep -nE \"await .*\\(Delete|Update|Create|Save|Insert\\)[A-Za-z]*Async\\\\\\([^\\)]*\\\\\\);\\\\s*$\" Pages/ClassDiaryPage.xaml.cs Pages/TodayPage.xaml.cs Pages/SchoolScheduleManagementPage.xaml.cs Controls/ClassDiaryBox.xaml.cs Services/ClassDiaryService.cs)",
+      "Bash(grep -B1 -A2 \"Debug.WriteLine\\\\|catch$\\\\|{ }\")"
     ]
   }
 }

@@ -47,17 +47,22 @@ namespace NewSchool.Services
                 // 기존 일지 확인
                 var existing = await _diaryRepo.GetByDateAsync(diary.SchoolCode, diary.Year, diary.Grade, diary.Class, diary.Date);
 
+                // 실제로 반영됐는지 확인한다. 예전에는 결과를 버려서, 대상 행이 없어
+                // 0행 갱신이 나도 "저장 완료"로 돌아갔다 — 호출부는 변경 표시를 지우므로
+                // 사용자가 쓴 알림장·특기사항이 조용히 사라졌다.
                 if (existing != null)
                 {
                     // 수정
                     diary.No = existing.No;
-                    await _diaryRepo.UpdateAsync(diary);
+                    if (!await _diaryRepo.UpdateAsync(diary))
+                        throw new InvalidOperationException("저장 대상 일지를 찾지 못했습니다.");
                     return diary;
                 }
                 else
                 {
                     // 생성
-                    await _diaryRepo.CreateAsync(diary);
+                    if (await _diaryRepo.CreateAsync(diary) <= 0)
+                        throw new InvalidOperationException("일지를 생성하지 못했습니다.");
                     return diary;
                 }
             }

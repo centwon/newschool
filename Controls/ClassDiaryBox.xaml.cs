@@ -88,7 +88,12 @@ public sealed partial class ClassDiaryBox : UserControl
         }
     }
     /// <summary>
-    /// 현재 학급일지 저장
+    /// 현재 학급일지 저장.
+    ///
+    /// <para>⚠ 이 메서드는 <b>날짜 변경·목록 이동·화면 언로드 시 자동으로</b> 불린다.
+    /// 그 호출부들이 전부 <c>async void</c> 라서, 예전에는 저장이 실패하면 예외가 아무에게도
+    /// 잡히지 않고 사용자는 저장된 줄 알았다. 그래서 실패를 여기서 처리한다 —
+    /// 변경 표시(<c>_isChanged</c>)를 유지해 다음 기회에 다시 저장되게 하고 사용자에게 알린다.</para>
     /// </summary>
     public async Task SaveDiaryAsync()
     {
@@ -105,8 +110,18 @@ public sealed partial class ClassDiaryBox : UserControl
         
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] Notice 저장: {ViewModel.Notice?.Length ?? 0} chars");
 
-        await ViewModel.SaveDiaryAsync();
-        
+        try
+        {
+            await ViewModel.SaveDiaryAsync();
+        }
+        catch (Exception ex)
+        {
+            // _isChanged 를 그대로 두어 편집 내용을 잃지 않는다
+            System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] 학급일지 저장 실패: {ex}");
+            await UserErrorReporter.ReportAsync("학급일지 저장", ex);
+            return;
+        }
+
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] SaveDiaryAsync 완료: No={ViewModel.No}");
         
         _isChanged = false;
