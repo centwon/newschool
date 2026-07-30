@@ -421,7 +421,10 @@
       "Bash(grep -iE '빌드했|경고 [0-9]|오류 [0-9]|error|CS[0-9]{3,}|WMC')",
       "Bash(grep -viE \"^\\\\s*//\")",
       "Bash(grep -iE '빌드했|경고 [0-9]|오류 [0-9]|error|CS[0-9]{3,}')",
-      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/fix_addstudents.py\")"
+      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/fix_addstudents.py\")",
+      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/fix_studentmgmt.py\")",
+      "Bash(grep -iE '빌드했|경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}|MSB302')",
+      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/revert_sem.py\")"
     ]
   }
 }

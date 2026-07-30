@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -230,14 +230,14 @@ namespace NewSchool.Dialogs
                 for (int grade = 1; grade <= 3; grade++)
                 {
                     var students = await enrollmentService.GetEnrollmentsAsync(
-                        Settings.SchoolCode.Value, Settings.WorkYear.Value, 0, grade);
+                        Settings.SchoolCode.Value, Settings.WorkYear.Value, grade: grade);
                     _allStudents.AddRange(students);
                 }
             }
             else
             {
                 var students = await enrollmentService.GetEnrollmentsAsync(
-                    Settings.SchoolCode.Value, Settings.WorkYear.Value, 0, _course.Grade);
+                    Settings.SchoolCode.Value, Settings.WorkYear.Value, grade: _course.Grade);
                 _allStudents.AddRange(students);
             }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -438,7 +438,7 @@ public sealed partial class RosterTableDialog : ContentDialog
         // 학기를 지정하지 않으면 1·2학기 학적이 모두 반환돼, 양 학기 재적 학생에서
         // StudentID 중복으로 ToDictionary 가 예외를 던진다 — 현재 학기로 한정해 학생당 1행만.
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
-            Settings.SchoolCode, Settings.WorkYear.Value, Settings.WorkSemester.Value);
+            Settings.SchoolCode, Settings.WorkYear.Value);
 
         var studentMap = allEnrollments
             .Where(e => studentIds.Contains(e.StudentID))
@@ -482,7 +482,7 @@ public sealed partial class RosterTableDialog : ContentDialog
         // 학기 미지정 시 1·2학기 학적이 모두 반환돼 StudentID 중복으로 ToDictionary 가 예외를 던짐 —
         // 현재 학기로 한정 + GroupBy 로 학생당 1행 보장
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
-            Settings.SchoolCode, Settings.WorkYear.Value, Settings.WorkSemester.Value);
+            Settings.SchoolCode, Settings.WorkYear.Value);
 
         var studentMap = allEnrollments
             .Where(e => studentIds.Contains(e.StudentID))

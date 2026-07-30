@@ -235,7 +235,7 @@ public sealed partial class CoursePicker : UserControl
             {
                 using var enrollmentService = new EnrollmentService();
                 return await enrollmentService.GetEnrollmentsAsync(
-                    Settings.SchoolCode.Value, _loadedYear, 0, course.Grade);
+                    Settings.SchoolCode.Value, _loadedYear, grade: course.Grade);
             }
 
             return await LoadStudentsByCourseEnrollmentAsync(course);

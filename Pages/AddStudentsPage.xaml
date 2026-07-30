@@ -46,8 +46,6 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="80"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="70"/>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="60"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="60"/>
@@ -64,39 +62,30 @@
             <TextBox x:Name="TxtYear" Grid.Column="1" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
-            <!-- 학기 — 학년도는 자유 입력인데 학기만 현재 설정값으로 고정돼 있어서,
-                 2학기에 다음 학년도 학생을 등록하면 그 학년도 1학기 명부에 안 나오던 문제로 추가 -->
-            <TextBlock Grid.Column="2" Text="학기" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <ComboBox x:Name="CboSemester" Grid.Column="3" SelectedIndex="0"
-                      HorizontalAlignment="Stretch">
-                <ComboBoxItem Content="1학기" Tag="1"/>
-                <ComboBoxItem Content="2학기" Tag="2"/>
-            </ComboBox>
-
-            <TextBlock Grid.Column="4" Text="학년" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtGrade" Grid.Column="5" InputScope="Number"
+            <TextBlock Grid.Column="2" Text="학년" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <TextBox x:Name="TxtGrade" Grid.Column="3" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
-            <TextBlock Grid.Column="6" Text="반" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtClass" Grid.Column="7" InputScope="Number"
+            <TextBlock Grid.Column="4" Text="반" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <TextBox x:Name="TxtClass" Grid.Column="5" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
-            <TextBlock Grid.Column="8" Text="번호" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtNumber" Grid.Column="9" InputScope="Number"
+            <TextBlock Grid.Column="6" Text="번호" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <TextBox x:Name="TxtNumber" Grid.Column="7" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
-            <TextBlock Grid.Column="10" Text="성별" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <ComboBox x:Name="CboSex" Grid.Column="11" SelectedIndex="0"
+            <TextBlock Grid.Column="8" Text="성별" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <ComboBox x:Name="CboSex" Grid.Column="9" SelectedIndex="0"
                       HorizontalAlignment="Stretch">
                 <ComboBoxItem Content="남"/>
                 <ComboBoxItem Content="여"/>
             </ComboBox>
 
-            <TextBlock Grid.Column="12" Text="이름" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtName" Grid.Column="13" PlaceholderText="학생 이름 입력"
+            <TextBlock Grid.Column="10" Text="이름" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <TextBox x:Name="TxtName" Grid.Column="11" PlaceholderText="학생 이름 입력"
                      Margin="0,0,16,0"/>
 
-            <Button x:Name="BtnAddStudent" Grid.Column="14" Content="추가"
+            <Button x:Name="BtnAddStudent" Grid.Column="12" Content="추가"
                    Style="{StaticResource AccentButtonStyle}"
                    Click="BtnAddStudent_Click"/>
         </Grid>

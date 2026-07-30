@@ -55,18 +55,20 @@ public sealed partial class AddStudentsPage : Page
         TxtYear.Text = DateTime.Today.Year.ToString();
         TxtGrade.Text = "1";
         TxtClass.Text = "1";
-        CboSemester.SelectedIndex = Settings.WorkSemester.Value == 2 ? 1 : 0;
     }
 
     /// <summary>
-    /// 입력창에서 고른 학기. 예전에는 학년도만 입력받고 학기는 <c>Settings.WorkSemester</c> 로
-    /// 고정 저장해서, <b>2학기에 다음 학년도 학생을 등록하면 그 학년도 1학기 명부·누가기록에
-    /// 한 명도 안 나왔다</b>(학급 누가기록·학생 관리가 학기로 필터링한다).
+    /// 새 학적에 넣을 학기 값.
+    ///
+    /// <para><b>학적은 학년 단위로 다룬다(2026-07-30 확정).</b> 조회는 어디서도 학기를 걸지 않으므로
+    /// (<c>EnrollmentService.GetEnrollmentsAsync</c> 참고) 이 값은 사실상 자리표시자이고,
+    /// 1 로 고정해 두면 <c>UNIQUE(StudentID, SchoolCode, Year, Semester)</c> 가
+    /// "한 학년도에 학적 한 건"을 그대로 강제해 준다.</para>
+    ///
+    /// ⚠ 예전에는 <c>Settings.WorkSemester</c> 를 넣었다. 그래서 2학기에 등록하면 학기로
+    /// 거르던 화면들에서 그 학생이 통째로 사라졌다. 다시 현재 학기를 넣지 말 것.
     /// </summary>
-    private int SelectedSemester =>
-        (CboSemester.SelectedItem as ComboBoxItem)?.Tag is string tag && int.TryParse(tag, out int v)
-            ? v
-            : Settings.WorkSemester.Value;
+    private const int EnrollmentSemester = 1;
 
     private void OnBackClick(object sender, RoutedEventArgs e)
     {
@@ -167,7 +169,6 @@ public sealed partial class AddStudentsPage : Page
     /// </summary>
     private async Task ProcessWorksheetData(string[,] sheetData, int year)
     {
-        int semester = SelectedSemester;
         int rowCount = sheetData.GetLength(0);
         int colCount = sheetData.GetLength(1);
 
@@ -267,10 +268,10 @@ public sealed partial class AddStudentsPage : Page
             if (cls == 0) continue;
 
             // 중복 검사
-            if (await IsDuplicateAsync(year, semester, grade, cls, number))
+            if (await IsDuplicateAsync(year, grade, cls, number))
             {
                 if (!await MessageBox.ShowConfirmAsync(
-                    $"{year}학년도 {semester}학기 {grade}학년 {cls}반 {number}번은 이미 존재합니다.\n계속하시겠습니까?",
+                    $"{year}학년도 {grade}학년 {cls}반 {number}번은 이미 존재합니다.\n계속하시겠습니까?",
                     "중복 학생", "계속", "중단"))
                     return;
 
@@ -289,7 +290,6 @@ public sealed partial class AddStudentsPage : Page
             {
                 StudentID = studentId,
                 Year = year,
-                Semester = semester,
                 Grade = grade,
                 Class = cls,
                 Number = number,
@@ -351,13 +351,10 @@ public sealed partial class AddStudentsPage : Page
             return;
         }
 
-        int semester = SelectedSemester;
-
         // 중복 검사
-        if (await IsDuplicateAsync(year, semester, grade, cls, number))
+        if (await IsDuplicateAsync(year, grade, cls, number))
         {
-            await MessageBox.ShowAsync(
-                $"{year}학년도 {semester}학기 {grade}학년 {cls}반 {number}번은 이미 존재합니다.", "오류");
+            await MessageBox.ShowAsync($"{year}학년도 {grade}학년 {cls}반 {number}번은 이미 존재합니다.", "오류");
             return;
         }
 
@@ -376,7 +373,6 @@ public sealed partial class AddStudentsPage : Page
         {
             StudentID = studentId,
             Year = year,
-            Semester = semester,
             Grade = grade,
             Class = cls,
             Number = number,
@@ -728,7 +724,7 @@ public sealed partial class AddStudentsPage : Page
         cmd.Parameters.AddWithValue("@Photo", string.Empty); // ⭐ Photo 추가
         cmd.Parameters.AddWithValue("@SchoolCode", Settings.SchoolCode.Value);
         cmd.Parameters.AddWithValue("@Year", vm.Year);
-        cmd.Parameters.AddWithValue("@Semester", vm.Semester);
+        cmd.Parameters.AddWithValue("@Semester", EnrollmentSemester);
         cmd.Parameters.AddWithValue("@Grade", vm.Grade);
         cmd.Parameters.AddWithValue("@Class", vm.Class);
         cmd.Parameters.AddWithValue("@Number", vm.Number);
@@ -761,10 +757,10 @@ public sealed partial class AddStudentsPage : Page
     /// 중복 확인 (현재 목록 + DB)
     /// Enrollment 테이블에서 Year, Grade, Class, Number 조합이 존재하는지 확인
     /// </summary>
-    private async Task<bool> IsDuplicateAsync(int year, int semester, int grade, int cls, int number)
+    private async Task<bool> IsDuplicateAsync(int year, int grade, int cls, int number)
     {
         // 1. 현재 추가 목록에서 중복 확인
-        if (NewStudents.Any(s => s.Year == year && s.Semester == semester &&
+        if (NewStudents.Any(s => s.Year == year &&
                                  s.Grade == grade && s.Class == cls && s.Number == number))
         {
             System.Diagnostics.Debug.WriteLine($"[AddStudents] 목록 내 중복: {year}년 {grade}-{cls}-{number}");
@@ -780,14 +776,12 @@ public sealed partial class AddStudentsPage : Page
 
             using var enrollmentRepo = new EnrollmentRepository(dbPath);
 
-            // 해당 학급 학생 조회 - 학기 무관하게 돌아오므로 학기는 여기서 건다.
-            // (예전엔 semester 지역변수를 만들어놓고 쓰지도 않아, 1학기 3번 때문에
-            //  같은 학년도 2학기 3번 등록이 막혔다)
+            // 해당 학급 학생 조회. 학기는 보지 않는다 - 명부는 학년 단위이므로
+            // 같은 학년도-학년-반에 같은 번호가 있으면 학기와 무관하게 중복이다.
             var classStudents = await enrollmentRepo.GetByClassAsync(
                 schoolCode, year, grade, cls);
 
-            // 같은 학기 - 같은 번호가 있는지 확인
-            bool exists = classStudents.Any(e => e.Semester == semester && e.Number == number && !e.IsDeleted);
+            bool exists = classStudents.Any(e => e.Number == number && !e.IsDeleted);
 
             if (exists)
             {
@@ -984,7 +978,6 @@ public partial class StudentAddViewModel : NotifyPropertyChangedBase
     private int _grade;
     private int _class;
     private int _number;
-    private int _semester = 1;
     private string _name = string.Empty;
     private string _sex = "남";
 
@@ -998,12 +991,6 @@ public partial class StudentAddViewModel : NotifyPropertyChangedBase
     {
         get => _sex;
         set => SetProperty(ref _sex, value);
-    }
-
-    public int Semester
-    {
-        get => _semester;
-        set => SetProperty(ref _semester, value);
     }
 
     public int Year
@@ -1036,7 +1023,7 @@ public partial class StudentAddViewModel : NotifyPropertyChangedBase
         set => SetProperty(ref _name, value);
     }
 
-    public string ClassInfo => $"{Year}학년도 {Semester}학기 {Grade}학년 {Class}반 {Number}번";
+    public string ClassInfo => $"{Year}학년도 {Grade}학년 {Class}반 {Number}번";
 
     private bool _isSelected;
     public bool IsSelected

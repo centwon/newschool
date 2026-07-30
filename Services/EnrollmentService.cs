@@ -241,37 +241,48 @@ public sealed class EnrollmentService : IDisposable
         return await _enrollmentRepo.GetClassListByGradeAsync(schoolCode, year, grade);
     }
     /// <summary>
-    ///  학년도별, 학년별,  학급 별    학생 명부 조회
+    /// 학생 명부 조회. 학년도·학년·반으로 거르며 <b>0 은 전체</b>를 뜻한다.
+    ///
+    /// <para><b>학적은 학년 단위로 다룬다(2026-07-30 확정).</b> 테이블은 (학년도, 학기) 단위
+    /// 행이지만 학급 편성은 한 학년도 내내 유지되고, 실제로 <b>2학기 학적 행을 만드는 경로가
+    /// 앱에 없다</b>(학생 추가 화면이 등록 시점의 행 하나만 만든다). 그래서 예전처럼 학기로
+    /// 거르면 1학기에 등록한 학생이 <b>2학기에는 명부·누가기록·반 목록에서 통째로 사라졌다</b>.
+    /// 이 메서드는 학기를 조건으로 쓰지 않고, 혹시 두 학기 행이 다 있으면 학생당 최신 학기
+    /// 한 건만 남긴다.</para>
+    ///
+    /// ⚠ 학기 인자를 다시 만들지 말 것. 학기별 기록은 <c>StudentLog.Semester</c> 처럼
+    /// 기록 쪽에서 구분한다 — 명부(누가 이 반에 있는가)는 학년 단위다.
     /// </summary>
-    /// 변수 설명: schoolCode: 학교 코드, year: 학년도, semister: 학기, grade: 학년, classnum: 반 번호
-    /// 학년도, 학기, 학년, 반 번호는 0으로 지정 시 전체 조회
-    /// <returns>List<Enrollment></Enrollment></returns>
-    public async Task<List<Enrollment>> GetEnrollmentsAsync(string schoolCode, int year=0, int semester=0, int grade=0, int classnum=0)
+    public async Task<List<Enrollment>> GetEnrollmentsAsync(
+        string schoolCode, int year = 0, int grade = 0, int classNum = 0)
     {
-        return await _enrollmentRepo.GetEnrollmentsAsync(schoolCode: schoolCode, year: year, grade:grade, classNum:classnum, semester:semester);
+        var enrollments = await _enrollmentRepo.GetEnrollmentsAsync(
+            schoolCode: schoolCode, year: year, grade: grade, classNum: classNum);
+
+        return DedupeByYear(enrollments);
     }
 
     /// <summary>
-    /// 학급 명부 조회 (가장 중요!)
-    /// Enrollment에 Name, Sex, Photo가 denormalized되어 있어 단일 테이블 조회로 충분
+    /// 학급 명부 조회. <see cref="GetEnrollmentsAsync"/> 와 같은 규칙이며 번호순으로 돌려준다.
     /// </summary>
     public async Task<List<Enrollment>> GetClassRosterAsync(
         string schoolCode, int year, int grade, int classNo)
     {
-        var enrollments = await _enrollmentRepo.GetEnrollmentsAsync(
-            schoolCode: schoolCode,
-            year: year,
-            grade: grade,
-            classNum: classNo);
-
-        // 학적은 (Year, Semester) 단위 행이라 1·2학기 행이 모두 있으면 같은 학생이
-        // 두 번 나온다 — 학생당 최신 학기 행 하나만 남긴다(명부 소비처는 학기 무관 현재 명단 기대)
-        return enrollments
-            .GroupBy(e => e.StudentID)
-            .Select(g => g.OrderByDescending(e => e.Semester).First())
-            .OrderBy(e => e.Number)
-            .ToList();
+        var enrollments = await GetEnrollmentsAsync(schoolCode, year, grade, classNo);
+        return enrollments.OrderBy(e => e.Number).ToList();
     }
+
+    /// <summary>
+    /// 학생당 <b>학년도별</b> 한 건만 남긴다(같은 학년도에 1·2학기 행이 모두 있으면 최신 학기).
+    /// 여러 학년도를 한꺼번에 조회하는 곳이 있으므로 학년도까지 묶어야 한다 —
+    /// StudentID 로만 묶으면 과거 학년도 학적이 사라진다.
+    /// </summary>
+    private static List<Enrollment> DedupeByYear(List<Enrollment> enrollments) =>
+        enrollments
+            .GroupBy(e => (e.StudentID, e.Year))
+            .Select(g => g.OrderByDescending(e => e.Semester).First())
+            .OrderBy(e => e.Year).ThenBy(e => e.Grade).ThenBy(e => e.Class).ThenBy(e => e.Number)
+            .ToList();
 
     /// <summary>
     /// 학생의 학적 이력 조회
@@ -292,16 +303,13 @@ public sealed class EnrollmentService : IDisposable
     /// 담임교사의 학생 목록 조회
     /// Enrollment에 Name, Sex, Photo가 denormalized되어 있어 단일 테이블 조회로 충분
     /// </summary>
-    public async Task<List<Enrollment>> GetTeacherStudentsAsync(string teacherId, int year, int semester)
+    public async Task<List<Enrollment>> GetTeacherStudentsAsync(string teacherId, int year)
     {
+        // 학기로 거르지 않는다 — 학적은 학년 단위다(GetEnrollmentsAsync 주석 참고).
+        // 예전에는 Where(e => e.Semester == semester) 라서 1학기에 등록한 학급이
+        // 2학기에는 담임 화면에서 통째로 비었다.
         var enrollments = await _enrollmentRepo.GetByTeacherAsync(teacherId, year);
-        
-        return enrollments
-            .Where(e => e.Semester == semester)
-            .OrderBy(e => e.Grade)
-            .ThenBy(e => e.Class)
-            .ThenBy(e => e.Number)
-            .ToList();
+        return DedupeByYear(enrollments);
     }
 
     #endregion

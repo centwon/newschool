@@ -313,7 +313,7 @@ public sealed partial class StudentLogDialog : Window
         try
         {
             using var svc = new EnrollmentService();
-            var list = await svc.GetEnrollmentsAsync(Settings.SchoolCode.Value, year, 0, grade, classNum);
+            var list = await svc.GetEnrollmentsAsync(Settings.SchoolCode.Value, year, grade, classNum);
             ListStudents.LoadStudents(list.OrderBy(e => e.Number));
         }
         catch (Exception ex)

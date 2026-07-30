@@ -42,6 +42,8 @@
 
             <!-- 첫 번째 행: 필터 -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <!-- 학기 콤보는 두지 않는다 — 명부는 학년 단위다
+                     (EnrollmentService.GetEnrollmentsAsync 주석 참고) -->
                 <controls:YearSemesterPicker
                     x:Name="YearSemPicker"
                     ShowSemester="False"

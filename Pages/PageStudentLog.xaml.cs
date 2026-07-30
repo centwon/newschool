@@ -130,7 +130,8 @@ public sealed partial class PageStudentLog : Page, IDisposable
         try
         {
             using var service = new EnrollmentService();
-            var enrollments = await service.GetEnrollmentsAsync(Settings.SchoolCode, _year, _semester, _grade, _classroom);
+            // 명부는 학년 단위다 - 학기로 거르면 1학기에 등록한 학생이 2학기에 통째로 사라진다
+            var enrollments = await service.GetEnrollmentsAsync(Settings.SchoolCode, _year, _grade, _classroom);
             
             StudentList.LoadStudents(enrollments);
 

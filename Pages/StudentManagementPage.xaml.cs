@@ -231,7 +231,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             Students.Clear();
             ChkSelectAll.IsChecked = false;
 
-            // FilterPicker에서 값 가져오기
+            // 필터에서 값 가져오기 (학년도·학기 + 학년·반)
             int year = YearSemPicker.Year;
             int grade = ClassFilter.Grade;  // 0 = 전체
             int classNo = ClassFilter.ClassNum; // 0 = 전체
@@ -242,38 +242,31 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                 return;
             }
             
-            List<StudentManagementViewModel> students;
-            
-            if (grade == 0)
+            // 전체·학년·학급을 한 경로로 조회한다(0 = 전체). 명부는 학년 단위라 학기는 안 건다.
+            //
+            // 예전에는 세 갈래였고 셋의 기준이 서로 달랐다:
+            //  · 전체·학년 조회는 학기를 Settings.WorkSemester 로 고정해, 1학기에 등록한 학생이
+            //    2학기에는 한 명도 안 나왔고,
+            //  · 학급 조회는 학기를 무시했으며,
+            //  · 전체·학년 조회는 Memo 를 빈 값으로 채워 넣어서, 그 상태로 저장하면
+            //    Enrollment.Memo 가 통째로 지워졌다(저장이 vm.Memo 를 그대로 덮어쓴다).
+            var enrollments = await _enrollmentService.GetEnrollmentsAsync(
+                Settings.SchoolCode.Value, year, grade, classNo);
+
+            var students = enrollments.Select(e => new StudentManagementViewModel
             {
-                // 전체 학년 조회 - Repository 직접 사용
-                students = await GetAllSchoolStudentsAsync(Settings.SchoolCode.Value, year, Settings.WorkSemester.Value);
-            }
-            else if (classNo == 0)
-            {
-                // 전체 반 조회 (특정 학년)
-                students = await GetGradeStudentsAsync(
-                    Settings.SchoolCode.Value, year, Settings.WorkSemester.Value, grade);
-            }
-            else
-            {
-                // 특정 학급 조회 - Enrollment를 직접 사용
-                var enrollments = await _enrollmentService.GetClassRosterAsync(Settings.SchoolCode.Value, year, grade, classNo);
-                students = enrollments.Select(e => new StudentManagementViewModel
-                {
-                    EnrollmentNo = e.No,
-                    StudentID = e.StudentID,
-                    Year = e.Year,
-                    Grade = e.Grade,
-                    Class = e.Class,
-                    Number = e.Number,
-                    Name = e.Name,
-                    Status = e.Status,
-                    Memo = e.Memo,
-                    IsSelected = false,
-                    IsModified = false
-                }).ToList();
-            }
+                EnrollmentNo = e.No,
+                StudentID = e.StudentID,
+                Year = e.Year,
+                Grade = e.Grade,
+                Class = e.Class,
+                Number = e.Number,
+                Name = e.Name,
+                Status = e.Status,
+                Memo = e.Memo,
+                IsSelected = false,
+                IsModified = false
+            }).ToList();
 
             // ViewModel로 변환
             foreach (var student in students.OrderBy(s => s.Grade).ThenBy(s => s.Class).ThenBy(s => s.Number))
@@ -294,58 +287,6 @@ public sealed partial class StudentManagementPage : Page, IDisposable
 
         System.Diagnostics.Debug.WriteLine($"[StudentManagement] ItemsRepeater ItemsSource 설정 완료");
 
-    }
-
-    /// <summary>
-    /// 특정 학교의 전체 학생 조회 (Enrollment에서 직접 조회 - denormalized)
-    /// </summary>
-    private async Task<List<StudentManagementViewModel>> GetAllSchoolStudentsAsync( string schoolCode, int year, int semester)
-    {
-        using var enrollmentService = new EnrollmentService();
-        var enrollments = await enrollmentService.GetEnrollmentsAsync(schoolCode: schoolCode, year: year, semester: semester);
-        Debug.WriteLine($"[StudentManagement] 전체 학생 조회 - Enrollment 수: {enrollments.Count}");
-        
-        // Enrollment를 StudentManagementViewModel로 변환
-        return enrollments.Select(e => new StudentManagementViewModel
-        {
-            EnrollmentNo = e.No,
-            StudentID = e.StudentID,
-            Year = e.Year,
-            Grade = e.Grade,
-            Class = e.Class,
-            Number = e.Number,
-            Name = e.Name,
-            Status = e.Status,
-            Memo = string.Empty,
-            IsSelected = false,
-            IsModified = false
-        }).ToList();
-    }
-
-    /// <summary>
-    /// 특정 학년의 전체 학생 조회 (Enrollment에서 직접 조회 - denormalized)
-    /// </summary>
-    private async Task<List<StudentManagementViewModel>> GetGradeStudentsAsync(
-        string schoolCode, int year, int semester, int grade)
-    {
-        using var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
-        var enrollments = await enrollmentRepo.GetByGradeAsync(schoolCode, year, semester, grade);
-
-        // Enrollment를 StudentManagementViewModel로 변환
-        return enrollments.Select(e => new StudentManagementViewModel
-        {
-            EnrollmentNo = e.No,
-            StudentID = e.StudentID,
-            Year = e.Year,
-            Grade = e.Grade,
-            Class = e.Class,
-            Number = e.Number,
-            Name = e.Name,
-            Status = e.Status,
-            Memo = string.Empty,
-            IsSelected = false,
-            IsModified = false
-        }).ToList();
     }
 
     #endregion

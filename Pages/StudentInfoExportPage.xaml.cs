@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -218,7 +218,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
             schoolCode: schoolCode,
             year: year,
             grade: grade,
-            classnum: classNo);
+            classNum: classNo);
 
         // 번호순 정렬 (학급별일 때는 학급→번호 순)
         enrollments = classNo == 0

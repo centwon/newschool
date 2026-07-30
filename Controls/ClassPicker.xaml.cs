@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Models;
 using NewSchool.Repositories;
+using NewSchool.Services;
 
 namespace NewSchool.Controls;
 
@@ -215,17 +216,15 @@ public sealed partial class ClassPicker : UserControl
         int grade = Grade;
         int classNo = ClassNum;
 
+        // 전체 학년일 때는 반 구분을 적용하지 않는다(학년 간 번호가 겹친다).
+        // 학기는 걸지 않는다 — 명부는 학년 단위다(EnrollmentService.GetEnrollmentsAsync 주석 참고).
+        // 예전에는 학기로 걸러서, 1학기에 등록한 학급이 2학기에는 반 목록조차 비었다.
         List<Enrollment> students;
         try
         {
-            using var repo = new EnrollmentRepository(SchoolDatabase.DbPath);
-            if (grade <= 0)
-                // 전체 학년: 반 구분은 학년 간 번호가 겹치므로 적용하지 않음
-                students = await repo.GetByGradeAsync(Settings.SchoolCode.Value, year, sem, 0);
-            else if (classNo == 0)
-                students = await repo.GetByGradeAsync(Settings.SchoolCode.Value, year, sem, grade);
-            else
-                students = await repo.GetByClassAsync(Settings.SchoolCode.Value, year, grade, classNo);
+            using var service = new EnrollmentService();
+            students = await service.GetEnrollmentsAsync(
+                Settings.SchoolCode.Value, year, grade, grade <= 0 ? 0 : classNo);
         }
         catch (Exception ex)
         {

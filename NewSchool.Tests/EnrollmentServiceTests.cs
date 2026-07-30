@@ -78,22 +78,48 @@ public class EnrollmentServiceTests : IClassFixture<SqliteTestFixture>
     }
 
     [Fact]
-    public async Task GetEnrollmentsAsync_학기_인자가_실제로_필터링됨()
+    public async Task GetEnrollmentsAsync_학기로_거르지_않고_학생당_한_건만_준다()
     {
-        // 회귀: semester 인자가 리포지토리에 전달되지 않고 조용히 무시되던 문제 (2026-07-15)
+        // 명부는 학년 단위다(2026-07-30 확정). 학기로 거르던 시절에는 1학기에만 학적이 있는
+        // 학생이 2학기 조회에서 통째로 사라졌다 — 2학기 학적을 만드는 경로가 앱에 없으므로
+        // 사실상 모든 학생이 사라졌다.
         int year = TestData.Year + 13;
         using var repo = new EnrollmentRepository(_db.DbPath);
-        var sid = await _db.NewStudentInDbAsync();
-        await repo.CreateAsync(TestData.NewEnrollment(sid, year: year, semester: 1, grade: 2, classNum: 3, number: 7));
-        await repo.CreateAsync(TestData.NewEnrollment(sid, year: year, semester: 2, grade: 2, classNum: 3, number: 7));
+
+        // 1학기 학적만 있는 학생
+        var onlyFirst = await _db.NewStudentInDbAsync("1학기만");
+        await repo.CreateAsync(TestData.NewEnrollment(onlyFirst, year: year, semester: 1, grade: 2, classNum: 3, number: 7));
+
+        // 두 학기 학적이 다 있는 학생
+        var both = await _db.NewStudentInDbAsync("두학기");
+        await repo.CreateAsync(TestData.NewEnrollment(both, year: year, semester: 1, grade: 2, classNum: 3, number: 8));
+        await repo.CreateAsync(TestData.NewEnrollment(both, year: year, semester: 2, grade: 2, classNum: 3, number: 8));
 
         using var svc = new EnrollmentService(_db.DbPath);
-        var sem1 = await svc.GetEnrollmentsAsync(TestData.SchoolCode, year, semester: 1, grade: 2, classnum: 3);
-        var all = await svc.GetEnrollmentsAsync(TestData.SchoolCode, year, semester: 0, grade: 2, classnum: 3);
+        var roster = await svc.GetEnrollmentsAsync(TestData.SchoolCode, year, grade: 2, classNum: 3);
 
-        Assert.Single(sem1, e => e.StudentID == sid);
-        Assert.Equal(1, sem1.First(e => e.StudentID == sid).Semester);
-        Assert.Equal(2, all.Count(e => e.StudentID == sid)); // 0이면 전체
+        // 1학기 학적만 있어도 명부에 남는다 (핵심 회귀)
+        Assert.Single(roster, e => e.StudentID == onlyFirst);
+
+        // 두 학기 행이 다 있어도 한 번만 — 최신 학기 행으로
+        Assert.Single(roster, e => e.StudentID == both);
+        Assert.Equal(2, roster.First(e => e.StudentID == both).Semester);
+    }
+
+    [Fact]
+    public async Task GetEnrollmentsAsync_학년도가_다르면_각각_남는다()
+    {
+        // 중복 제거는 (학생, 학년도) 단위여야 한다 — 학생 ID 로만 묶으면 과거 학년도 학적이 사라진다.
+        int year = TestData.Year + 14;
+        using var repo = new EnrollmentRepository(_db.DbPath);
+        var sid = await _db.NewStudentInDbAsync("두학년도");
+        await repo.CreateAsync(TestData.NewEnrollment(sid, year: year, semester: 1, grade: 1, classNum: 1, number: 4));
+        await repo.CreateAsync(TestData.NewEnrollment(sid, year: year + 1, semester: 1, grade: 2, classNum: 1, number: 4));
+
+        using var svc = new EnrollmentService(_db.DbPath);
+        var all = await svc.GetEnrollmentsAsync(TestData.SchoolCode);
+
+        Assert.Equal(2, all.Count(e => e.StudentID == sid));
     }
 
     [Fact]
