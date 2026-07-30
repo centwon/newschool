@@ -168,43 +168,59 @@ public sealed partial class SpecListViewer : UserControl
     #region Helper Methods
 
     /// <summary>
-    /// "과목/분야" 칸의 헤더 라벨을 현재 목록의 영역에 맞춘다.
-    /// 진로활동은 이 칸이 희망분야 입력칸이므로 헤더도 "희망분야"로 보여야 한다
-    /// (라벨 문구는 NeisHelper.Areas 정의표의 TitleLabel 에서 가져온다).
-    /// 영역이 섞여 있으면 일반 표기를 쓴다.
+    /// "과목/분야" 칸의 헤더 라벨과 폭을 결정하는 <b>유일한</b> 지점.
+    ///
+    /// 기준은 선택된 카테고리이고, '전체'일 때만 로드된 목록에서 단일 영역을 추론한다.
+    /// 카테고리 변경(조회 전)에도 헤더가 맞게 바뀌어야 하므로 목록 내용만으로 판단하지 않는다.
+    /// 라벨 문구는 <see cref="Helpers.NeisHelper.Areas"/> 정의표에서 가져온다.
     /// </summary>
-    private void UpdateSubjectHeaderLabel()
+    private void UpdateSubjectColumn()
     {
         if (TxtSubjectHeader == null) return;
 
+        string? type = _category != LogCategory.전체 ? _category.ToString() : SingleLoadedSpecType();
+
+        string? label;
+        if (type == null)
+        {
+            label = "세부영역";                                    // 영역이 섞여 있음
+        }
+        else if (Helpers.NeisHelper.TitleCountsInBytes(type))
+        {
+            label = Helpers.NeisHelper.GetTitleLabel(type);        // 진로활동 → "희망분야"(입력칸)
+        }
+        else if (Helpers.NeisHelper.GetTitleLabel(type) != null)
+        {
+            // 과목에 묶인 영역 — 교과 세특은 학기까지 함께 보여준다
+            label = Helpers.NeisHelper.IsSemesterScoped(type) ? "과목/학기" : "과목";
+        }
+        else if (type == nameof(LogCategory.동아리활동))
+        {
+            label = "동아리";
+        }
+        else
+        {
+            label = null;                                         // 보여줄 것 없음 → 칸을 접는다
+        }
+
+        bool show = label != null;
+        TxtSubjectHeader.Text = label ?? string.Empty;
+        TxtSubjectHeader.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        ColSubjectHeader.Width = show ? new GridLength(130) : new GridLength(0);
+
+        UpdateDataRowColumns();
+    }
+
+    /// <summary>로드된 항목이 모두 같은 영역이면 그 영역, 섞여 있거나 비어 있으면 null.</summary>
+    private string? SingleLoadedSpecType()
+    {
         string? single = null;
         foreach (var vm in Specs)
         {
             if (single == null) single = vm.Type;
-            else if (single != vm.Type) { single = null; break; }
+            else if (single != vm.Type) return null;
         }
-
-        // 진로활동처럼 이 칸이 입력칸으로 쓰이는 영역이면 그 이름(희망분야)을 헤더에 쓴다
-        var titleLabel = single != null && Helpers.NeisHelper.TitleCountsInBytes(single)
-            ? Helpers.NeisHelper.GetTitleLabel(single)
-            : null;
-
-        // 입력칸도 아니고 보여줄 과목/학기도 없는 영역(자율활동 등)은 칸을 접어
-        // 기록 내용에 폭을 넘긴다.
-        bool hasSubjectText = false;
-        foreach (var vm in Specs)
-        {
-            if (!string.IsNullOrEmpty(vm.SubjectDisplay)) { hasSubjectText = true; break; }
-        }
-
-        bool needColumn = titleLabel != null || hasSubjectText;
-
-        TxtSubjectHeader.Text = titleLabel ?? "과목/학기";
-        TxtSubjectHeader.Visibility = needColumn ? Visibility.Visible : Visibility.Collapsed;
-        ColSubjectHeader.Width = needColumn ? new GridLength(130) : new GridLength(0);
-
-        // 헤더 폭이 바뀌었으니 이미 만들어진 행들의 컬럼도 다시 맞춘다
-        UpdateDataRowColumns();
+        return single;
     }
 
 
@@ -311,46 +327,19 @@ public sealed partial class SpecListViewer : UserControl
     }
 
     /// <summary>
-    /// 카테고리에 따른 컬럼 조정
+    /// 카테고리에 따른 컬럼 조정.
+    /// 과목/분야 칸은 <see cref="UpdateSubjectColumn"/> 한 곳에서만 결정한다 —
+    /// 예전에는 이 메서드와 목록 로드가 각각 같은 칸의 폭·헤더를 건드려,
+    /// 호출 순서에 따라 "입력칸은 보이는데 헤더는 비어 있는" 상태가 됐다.
     /// </summary>
     private void ChangeCategory()
     {
-        switch (_category)
-        {
-            case LogCategory.전체:
-                ColTypeHeader.Width = new GridLength(100);
-                ColSubjectHeader.Width = new GridLength(100);
-                TxtTypeHeader.Visibility = Visibility.Visible;
-                TxtSubjectHeader.Visibility = Visibility.Visible;
-                TxtSubjectHeader.Text = "세부영역";
-                break;
+        // 유형(영역) 칸은 '전체'에서만 의미가 있다
+        bool showType = _category == LogCategory.전체;
+        ColTypeHeader.Width = showType ? new GridLength(100) : new GridLength(0);
+        TxtTypeHeader.Visibility = showType ? Visibility.Visible : Visibility.Collapsed;
 
-            case LogCategory.교과활동:
-                ColTypeHeader.Width = new GridLength(0);
-                ColSubjectHeader.Width = new GridLength(100);
-                TxtTypeHeader.Visibility = Visibility.Collapsed;
-                TxtSubjectHeader.Visibility = Visibility.Visible;
-                TxtSubjectHeader.Text = "과목";
-                break;
-
-            case LogCategory.동아리활동:
-                ColTypeHeader.Width = new GridLength(0);
-                ColSubjectHeader.Width = new GridLength(100);
-                TxtTypeHeader.Visibility = Visibility.Collapsed;
-                TxtSubjectHeader.Visibility = Visibility.Visible;
-                TxtSubjectHeader.Text = "동아리";
-                break;
-
-            default:
-                // 자율활동, 진로활동, 종합의견 등
-                ColTypeHeader.Width = new GridLength(0);
-                ColSubjectHeader.Width = new GridLength(0);
-                TxtTypeHeader.Visibility = Visibility.Collapsed;
-                TxtSubjectHeader.Visibility = Visibility.Collapsed;
-                break;
-        }
-
-        // ItemsRepeater의 각 항목 업데이트
+        UpdateSubjectColumn();
         UpdateDataRowColumns();
     }
 
@@ -376,7 +365,7 @@ public sealed partial class SpecListViewer : UserControl
             ChkSelectAll.IsChecked = false;
         }
 
-        UpdateSubjectHeaderLabel();
+        UpdateSubjectColumn();
     }
 
     /// <summary>
@@ -406,7 +395,7 @@ public sealed partial class SpecListViewer : UserControl
             ChkSelectAll.IsChecked = false;
         }
 
-        UpdateSubjectHeaderLabel();
+        UpdateSubjectColumn();
     }
 
     /// <summary>
