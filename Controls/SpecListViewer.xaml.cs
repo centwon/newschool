@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.UI.Xaml;
@@ -88,13 +88,15 @@ public sealed partial class SpecListViewer : UserControl
         if (sender is Grid grid && grid.ColumnDefinitions.Count >= 10)
         {
             // 헤더와 동일한 너비 적용
+            // 컬럼 순서: 학년도 · 유형 · 학년 · 반 · 번호 · 이름 · 과목/분야
+            // (과목/분야는 학생 이름 바로 오른쪽에 둔다)
             grid.ColumnDefinitions[1].Width = ColYearHeader.Width;
             grid.ColumnDefinitions[2].Width = ColTypeHeader.Width;
-            grid.ColumnDefinitions[3].Width = ColSubjectHeader.Width;
-            grid.ColumnDefinitions[4].Width = ColGradeHeader.Width;
-            grid.ColumnDefinitions[5].Width = ColClassHeader.Width;
-            grid.ColumnDefinitions[6].Width = ColNumberHeader.Width;
-            grid.ColumnDefinitions[7].Width = ColNameHeader.Width;
+            grid.ColumnDefinitions[3].Width = ColGradeHeader.Width;
+            grid.ColumnDefinitions[4].Width = ColClassHeader.Width;
+            grid.ColumnDefinitions[5].Width = ColNumberHeader.Width;
+            grid.ColumnDefinitions[6].Width = ColNameHeader.Width;
+            grid.ColumnDefinitions[7].Width = ColSubjectHeader.Width;
         }
     }
 
@@ -115,11 +117,11 @@ public sealed partial class SpecListViewer : UserControl
                     {
                         grid.ColumnDefinitions[1].Width = ColYearHeader.Width;
                         grid.ColumnDefinitions[2].Width = ColTypeHeader.Width;
-                        grid.ColumnDefinitions[3].Width = ColSubjectHeader.Width;
-                        grid.ColumnDefinitions[4].Width = ColGradeHeader.Width;
-                        grid.ColumnDefinitions[5].Width = ColClassHeader.Width;
-                        grid.ColumnDefinitions[6].Width = ColNumberHeader.Width;
-                        grid.ColumnDefinitions[7].Width = ColNameHeader.Width;
+                        grid.ColumnDefinitions[3].Width = ColGradeHeader.Width;
+                        grid.ColumnDefinitions[4].Width = ColClassHeader.Width;
+                        grid.ColumnDefinitions[5].Width = ColNumberHeader.Width;
+                        grid.ColumnDefinitions[6].Width = ColNameHeader.Width;
+                        grid.ColumnDefinitions[7].Width = ColSubjectHeader.Width;
                     }
                 }
             }
@@ -164,6 +166,47 @@ public sealed partial class SpecListViewer : UserControl
     #endregion
 
     #region Helper Methods
+
+    /// <summary>
+    /// "과목/분야" 칸의 헤더 라벨을 현재 목록의 영역에 맞춘다.
+    /// 진로활동은 이 칸이 희망분야 입력칸이므로 헤더도 "희망분야"로 보여야 한다
+    /// (라벨 문구는 NeisHelper.Areas 정의표의 TitleLabel 에서 가져온다).
+    /// 영역이 섞여 있으면 일반 표기를 쓴다.
+    /// </summary>
+    private void UpdateSubjectHeaderLabel()
+    {
+        if (TxtSubjectHeader == null) return;
+
+        string? single = null;
+        foreach (var vm in Specs)
+        {
+            if (single == null) single = vm.Type;
+            else if (single != vm.Type) { single = null; break; }
+        }
+
+        // 진로활동처럼 이 칸이 입력칸으로 쓰이는 영역이면 그 이름(희망분야)을 헤더에 쓴다
+        var titleLabel = single != null && Helpers.NeisHelper.TitleCountsInBytes(single)
+            ? Helpers.NeisHelper.GetTitleLabel(single)
+            : null;
+
+        // 입력칸도 아니고 보여줄 과목/학기도 없는 영역(자율활동 등)은 칸을 접어
+        // 기록 내용에 폭을 넘긴다.
+        bool hasSubjectText = false;
+        foreach (var vm in Specs)
+        {
+            if (!string.IsNullOrEmpty(vm.SubjectDisplay)) { hasSubjectText = true; break; }
+        }
+
+        bool needColumn = titleLabel != null || hasSubjectText;
+
+        TxtSubjectHeader.Text = titleLabel ?? "과목/학기";
+        TxtSubjectHeader.Visibility = needColumn ? Visibility.Visible : Visibility.Collapsed;
+        ColSubjectHeader.Width = needColumn ? new GridLength(130) : new GridLength(0);
+
+        // 헤더 폭이 바뀌었으니 이미 만들어진 행들의 컬럼도 다시 맞춘다
+        UpdateDataRowColumns();
+    }
+
 
     /// <summary>
     /// 학생 정보 컬럼 가시성 설정
@@ -332,6 +375,8 @@ public sealed partial class SpecListViewer : UserControl
         {
             ChkSelectAll.IsChecked = false;
         }
+
+        UpdateSubjectHeaderLabel();
     }
 
     /// <summary>
@@ -360,6 +405,8 @@ public sealed partial class SpecListViewer : UserControl
         {
             ChkSelectAll.IsChecked = false;
         }
+
+        UpdateSubjectHeaderLabel();
     }
 
     /// <summary>

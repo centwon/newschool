@@ -43,8 +43,6 @@
                     <!-- 학년도 -->
                     <ColumnDefinition x:Name="ColTypeHeader" Width="100"/>
                     <!-- 유형 -->
-                    <ColumnDefinition x:Name="ColSubjectHeader" Width="130"/>
-                    <!-- 과목 -->
                     <ColumnDefinition x:Name="ColGradeHeader" Width="40"/>
                     <!-- 학년 -->
                     <ColumnDefinition x:Name="ColClassHeader" Width="40"/>
@@ -53,6 +51,8 @@
                     <!-- 번호 -->
                     <ColumnDefinition x:Name="ColNameHeader" Width="60"/>
                     <!-- 이름 -->
+                    <ColumnDefinition x:Name="ColSubjectHeader" Width="130"/>
+                    <!-- 과목/분야 — 학생 이름 바로 오른쪽이 읽기 편하다 -->
                     <ColumnDefinition Width="*" MinWidth="200"/>
                     <!-- 기록 내용 -->
                     <ColumnDefinition Width="120"/>
@@ -72,11 +72,11 @@
 
                 <TextBlock Grid.Column="1" x:Name="TxtYearHeader" Text="학년도" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" x:Name="TxtTypeHeader" Text="유형" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="3" x:Name="TxtSubjectHeader" Text="과목/분야" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="4" x:Name="TxtGradeHeader" Text="학년" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="5" x:Name="TxtClassHeader" Text="반" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="6" x:Name="TxtNumberHeader" Text="번호" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="7" x:Name="TxtNameHeader" Text="이름" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="7" x:Name="TxtSubjectHeader" Text="과목/분야" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" x:Name="TxtGradeHeader" Text="학년" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" x:Name="TxtClassHeader" Text="반" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="5" x:Name="TxtNumberHeader" Text="번호" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="6" x:Name="TxtNameHeader" Text="이름" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="8" Text="기록 내용" FontWeight="SemiBold" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0"/>
                 <TextBlock Grid.Column="9" Text="Byte/글자수" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
             </Grid>
@@ -105,11 +105,11 @@
                                         <ColumnDefinition Width="40"/>
                                         <ColumnDefinition Width="60"/>
                                         <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="100"/>
                                         <ColumnDefinition Width="40"/>
                                         <ColumnDefinition Width="40"/>
                                         <ColumnDefinition Width="40"/>
                                         <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="130"/>
                                         <ColumnDefinition Width="*" MinWidth="200"/>
                                         <ColumnDefinition Width="120"/>
                                     </Grid.ColumnDefinitions>
@@ -143,7 +143,7 @@
                                     <!-- 과목/분야 — 영역에 따라 담기는 정보가 달라 한 칸을 공유한다.
                                          교과 세특: "국어 (2학기)" 표시 전용
                                          진로활동:  희망분야를 여기서 직접 편집(분량이 특기사항과 합산) -->
-                                    <TextBlock Grid.Column="3" 
+                                    <TextBlock Grid.Column="7" 
                                                Text="{x:Bind SubjectDisplay}"
                                                Visibility="{x:Bind SubjectTextVisibility}"
                                                VerticalAlignment="Center"
@@ -151,7 +151,7 @@
                                                FontSize="12"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"/>
-                                    <TextBox Grid.Column="3"
+                                    <TextBox Grid.Column="7"
                                              Text="{x:Bind TitleEditable, Mode=TwoWay}"
                                              Visibility="{x:Bind TitleEditVisibility}"
                                              PlaceholderText="희망분야"
@@ -160,28 +160,28 @@
                                              FontSize="12"/>
 
                                     <!-- 학년 -->
-                                    <TextBlock Grid.Column="4"
+                                    <TextBlock Grid.Column="3"
                                                Text="{x:Bind Grade}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="12"/>
 
                                     <!-- 반 -->
-                                    <TextBlock Grid.Column="5"
+                                    <TextBlock Grid.Column="4"
                                                Text="{x:Bind ClassNum}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="12"/>
 
                                     <!-- 번호 -->
-                                    <TextBlock Grid.Column="6"
+                                    <TextBlock Grid.Column="5"
                                                Text="{x:Bind Number}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="12"/>
 
                                     <!-- 이름 -->
-                                    <TextBlock Grid.Column="7"
+                                    <TextBlock Grid.Column="6"
                                                Text="{x:Bind StudentName}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
