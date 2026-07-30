@@ -391,24 +391,38 @@ public sealed partial class ClubActivityPage : Page
 
             using var logService = new StudentLogService();
 
+            // 반영된 건수를 실제로 센다. 예전에는 결과를 버리고 선택 건수를 그대로 "저장됨"
+            // 으로 알려서, 0행 갱신(이미 지워진 기록 등)도 성공으로 보고했다.
+            int saved = 0;
             foreach (var logVm in selectedLogs)
             {
                 var log = logVm.StudentLog;
+                bool ok;
 
                 if (log.No > 0)
                 {
-                    await logService.UpdateAsync(log);
+                    ok = await logService.UpdateAsync(log);
                 }
                 else
                 {
                     var newNo = await logService.InsertAsync(log);
                     log.No = newNo;
+                    ok = newNo > 0;
                 }
 
-                logVm.IsSelected = false;
+                // 실패한 항목은 선택 상태로 남겨 다시 저장할 수 있게 한다
+                if (ok)
+                {
+                    saved++;
+                    logVm.IsSelected = false;
+                }
             }
 
-            ShowInfoBar($"{selectedLogs.Count}건이 저장되었습니다.", InfoBarSeverity.Success);
+            if (saved == selectedLogs.Count)
+                ShowInfoBar($"{saved}건이 저장되었습니다.", InfoBarSeverity.Success);
+            else
+                ShowInfoBar($"{selectedLogs.Count}건 중 {saved}건만 저장되었습니다. 남은 항목은 선택된 채로 두었습니다.",
+                            InfoBarSeverity.Warning);
         }
         catch (Exception ex)
         {
@@ -442,20 +456,26 @@ public sealed partial class ClubActivityPage : Page
 
             using var logService = new StudentLogService();
 
+            // DB 에서 실제로 지워진 것만 화면에서 내린다. 예전에는 결과를 버리고 무조건
+            // 목록에서 제거해서, 삭제가 실패해도 "삭제됨"으로 보이고 새로고침하면 되살아났다.
+            int deleted = 0;
             foreach (var logVm in selectedLogs)
             {
                 var log = logVm.StudentLog;
 
-                if (log.No > 0)
-                {
-                    await logService.DeleteAsync(log.No);
-                }
+                bool ok = log.No <= 0 || await logService.DeleteAsync(log.No);
+                if (!ok) continue;
 
+                deleted++;
                 LogList.Logs?.Remove(logVm);
             }
 
             TxtLogCount.Text = $"({LogList.Logs?.Count ?? 0}건)";
-            ShowInfoBar($"{selectedLogs.Count}건이 삭제되었습니다.", InfoBarSeverity.Success);
+
+            if (deleted == selectedLogs.Count)
+                ShowInfoBar($"{deleted}건이 삭제되었습니다.", InfoBarSeverity.Success);
+            else
+                ShowInfoBar($"{selectedLogs.Count}건 중 {deleted}건만 삭제되었습니다.", InfoBarSeverity.Warning);
         }
         catch (Exception ex)
         {

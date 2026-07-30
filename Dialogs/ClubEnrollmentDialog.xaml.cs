@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -345,26 +345,40 @@ namespace NewSchool.Dialogs
             {
                 using var repo = new ClubEnrollmentRepository(SchoolDatabase.DbPath);
 
-                // 1. 새로 등록
-                foreach (var studentId in _toAdd)
+                // 추가와 해제를 단일 트랜잭션으로 묶는다. 예전에는 건별 자동커밋인 데다
+                // 결과도 확인하지 않아, 중간에 실패하면 "일부만 반영된 채 저장 완료"가 됐다.
+                repo.BeginTransaction();
+                try
                 {
-                    var enrollment = new ClubEnrollment
+                    // 1. 새로 등록
+                    foreach (var studentId in _toAdd)
                     {
-                        StudentID = studentId,
-                        ClubNo = _club.No,
-                        Status = ClubEnrollmentStatus.Active
-                    };
-                    await repo.CreateAsync(enrollment);
-                }
-
-                // 2. 등록 해제
-                foreach (var studentId in _toRemove)
-                {
-                    var original = _originalEnrollments.FirstOrDefault(e => e.StudentID == studentId);
-                    if (original != null)
-                    {
-                        await repo.DeleteAsync(original.No);
+                        var enrollment = new ClubEnrollment
+                        {
+                            StudentID = studentId,
+                            ClubNo = _club.No,
+                            Status = ClubEnrollmentStatus.Active
+                        };
+                        if (await repo.CreateAsync(enrollment) <= 0)
+                            throw new InvalidOperationException($"부원 추가에 실패했습니다: {studentId}");
                     }
+
+                    // 2. 등록 해제
+                    foreach (var studentId in _toRemove)
+                    {
+                        var original = _originalEnrollments.FirstOrDefault(e => e.StudentID == studentId);
+                        if (original == null) continue;
+
+                        if (!await repo.DeleteAsync(original.No))
+                            throw new InvalidOperationException($"부원 해제에 실패했습니다: {studentId}");
+                    }
+
+                    repo.Commit();
+                }
+                catch
+                {
+                    repo.Rollback();
+                    throw;
                 }
 
                 Debug.WriteLine($"[ClubEnrollmentDialog] 저장 완료 - 추가: {_toAdd.Count}, 제거: {_toRemove.Count}");

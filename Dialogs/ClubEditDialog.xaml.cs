@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Models;
 using NewSchool.Repositories;
@@ -83,14 +83,23 @@ public sealed partial class ClubEditDialog : ContentDialog
             // 저장
             using var repo = new ClubRepository(SchoolDatabase.DbPath);
 
+            // 저장 결과를 확인한다. 예전에는 결과를 버려서, 실패해도 창이 닫히고
+            // 저장된 것처럼 보였다(입력 내용이 그대로 사라짐).
+            bool saved;
             if (_isEditMode)
             {
-                await repo.UpdateAsync(club);
+                saved = await repo.UpdateAsync(club);
             }
             else
             {
                 club.CreatedAt = DateTime.Now;
-                await repo.CreateAsync(club);
+                saved = await repo.CreateAsync(club) > 0;
+            }
+
+            if (!saved)
+            {
+                ShowError("저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+                args.Cancel = true;   // 창을 닫지 않아 입력 내용이 남는다
             }
         }
         catch (Exception ex)

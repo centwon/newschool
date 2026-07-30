@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.UI.Xaml;
@@ -182,7 +182,7 @@ public sealed partial class ClubManagementPage : Page
 
         // 확인 다이얼로그
         var confirmed = await MessageBox.ShowConfirmAsync(
-            $"'{club.ClubName}' 동아리를 삭제하시겠습니까?\n등록된 부원 정보도 함께 삭제됩니다.",
+            $"'{club.ClubName}' 동아리를 삭제하시겠습니까?\n목록에서 사라지며 부원 배정 기록은 그대로 보관됩니다.",
             "동아리 삭제", "삭제", "취소");
         if (!confirmed) return;
 

@@ -425,7 +425,9 @@
       "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/fix_studentmgmt.py\")",
       "Bash(grep -iE '빌드했|경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}|MSB302')",
       "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/revert_sem.py\")",
-      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/prune_enroll.py\")"
+      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/prune_enroll.py\")",
+      "Bash(grep -nE \"await .*\\(Delete|Update|Create|Save\\)[A-Za-z]*Async\\\\\\([^\\)]*\\\\\\);\\\\s*$\" Pages/ClubActivityPage.xaml.cs Pages/ClubManagementPage.xaml.cs Dialogs/ClubEnrollmentDialog.xaml.cs Dialogs/ClubEditDialog.xaml.cs)",
+      "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/fix_club.py\")"
     ]
   }
 }
