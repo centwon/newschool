@@ -31,7 +31,7 @@ public sealed partial class LogListViewer : UserControl
     private StudentLogViewModel? _focusedLog;
     private Border? _focusedBorder;
     private bool _isLoading;
-    private double _contentFontSize = 12.0;
+    private double _contentFontSize = StudentLogViewModel.DefaultContentFontSize;
 
     #endregion
 

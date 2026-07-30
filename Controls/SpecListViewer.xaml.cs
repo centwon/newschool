@@ -18,7 +18,7 @@ public sealed partial class SpecListViewer : UserControl
 
     private StudentInfoMode _studentInfoMode = StudentInfoMode.HideAll;
     private LogCategory _category = LogCategory.전체;
-    private double _contentFontSize = 12.0;
+    private double _contentFontSize = StudentSpecialViewModel.DefaultContentFontSize;
 
     #endregion
 

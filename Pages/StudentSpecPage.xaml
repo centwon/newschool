@@ -124,7 +124,7 @@
                                         Orientation="Vertical"
                                         Minimum="10"
                                         Maximum="24"
-                                        Value="12"
+                                        Value="14"
                                         TickFrequency="2"
                                         TickPlacement="Outside"
                                         ValueChanged="OnFontSizeChanged"
@@ -132,7 +132,7 @@
 
                                 <TextBlock Grid.Row="2"
                                            x:Name="TxtFontSize"
-                                           Text="12"
+                                           Text="14"
                                            FontWeight="Bold"
                                            HorizontalAlignment="Center"
                                            Margin="0,8,0,0"/>

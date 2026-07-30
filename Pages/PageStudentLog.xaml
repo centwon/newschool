@@ -1,4 +1,4 @@
-<Page
+﻿<Page
     x:Class="NewSchool.Pages.PageStudentLog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -158,7 +158,7 @@
                                         Orientation="Vertical"
                                         Minimum="6"
                                         Maximum="30"
-                                        Value="12"
+                                        Value="14"
                                         TickPlacement="Outside"
                                         TickFrequency="2"
                                         ValueChanged="SldFontSize_ValueChanged"

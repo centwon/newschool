@@ -16,7 +16,7 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
     private bool _isModified;
     private string _byteInfo = string.Empty;
     private string _originalContent = string.Empty;
-    private double _contentFontSize = 12.0;
+    private double _contentFontSize = DefaultContentFontSize;
 
     // 학생 정보 (외부에서 설정)
     private int _grade;
@@ -117,6 +117,12 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
     #endregion
 
     #region StudentSpecial Properties (바인딩용)
+
+    /// <summary>
+    /// 기록 내용 칸의 기본 글자 크기. <b>각 페이지의 글자 크기 슬라이더 기본값(Value)도
+    /// 이 값과 같아야 한다</b> — 다르면 슬라이더를 처음 건드리는 순간 글자가 한 번 튄다.
+    /// </summary>
+    public const double DefaultContentFontSize = 14.0;
 
     /// <summary>
     /// 기록 내용 칸의 글자 크기. 툴바의 "글자 크기" 슬라이더가 이 값만 바꾼다.
