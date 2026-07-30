@@ -155,7 +155,7 @@
                                                Visibility="{x:Bind YearColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"/>
+                                               FontSize="14"/>
 
                                     <!-- 학기 -->
                                     <TextBlock Grid.Column="2"
@@ -163,7 +163,7 @@
                                                Visibility="{x:Bind SemesterColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"/>
+                                               FontSize="14"/>
 
                                     <!-- 영역 (라벨만 표시) -->
                                     <Border Grid.Column="3"
@@ -186,7 +186,7 @@
                                                Visibility="{Binding ElementName=TxtSubjectHeader, Path=Visibility}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"
+                                               FontSize="14"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"/>
 
@@ -196,7 +196,7 @@
                                                Visibility="{Binding ElementName=TxtGradeHeader, Path=Visibility}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"/>
+                                               FontSize="14"/>
 
                                     <!-- 반 -->
                                     <TextBlock Grid.Column="6"
@@ -204,7 +204,7 @@
                                                Visibility="{Binding ElementName=TxtClassHeader, Path=Visibility}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"/>
+                                               FontSize="14"/>
 
                                     <!-- 번호 -->
                                     <TextBlock Grid.Column="7"
@@ -212,7 +212,7 @@
                                                Visibility="{Binding ElementName=TxtNumberHeader, Path=Visibility}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"/>
+                                               FontSize="14"/>
 
                                     <!-- 이름 -->
                                     <TextBlock Grid.Column="8"
@@ -220,7 +220,7 @@
                                                Visibility="{Binding ElementName=TxtNameHeader, Path=Visibility}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"
+                                               FontSize="14"
                                                FontWeight="SemiBold"/>
 
                                     <!-- 일시 -->
@@ -228,7 +228,7 @@
                                                Text="{x:Bind DateString}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="12"
+                                               FontSize="14"
                                                TextWrapping="NoWrap"/>
 
                                     <!-- 주제 -->
@@ -236,7 +236,7 @@
                                              Text="{x:Bind Topic, Mode=TwoWay}"
                                              Tag="{x:Bind}"
                                              VerticalAlignment="Top"
-                                             FontSize="12"
+                                             FontSize="14"
                                              PlaceholderText="주제"
                                              Margin="0,0,0,0"
                                              TextChanged="OnTopicChanged"/>
