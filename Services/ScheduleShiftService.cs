@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -435,17 +435,16 @@ public class ScheduleShiftService
         var data = action.GetData<ShiftActionData>();
         if (data == null) return;
 
-        // 역방향으로 원래 위치로 복원
-        foreach (var shift in data.ShiftedSchedules.OrderBy(s => s.OriginalDate).ThenBy(s => s.OriginalPeriod))
-        {
-            var schedule = await _scheduleRepo.GetByIdAsync(shift.ScheduleId);
-            if (schedule != null)
-            {
-                schedule.Date = shift.OriginalDate;
-                schedule.Period = shift.OriginalPeriod;
-                await _scheduleRepo.UpdateAsync(schedule);
-            }
-        }
+        // 적용의 정확한 역순으로 되돌린다.
+        //
+        // ⚠ 순서가 핵심이다. 예전에는 원래 날짜 오름차순으로 되돌렸는데, 그건 밀기에만
+        //   우연히 맞는 순서였다. 당기기는 계획이 앞→뒤 정순이라 오름차순으로 되돌리면
+        //   "아직 비켜나지 않은 뒷 수업의 자리"로 먼저 되돌리려다 슬롯 UNIQUE 제약
+        //   (CourseId·Room·Date·Period)에 걸려 <b>당기기 취소가 통째로 실패</b>했다.
+        //   적용 순서를 뒤집으면 항상 뒤에서부터 자리가 비므로 두 방향 모두 안전하다.
+        await MoveSchedulesAsync(
+            Enumerable.Reverse(data.ShiftedSchedules),
+            shift => (shift.OriginalDate, shift.OriginalPeriod));
     }
 
     private async Task UndoCreateAsync(UndoAction action)
@@ -519,16 +518,42 @@ public class ScheduleShiftService
         var data = action.GetData<ShiftActionData>();
         if (data == null) return;
 
-        // 다시 이동
-        foreach (var shift in data.ShiftedSchedules)
+        // 저장된 순서 = 적용 순서 그대로 다시 옮긴다
+        await MoveSchedulesAsync(
+            data.ShiftedSchedules,
+            shift => (shift.NewDate, shift.NewPeriod));
+    }
+
+    /// <summary>
+    /// 기록된 이동대로 스케줄을 옮긴다. <paramref name="shifts"/> 는 반드시 <b>앞의 수업이 먼저
+    /// 비켜나는 순서</b>여야 한다 — 어긋나면 슬롯 UNIQUE 제약에 걸려 통째로 실패한다.
+    /// <c>ApplyPlanAsync</c> 와 동일하게 단일 트랜잭션으로 처리해, 중간에 실패해도
+    /// "일부만 되돌아간" 상태가 남지 않는다.
+    /// </summary>
+    private async Task MoveSchedulesAsync(
+        IEnumerable<ScheduleShiftInfo> shifts,
+        Func<ScheduleShiftInfo, (DateTime Date, int Period)> target)
+    {
+        _scheduleRepo.BeginTransaction();
+        try
         {
-            var schedule = await _scheduleRepo.GetByIdAsync(shift.ScheduleId);
-            if (schedule != null)
+            foreach (var shift in shifts)
             {
-                schedule.Date = shift.NewDate;
-                schedule.Period = shift.NewPeriod;
+                var schedule = await _scheduleRepo.GetByIdAsync(shift.ScheduleId);
+                if (schedule == null) continue;
+
+                var (date, period) = target(shift);
+                schedule.Date = date;
+                schedule.Period = period;
                 await _scheduleRepo.UpdateAsync(schedule);
             }
+
+            _scheduleRepo.Commit();
+        }
+        catch
+        {
+            _scheduleRepo.Rollback();
+            throw;
         }
     }
 
@@ -604,13 +629,11 @@ public class ScheduleShiftService
                 Settings.SchoolCode.Value, startDate, endDate);
             foreach (var schedule in schedules)
             {
-                // 최초 자동배치(SchedulingEngine)와 동일 기준으로 "공휴"도 제외 —
-                // 밀기/당기기가 최초 배치 땐 뺐던 공휴일 슬롯으로 수업을 옮기지 않도록 일치시킴
-                if (schedule.IsHoliday || schedule.EVENT_NM.Contains("휴업") ||
-                    schedule.EVENT_NM.Contains("공휴") || schedule.EVENT_NM.Contains("방학"))
-                {
+                // 최초 자동배치(SchedulingEngine)와 반드시 같은 기준이어야 한다 —
+                // 밀기/당기기가 최초 배치 땐 뺐던 공휴일 슬롯으로 수업을 옮기면 안 되므로
+                // 판정은 SchoolCalendar 한 곳에서만 한다
+                if (Helpers.SchoolCalendar.IsNonTeachingDay(schedule))
                     holidays.Add(schedule.AA_YMD.Date);
-                }
             }
         }
         catch (Exception ex)
@@ -629,7 +652,7 @@ public class ScheduleShiftService
             if (holidays.Contains(date))
                 continue;
 
-            int dayOfWeek = (int)date.DayOfWeek;
+            int dayOfWeek = Helpers.SchoolCalendar.ToLessonDayOfWeek(date);
             if (!lessonsByDay.ContainsKey(dayOfWeek))
                 continue;
 
@@ -681,7 +704,7 @@ public class ScheduleShiftService
         for (int i = idx - 1; i >= 0; i--)
         {
             var slot = slots[i];
-            if (!occupied.Contains((slot.Date, slot.Period)))
+            if (!occupied.Contains((slot.Date.Date, slot.Period)))
             {
                 return slots[i];
             }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -96,7 +96,10 @@ namespace NewSchool.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[TimetableService] 교사 시간표 조회 실패: {ex.Message}");
+                // 빈 시간표로 돌려주면 "수업이 없음"과 구분되지 않아 호출부가 오류를 알 수 없다
+                Debug.WriteLine($"[TimetableService] 교사 시간표 조회 실패: {ex}");
+                viewModel.LoadFailed = true;
+                viewModel.ErrorMessage = ex.Message;
                 return viewModel;
             }
         }
@@ -159,7 +162,10 @@ namespace NewSchool.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[TimetableService] 학급 시간표 조회 실패: {ex.Message}");
+                // 빈 시간표로 돌려주면 "수업이 없음"과 구분되지 않아 호출부가 오류를 알 수 없다
+                Debug.WriteLine($"[TimetableService] 학급 시간표 조회 실패: {ex}");
+                viewModel.LoadFailed = true;
+                viewModel.ErrorMessage = ex.Message;
                 return viewModel;
             }
         }

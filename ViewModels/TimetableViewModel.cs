@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using NewSchool.Collections;
 using NewSchool.Models;
 
@@ -163,6 +163,16 @@ namespace NewSchool.ViewModels
             get => _items;
             set => SetProperty(ref _items, value);
         }
+
+        /// <summary>
+        /// 조회가 실패했는가. <b>빈 시간표와 조회 실패를 구분하기 위한 것</b>이다 —
+        /// 예전에는 서비스가 예외를 삼키고 빈 시간표를 돌려줘, DB 오류로 아무것도 못 읽어도
+        /// 화면에는 "수업이 없습니다"와 똑같이 보였다(호출부의 오류 처리는 영영 실행되지 않았다).
+        /// </summary>
+        public bool LoadFailed { get; set; }
+
+        /// <summary>조회 실패 사유(사용자 안내용). <see cref="LoadFailed"/> 가 true 일 때만 의미가 있다.</summary>
+        public string? ErrorMessage { get; set; }
 
         /// <summary>
         /// 빈 시간표 초기화 (5일 x 7교시)

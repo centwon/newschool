@@ -24,17 +24,34 @@ public sealed partial class TeacherTimetablePage : Page
         this.Loaded += TeacherTimetablePage_Loaded;
     }
 
-    private void TeacherTimetablePage_Loaded(object sender, RoutedEventArgs e)
+    private async void TeacherTimetablePage_Loaded(object sender, RoutedEventArgs e)
     {
-        InitializeFilters();
+        // ⚠ 초기화가 끝난 뒤에 _isInitialized 를 세운다. 예전에는 InitializeFilters 를
+        //    await 없이 호출하고 곧바로 true 로 만들어, 콤보가 아직 안 찬 상태에서
+        //    필터 변경 처리가 돌 수 있었다.
+        await InitializeFiltersAsync();
         ShowEmptyState();
         _isInitialized = true;
     }
 
     /// <summary>
-    /// 필터 초기화
+    /// 필터 초기화. DB 를 읽으므로 실패할 수 있다 — 예전에는 <c>async void</c> 라서
+    /// 여기서 난 예외가 아무에게도 잡히지 않고 <b>앱을 그대로 죽였다</b>.
     /// </summary>
-    private async void InitializeFilters()
+    private async Task InitializeFiltersAsync()
+    {
+        try
+        {
+            await LoadYearSemesterFiltersAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TeacherTimetablePage] 필터 초기화 실패: {ex}");
+            await MessageBox.ShowAsync($"학년도 목록을 불러오지 못했습니다.\n{ex.Message}", "오류");
+        }
+    }
+
+    private async Task LoadYearSemesterFiltersAsync()
     {
         // 학년도 -course에 등록된 학년 최근 3개, 없으면,  현재 연도
         using var courseService = new CourseService();
@@ -104,7 +121,6 @@ public sealed partial class TeacherTimetablePage : Page
             await MessageBox.ShowAsync("교사 정보를 찾을 수 없습니다.", "오류");
             return;
         }
-        Debug.WriteLine($"{((ComboBoxItem)(CBoxSemester.SelectedItem)).Tag.ToString()}");
         // 선택된 값 가져오기
         int year = (int)((ComboBoxItem)CBoxYear.SelectedItem).Tag;
         int semester = (int)((ComboBoxItem)CBoxSemester.SelectedItem).Tag;
@@ -124,6 +140,15 @@ public sealed partial class TeacherTimetablePage : Page
 
             using var timetableService = new TimetableService(SchoolDatabase.DbPath);
             var viewModel = await timetableService.GetTeacherTimetableAsync(teacherId, year, semester);
+
+            if (viewModel.LoadFailed)
+            {
+                // 빈 시간표를 그대로 보여주면 "수업 없음"으로 오해한다
+                await MessageBox.ShowAsync(
+                    $"시간표를 불러오지 못했습니다.\n{viewModel.ErrorMessage}", "오류");
+                ShowEmptyState();
+                return;
+            }
 
             // 시간표 표시 (교사용: 과목 + 강의실)
             TimetableControl.DisplayMode = TimetableDisplayMode.Teacher;

@@ -1830,6 +1830,7 @@ public sealed partial class AnnualLessonPlanPage : Page
                 필요 시수: {preview.TotalRequiredHours}차시
                 가용 슬롯: {preview.TotalAvailableSlots}개
                 {(preview.CanComplete ? "✅ 배치 가능" : $"⚠️ 시수 부족: {-preview.ExcessSlots}차시")}
+                {(string.IsNullOrEmpty(preview.CalendarWarning) ? "" : "⚠️ " + preview.CalendarWarning)}
                 
                 기존 배치 데이터를 삭제하고 새로 배치합니다.
                 계속하시겠습니까?

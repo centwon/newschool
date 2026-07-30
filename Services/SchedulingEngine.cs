@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -62,7 +62,8 @@ public class SchedulingEngine
             //    이전에는 검증 전에 삭제해, "단원 없음" 등으로 조기 반환해도 기존 배치가 사라졌음)
             var sections = await _sectionRepo.GetByCourseAsync(courseId);
             var lessons = await _lessonRepo.GetByCourseAsync(courseId);
-            var holidays = await GetHolidaysAsync(startDate, endDate);
+            var (holidays, calendarWarning) = await GetHolidaysAsync(startDate, endDate);
+            result.CalendarWarning = calendarWarning;
 
             if (sections.Count == 0)
             {
@@ -176,6 +177,10 @@ public class SchedulingEngine
             if (result.FillWarnings.Count > 0)
             {
                 result.Message += $" ({result.FillWarnings.Count}개 단원 시수 부족)";
+            }
+            if (!string.IsNullOrEmpty(result.CalendarWarning))
+            {
+                result.Message += " / 주의: " + result.CalendarWarning;
             }
 
             return result;
@@ -364,8 +369,8 @@ public class SchedulingEngine
             if (holidays.Contains(date))
                 continue;
 
-            // 해당 요일의 수업 확인
-            int dayOfWeek = (int)date.DayOfWeek;
+            // 해당 요일의 수업 확인 (Lesson.DayOfWeek 규약: 월=1 … 일=7)
+            int dayOfWeek = Helpers.SchoolCalendar.ToLessonDayOfWeek(date);
             if (!lessonsByDay.ContainsKey(dayOfWeek))
                 continue;
 
@@ -386,9 +391,14 @@ public class SchedulingEngine
     }
 
     /// <summary>
-    /// 휴일 목록 조회
+    /// 휴일 목록 조회. 조회에 실패하면 <b>휴일을 하나도 못 걸러낸 채</b> 배치가 진행되므로
+    /// 그 사실을 경고 문구로 함께 돌려준다.
+    ///
+    /// ⚠ 예전에는 실패를 통째로 삼켜서(빈 catch), 학사일정을 못 읽으면 공휴일·방학에도
+    /// 수업이 배치되는데 사용자는 아무것도 모른 채 정상 배치로 받아들였다.
     /// </summary>
-    private async Task<HashSet<DateTime>> GetHolidaysAsync(DateTime startDate, DateTime endDate)
+    private async Task<(HashSet<DateTime> Holidays, string? Warning)> GetHolidaysAsync(
+        DateTime startDate, DateTime endDate)
     {
         var holidays = new HashSet<DateTime>();
 
@@ -399,20 +409,18 @@ public class SchedulingEngine
 
             foreach (var schedule in schedules)
             {
-                // 휴업일, 공휴일 등 수업 없는 날
-                if (schedule.IsHoliday || schedule.EVENT_NM.Contains("휴업") ||
-                    schedule.EVENT_NM.Contains("공휴") || schedule.EVENT_NM.Contains("방학"))
-                {
+                // 휴업일·공휴일·방학 판정은 밀기/당기기와 같은 기준을 써야 한다
+                if (Helpers.SchoolCalendar.IsNonTeachingDay(schedule))
                     holidays.Add(schedule.AA_YMD.Date);
-                }
             }
-        }
-        catch
-        {
-            // 학사일정 조회 실패 시 주말만 제외
-        }
 
-        return holidays;
+            return (holidays, null);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SchedulingEngine] 학사일정 조회 실패: {ex}");
+            return (holidays, "학사일정을 읽지 못해 휴일(공휴일·방학 등)을 제외하지 못했습니다. 배치 결과를 확인해주세요.");
+        }
     }
 
     #endregion
@@ -519,7 +527,8 @@ public class SchedulingEngine
         // 데이터 로드
         var sections = await _sectionRepo.GetByCourseAsync(courseId);
         var lessons = await _lessonRepo.GetByCourseAsync(courseId);
-        var holidays = await GetHolidaysAsync(startDate, endDate);
+        var (holidays, calendarWarning) = await GetHolidaysAsync(startDate, endDate);
+        preview.CalendarWarning = calendarWarning;
 
         var roomLessons = lessons.Where(l => l.Room == room).ToList();
 
@@ -599,6 +608,9 @@ public class SchedulingResult
     /// <summary>이번 배치에서 생성된 Schedule No 목록 — BulkGenerate Undo 기록에 사용.</summary>
     public List<int> CreatedScheduleIds { get; set; } = new();
 
+    /// <summary>학사일정을 읽지 못해 휴일을 제외하지 못했을 때의 경고. 정상이면 null.</summary>
+    public string? CalendarWarning { get; set; }
+
     public double CompletionRate => TotalSections > 0 ? (double)TotalPlaced / TotalSections * 100 : 0;
 }
 
@@ -661,6 +673,9 @@ public class SchedulingPreview
     public int NormalSections { get; set; }
     public bool CanComplete { get; set; }
     public int ExcessSlots { get; set; }
+
+    /// <summary>학사일정을 읽지 못해 휴일을 제외하지 못했을 때의 경고. 정상이면 null.</summary>
+    public string? CalendarWarning { get; set; }
     public List<WeeklySlotInfo> WeeklySlots { get; set; } = new();
 }
 

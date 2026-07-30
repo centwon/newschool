@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -117,5 +117,50 @@ public class ScheduleShiftServiceTests : IClassFixture<SqliteTestFixture>
         Assert.Contains(schedules, s => s.Date.Date == Mon && !s.IsPinned);
         var distinctSlots = schedules.Select(s => (s.Date.Date, s.Period)).Distinct().Count();
         Assert.Equal(schedules.Count, distinctSlots);
+    }
+
+    [Fact]
+    public async Task Undo_당기기_모든_수업이_원래_자리로_복원된다()
+    {
+        // 월(빈)·화(A)·수(B) — 화부터 당기면 A:화→월, B:수→화
+        int courseNo = await SetupCourseAsync((Tue, false), (Wed, false));
+        var service = NewService();
+
+        var pull = await service.PullSchedulesAsync(
+            courseNo, Room, fromDate: Tue, fromPeriod: 1, semesterStart: Mon);
+        Assert.True(pull.Success);
+        Assert.Equal(2, pull.ShiftedCount);
+
+        var undo = await service.UndoLastActionAsync(courseNo, Room);
+
+        Assert.True(undo.Success, undo.Message);
+
+        var schedules = await GetSchedulesAsync(courseNo);
+        Assert.Equal(2, schedules.Count);
+        Assert.Contains(schedules, s => s.Date.Date == Tue);
+        Assert.Contains(schedules, s => s.Date.Date == Wed);
+        Assert.DoesNotContain(schedules, s => s.Date.Date == Mon);
+    }
+
+    [Fact]
+    public async Task Undo_밀기_모든_수업이_원래_자리로_복원된다()
+    {
+        // 월(A)·화(B) — 월부터 밀면 B:화→수, A:월→화
+        int courseNo = await SetupCourseAsync((Mon, false), (Tue, false));
+        var service = NewService();
+
+        var push = await service.PushSchedulesAsync(
+            courseNo, Room, fromDate: Mon, fromPeriod: 1, semesterEnd: Mon.AddDays(30));
+        Assert.True(push.Success);
+        Assert.Equal(2, push.ShiftedCount);
+
+        var undo = await service.UndoLastActionAsync(courseNo, Room);
+
+        Assert.True(undo.Success, undo.Message);
+
+        var schedules = await GetSchedulesAsync(courseNo);
+        Assert.Equal(2, schedules.Count);
+        Assert.Contains(schedules, s => s.Date.Date == Mon);
+        Assert.Contains(schedules, s => s.Date.Date == Tue);
     }
 }
