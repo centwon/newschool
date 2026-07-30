@@ -530,6 +530,12 @@ public sealed partial class PageStudentLog : Page, IDisposable
             LogList.ContentFontSize = e.NewValue;
         }
 
+        // 학생부 기록 박스가 함께 떠 있으므로 같이 키운다(나란히 보며 옮겨 적는 화면)
+        if (SpecBox != null)
+        {
+            SpecBox.ContentFontSize = e.NewValue;
+        }
+
         if (TbSize != null)
         {
             TbSize.Text = e.NewValue.ToString("F0");

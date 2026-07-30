@@ -61,6 +61,17 @@ public sealed partial class StudentSpecBox : UserControl
             : _special?.Title ?? string.Empty;
 
     /// <summary>
+    /// 특기사항 입력칸의 글자 크기. 누가기록 페이지의 "글자 크기" 슬라이더가 목록과 <b>함께</b>
+    /// 이 값을 준다 — 두 곳을 나란히 보며 옮겨 적는 화면이라 한쪽만 커지면 오히려 읽기 나쁘다.
+    /// 기본 14 는 슬라이더를 건드리기 전의 기존 크기다(헤더·버튼·바이트 표시는 고정).
+    /// </summary>
+    public double ContentFontSize
+    {
+        get => TxtContent.FontSize;
+        set => TxtContent.FontSize = value;
+    }
+
+    /// <summary>
     /// 헤더에 표시할 학생 정보. "N학년 M반 K번 이름" 형태로 호출부에서 채워 넣는다.
     /// 지정하지 않으면 StudentID가 대신 표시된다.
     /// </summary>
