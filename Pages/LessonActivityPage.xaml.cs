@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using NewSchool.Controls;
 using NewSchool.Dialogs;
 using NewSchool.Models;
@@ -437,6 +438,25 @@ public sealed partial class LessonActivityPage : Page
         menu.Items.Add(miViewInfo);
 
         StudentList.ItemContextFlyout = menu;
+    }
+
+    private void OnFontSizeClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button)
+        {
+            FlyoutBase.ShowAttachedFlyout(button);
+        }
+    }
+
+    /// <summary>
+    /// 글자 크기 슬라이더 — <b>기록 내용 칸에만</b> 적용한다.
+    /// (LogList.FontSize 를 쓰면 행의 각 칸에 크기가 명시돼 있어 헤더 라벨만 커진다)
+    /// </summary>
+    private void OnFontSizeChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (LogList == null) return;
+        LogList.ContentFontSize = e.NewValue;
+        if (TxtFontSize != null) TxtFontSize.Text = $"{e.NewValue:F0}";
     }
 
     private async void ContextMenu_AddLog_Click(object sender, RoutedEventArgs e)

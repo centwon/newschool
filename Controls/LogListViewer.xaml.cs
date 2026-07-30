@@ -31,6 +31,7 @@ public sealed partial class LogListViewer : UserControl
     private StudentLogViewModel? _focusedLog;
     private Border? _focusedBorder;
     private bool _isLoading;
+    private double _contentFontSize = 12.0;
 
     #endregion
 
@@ -59,6 +60,32 @@ public sealed partial class LogListViewer : UserControl
             _category = value;
             ApplyCategoryMode();
         }
+    }
+
+    /// <summary>
+    /// 기록 내용 칸의 글자 크기(툴바 "글자 크기" 슬라이더가 쓴다). 기본 12.
+    ///
+    /// ⚠ <c>FontSize</c> 를 대신 쓰면 안 된다. 행의 각 칸에 <c>FontSize="12"</c> 가 명시돼 있어
+    /// 상속값이 무시되고, 크기가 명시되지 않은 <b>헤더 라벨만</b> 커진다 — 즉 정작 읽으려는
+    /// 기록은 그대로이고 엉뚱한 곳이 커졌다(2026-07-30 수정). 값은 각 행 ViewModel 로 내려보내
+    /// 기록 내용 칸이 직접 바인딩한다. 나중에 목록에 추가되는 행에도 적용되도록
+    /// 컬렉션 변경도 지켜본다.
+    /// </summary>
+    public double ContentFontSize
+    {
+        get => _contentFontSize;
+        set
+        {
+            if (_contentFontSize == value) return;
+            _contentFontSize = value;
+            ApplyContentFontSize();
+        }
+    }
+
+    private void ApplyContentFontSize()
+    {
+        foreach (var item in Logs)
+            item.ContentFontSize = _contentFontSize;
     }
 
     /// <summary>선택된 로그 목록</summary>
@@ -94,6 +121,9 @@ public sealed partial class LogListViewer : UserControl
 
         // ItemsSource 바인딩
         LogItemsRepeater.ItemsSource = Logs;
+
+        // 나중에 추가되는 행에도 현재 글자 크기가 적용되도록
+        Logs.CollectionChanged += (_, _) => ApplyContentFontSize();
 
         // 초기 모드 적용
         ApplyStudentInfoMode();

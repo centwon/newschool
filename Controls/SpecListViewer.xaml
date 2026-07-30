@@ -188,14 +188,14 @@
                                                FontSize="12"
                                                FontWeight="SemiBold"/>
 
-                                    <!-- 기록 내용 -->
+                                    <!-- 기록 내용 — 글자 크기만 툴바 슬라이더를 따른다(다른 칸은 고정) -->
                                     <TextBox Grid.Column="8"
                                              Text="{x:Bind Content, Mode=TwoWay}"
                                              AcceptsReturn="True"
                                              TextWrapping="Wrap"
                                              MinHeight="60"
                                              MaxHeight="200"
-                                             FontSize="12"
+                                             FontSize="{x:Bind ContentFontSize, Mode=OneWay}"
                                              PlaceholderText="기록 내용 입력"
                                              TextChanged="OnContentChanged"
                                              ScrollViewer.VerticalScrollBarVisibility="Auto"/>

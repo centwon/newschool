@@ -26,6 +26,7 @@ namespace NewSchool.ViewModels
         private readonly StudentService _studentService;
 
         private bool _isSelected;
+        private double _contentFontSize = 12.0;
         private bool _isLoading;
         private StudentLog _studentlog;
         private Enrollment? _enrollment;
@@ -190,6 +191,20 @@ namespace NewSchool.ViewModels
         {
             get => _isSelected;
             set => SetProperty(ref _isSelected, value);
+        }
+
+        /// <summary>
+        /// 기록 내용 칸의 글자 크기. 툴바의 "글자 크기" 슬라이더가 이 값만 바꾼다.
+        ///
+        /// ⚠ 목록 컨트롤의 <c>FontSize</c> 를 직접 바꾸면 안 된다. 행의 각 칸(학년도·이름·일시…)에
+        /// <c>FontSize="12"</c> 가 명시돼 있어 상속값이 먹히지 않고, 크기가 명시되지 않은
+        /// <b>헤더 라벨만</b> 커진다 — 실제로 그렇게 동작해서 "기록은 그대로인데 엉뚱한 데가 커진다"는
+        /// 문제가 있었다(2026-07-30 수정). 그래서 기록 내용 칸이 이 속성을 직접 바인딩한다.
+        /// </summary>
+        public double ContentFontSize
+        {
+            get => _contentFontSize;
+            set => SetProperty(ref _contentFontSize, value);
         }
 
         /// <summary>로딩 중 여부</summary>

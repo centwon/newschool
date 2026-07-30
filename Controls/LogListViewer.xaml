@@ -241,7 +241,7 @@
                                              Margin="0,0,0,0"
                                              TextChanged="OnTopicChanged"/>
 
-                                    <!-- 기록 내용 -->
+                                    <!-- 기록 내용 — 글자 크기만 툴바 슬라이더를 따른다(다른 칸은 고정) -->
                                     <Grid Grid.Column="11">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="*"/>
@@ -255,7 +255,7 @@
                                                  TextWrapping="Wrap"
                                                  MinHeight="60"
                                                  MaxHeight="200"
-                                                 FontSize="12"
+                                                 FontSize="{x:Bind ContentFontSize, Mode=OneWay}"
                                                  PlaceholderText="기록 내용 입력"
                                                  TextChanged="OnLogChanged"
                                                  ScrollViewer.VerticalScrollBarVisibility="Auto"/>

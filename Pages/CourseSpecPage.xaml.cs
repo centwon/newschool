@@ -155,7 +155,7 @@ public sealed partial class CourseSpecPage : Page, IDisposable
     {
         if (SpecListViewer != null)
         {
-            SpecListViewer.FontSize = e.NewValue;
+            SpecListViewer.ContentFontSize = e.NewValue;
             TxtFontSize.Text = $"{e.NewValue:F0}";
         }
     }

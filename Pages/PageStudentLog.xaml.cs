@@ -527,7 +527,7 @@ public sealed partial class PageStudentLog : Page, IDisposable
     {
         if (LogList != null)
         {
-            LogList.FontSize = e.NewValue;
+            LogList.ContentFontSize = e.NewValue;
         }
 
         if (TbSize != null)
