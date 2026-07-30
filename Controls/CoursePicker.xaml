@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <UserControl
     x:Class="NewSchool.Controls.CoursePicker"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -6,9 +6,17 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:NewSchool.Models"
+    xmlns:controls="using:NewSchool.Controls"
     mc:Ignorable="d">
 
     <StackPanel Orientation="Horizontal" Spacing="8">
+        <!-- 학년도 · 학기 — 기존 YearSemesterPicker 를 그대로 조합한다.
+             (학년도 목록을 DB에서 조회하는 로직이 이미 있어 중복 구현하지 않는다) -->
+        <controls:YearSemesterPicker
+            x:Name="YearSemPickerCtl"
+            VerticalAlignment="Center"
+            YearSemesterChanged="YearSemPickerCtl_YearSemesterChanged"/>
+
         <!-- 과목 -->
         <ComboBox
             x:Name="CBoxCourse"

@@ -162,7 +162,7 @@ public sealed partial class CourseSpecPage : Page, IDisposable
 
     private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
     {
-        await CoursePickerCtl.LoadAsync(Settings.WorkYear.Value, Settings.WorkSemester.Value);
+        await CoursePickerCtl.LoadAsync(CoursePickerCtl.SelectedYear, CoursePickerCtl.SelectedSemester);
     }
 
     #endregion

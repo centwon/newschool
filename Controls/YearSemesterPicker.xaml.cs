@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -36,6 +36,22 @@ public sealed partial class YearSemesterPicker : UserControl
 
     // ── 이벤트 ──────────────────────────────────────────
     public event EventHandler<YearSemesterChangedEventArgs>? YearSemesterChanged;
+
+    /// <summary>
+    /// 외부에서 학년도·학기를 지정해 콤보 표시만 맞춘다(<see cref="YearSemesterChanged"/> 는 쏘지 않는다).
+    /// 호출부가 이미 그 값으로 데이터를 로드한 경우 중복 로드를 막기 위한 용도다.
+    /// 목록에 없는 학년도는 무시한다.
+    /// </summary>
+    public void TrySelect(int year, int semester)
+    {
+        _updating = true;
+        try
+        {
+            if (year > 0) SelectByTag(CBoxYear, year);
+            if (semester > 0) SelectByTag(CBoxSemester, semester);
+        }
+        finally { _updating = false; }
+    }
 
     // ── 생성자 ──────────────────────────────────────────
     public YearSemesterPicker()

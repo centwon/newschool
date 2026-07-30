@@ -25,6 +25,11 @@ public sealed partial class LessonActivityPage : Page
     private string? _selectedRoom;
     private Enrollment? _selectedStudent;
 
+    // 필터(CoursePicker)에서 고른 학년도·학기. Settings.WorkYear/WorkSemester 를 직접 쓰면
+    // 필터로 다른 학기를 골라도 현재 학기 기준으로 조회·저장돼 기록이 엉뚱한 학기에 들어간다.
+    private int _selectedYear = Settings.WorkYear.Value;
+    private int _selectedSemester = Settings.WorkSemester.Value;
+
     #endregion
 
     #region Constructor
@@ -73,8 +78,8 @@ public sealed partial class LessonActivityPage : Page
             // 해당 학생의 해당 연도 로그 조회
             var logs = await logService.GetStudentLogsAsync(
                 _selectedStudent.StudentID,
-                Settings.WorkYear.Value,
-                Settings.WorkSemester.Value
+                _selectedYear,
+                _selectedSemester
             );
 
             // 필터링: 해당 과목의 교과활동만
@@ -122,6 +127,8 @@ public sealed partial class LessonActivityPage : Page
     {
         _selectedCourse = e.Course;
         _selectedRoom = e.Room;
+        _selectedYear = e.Year;
+        _selectedSemester = e.Semester;
 
         var sorted = e.Students
             .OrderBy(s => s.Grade)
@@ -169,7 +176,7 @@ public sealed partial class LessonActivityPage : Page
     /// </summary>
     private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
     {
-        await CoursePickerCtl.LoadAsync(Settings.WorkYear.Value, Settings.WorkSemester.Value);
+        await CoursePickerCtl.LoadAsync(CoursePickerCtl.SelectedYear, CoursePickerCtl.SelectedSemester);
     }
 
     /// <summary>
@@ -186,8 +193,8 @@ public sealed partial class LessonActivityPage : Page
         var dialog = new StudentLogDialog(
             SchoolDatabase.DbPath,
             LogCategory.교과활동,
-            Settings.WorkYear.Value,
-            Settings.WorkSemester.Value,
+            _selectedYear,
+            _selectedSemester,
             _selectedCourse.No,
             Settings.User.Value);
 
@@ -235,8 +242,8 @@ public sealed partial class LessonActivityPage : Page
         {
             Category = LogCategory.교과활동,
             TeacherID = Settings.User.Value,
-            Year = Settings.WorkYear.Value,
-            Semester = Settings.WorkSemester.Value,
+            Year = _selectedYear,
+            Semester = _selectedSemester,
             StudentID = _selectedStudent.StudentID,
             Date = DateTime.Now,
             SubjectName = _selectedCourse.Subject,
@@ -360,7 +367,7 @@ public sealed partial class LessonActivityPage : Page
             SpecBox.StudentName = $"{_selectedStudent.GetClassInfo()} {_selectedStudent.Name}";
 
             using var service = new StudentSpecialService();
-            var specials = await service.GetByStudentAsync(_selectedStudent.StudentID, Settings.WorkYear.Value);
+            var specials = await service.GetByStudentAsync(_selectedStudent.StudentID, _selectedYear);
 
             // 교과 세특은 학기별이고 교과목(Course)도 학기별로 등록되므로 CourseNo 로 찾는다.
             // 과목명(Title)으로 찾던 예전 코드는 학년도 전체를 훑기 때문에, 1·2학기에 같은 과목을
@@ -380,7 +387,7 @@ public sealed partial class LessonActivityPage : Page
                 SpecBox.Special = new StudentSpecial
                 {
                     StudentID = _selectedStudent.StudentID,
-                    Year = Settings.WorkYear.Value,
+                    Year = _selectedYear,
                     // 교과 세특은 학기별 — 교과목의 학기를 저장(CourseNo 가 지워져도 학기는 남는다)
                     Semester = Helpers.NeisHelper.IsSemesterScoped(type) ? _selectedCourse.Semester : 0,
                     Type = type,
@@ -439,8 +446,8 @@ public sealed partial class LessonActivityPage : Page
 
         var logDialog = new StudentLogDialog(
             student,
-            Settings.WorkYear.Value,
-            Settings.WorkSemester.Value);
+            _selectedYear,
+            _selectedSemester);
         logDialog.Closed += OnLogDialogClosedReload;
         logDialog.Activate();
     }

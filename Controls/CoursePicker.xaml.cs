@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -34,6 +34,7 @@ public sealed partial class CoursePicker : UserControl
     private bool _updating;
     private int _loadedYear;
     private int _loadedSemester;
+    private int _loadedGrade;   // 학년도·학기가 바뀌어 재조회할 때 같은 학년 필터를 유지하려고 보관
 
     // ── 옵션 ────────────────────────────────────────────
     /// <summary>강의실 콤보 표시 여부 (기본 true)</summary>
@@ -42,8 +43,20 @@ public sealed partial class CoursePicker : UserControl
     /// <summary>강의실 목록에 "전체" 항목 포함 여부 (기본 true)</summary>
     public bool IncludeAllRoom { get; set; } = true;
 
+    /// <summary>학년도 콤보 표시 여부 (기본 true). 내부 YearSemesterPicker 에 위임.</summary>
+    public bool ShowYear { get; set; } = true;
+
+    /// <summary>학기 콤보 표시 여부 (기본 true). 내부 YearSemesterPicker 에 위임.</summary>
+    public bool ShowSemester { get; set; } = true;
+
     // ── 현재 선택값 ─────────────────────────────────────
     public Course? SelectedCourse => CBoxCourse.SelectedItem as Course;
+
+    /// <summary>현재 선택된 학년도 — 호출부가 Settings.WorkYear 대신 이 값을 써야 한다.</summary>
+    public int SelectedYear => _loadedYear;
+
+    /// <summary>현재 선택된 학기 — 교과 세특은 학기별이므로 저장·조회에 이 값을 쓴다.</summary>
+    public int SelectedSemester => _loadedSemester;
     public string? SelectedRoom => (CBoxRoom.SelectedItem as ComboBoxItem)?.Tag as string;
 
     // ── 이벤트 ──────────────────────────────────────────
@@ -64,7 +77,19 @@ public sealed partial class CoursePicker : UserControl
     {
         if (_initialized) return;
         CBoxRoom.Visibility = ShowRoom ? Visibility.Visible : Visibility.Collapsed;
+        YearSemPickerCtl.ShowYear = ShowYear;
+        YearSemPickerCtl.ShowSemester = ShowSemester;
         await LoadAsync(Settings.WorkYear.Value, Settings.WorkSemester.Value);
+    }
+
+    /// <summary>
+    /// 학년도·학기가 바뀌면 그 조건으로 과목을 다시 조회한다.
+    /// 학년 필터(<c>grade</c>)는 마지막 호출값을 유지해야 하므로 <see cref="_loadedGrade"/> 를 쓴다.
+    /// </summary>
+    private async void YearSemPickerCtl_YearSemesterChanged(object sender, YearSemesterChangedEventArgs e)
+    {
+        if (_updating) return;
+        await LoadAsync(e.Year, e.Semester, _loadedGrade);
     }
 
     /// <summary>
@@ -76,10 +101,15 @@ public sealed partial class CoursePicker : UserControl
     {
         _loadedYear = year;
         _loadedSemester = semester;
+        _loadedGrade = grade;
 
         _updating = true;
         try
         {
+            // 외부에서 LoadAsync 로 학년도·학기를 지정한 경우 콤보 표시도 맞춘다
+            // (_updating 중이라 아래 SelectionChanged 가 재귀 로드를 일으키지 않는다)
+            YearSemPickerCtl.TrySelect(year, semester);
+
             var courses = await FetchCoursesAsync(year, semester, grade);
 
             // 이전 선택 과목 유지 시도
