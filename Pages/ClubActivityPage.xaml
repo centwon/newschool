@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="NewSchool.Pages.ClubActivityPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -114,6 +114,50 @@
                         Click="BtnRefresh_Click"
                         ToolTipService.ToolTip="새로고침">
                     <FontIcon Glyph="&#xE72C;" FontSize="16"/>
+                </Button>
+
+                <AppBarSeparator Margin="8,0"/>
+
+                <!-- 글자 크기 — 기록 내용과 학생부 박스에만 적용된다(다른 활동 기록 페이지와 동일) -->
+                <Button x:Name="BtnFontSize"
+                        ToolTipService.ToolTip="글자 크기 조절"
+                        Click="OnFontSizeClick">
+                    <FontIcon Glyph="&#xE8E9;" FontSize="16"/>
+
+                    <FlyoutBase.AttachedFlyout>
+                        <Flyout x:Name="FontSizeFlyout" Placement="Bottom">
+                            <Grid Width="200" Height="150">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0"
+                                           Text="글자 크기"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,8"/>
+
+                                <Slider x:Name="SldFontSize"
+                                        Grid.Row="1"
+                                        Orientation="Vertical"
+                                        Minimum="10"
+                                        Maximum="24"
+                                        Value="14"
+                                        TickFrequency="2"
+                                        TickPlacement="Outside"
+                                        ValueChanged="OnFontSizeChanged"
+                                        HorizontalAlignment="Center"/>
+
+                                <TextBlock Grid.Row="2"
+                                           x:Name="TxtFontSize"
+                                           Text="14"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,8,0,0"/>
+                            </Grid>
+                        </Flyout>
+                    </FlyoutBase.AttachedFlyout>
                 </Button>
             </StackPanel>
         </Grid>

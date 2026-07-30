@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Controls;
 using NewSchool.Dialogs;
@@ -301,6 +302,29 @@ public sealed partial class ClubActivityPage : Page
     /// <summary>
     /// 새로고침
     /// </summary>
+    private void OnFontSizeClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button)
+        {
+            FlyoutBase.ShowAttachedFlyout(button);
+        }
+    }
+
+    /// <summary>
+    /// 글자 크기 슬라이더 — 기록 내용 칸과 학생부 기록 박스에만 적용한다.
+    /// (LogList.FontSize 를 쓰면 행의 각 칸에 크기가 명시돼 있어 헤더 라벨만 커진다)
+    /// </summary>
+    private void OnFontSizeChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (LogList == null) return;
+        LogList.ContentFontSize = e.NewValue;
+
+        // 학생부 기록 박스가 함께 떠 있으므로 같이 키운다(나란히 보며 옮겨 적는 화면)
+        if (SpecBox != null) SpecBox.ContentFontSize = e.NewValue;
+
+        if (TxtFontSize != null) TxtFontSize.Text = $"{e.NewValue:F0}";
+    }
+
     private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
     {
         await LoadClubsAsync();
