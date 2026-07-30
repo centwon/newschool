@@ -27,6 +27,7 @@ public sealed partial class StudentSpecBox : UserControl
     private StudentSpecial? _special;
     private bool _isModified = false;
     private string _originalContent = string.Empty;
+    private string _originalTitle = string.Empty;
 
     #endregion
 
@@ -49,6 +50,15 @@ public sealed partial class StudentSpecBox : UserControl
     /// 수정 여부
     /// </summary>
     public bool IsModified => _isModified;
+
+    /// <summary>
+    /// 편집 중인 Title 텍스트. 진로활동의 희망분야처럼 <b>분량에 포함되는</b> Title 만 입력칸이
+    /// 뜨므로, 그 외 영역에서는 모델의 Title(교과 세특의 과목명 등)을 그대로 돌려준다.
+    /// </summary>
+    private string CurrentTitleText =>
+        PanelTitleInput.Visibility == Visibility.Visible
+            ? TxtTitleInput.Text
+            : _special?.Title ?? string.Empty;
 
     /// <summary>
     /// 헤더에 표시할 학생 정보. "N학년 M반 K번 이름" 형태로 호출부에서 채워 넣는다.
@@ -95,6 +105,19 @@ public sealed partial class StudentSpecBox : UserControl
         // 학생 정보
         TxtStudent.Text = !string.IsNullOrEmpty(StudentName) ? StudentName : _special.StudentID;
 
+        // 영역별 Title 입력칸(진로활동의 희망분야).
+        // 분량에 포함되는 Title 은 교사가 직접 쓰는 글이고, 교과 세특의 과목명처럼 교과목에서
+        // 자동으로 채워지는 Title 은 분량에 들어가지 않는다 → 그 구분을 표시 조건으로 쓴다.
+        bool showTitleInput = NeisHelper.TitleCountsInBytes(_special.Type);
+        PanelTitleInput.Visibility = showTitleInput ? Visibility.Visible : Visibility.Collapsed;
+        if (showTitleInput)
+        {
+            TxtTitleInputLabel.Text = NeisHelper.GetTitleLabel(_special.Type) ?? "구분";
+            TxtTitleInput.Text = _special.Title ?? string.Empty;
+            TxtTitleInput.IsReadOnly = _special.IsFinalized;
+        }
+        _originalTitle = _special.Title ?? string.Empty;
+
         // 내용
         TxtContent.Text = _special.Content ?? string.Empty;
         _originalContent = TxtContent.Text;
@@ -120,6 +143,9 @@ public sealed partial class StudentSpecBox : UserControl
         TxtSubject.Text = "";
         TxtStudent.Text = "";
         TxtContent.Text = "";
+        PanelTitleInput.Visibility = Visibility.Collapsed;
+        TxtTitleInput.Text = "";
+        _originalTitle = string.Empty;
         TxtByteInfo.Text = "0 / 1500 Byte (0자)";
         TxtByteInfo.Foreground = new SolidColorBrush(Colors.Black);
         
@@ -140,8 +166,8 @@ public sealed partial class StudentSpecBox : UserControl
         if (_special == null)
             return;
 
-        // 수정 여부 체크
-        _isModified = TxtContent.Text != _originalContent;
+        // 수정 여부 체크 (희망분야 등 Title 변경도 포함)
+        _isModified = TxtContent.Text != _originalContent || CurrentTitleText != _originalTitle;
         UpdateModifiedIndicator();
 
         // 바이트 정보 업데이트
@@ -253,8 +279,10 @@ public sealed partial class StudentSpecBox : UserControl
 
         try
         {
-            // Content 업데이트
+            // Content + 영역별 Title(진로활동 희망분야) 업데이트
             _special.Content = TxtContent.Text;
+            if (PanelTitleInput.Visibility == Visibility.Visible)
+                _special.Title = TxtTitleInput.Text;
 
             using var service = new StudentSpecialService();
 
@@ -271,6 +299,7 @@ public sealed partial class StudentSpecBox : UserControl
 
             // 저장 성공
             _originalContent = TxtContent.Text;
+            _originalTitle = _special.Title ?? string.Empty;
             _isModified = false;
             UpdateModifiedIndicator();
             return true;
@@ -310,8 +339,9 @@ public sealed partial class StudentSpecBox : UserControl
         string text = TxtContent.Text;
         string type = _special.Type;
 
-        // 바이트 계산
-        int currentBytes = NeisHelper.CountByte(text);
+        // 바이트 계산 — 진로활동은 희망분야(Title)까지 합산한다(NeisHelper.CountSpecBytes).
+        // 편집 중 값이 기준이므로 모델이 아니라 입력칸의 현재 텍스트를 넘긴다.
+        int currentBytes = NeisHelper.CountSpecBytes(type, CurrentTitleText, text);
         int maxBytes = Settings.GetSpecMaxBytes(type, _special.Year);   // 설정 오버라이드 우선
         int charCount = text.Length;
 

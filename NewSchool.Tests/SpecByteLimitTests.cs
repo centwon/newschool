@@ -50,6 +50,75 @@ public class SpecByteLimitTests
 
     #endregion
 
+    #region 진로활동 합산 (CountSpecBytes)
+
+    /// <summary>
+    /// 진로활동은 희망분야(Title)와 특기사항(Content)으로 구성되고 <b>둘을 합쳐</b> 한도를 적용한다.
+    /// </summary>
+    [Fact]
+    public void CountSpecBytes_진로활동은_희망분야와_특기사항을_합산()
+    {
+        // 희망분야 2자(6바이트) + 특기사항 3자(9바이트) = 15바이트
+        Assert.Equal(15, NeisHelper.CountSpecBytes("진로활동", "교사", "성실함"));
+    }
+
+    /// <summary>교과 세특의 Title(과목명)은 자동으로 채워지는 값이라 분량에 넣지 않는다.</summary>
+    [Theory]
+    [InlineData("교과활동")]
+    [InlineData("개인별세특")]
+    [InlineData("자율활동")]
+    [InlineData("동아리활동")]
+    [InlineData("봉사활동")]
+    [InlineData("종합의견")]
+    public void CountSpecBytes_그외_영역은_특기사항만_센다(string type)
+    {
+        Assert.Equal(9, NeisHelper.CountSpecBytes(type, "국어", "성실함"));
+    }
+
+    [Fact]
+    public void CountSpecBytes_null_안전()
+    {
+        Assert.Equal(0, NeisHelper.CountSpecBytes("진로활동", null, null));
+        Assert.Equal(6, NeisHelper.CountSpecBytes("진로활동", "교사", null));
+        Assert.Equal(0, NeisHelper.CountSpecBytes("자율활동", "국어", null));
+    }
+
+    [Fact]
+    public void TitleCountsInBytes_진로활동만_true()
+    {
+        Assert.True(NeisHelper.TitleCountsInBytes("진로활동"));
+        foreach (var a in NeisHelper.Areas)
+            if (a.Key != "진로활동")
+                Assert.False(NeisHelper.TitleCountsInBytes(a.Key), $"{a.Key} 는 합산 대상이 아니어야 함");
+    }
+
+    [Fact]
+    public void GetTitleLabel_영역별_라벨()
+    {
+        Assert.Equal("희망분야", NeisHelper.GetTitleLabel("진로활동"));
+        Assert.Equal("과목명", NeisHelper.GetTitleLabel("교과활동"));
+        Assert.Null(NeisHelper.GetTitleLabel("자율활동"));
+        Assert.Null(NeisHelper.GetTitleLabel("존재하지않는영역"));
+    }
+
+    /// <summary>
+    /// 진로활동 한도(500자=1500바이트)는 희망분야까지 합쳐 판정한다.
+    /// 특기사항만으로는 통과해도 희망분야를 더해 넘으면 초과다.
+    /// </summary>
+    [Fact]
+    public void 진로활동_합산_결과로_초과_판정된다()
+    {
+        int max = NeisHelper.GetMaxBytes("진로활동");     // 1500
+        string content = new string('가', 499);            // 1497바이트
+        string field = "교사";                             // 6바이트 → 합계 1503
+
+        Assert.False(NeisHelper.IsOverLimit(NeisHelper.CountByte(content), max));   // 특기사항만: 통과
+        Assert.True(NeisHelper.IsOverLimit(
+            NeisHelper.CountSpecBytes("진로활동", field, content), max));           // 합산: 초과
+    }
+
+    #endregion
+
     #region 한도 경계 (IsOverLimit) — "이하 허용"
 
     /// <summary>

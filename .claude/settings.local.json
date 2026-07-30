@@ -409,7 +409,10 @@
       "Bash(grep -qiE '통과!|실패!|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\b8gmt7m3d.output\")",
       "Bash(cd \"C:/Users/centw/source/repos/Centwons/NewSchool\" *)",
       "Bash(grep -qiE '빌드했|경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}|Traceback' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bf6gnayav.output\")",
-      "Bash(grep -qiE '통과!|실패!|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bmljfvgpb.output\")"
+      "Bash(grep -qiE '통과!|실패!|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bmljfvgpb.output\")",
+      "Bash(grep -qiE '빌드했|경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}|Traceback' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bit9igck4.output\")",
+      "Bash(grep -qiE '빌드했|경고 [0-9]|오류 [0-9]|: error|CS[0-9]{3,}|WMC|Traceback' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\bi1aomzna.output\")",
+      "Bash(grep -qiE '통과!|실패!|: error|CS[0-9]{3,}' \"C:\\\\Users\\\\centw\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-centw-source-repos-Centwons-NewSchool\\\\21540f63-0a11-4dee-a93c-b1730b59fd2c\\\\tasks\\\\b1277ysd0.output\")"
     ]
   }
 }

@@ -36,6 +36,22 @@ public sealed partial class StudentSpecBatchDialog : Window
 
     private Enrollment? _currentStudent;
     private string _currentOriginalContent = string.Empty;
+    private string _currentOriginalTitle = string.Empty;
+
+    /// <summary>
+    /// 편집 중인 Title 텍스트. 진로활동의 희망분야처럼 <b>분량에 포함되는</b> Title 만 입력칸이
+    /// 뜨므로, 그 외 영역에서는 캐시된 모델의 Title(교과 세특의 과목명 등)을 그대로 쓴다.
+    /// </summary>
+    private string CurrentTitleText
+    {
+        get
+        {
+            if (TxtTitleInput.Visibility == Visibility.Visible) return TxtTitleInput.Text ?? string.Empty;
+            if (_currentStudent != null && _specCache.TryGetValue(_currentStudent.StudentID, out var s))
+                return s.Title ?? string.Empty;
+            return string.Empty;
+        }
+    }
 
     /// <summary>StudentID → StudentSpecial 캐시 (메모리)</summary>
     private readonly Dictionary<string, StudentSpecial> _specCache = new();
@@ -271,6 +287,20 @@ public sealed partial class StudentSpecBatchDialog : Window
         TxtContent.Text = spec.Content ?? string.Empty;
         TxtContent.IsEnabled = !spec.IsFinalized;
 
+        // 영역별 Title 입력칸(진로활동 희망분야) — 분량에 포함되는 Title 만 노출한다
+        // (교과 세특의 과목명은 교과목에서 자동으로 채워지고 분량에도 안 들어간다).
+        bool showTitleInput = NeisHelper.TitleCountsInBytes(_selectedType);
+        var titleVis = showTitleInput ? Visibility.Visible : Visibility.Collapsed;
+        TxtTitleInputLabel.Visibility = titleVis;
+        TxtTitleInput.Visibility = titleVis;
+        if (showTitleInput)
+        {
+            TxtTitleInputLabel.Text = NeisHelper.GetTitleLabel(_selectedType) ?? "구분";
+            TxtTitleInput.Text = spec.Title ?? string.Empty;
+            TxtTitleInput.IsEnabled = !spec.IsFinalized;
+        }
+        _currentOriginalTitle = spec.Title ?? string.Empty;
+
         // 수정 아이콘
         IconModified.Visibility = _modifiedIds.Contains(student.StudentID)
             ? Visibility.Visible : Visibility.Collapsed;
@@ -288,6 +318,20 @@ public sealed partial class StudentSpecBatchDialog : Window
     /// <summary>
     /// 현재 편집 중인 학생의 Content를 캐시에 반영
     /// </summary>
+    /// <summary>희망분야 입력 변경 — 내용 변경과 동일하게 수정 표시·바이트를 갱신한다.</summary>
+    private void TxtTitleInput_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_currentStudent == null) return;
+
+        if ((TxtTitleInput.Text ?? string.Empty) != _currentOriginalTitle)
+        {
+            _modifiedIds.Add(_currentStudent.StudentID);
+            IconModified.Visibility = Visibility.Visible;
+        }
+        UpdateByteInfo();
+        UpdateProgress();
+    }
+
     private void SaveCurrentToCache()
     {
         if (_currentStudent == null) return;
@@ -298,10 +342,18 @@ public sealed partial class StudentSpecBatchDialog : Window
         var newContent = TxtContent.Text ?? string.Empty;
         spec.Content = newContent;
 
+        // 진로활동의 희망분야도 함께 캐시에 반영 (입력칸이 떠 있을 때만)
+        var newTitle = _currentOriginalTitle;
+        if (TxtTitleInput.Visibility == Visibility.Visible)
+        {
+            newTitle = TxtTitleInput.Text ?? string.Empty;
+            spec.Title = newTitle;
+        }
+
         // 변경 감지
-        // _currentOriginalContent는 DB에서 로드한 원본
+        // _currentOriginalContent/_currentOriginalTitle 는 DB에서 로드한 원본
         // 캐시에 이미 수정된 상태일 수도 있으므로, modifiedIds로 추적
-        if (newContent != _currentOriginalContent)
+        if (newContent != _currentOriginalContent || newTitle != _currentOriginalTitle)
         {
             _modifiedIds.Add(studentId);
         }
@@ -545,7 +597,8 @@ public sealed partial class StudentSpecBatchDialog : Window
     private void UpdateByteInfo()
     {
         string text = TxtContent.Text ?? string.Empty;
-        int currentBytes = NeisHelper.CountByte(text);
+        // 진로활동은 희망분야(Title)까지 합산 — 편집 중 값 기준
+        int currentBytes = NeisHelper.CountSpecBytes(_selectedType, CurrentTitleText, text);
         int maxBytes = Settings.GetSpecMaxBytes(_selectedType, _year);   // 설정 오버라이드 우선
         int charCount = text.Length;
 

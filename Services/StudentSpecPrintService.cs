@@ -170,7 +170,7 @@ public class StudentSpecPrintService
                 Cell(table.Cell(), spec.SubjectName ?? string.Empty);
                 Cell(table.Cell(), spec.Content ?? string.Empty, true);
 
-                var byteCount = Helpers.NeisHelper.CountByte(spec.Content ?? string.Empty);
+                var byteCount = Helpers.NeisHelper.CountSpecBytes(spec.Type, spec.Title, spec.Content);
                 var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
                 table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten2)
                     .Background(bg).Padding(5).AlignCenter()
@@ -250,7 +250,7 @@ public class StudentSpecPrintService
                         .Text(spec.Content ?? string.Empty).FontSize(8).LineHeight(1.3f);
 
                     // Byte
-                    var byteCount = Helpers.NeisHelper.CountByte(spec.Content ?? string.Empty);
+                    var byteCount = Helpers.NeisHelper.CountSpecBytes(spec.Type, spec.Title, spec.Content);
                     var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
                     table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten2)
                         .Background(bg).Padding(3).AlignCenter()

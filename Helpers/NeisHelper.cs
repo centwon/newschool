@@ -52,7 +52,19 @@ public static class NeisHelper
     /// 학기별로 따로 작성하는 영역인가. 교과 세부능력 및 특기사항(<c>교과활동</c>)만 true 다.
     /// 개인별세특은 교과 영역이지만 <b>학년 단위</b>이므로 false(=<c>Semester 0</c>).
     /// </param>
-    public sealed record SpecArea(string Key, string Label, int DefaultBytes, bool IsSemesterScoped = false);
+    /// <param name="TitleLabel">
+    /// <c>StudentSpecial.Title</c> 칸이 이 영역에서 담는 것. null 이면 미사용.
+    /// 교과 세특은 과목명, 진로활동은 희망분야를 담는다(영역마다 의미가 다르므로 여기에 적어둔다).
+    /// </param>
+    /// <param name="TitleCountsInBytes">
+    /// 바이트 한도 계산에 <c>Title</c> 도 포함되는가. 진로활동은 <b>희망분야 + 특기사항</b> 을
+    /// 합쳐 한도(연간 500자)를 적용하므로 true 다. 교과 세특의 과목명은 분량에 포함되지 않는다.
+    /// </param>
+    public sealed record SpecArea(
+        string Key, string Label, int DefaultBytes,
+        bool IsSemesterScoped = false,
+        string? TitleLabel = null,
+        bool TitleCountsInBytes = false);
 
     /// <summary>
     /// 학생부 영역 단일 정의표. 코드 기본값은 <b>2027·2028~ 입시 기준</b>이다
@@ -71,12 +83,13 @@ public static class NeisHelper
     [
         // 교과 세특만 학기별(과목당·학기당). 나머지는 전부 학년 단위.
         // 기본값은 2027·2028~ 입시 기준(두 기준의 값이 동일). 한글 1자 = 3바이트.
-        new("교과활동",   "교과활동(세특)",       1500, IsSemesterScoped: true),  // 과목별 500자
-        new("개인별세특", "개인별 세특",          1500),   // 500자. 교과 영역이지만 학년 단위
+        new("교과활동",   "교과활동(세특)",       1500, IsSemesterScoped: true, TitleLabel: "과목명"),  // 과목별 500자
+        new("개인별세특", "개인별 세특",          1500, TitleLabel: "과목명"),   // 500자. 교과 영역이지만 학년 단위
         new("자율활동",   "자율활동",             1500),   // 연간 500자
         new("동아리활동", "동아리활동",           1500),   // 연간 500자
         new("봉사활동",   "봉사활동",              150),   // 실적 50자
-        new("진로활동",   "진로활동",             1500),   // 연간 500자 (2026 입시는 700자였다)
+        // 진로활동은 희망분야와 특기사항으로 구성되고 둘을 합쳐 500자다 → Title 도 한도에 포함
+        new("진로활동",   "진로활동",             1500, TitleLabel: "희망분야", TitleCountsInBytes: true),
         new("종합의견",   "행동특성 및 종합의견",  900),   // 연간 300자 (2026 입시는 500자였다)
     ];
 
@@ -101,6 +114,32 @@ public static class NeisHelper
             if (area.Key == type) return area.IsSemesterScoped;
         return false;   // 모르는 영역은 안전하게 학년 단위
     }
+
+    /// <summary>이 영역에서 <c>Title</c> 칸이 담는 것의 이름(입력 라벨용). 미사용이면 null.</summary>
+    public static string? GetTitleLabel(string type)
+    {
+        foreach (var area in Areas)
+            if (area.Key == type) return area.TitleLabel;
+        return null;
+    }
+
+    /// <summary>바이트 한도 계산에 <c>Title</c> 도 합산하는 영역인가(진로활동).</summary>
+    public static bool TitleCountsInBytes(string type)
+    {
+        foreach (var area in Areas)
+            if (area.Key == type) return area.TitleCountsInBytes;
+        return false;
+    }
+
+    /// <summary>
+    /// 영역 기준으로 실제 사용 바이트를 계산한다.
+    /// 진로활동은 <b>희망분야(Title) + 특기사항(Content)</b> 을 합산하고, 그 외는 특기사항만 센다.
+    /// 입력 화면·일괄 입력·뷰모델·엑셀·HTML·PDF 가 모두 이 메서드를 쓰므로 기준이 어긋나지 않는다.
+    /// </summary>
+    public static int CountSpecBytes(string type, string? title, string? content)
+        => TitleCountsInBytes(type)
+            ? CountByte(title ?? string.Empty) + CountByte(content ?? string.Empty)
+            : CountByte(content ?? string.Empty);
 
     // 미사용 메서드 제거 (2026-04-22):
     //   GetAreaDisplayName / IsOverLimit / GetByteInfo / GetRemainingBytes — 호출처 0건

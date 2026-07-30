@@ -285,7 +285,7 @@ public class HtmlExportService
 
             foreach (var spec in specs)
             {
-                var byteCount = NeisHelper.CountByte(spec.Content ?? string.Empty);
+                var byteCount = NeisHelper.CountSpecBytes(spec.Type, spec.Title, spec.Content);
                 var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
                 var over = NeisHelper.IsOverLimit(byteCount, maxBytes);
 
@@ -383,7 +383,7 @@ public class HtmlExportService
 
         foreach (var spec in specs)
         {
-            var byteCount = NeisHelper.CountByte(spec.Content ?? string.Empty);
+            var byteCount = NeisHelper.CountSpecBytes(spec.Type, spec.Title, spec.Content);
             var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
             var over = NeisHelper.IsOverLimit(byteCount, maxBytes);
 

@@ -149,12 +149,17 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
     /// 목록의 "과목/분야" 칸 표시값. 영역에 따라 담기는 정보가 달라서 한 칸에 모아 보여준다.
     ///  · 교과활동   → 과목명 + 학기("국어 (2학기)") — 교과 세특만 학기별이므로 학기를 함께 노출
     ///  · 개인별세특 → 과목명만(학년 단위라 학기 없음)
+    ///  · 진로활동   → 희망분야(Title). 분량이 특기사항과 합산되므로 같은 행에서 함께 보여준다
     ///  · 그 외      → 빈칸
     /// </summary>
     public string SubjectDisplay
     {
         get
         {
+            // 진로활동처럼 Title 이 분량에 포함되는 영역은 그 Title(희망분야)을 보여준다
+            if (Helpers.NeisHelper.TitleCountsInBytes(_special.Type))
+                return _special.Title ?? string.Empty;
+
             var subject = _special.SubjectName ?? string.Empty;
             if (Helpers.NeisHelper.IsSemesterScoped(_special.Type) && _special.Semester > 0)
                 return string.IsNullOrEmpty(subject)
@@ -163,6 +168,36 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
             return subject;
         }
     }
+
+    /// <summary>
+    /// 목록에서 직접 편집 가능한 Title(진로활동 희망분야). 그 외 영역에서는 편집칸을 숨긴다.
+    /// 변경 시 <see cref="Content"/> 와 동일하게 수정 표시·바이트 정보를 갱신한다.
+    /// </summary>
+    public string TitleEditable
+    {
+        get => _special.Title ?? string.Empty;
+        set
+        {
+            if ((_special.Title ?? string.Empty) == (value ?? string.Empty)) return;
+            _special.Title = value ?? string.Empty;
+            IsModified = true;
+            IsSelected = true;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SubjectDisplay));
+            UpdateByteInfo();
+        }
+    }
+
+    /// <summary>진로활동처럼 희망분야를 목록에서 입력하는 영역인가(편집칸 표시 조건).</summary>
+    public bool IsTitleEditable => Helpers.NeisHelper.TitleCountsInBytes(_special.Type);
+
+    /// <summary>희망분야 편집칸의 표시/숨김.</summary>
+    public Microsoft.UI.Xaml.Visibility TitleEditVisibility =>
+        IsTitleEditable ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    /// <summary>희망분야 편집칸이 뜨면 텍스트 표시는 감춘다(같은 칸을 공유).</summary>
+    public Microsoft.UI.Xaml.Visibility SubjectTextVisibility =>
+        IsTitleEditable ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
     public bool IsFinalized => _special.IsFinalized;
     public string Tag => _special.Tag;
 
@@ -251,7 +286,7 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
             return;
         }
 
-        int currentBytes = NeisHelper.CountByte(_special.Content);
+        int currentBytes = NeisHelper.CountSpecBytes(_special.Type, _special.Title, _special.Content);
         int maxBytes = Settings.GetSpecMaxBytes(_special.Type, _special.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
         int charCount = _special.Content?.Length ?? 0;
 

@@ -131,6 +131,20 @@
                                           Foreground="{ThemeResource SystemFillColorCautionBrush}"
                                           Visibility="Collapsed"
                                           ToolTipService.ToolTip="수정됨 (미저장)"/>
+
+                                <!-- 영역별 Title 입력 (진로활동의 희망분야). 학생마다 다르므로
+                                     상단 전역 툴바가 아니라 학생 정보 줄에 둔다. -->
+                                <TextBlock x:Name="TxtTitleInputLabel"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Margin="12,0,0,0"
+                                           Visibility="Collapsed"/>
+                                <TextBox x:Name="TxtTitleInput"
+                                         MinWidth="200" FontSize="13"
+                                         VerticalAlignment="Center"
+                                         Visibility="Collapsed"
+                                         IsEnabled="False"
+                                         TextChanged="TxtTitleInput_TextChanged"/>
                             </StackPanel>
 
                             <TextBlock x:Name="TxtByteInfo"
