@@ -8,13 +8,20 @@ using NewSchool.Repositories;
 namespace NewSchool.Services;
 
 /// <summary>
-/// Enrollment Service - A안의 핵심!
-/// 학적 관리 비즈니스 로직
+/// Enrollment Service — 학적 조회와 진급 처리.
+///
+/// <para>⚠ 2026-07-30 정리: 학급 배정(AssignToClass·BulkAssign)·전학(TransferIn·TransferOut)·
+/// 학적 이력 조회·담임별 조회·정적 UpdateAsync 를 제거했다. 전부 호출부가 0건이었고,
+/// 전학 처리는 상태값을 <c>"전학(전출)"</c> 같은 리터럴로 써서 <see cref="EnrollmentStatus"/>
+/// (<c>"전학"</c>)와도 어긋나 있었다. 실제 학적 생성은 <c>Pages/AddStudentsPage</c> 가 한다.</para>
+///
+/// <para><see cref="PromoteStudentsAsync"/> 는 호출부가 없지만 <b>의도적으로 남긴다</b> —
+/// 학년을 넘겨 누가기록·특기사항을 잇는 유일한 경로이고 회귀 테스트가 붙어 있다.
+/// 실사용 전에 반·번호 재배정 미리보기 화면이 필요할 뿐이다.</para>
 /// </summary>
 public sealed class EnrollmentService : IDisposable
 {
     private readonly EnrollmentRepository _enrollmentRepo;
-    private readonly StudentRepository _studentRepo;
     private bool _disposed;
 
     public EnrollmentService() : this(SchoolDatabase.DbPath) { }
@@ -23,77 +30,7 @@ public sealed class EnrollmentService : IDisposable
     public EnrollmentService(string dbPath)
     {
         _enrollmentRepo = new EnrollmentRepository(dbPath);
-        _studentRepo = new StudentRepository(dbPath);
     }
-
-    #region 학급 배정
-
-    /// <summary>
-    /// 학생을 학급에 배정
-    /// </summary>
-    public async Task<int> AssignToClassAsync(Enrollment enrollment)
-    {
-        // 유효성 검증
-        ValidateEnrollment(enrollment);
-
-        // 중복 배정 확인
-        var existing = await _enrollmentRepo.GetCurrentByStudentIdAsync(enrollment.StudentID);
-        if (existing != null && existing.Year == enrollment.Year && existing.Semester == enrollment.Semester)
-        {
-            throw new InvalidOperationException(
-                $"학생이 이미 {enrollment.Year}년 {enrollment.Semester}학기에 배정되어 있습니다.");
-        }
-
-        // 학생 존재 확인
-        var student = await _studentRepo.GetByIdAsync(enrollment.StudentID);
-        if (student == null)
-        {
-            throw new InvalidOperationException($"존재하지 않는 학생입니다: {enrollment.StudentID}");
-        }
-
-        // 배정 실행
-        enrollment.Status = EnrollmentStatus.Enrolled;
-        enrollment.CreatedAt = DateTime.Now;
-        enrollment.UpdatedAt = DateTime.Now;
-
-        return await _enrollmentRepo.CreateAsync(enrollment);
-    }
-
-    /// <summary>
-    /// 여러 학생을 한 번에 배정 (트랜잭션)
-    /// </summary>
-    public async Task<int> BulkAssignAsync(List<Enrollment> enrollments)
-    {
-        if (enrollments == null || enrollments.Count == 0)
-            return 0;
-
-        try
-        {
-            _enrollmentRepo.BeginTransaction();
-
-            int count = 0;
-            foreach (var enrollment in enrollments)
-            {
-                ValidateEnrollment(enrollment);
-                enrollment.Status = EnrollmentStatus.Enrolled;
-                enrollment.CreatedAt = DateTime.Now;
-                enrollment.UpdatedAt = DateTime.Now;
-
-                await _enrollmentRepo.CreateAsync(enrollment);
-                count++;
-            }
-
-            _enrollmentRepo.Commit();
-            return count;
-        }
-        catch
-        {
-            _enrollmentRepo.Rollback();
-            throw;
-        }
-    }
-
-    #endregion
 
     #region 진급 처리
 
@@ -159,71 +96,12 @@ public sealed class EnrollmentService : IDisposable
 
     #endregion
 
-    #region 전학 처리
-
-    /// <summary>
-    /// 전학(전출) 처리
-    /// </summary>
-    public async Task<bool> TransferOutAsync(int enrollmentNo, string transferOutSchool, DateTime transferDate)
-    {
-        var enrollment = await _enrollmentRepo.GetByIdAsync(enrollmentNo);
-        if (enrollment == null)
-        {
-            throw new InvalidOperationException($"존재하지 않는 학적입니다: {enrollmentNo}");
-        }
-
-        if (enrollment.Status != EnrollmentStatus.Enrolled)
-        {
-            throw new InvalidOperationException($"재학 중인 학생만 전출 가능합니다. 현재 상태: {enrollment.Status}");
-        }
-
-        // 전출 정보 업데이트
-        enrollment.Status = "전학(전출)";
-        enrollment.TransferOutDate = transferDate.ToString("yyyy-MM-dd");
-        enrollment.TransferOutSchool = transferOutSchool;
-        enrollment.UpdatedAt = DateTime.Now;
-
-        return await _enrollmentRepo.UpdateAsync(enrollment);
-    }
-
-    /// <summary>
-    /// 전학(전입) 처리
-    /// </summary>
-    public async Task<int> TransferInAsync(Student student, Enrollment enrollment, string transferInSchool, DateTime transferDate)
-    {
-        // 학생이 이미 존재하는지 확인
-        var existingStudent = await _studentRepo.GetByIdAsync(student.StudentID);
-        if (existingStudent == null)
-        {
-            // 새 학생 등록
-            await _studentRepo.CreateAsync(student);
-        }
-
-        // 전입 학적 생성
-        enrollment.Status = "전학(전입)";
-        enrollment.TransferInDate = transferDate.ToString("yyyy-MM-dd");
-        enrollment.TransferInSchool = transferInSchool;
-        enrollment.CreatedAt = DateTime.Now;
-        enrollment.UpdatedAt = DateTime.Now;
-
-        return await _enrollmentRepo.CreateAsync(enrollment);
-    }
-
-    #endregion
-
     // 졸업 처리(GraduateAsync)는 제거됨 — 조회가 전부 학년도 기준이라 별도 졸업 마감이
     // 불필요하고, UI 미노출 상태에서 초등(1~6학년) 진급을 졸업으로 오처리하는 버그의
     // 온상이었다. 학적 상태값(EnrollmentStatus.Graduated)과 GraduationDate 컬럼은
     // 과거 데이터 호환을 위해 유지한다. (2026-07-15)
 
     #region 조회
-    ///<summary>
-        ///학년도 리스트 조회
-    /// </summary>
-    public async Task<List<int>> GetYearListAsync(string? schoolcode=null)
-    {
-        return await _enrollmentRepo.GetEnrollmentYearsAsync(schoolcode);
-    }
     ///<summary>
         ///학년도별 학년 리스트 조회
     /// </summary>
@@ -285,11 +163,6 @@ public sealed class EnrollmentService : IDisposable
             .ToList();
 
     /// <summary>
-    /// 학생의 학적 이력 조회
-    /// </summary>
-    public async Task<List<Enrollment>> GetStudentHistoryAsync(string studentId) => await _enrollmentRepo.GetHistoryByStudentIdAsync(studentId);
-
-    /// <summary>
     /// 학생의 현재 학적 조회
     /// </summary>
     public async Task<Enrollment?> GetCurrentEnrollmentAsync(string studentId) => await _enrollmentRepo.GetCurrentByStudentIdAsync(studentId);
@@ -298,58 +171,6 @@ public sealed class EnrollmentService : IDisposable
     /// 여러 학생의 현재 학적을 한 번에 조회 - N+1 방지용
     /// </summary>
     public async Task<List<Enrollment>> GetCurrentEnrollmentsAsync(List<string> studentIds) => await _enrollmentRepo.GetCurrentByStudentIdsAsync(studentIds);
-
-    /// <summary>
-    /// 담임교사의 학생 목록 조회
-    /// Enrollment에 Name, Sex, Photo가 denormalized되어 있어 단일 테이블 조회로 충분
-    /// </summary>
-    public async Task<List<Enrollment>> GetTeacherStudentsAsync(string teacherId, int year)
-    {
-        // 학기로 거르지 않는다 — 학적은 학년 단위다(GetEnrollmentsAsync 주석 참고).
-        // 예전에는 Where(e => e.Semester == semester) 라서 1학기에 등록한 학급이
-        // 2학기에는 담임 화면에서 통째로 비었다.
-        var enrollments = await _enrollmentRepo.GetByTeacherAsync(teacherId, year);
-        return DedupeByYear(enrollments);
-    }
-
-    #endregion
-
-    public static async Task<bool> UpdateAsync(Enrollment enrollment)
-
-    {
-        using var service = new EnrollmentService();
-        // 유효성 검증
-        service.ValidateEnrollment(enrollment);
-        // 업데이트 실행
-        enrollment.UpdatedAt = DateTime.Now;
-        using var repo = new EnrollmentRepository(SchoolDatabase.DbPath);
-        return await repo.UpdateAsync(enrollment);
-    }
-    #region 유효성 검증
-
-    private void ValidateEnrollment(Enrollment enrollment)
-    {
-        if (string.IsNullOrEmpty(enrollment.StudentID))
-            throw new ArgumentException("학생 ID는 필수입니다.");
-
-        if (string.IsNullOrEmpty(enrollment.SchoolCode))
-            throw new ArgumentException("학교 코드는 필수입니다.");
-
-        if (enrollment.Year < 2000 || enrollment.Year > 2100)
-            throw new ArgumentException("학년도가 올바르지 않습니다.");
-
-        if (enrollment.Semester != 1 && enrollment.Semester != 2)
-            throw new ArgumentException("학기는 1 또는 2만 가능합니다.");
-
-        if (enrollment.Grade < 1 || enrollment.Grade > 6)
-            throw new ArgumentException("학년은 1~6 사이여야 합니다.");
-
-        if (enrollment.Class < 1)
-            throw new ArgumentException("반은 1 이상이어야 합니다.");
-
-        if (enrollment.Number < 1)
-            throw new ArgumentException("번호는 1 이상이어야 합니다.");
-    }
 
     #endregion
 
@@ -360,7 +181,6 @@ public sealed class EnrollmentService : IDisposable
         if (!_disposed)
         {
             _enrollmentRepo?.Dispose();
-            _studentRepo?.Dispose();
             _disposed = true;
         }
     }

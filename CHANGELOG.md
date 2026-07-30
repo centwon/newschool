@@ -2,6 +2,27 @@
 
 ## 미출시
 
+### 죽은 코드 제거 - StudentService / EnrollmentService (2026-07-30)
+29차에서 보고한 호출부 0건 메서드들을 제거했다. **547줄 삭제**, 테스트 354개 유지, 빌드 경고 0.
+
+- `StudentService` 11개 제거: `RegisterNewStudentAsync`, `GenerateStudentID`, `GetFullInfoAsync`,
+  `GetDetailInfoAsync`, `SearchByNameAsync`, `UpdateDetailInfoAsync`, `UpdateContactInfoAsync`,
+  `UpdateGuardianContactAsync`, `DeleteStudentAsync`, `GetTotalStudentCountAsync`,
+  `CheckCompletenessAsync`(+`StudentInfoCompleteness` 클래스). 남은 것은 조회 2개와 수정 1개뿐
+    - 그중 `RegisterNewStudentAsync` 는 **트랜잭션이 가짜**였다 — studentRepo 에만 트랜잭션을
+      걸고 enrollment·detail 은 다른 연결로 즉시 커밋돼, 되살려 쓰면 바로 깨질 코드였다
+    - `GenerateStudentID` 는 `Student.GenerateStudentID` 와 **같은 규칙을 중복 구현**하고 있었다
+      (실제로 쓰이는 쪽은 모델의 것)
+- `EnrollmentService` 8개 제거: `AssignToClassAsync`, `BulkAssignAsync`, `TransferInAsync`,
+  `TransferOutAsync`, `GetYearListAsync`, `GetStudentHistoryAsync`, `GetTeacherStudentsAsync`,
+  정적 `UpdateAsync`
+    - 전학 처리는 상태값을 `"전학(전출)"` 리터럴로 써서 `EnrollmentStatus.Transferred`(`"전학"`)와
+      어긋나 있었다 — 살렸다면 상태로 거르는 코드와 맞지 않았을 것이다
+- 두 서비스에서 쓰이지 않게 된 리포지토리 필드와 검증 메서드도 함께 정리
+- **`PromoteStudentsAsync`(진급)는 남긴다** — 호출부는 없지만 학년을 넘겨 누가기록·특기사항을
+  잇는 유일한 경로이고 회귀 테스트가 붙어 있다. 실사용 전에 반·번호 재배정 화면만 있으면 된다
+
+
 ### 29차 전수조사 - 학생·재적 관리 (2026-07-30)
 학생 등록(`AddStudentsPage`), `StudentService`·`EnrollmentService`·`StudentRepository` 를 점검했다.
 결함은 전부 **실제로 쓰이는 유일한 등록 경로**인 학생 추가 화면에 몰려 있었다. 테스트 350 -> 353,
