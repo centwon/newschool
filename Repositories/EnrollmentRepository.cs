@@ -382,48 +382,12 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-            /// 특정 학년의 모든 학생 조회
-        /// </summary>
-        public async Task<List<Enrollment>> GetByGradeAsync(string schoolCode, int year, int semester, int grade=0)
-        {
-            var gradeCondition = grade > 0 ? "AND Grade = @Grade" : "";
-            string query = $@"
-                SELECT * FROM Enrollment
-                WHERE SchoolCode = @SchoolCode
-                  AND Year = @Year
-                  AND Semester = @Semester
-                  {gradeCondition}
-                  AND IsDeleted = 0
-                ORDER BY Class, Number";
-
-            var enrollments = new List<Enrollment>();
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                if (grade > 0) cmd.Parameters.AddWithValue("@Grade", grade);
-
-                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
-                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
-
-                LogInfo($"학년별 학생 조회 완료: {grade}학년, Count={enrollments.Count}");
-                return enrollments;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학년별 학생 조회 실패", ex);
-                throw;
-            }
-        }
-        /// <summary>
-        /// 학생 목록 조회 (필터: 학교코드, 학년, 반)
-        /// /// 
-        /// </summary>
-        public async Task<List<Enrollment>> GetEnrollmentsAsync(string? schoolCode, int year=0, int grade=0, int classNum=0, int semester=0)
+        /// <remarks>
+        /// ⚠ 학기 조건은 두지 않는다. 학적은 학년 단위이고(EnrollmentService.GetEnrollmentsAsync
+        /// 주석 참고) 앱이 2학기 학적을 만들지 않으므로, 학기로 거르면 1학기에 등록한 학생이
+        /// 2학기에 통째로 사라진다. 예전에 실제로 그랬다 — 인자를 다시 만들지 말 것.
+        /// </remarks>
+        public async Task<List<Enrollment>> GetEnrollmentsAsync(string? schoolCode, int year=0, int grade=0, int classNum=0)
         {
             var conditions = new List<string> { "IsDeleted = 0" };
             if (!string.IsNullOrWhiteSpace(schoolCode))
@@ -431,7 +395,6 @@ namespace NewSchool.Repositories
             if (year > 0) conditions.Add("Year = @Year");
             if (grade > 0) conditions.Add("Grade = @Grade");
             if (classNum > 0) conditions.Add("Class = @Class");
-            if (semester > 0) conditions.Add("Semester = @Semester");
 
             string query = $@"SELECT * FROM Enrollment
                 WHERE {string.Join(" AND ", conditions)}
@@ -447,7 +410,6 @@ namespace NewSchool.Repositories
                 if (year > 0) cmd.Parameters.AddWithValue("@Year", year);
                 if (grade > 0) cmd.Parameters.AddWithValue("@Grade", grade);
                 if (classNum > 0) cmd.Parameters.AddWithValue("@Class", classNum);
-                if (semester > 0) cmd.Parameters.AddWithValue("@Semester", semester);
                 Debug.WriteLine("Parameters: " + string.Join(", ", cmd.Parameters.Cast<SqliteParameter>().Select(p => $"{p.ParameterName}={p.Value}")));
                 // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
                 enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);

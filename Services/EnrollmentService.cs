@@ -47,8 +47,13 @@ public sealed class EnrollmentService : IDisposable
         if (fromGrade >= maxGrade)
             return 0; // 최고 학년은 진급 대상 아님 (졸업 마감 처리도 하지 않음)
 
-        // 진급 대상 학생 조회 (2학기 재학생)
-        var students = await _enrollmentRepo.GetByGradeAsync(schoolCode, fromYear, 2, fromGrade);
+        // 진급 대상 = 그 학년도 해당 학년의 재학생.
+        //
+        // ⚠ 예전에는 "2학기 학적"만 찾았다(GetByGradeAsync(..., semester: 2, ...)).
+        //    그런데 앱은 2학기 학적을 만들지 않으므로(학적은 학년 단위 — GetEnrollmentsAsync
+        //    주석 참고) 실제 데이터에서는 늘 0명이었다. 회귀 테스트가 2학기 행을 직접 심어
+        //    통과시키고 있어 드러나지 않았다.
+        var students = await GetEnrollmentsAsync(schoolCode, fromYear, fromGrade);
         var activeStudents = students.Where(e => e.Status == EnrollmentStatus.Enrolled).ToList();
 
         if (activeStudents.Count == 0)
