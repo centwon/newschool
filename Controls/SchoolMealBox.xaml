@@ -106,6 +106,16 @@
                     </ItemsRepeater.ItemTemplate>
                 </ItemsRepeater>
             </ScrollViewer>
+
+            <!-- 조회 실패 안내 — 사용자가 직접 날짜를 바꿨을 때는 상자 안에서 알린다
+                 (홈 화면 첫 로드는 하단 전역 InfoBar 가 맡는다) -->
+            <TextBlock x:Name="TxtMealStatus"
+                       Grid.Row="1"
+                       Margin="12,8"
+                       TextWrapping="Wrap"
+                       FontSize="12"
+                       Visibility="Collapsed"
+                       Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
         </Grid>
     </Border>
 </UserControl>

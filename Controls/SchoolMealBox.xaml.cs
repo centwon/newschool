@@ -62,6 +62,8 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
     /// </summary>
     public async Task LoadMealsAsync(DateTime date)
     {
+        SetStatus(null);
+
         try
         {
             Debug.WriteLine($"[SchoolMealBox] 급식 정보 로드 시작 - 날짜: {date:yyyy-MM-dd}");
@@ -95,6 +97,36 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
     }
 
     /// <summary>
+    /// 사용자가 상자 안에서 날짜를 바꾼 경우의 조회 — 실패해도 앱이 죽으면 안 되므로
+    /// 여기서 잡아 상자 안에 안내한다.
+    ///
+    /// <para>⚠ <see cref="LoadMealsAsync"/> 는 실패를 <b>예외로 올린다</b>(홈 화면이 전역
+    /// InfoBar 로 모으기 위해서다). 그래서 <c>async void</c> 핸들러에서 그대로 부르면
+    /// 미처리 예외가 된다 — 반드시 이 경로를 쓸 것.</para>
+    /// </summary>
+    private async Task LoadMealsForUserAsync(DateTime date)
+    {
+        try
+        {
+            await LoadMealsAsync(date);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"급식 정보를 불러오지 못했습니다. {ex.Message}");
+        }
+    }
+
+    private void SetStatus(string? message)
+    {
+        if (TxtMealStatus == null) return;
+
+        TxtMealStatus.Text = message ?? string.Empty;
+        TxtMealStatus.Visibility = string.IsNullOrEmpty(message)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    /// <summary>
     /// 급식 정보 직접 설정
     /// </summary>
     public void SetMeals(List<SchoolMeal> meals)
@@ -125,7 +157,7 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
     private async void PreviousDayButton_Click(object sender, RoutedEventArgs e)
     {
         SelectedDate = SelectedDate.AddDays(-1);
-        await LoadMealsAsync(SelectedDate.DateTime);
+        await LoadMealsForUserAsync(SelectedDate.DateTime);
     }
 
     /// <summary>
@@ -134,7 +166,7 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
     private async void NextDayButton_Click(object sender, RoutedEventArgs e)
     {
         SelectedDate = SelectedDate.AddDays(1);
-        await LoadMealsAsync(SelectedDate.DateTime);
+        await LoadMealsForUserAsync(SelectedDate.DateTime);
     }
 
     /// <summary>
@@ -143,7 +175,7 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
     private async void TodayButton_Click(object sender, RoutedEventArgs e)
     {
         SelectedDate = DateTimeOffset.Now;
-        await LoadMealsAsync(SelectedDate.DateTime);
+        await LoadMealsForUserAsync(SelectedDate.DateTime);
     }
 
     /// <summary>
@@ -153,7 +185,7 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
     {
         if (args.NewDate.HasValue)
         {
-            await LoadMealsAsync(args.NewDate.Value.DateTime);
+            await LoadMealsForUserAsync(args.NewDate.Value.DateTime);
         }
     }
 
