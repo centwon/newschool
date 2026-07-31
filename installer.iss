@@ -1,4 +1,4 @@
-; NewSchool Inno Setup Script
+﻿; NewSchool Inno Setup Script
 ; 사용법:
 ;   1. Visual Studio에서 게시(Publish) 실행
 ;   2. prerequisites 폴더에 런타임 설치 파일 다운로드:
@@ -9,7 +9,7 @@
 ;   5. installer_output 폴더에 NewSchoolSetup_x.x.x.exe 생성됨
 
 #define MyAppName "NewSchool"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "Centwon"
 #define MyAppExeName "NewSchool.exe"
 #define MyAppDescription "교사를 위한 학교 업무 도우미"

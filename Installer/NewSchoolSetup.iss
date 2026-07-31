@@ -1,4 +1,4 @@
-; ============================================================
+﻿; ============================================================
 ; NewSchool Inno Setup Script
 ; ============================================================
 ; 사전 준비:
@@ -9,7 +9,7 @@
 ; ============================================================
 
 #define MyAppName "NewSchool"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "Centwon"
 #define MyAppExeName "NewSchool.exe"
 #define MyAppURL "https://github.com/Centwons/NewSchool"
