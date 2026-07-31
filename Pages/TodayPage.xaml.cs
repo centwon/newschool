@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -112,19 +112,32 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
     private async Task LoadTodayDataAsync()
     {
+        // 섹션 하나가 실패해도 나머지는 보여주되, 실패했다는 사실은 알린다.
+        //
+        // ⚠ 예전에는 SafeLoadAsync 가 실패를 Debug 로그로만 남겨서, 급식이나 시간표를
+        //    못 불러와도 화면상 "오늘은 없음"과 구분되지 않았다.
+        var failed = new List<string>();
+
         try
         {
             await Task.WhenAll(
-                SafeLoadAsync("오늘 시간표", LoadTimetableSlotsAsync),
-                SafeLoadAsync("오늘 행사",  LoadTodayEventAsync),
-                SafeLoadAsync("학사일정",  () => ScheduleList.LoadSchedulesAsync(DateTime.Today, 28, true)),
-                SafeLoadAsync("할 일/일정", () => AgendaList.LoadPendingAndFutureAsync()),
-                SafeLoadAsync("급식",      () => MealBox.LoadMealsAsync(DateTime.Today))
+                SafeLoadAsync("오늘 시간표", LoadTimetableSlotsAsync, failed),
+                SafeLoadAsync("오늘 행사",  LoadTodayEventAsync, failed),
+                SafeLoadAsync("학사일정",  () => ScheduleList.LoadSchedulesAsync(DateTime.Today, 28, true), failed),
+                SafeLoadAsync("할 일/일정", () => AgendaList.LoadPendingAndFutureAsync(), failed),
+                SafeLoadAsync("급식",      () => MealBox.LoadMealsAsync(DateTime.Today), failed)
             );
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[TodayPage] 페이지 로드 오류: {ex.GetType().Name} - {ex.Message}");
+        }
+
+        if (failed.Count > 0 && App.MainWindow is MainWindow main)
+        {
+            main.ShowGlobalWarning(
+                "일부 정보를 불러오지 못했습니다",
+                $"{string.Join(", ", failed)} — 새로고침하거나 잠시 후 다시 확인해주세요.");
         }
     }
 
@@ -136,10 +149,17 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         TxtTodayDow.Text = GetKoreanDayOfWeek(_headerDate.DayOfWeek);
     }
 
-    private static async Task SafeLoadAsync(string name, Func<Task> load)
+    private static async Task SafeLoadAsync(string name, Func<Task> load, List<string> failed)
     {
-        try { await load(); }
-        catch (Exception ex) { Debug.WriteLine($"[TodayPage] ✗ {name} 로드 실패: {ex.Message}"); }
+        try
+        {
+            await load();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TodayPage] ✗ {name} 로드 실패: {ex}");
+            lock (failed) failed.Add(name);
+        }
     }
 
     #region 상단 날짜 헤더 / 현재 교시

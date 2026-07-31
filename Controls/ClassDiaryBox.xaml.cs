@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Services;
@@ -22,6 +23,11 @@ public sealed partial class ClassDiaryBox : UserControl
 
     private bool _isChanged = false;
 
+    /// <summary>마지막 입력 후 이만큼 지나면 자동 저장한다.</summary>
+    private const int AutoSaveDelayMs = 3000;
+
+    private readonly DispatcherQueueTimer _autoSaveTimer;
+
     public ClassDiaryBox()
     {
         this.InitializeComponent();
@@ -29,8 +35,28 @@ public sealed partial class ClassDiaryBox : UserControl
         
         // JoditEditor TextChanged 이벤트 구독
         NoticeBox.TextChanged += NoticeBox_TextChanged;
-        
+
+        // ⚠ 저장 시점을 앞당기는 장치다.
+        //    예전에는 저장이 날짜 변경·목록 이동·화면 언로드에서만 일어나서, 알림장을 쓰고
+        //    앱을 그냥 닫으면 내용이 사라졌다. 창 닫기 훅으로는 못 막는다 — 핸들러가 동기라
+        //    비동기 DB 저장이 프로세스 종료와 경합한다.
+        //    그래서 (1) 입력칸에서 포커스가 빠질 때, (2) 입력이 멎고 3초 뒤에 저장한다.
+        _autoSaveTimer = DispatcherQueue.CreateTimer();
+        _autoSaveTimer.Interval = TimeSpan.FromMilliseconds(AutoSaveDelayMs);
+        _autoSaveTimer.IsRepeating = false;
+        _autoSaveTimer.Tick += async (_, _) => await SaveDiaryAsync();
+
+        foreach (var box in new[] { TBoxAbsent, TBoxLate, TBoxLeaveEarly, TBoxMemo })
+            box.LostFocus += async (_, _) => await SaveDiaryAsync();
+
         this.Unloaded += OnUnloaded;
+    }
+
+    /// <summary>입력이 있을 때마다 자동 저장 타이머를 다시 센다(디바운스).</summary>
+    private void RestartAutoSaveTimer()
+    {
+        _autoSaveTimer.Stop();
+        _autoSaveTimer.Start();
     }
 
     /// <summary>
@@ -125,6 +151,7 @@ public sealed partial class ClassDiaryBox : UserControl
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] SaveDiaryAsync 완료: No={ViewModel.No}");
         
         _isChanged = false;
+        _autoSaveTimer.Stop();
         ResetTextBoxStyles();
     }
 
@@ -146,6 +173,7 @@ public sealed partial class ClassDiaryBox : UserControl
     {
         _isChanged = true;
         textBox.FontStyle = Windows.UI.Text.FontStyle.Italic;
+        RestartAutoSaveTimer();
     }
 
     #region 이벤트 핸들러
@@ -157,6 +185,7 @@ public sealed partial class ClassDiaryBox : UserControl
     {
         _isChanged = true;
         UpdateNoticePreview();
+        RestartAutoSaveTimer();
     }
 
     /// <summary>
@@ -245,6 +274,7 @@ public sealed partial class ClassDiaryBox : UserControl
             NoticeBox.Text = content;
             _isChanged = true;
             UpdateNoticePreview();
+            RestartAutoSaveTimer();
         }
     }
 
@@ -301,6 +331,9 @@ public sealed partial class ClassDiaryBox : UserControl
     /// </summary>
     private async void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        // 컨트롤이 사라진 뒤에 타이머가 뜨지 않도록 먼저 멈춘다
+        _autoSaveTimer.Stop();
+
         if (_isChanged)
         {
             await SaveDiaryAsync();

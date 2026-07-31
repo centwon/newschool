@@ -65,6 +65,26 @@ public sealed partial class MainWindow : Window
         GlobalInfoBar.IsOpen = true;
     }
 
+    /// <summary>
+    /// 재시도 버튼 없는 일반 경고를 전역 InfoBar 로 알린다(예: 홈 화면 일부 섹션 로드 실패).
+    /// 어느 스레드에서 호출해도 안전.
+    /// </summary>
+    public void ShowGlobalWarning(string title, string message)
+    {
+        if (!DispatcherQueue.HasThreadAccess)
+        {
+            DispatcherQueue.TryEnqueue(() => ShowGlobalWarning(title, message));
+            return;
+        }
+
+        _infoBarRetryAction = null;
+        GlobalInfoBar.Severity = InfoBarSeverity.Warning;
+        GlobalInfoBar.Title = title;
+        GlobalInfoBar.Message = message;
+        InfoBarRetryButton.Visibility = Visibility.Collapsed;
+        GlobalInfoBar.IsOpen = true;
+    }
+
     private async void OnInfoBarRetryClicked(object sender, RoutedEventArgs e)
     {
         var retry = _infoBarRetryAction;
