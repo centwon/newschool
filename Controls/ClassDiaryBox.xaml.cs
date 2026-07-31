@@ -195,8 +195,12 @@ public sealed partial class ClassDiaryBox : UserControl
     {
         string content = NoticeBox.Text ?? string.Empty;
 
+        // 헤더("알림장" + 날짜)는 모든 알림장에 똑같이 들어가므로 요약에서 뺀다.
+        // 안 그러면 50자 미리보기의 앞부분을 매번 같은 글자가 차지한다.
+        int headerEnd = SkipNoticeHeader(content);
+
         // HTML 태그 제거하여 순수 텍스트만 추출
-        string plainText = StripHtmlTags(content);
+        string plainText = StripHtmlTags(content[headerEnd..]);
 
         // 미리보기 텍스트 설정 (비어있으면 안내 메시지)
         if (string.IsNullOrWhiteSpace(plainText))
@@ -210,6 +214,19 @@ public sealed partial class ClassDiaryBox : UserControl
                 ? plainText.Substring(0, 50) + "..."
                 : plainText;
         }
+    }
+
+    /// <summary>
+    /// 헤더 블록이 맨 앞에 있으면 그 뒤 위치를 돌려준다(없으면 0).
+    /// 표시용 요약에만 쓰며, 저장 내용은 건드리지 않는다.
+    /// </summary>
+    private static int SkipNoticeHeader(string html)
+    {
+        int marker = html.IndexOf(NoticeHeaderMarker, StringComparison.OrdinalIgnoreCase);
+        if (marker < 0) return 0;
+
+        int close = html.IndexOf("</div>", marker, StringComparison.OrdinalIgnoreCase);
+        return close < 0 ? 0 : close + "</div>".Length;
     }
 
     /// <summary>
@@ -257,10 +274,20 @@ public sealed partial class ClassDiaryBox : UserControl
     /// </summary>
     private async void BtnNoticeEdit_Click(object sender, RoutedEventArgs e)
     {
-        // RichTextEditorWin 으로 전체 화면 편집
+        // 헤더는 "처음 작성할 때"만 넣는다. 그 뒤로는 본문의 일부라 편집창이 손대지 않는다.
+        //
+        // ⚠ 예전에는 열 때마다 헤더를 붙였다가 저장할 때 정규식으로 떼어냈다. 그 정규식이
+        //    어긋나면 헤더가 본문에 눌러앉아 편집할 때마다 중복되거나 본문 첫 줄이 잘렸다.
+        //    헤더를 본문에 두면 그 위험이 통째로 사라진다 — 일지는 (학년도·학년·반·날짜)로
+        //    고정된 행이라 날짜가 나중에 어긋날 일도 없다.
+        string current = NoticeBox.Text ?? string.Empty;
+        string initialHtml = ShouldInsertNoticeHeader(current)
+            ? BuildNoticeHeaderHtml() + current
+            : current;
+
         var editorWin = new RichTextEditorWin(
             "알림장 편집",
-            BuildNoticeHeaderHtml() + "<br>" + NoticeBox.Text,
+            initialHtml,
             RichTextEditor.EditorMode.Full);
 
         editorWin.SetSize(1000, 800);
@@ -269,14 +296,26 @@ public sealed partial class ClassDiaryBox : UserControl
 
         if (result)
         {
-            // 헤더 테이블 제거 후 NoticeBox에 적용
-            string content = RemoveNoticeHeaderHtml(editorWin.Text);
-            NoticeBox.Text = content;
+            // 편집 결과를 그대로 쓴다(헤더도 본문의 일부다)
+            NoticeBox.Text = editorWin.Text;
             _isChanged = true;
             UpdateNoticePreview();
             RestartAutoSaveTimer();
         }
     }
+
+    /// <summary>
+    /// 알림장 헤더를 새로 넣어야 하는가. <b>내용이 비어 있을 때만</b> 넣는다.
+    ///
+    /// <para>이미 쓴 알림장을 다시 열 때는 넣지 않는다 — 헤더가 이미 본문에 있거나,
+    /// 사용자가 일부러 지웠거나 둘 중 하나이고 어느 쪽이든 다시 붙이면 안 된다.
+    /// 태그만 있고 글자가 없는 경우(<c>&lt;p&gt;&lt;br&gt;&lt;/p&gt;</c> 등)도 빈 것으로 본다.</para>
+    /// </summary>
+    /// <summary>헤더 블록임을 알아보는 표식(본문 요약에서 헤더를 건너뛸 때 쓴다).</summary>
+    private const string NoticeHeaderMarker = "data-notice-header";
+
+    internal static bool ShouldInsertNoticeHeader(string? html)
+        => string.IsNullOrWhiteSpace(StripHtmlTags(html ?? string.Empty));
 
     /// <summary>
     /// 알림장 헤더 HTML 생성 — "알림장"(16px 굵게 가운데)과 날짜(14px 굵게 오른쪽) 두 줄.
@@ -289,41 +328,6 @@ public sealed partial class ClassDiaryBox : UserControl
                 <p style='text-align:center;margin:0;'><span style='font-size:16px;'><strong>알림장</strong></span></p>
                 <p style='text-align:right;margin:0;'><span style='font-size:14px;'><strong>{dateStr}</strong></span></p>
             </div>";
-    }
-
-    /// <summary>
-    /// 알림장 헤더 HTML 제거 (정규식 사용, Native AOT 호환)
-    /// </summary>
-    internal static string RemoveNoticeHeaderHtml(string html)
-    {
-        if (string.IsNullOrWhiteSpace(html))
-            return string.Empty;
-
-        // 1) 현재 형식: data-notice-header 를 단 div (내부에 div 를 두지 않으므로 비탐욕 매칭으로 충분)
-        html = Regex.Replace(html, @"<div[^>]*data-notice-header[^>]*>.*?</div>",
-            string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
-        // 2) 구 형식: data-notice-header 를 단 표 (예전에 저장된 알림장 호환)
-        html = Regex.Replace(html, @"<table[^>]*data-notice-header[^>]*>.*?</table>",
-            string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
-        // 3) 구 형식 fallback: "알 림 장" 이 든 표 (편집기가 data-* 속성을 지운 경우)
-        html = Regex.Replace(html,
-            @"<table[^>]*>\s*<tbody>\s*<tr>\s*<td[^>]*>\s*<span[^>]*>알\s*림\s*장</span>\s*</td>\s*</tr>.*?</table>",
-            string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
-        // 4) 현재 형식 fallback: 맨 앞의 "알림장" 문단과 바로 뒤 날짜 문단
-        //    (편집기가 data-* 속성이나 감싼 div 를 지우면 3)까지로는 안 걸린다)
-        html = Regex.Replace(html,
-            @"^\s*<p[^>]*>(?:(?!</p>).)*?알\s*림\s*장(?:(?!</p>).)*?</p>\s*" +
-            @"(?:<p[^>]*>(?:(?!</p>).)*?\d{4}년\s*\d{1,2}월\s*\d{1,2}일(?:(?!</p>).)*?</p>)?",
-            string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
-        // 앞뒤 <br> 태그 정리
-        html = Regex.Replace(html, @"^(\s*<br\s*/?>\s*)+", string.Empty, RegexOptions.IgnoreCase);
-        html = Regex.Replace(html, @"(\s*<br\s*/?>\s*)+$", string.Empty, RegexOptions.IgnoreCase);
-
-        return html.Trim();
     }
 
     /// <summary>
