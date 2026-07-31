@@ -324,13 +324,13 @@ public sealed partial class ClassDiaryBox : UserControl
     private string BuildNoticeHeaderHtml()
     {
         string dateStr = ViewModel.Date.ToString("yyyy년 M월 d일(ddd)");
-        // 헤더 뒤에 빈 문단을 하나 붙여 바로 입력할 수 있게 한다.
-        // 없으면 커서가 날짜 줄 끝에 놓여, 타이핑이 날짜 뒤에 이어 붙는다.
+        // 헤더 뒤에 빈 문단(왼쪽 정렬, 14px)을 하나 붙여 바로 입력할 수 있게 한다.
+        // 없으면 커서가 날짜 줄 끝에 놓여, 오른쪽 정렬로 날짜 뒤에 이어 붙는다.
         return $@"<div data-notice-header='true'>
                 <p style='text-align:center;margin:0;'><span style='font-size:16px;'><strong>알림장</strong></span></p>
                 <p style='text-align:right;margin:0;'><span style='font-size:14px;'><strong>{dateStr}</strong></span></p>
             </div>
-            <p style='text-align:right;'><span style='font-size:14px;'><br></span></p>";
+            <p style='text-align:left;'><span style='font-size:14px;'><br></span></p>";
     }
 
     /// <summary>
