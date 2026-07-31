@@ -279,45 +279,45 @@ public sealed partial class ClassDiaryBox : UserControl
     }
 
     /// <summary>
-    /// 알림장 헤더 HTML 생성 (학년/반/날짜 정보)
+    /// 알림장 헤더 HTML 생성 — "알림장"(16px 굵게 가운데)과 날짜(14px 굵게 오른쪽) 두 줄.
+    /// 표를 쓰지 않는다(2026-07-31 변경).
     /// </summary>
     private string BuildNoticeHeaderHtml()
     {
         string dateStr = ViewModel.Date.ToString("yyyy년 M월 d일(ddd)");
-        return $@"<table style='border-collapse:collapse;width:100%;border:0;' data-notice-header='true'>
-                <tbody>
-                    <tr>
-                        <td style='width:100%;text-align:center;border:none;' colspan='2'>
-                            <span style='font-size:18px;'>알 림 장</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style='width:50%;border:none;'>
-                            <span style='font-size:16px;'>{ViewModel.Grade}학년 {ViewModel.Class}반</span>
-                        </td>
-                        <td style='width:50%;text-align:right;border:none;'>
-                            <span style='font-size:16px;'>{dateStr}</span>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>";
+        return $@"<div data-notice-header='true'>
+                <p style='text-align:center;margin:0;'><span style='font-size:16px;'><strong>알림장</strong></span></p>
+                <p style='text-align:right;margin:0;'><span style='font-size:14px;'><strong>{dateStr}</strong></span></p>
+            </div>";
     }
 
     /// <summary>
     /// 알림장 헤더 HTML 제거 (정규식 사용, Native AOT 호환)
     /// </summary>
-    private static string RemoveNoticeHeaderHtml(string html)
+    internal static string RemoveNoticeHeaderHtml(string html)
     {
         if (string.IsNullOrWhiteSpace(html))
             return string.Empty;
 
-        // data-notice-header 속성이 있는 테이블 제거
-        string pattern1 = @"<table[^>]*data-notice-header[^>]*>.*?</table>";
-        html = Regex.Replace(html, pattern1, string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+        // 1) 현재 형식: data-notice-header 를 단 div (내부에 div 를 두지 않으므로 비탐욕 매칭으로 충분)
+        html = Regex.Replace(html, @"<div[^>]*data-notice-header[^>]*>.*?</div>",
+            string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
-        // "알 림 장" 텍스트가 포함된 테이블 제거 (fallback)
-        string pattern2 = @"<table[^>]*>\s*<tbody>\s*<tr>\s*<td[^>]*>\s*<span[^>]*>알\s*림\s*장</span>\s*</td>\s*</tr>.*?</table>";
-        html = Regex.Replace(html, pattern2, string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+        // 2) 구 형식: data-notice-header 를 단 표 (예전에 저장된 알림장 호환)
+        html = Regex.Replace(html, @"<table[^>]*data-notice-header[^>]*>.*?</table>",
+            string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+        // 3) 구 형식 fallback: "알 림 장" 이 든 표 (편집기가 data-* 속성을 지운 경우)
+        html = Regex.Replace(html,
+            @"<table[^>]*>\s*<tbody>\s*<tr>\s*<td[^>]*>\s*<span[^>]*>알\s*림\s*장</span>\s*</td>\s*</tr>.*?</table>",
+            string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+        // 4) 현재 형식 fallback: 맨 앞의 "알림장" 문단과 바로 뒤 날짜 문단
+        //    (편집기가 data-* 속성이나 감싼 div 를 지우면 3)까지로는 안 걸린다)
+        html = Regex.Replace(html,
+            @"^\s*<p[^>]*>(?:(?!</p>).)*?알\s*림\s*장(?:(?!</p>).)*?</p>\s*" +
+            @"(?:<p[^>]*>(?:(?!</p>).)*?\d{4}년\s*\d{1,2}월\s*\d{1,2}일(?:(?!</p>).)*?</p>)?",
+            string.Empty, RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
         // 앞뒤 <br> 태그 정리
         html = Regex.Replace(html, @"^(\s*<br\s*/?>\s*)+", string.Empty, RegexOptions.IgnoreCase);

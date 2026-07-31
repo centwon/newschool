@@ -43,11 +43,12 @@ namespace NewSchool
             try
             {
                 // 네트워크 연결 확인
+                //
+                // ⚠ 여기서 대화상자를 띄우면 안 된다. 이 함수는 홈 화면 배경 로드에서도 불리는
+                //    데이터 조회 함수라, 예전에는 인터넷이 끊긴 것만으로 모달 경고창이 떴다.
+                //    실패는 예외로 올려 호출부(홈 화면은 전역 InfoBar)가 형편에 맞게 알리도록 한다.
                 if (!IsNetworkAvailable())
-                {
-                    _ = await MessageBox.ShowAsync("네트워크 연결을 확인하세요","오류");
-                    return meals;
-                }
+                    throw new InvalidOperationException("네트워크에 연결되어 있지 않습니다.");
 
                 // API URL 생성
                 string requestUrl = BuildMealApiUrl(startDate, endDate, mmealScCode);
@@ -70,7 +71,10 @@ namespace NewSchool
                 if (resultCode != null)
                 {
                     Debug.WriteLine($"[Functions] NEIS 결과코드: {resultCode} / {resultMsg}");
-                    if (!resultCode.StartsWith("INFO")) return meals;  // 오류 응답
+                    // INFO-200(해당 자료 없음)은 정상 — 그 외 코드는 오류다.
+                    // 빈 목록으로 돌려주면 "급식 없음"과 구분되지 않으므로 예외로 올린다.
+                    if (!resultCode.StartsWith("INFO"))
+                        throw new InvalidOperationException($"급식 정보를 받지 못했습니다: {resultMsg ?? resultCode}");
                 }
 
                 foreach (var node in xmlDoc.Descendants("row"))
@@ -81,13 +85,16 @@ namespace NewSchool
                 }
                 Debug.WriteLine($"[Functions] 급식 파싱 완료: {meals.Count}건");
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException ex)
             {
+                // 실패를 빈 목록으로 감추면 "오늘 급식 없음"과 구분되지 않는다
                 Debug.WriteLine("[Functions] 급식 API 타임아웃 - 네트워크 또는 서버 응답 없음");
+                throw new InvalidOperationException("급식 정보 요청 시간이 초과되었습니다.", ex);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Functions] 급식 정보 오류: {ex.Message}");
+                Debug.WriteLine($"[Functions] 급식 정보 오류: {ex}");
+                throw;
             }
 
             return meals;

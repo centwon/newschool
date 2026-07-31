@@ -85,8 +85,12 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolMealBox] 급식 정보 로드 오류: {ex.Message}");
+            // 화면은 비우되 실패 사실은 호출부로 올린다.
+            // (홈 화면은 이 예외를 받아 전역 InfoBar 로 알린다 — 예전에는 여기서 삼켜서
+            //  "오늘 급식 없음"과 구분되지 않았다)
+            Debug.WriteLine($"[SchoolMealBox] 급식 정보 로드 오류: {ex}");
             _meals.Clear();
+            throw;
         }
     }
 
