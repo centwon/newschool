@@ -1,4 +1,4 @@
-# Build results
+﻿# Build results
 bin/
 obj/
 [Dd]ebug/
@@ -33,6 +33,9 @@ secrets.json
 installer_output/
 prerequisites/
 Installer/prerequisites/
+# 컴파일된 설치본(100MB 대) — 저장소에 넣지 않는다
+Installer/Output/
+installer_output/
 
 # OS files
 Thumbs.db

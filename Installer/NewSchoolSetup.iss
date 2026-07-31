@@ -64,10 +64,12 @@ Name: "startupicon"; Description: "Windows 시작 시 자동 실행"; GroupDescr
 ; === 메인 실행 파일 ===
 Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
-; === DLL 및 런타임 파일 (exe, dll, pri, winmd) ===
+; === DLL 및 런타임 파일 (dll, pri, winmd) ===
+; winmd 는 Native AOT 게시본에 없다(CleanPublishOutput 이 정리). 없으면 건너뛴다 —
+; 이 플래그가 없어서 "No files found matching *.winmd" 로 컴파일이 중단됐다.
 Source: "{#PublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PublishDir}\*.pri"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\*.winmd"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PublishDir}\*.winmd"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; === Assets 폴더 (아이콘, Jodit, 도움말) ===
 Source: "{#PublishDir}\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs createallsubdirs

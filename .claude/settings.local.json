@@ -432,7 +432,12 @@
       "Bash(grep -B1 -A2 \"Debug.WriteLine\\\\|catch$\\\\|{ }\")",
       "Bash(python3 \"C:/Users/centw/AppData/Local/Temp/claude/C--Users-centw-source-repos-Centwons-NewSchool/21540f63-0a11-4dee-a93c-b1730b59fd2c/scratchpad/prune_diary.py\")",
       "Bash(gh repo *)",
-      "Bash(grep -vE \"^--$\")"
+      "Bash(grep -vE \"^--$\")",
+      "Bash(powershell -NoProfile -Command \"\\(Get-Item 'bin\\\\Release\\\\Publish\\\\NewSchool.exe'\\).VersionInfo | Select-Object FileVersion,ProductVersion | Format-List\")",
+      "Bash(curl -sL -o Installer/prerequisites/WindowsAppRuntimeInstall-x64.exe -w \"HTTP %{http_code}  최종URL: %{url_effective}  크기: %{size_download} bytes\\\\n\" \"https://aka.ms/windowsappsdk/2.3/latest/windowsappruntimeinstall-x64.exe\")",
+      "Bash(powershell -NoProfile -Command ' *)",
+      "Bash(git check-ignore *)",
+      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" \"Installer/NewSchoolSetup.iss\")"
     ]
   }
 }
