@@ -625,8 +625,10 @@ public class ScheduleShiftService
         var holidays = new HashSet<DateTime>();
         try
         {
+            // [start, end) 반개구간이라 endDate 당일이 빠진다 — 자동배치와 같은 기준을 쓰려면
+            // 하루를 더해 포함시켜야 한다(안 그러면 마지막 날 휴일로 수업을 밀어 넣게 된다).
             var schedules = await _schoolScheduleRepo.GetByDateRangeAsync(
-                Settings.SchoolCode.Value, startDate, endDate);
+                Settings.SchoolCode.Value, startDate, endDate.AddDays(1));
             foreach (var schedule in schedules)
             {
                 // 최초 자동배치(SchedulingEngine)와 반드시 같은 기준이어야 한다 —

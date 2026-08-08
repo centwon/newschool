@@ -397,15 +397,28 @@ public class SchedulingEngine
     /// ⚠ 예전에는 실패를 통째로 삼켜서(빈 catch), 학사일정을 못 읽으면 공휴일·방학에도
     /// 수업이 배치되는데 사용자는 아무것도 모른 채 정상 배치로 받아들였다.
     /// </summary>
+    /// <param name="schoolCode">
+    /// 학사일정을 찾을 학교 코드. 앱에서는 <c>Settings.SchoolCode</c> 를 넘긴다.
+    /// (엔진이 전역 설정을 직접 읽으면 설정이 초기화되지 않은 환경에서 조회가 통째로 실패해
+    ///  "학사일정을 읽지 못했다"는 경고로만 나타난다 — 인자로 받아 그 의존을 끊는다.)
+    /// </param>
     private async Task<(HashSet<DateTime> Holidays, string? Warning)> GetHolidaysAsync(
-        DateTime startDate, DateTime endDate)
+        DateTime startDate, DateTime endDate, string? schoolCode = null)
     {
         var holidays = new HashSet<DateTime>();
 
         try
         {
+            // 전역 설정 해석도 이 try 안에서 한다 — 설정이 초기화되지 않은 환경에서는
+            // Settings.SchoolCode 가 null 이라, 호출부에서 읽으면 예외가 바깥으로 새어
+            // "배치 오류"로 둔갑한다(여기서 잡으면 종전처럼 경고로 안내된다).
+            schoolCode ??= Settings.SchoolCode.Value;
+
+            // GetByDateRangeAsync 는 [start, end) 반개구간이다. 반면 슬롯 생성
+            // (GenerateAvailableSlots)은 endDate 를 포함해서 돈다 — 그대로 넘기면
+            // **마지막 날의 휴일만 조회에서 빠져** 그 날엔 휴일인데도 수업이 배치됐다.
             var schedules = await _schoolScheduleRepo.GetByDateRangeAsync(
-                Settings.SchoolCode.Value, startDate, endDate);
+                schoolCode, startDate, endDate.AddDays(1));
 
             foreach (var schedule in schedules)
             {
@@ -464,7 +477,11 @@ public class SchedulingEngine
     /// <summary>
     /// 스케줄 유효성 검사
     /// </summary>
-    public async Task<ValidationResult> ValidateScheduleAsync(int courseId, string room)
+    /// <param name="schoolCode">
+    /// 휴일 판정에 쓸 학교 코드. 생략하면 <c>Settings.SchoolCode</c> 를 쓴다(앱 경로).
+    /// </param>
+    public async Task<ValidationResult> ValidateScheduleAsync(
+        int courseId, string room, string? schoolCode = null)
     {
         var result = new ValidationResult();
 
@@ -490,6 +507,47 @@ public class SchedulingEngine
         {
             result.Warnings.Add($"미배치 단원 {unplacedSections.Count}개: " +
                 string.Join(", ", unplacedSections.Take(3).Select(s => s.SectionName)));
+        }
+
+        // ── 여기부터가 "오류" — 고치지 않으면 배치가 실제로 성립하지 않는 것들 ──
+        // 예전에는 Errors 를 채우는 곳이 한 군데도 없어서 IsValid 가 항상 true 였고,
+        // 배치 검사 화면의 ❌ 분기는 한 번도 실행되지 않았다(⚠️ 경고만 나왔다).
+
+        // 오류 ①: 이 수업에 속하지 않은 단원이 일정에 매핑돼 있다.
+        // 단원을 다른 수업으로 옮기거나 지운 뒤 매핑이 남으면 생긴다 — 배치 목록에는
+        // 나오는데 단원 목록에는 없어서, 시수만 소모하고 진도에도 잡히지 않는다.
+        var ownSectionIds = sections.Select(s => s.No).ToHashSet();
+        var foreignSectionIds = placedSectionIds.Where(id => !ownSectionIds.Contains(id)).ToList();
+        if (foreignSectionIds.Count > 0)
+        {
+            result.Errors.Add(
+                $"이 수업의 단원이 아닌 배치 {foreignSectionIds.Count}건 — " +
+                "단원을 옮기거나 지운 뒤 남은 배치입니다. 해당 배치를 지우고 다시 배치하세요.");
+        }
+
+        // 오류 ②: 휴일(공휴일·방학·휴업일)에 배치된 수업이 있다.
+        // 배치한 뒤에 학사일정이 바뀌면(개교기념일 추가 등) 멀쩡하던 배치가 휴일에 걸린다.
+        // 그 날은 수업이 없으므로 배치가 사실상 성립하지 않는다.
+        if (schedules.Count > 0)
+        {
+            var (holidays, calendarWarning) = await GetHolidaysAsync(
+                schedules.Min(s => s.Date).Date, schedules.Max(s => s.Date).Date, schoolCode);
+
+            if (calendarWarning != null)
+            {
+                result.Warnings.Add(calendarWarning);
+            }
+            else
+            {
+                var onHoliday = schedules.Where(s => holidays.Contains(s.Date.Date)).ToList();
+                if (onHoliday.Count > 0)
+                {
+                    result.Errors.Add(
+                        $"휴일에 배치된 수업 {onHoliday.Count}건: " +
+                        string.Join(", ", onHoliday.Take(3).Select(s => $"{s.Date:M월 d일}")) +
+                        (onHoliday.Count > 3 ? " 등" : string.Empty));
+                }
+            }
         }
 
         // EstimatedHours보다 많이 배치된 단원 확인

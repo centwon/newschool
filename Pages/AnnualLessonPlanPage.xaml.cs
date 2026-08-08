@@ -2010,10 +2010,20 @@ public sealed partial class AnnualLessonPlanPage : Page
                     msg.AppendLine($"❌ {error}");
                 foreach (var warning in validation.Warnings)
                     msg.AppendLine($"⚠️ {warning}");
+
+                // ❌ 는 고치지 않으면 배치가 성립하지 않는 것, ⚠️ 는 확인만 하면 되는 것이다.
+                // 둘을 나란히 찍기만 하면 구분이 전달되지 않아 한 줄 덧붙인다.
+                if (validation.Errors.Count > 0)
+                {
+                    msg.AppendLine();
+                    msg.AppendLine("❌ 항목은 그대로 두면 수업이 실제로 진행되지 않습니다.");
+                }
             }
 
             await MessageBox.ShowAsync(msg.ToString().TrimEnd(),
-                $"배치 검사 — {room}");
+                validation.Errors.Count > 0
+                    ? $"배치 검사 — {room} (오류 {validation.Errors.Count}건)"
+                    : $"배치 검사 — {room}");
         }
         catch (Exception ex)
         {
