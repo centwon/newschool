@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -285,59 +285,7 @@ public static class Scheduler
 
     #endregion
 
-    #region Static Helper Methods (비동기, KEvent 통합)
-
-    /// <summary>
-    /// task 조회 (비동기, KEvent ItemType="task")
-    /// </summary>
-    public static async Task<List<KEvent>> GetTasksAsync(string dbPath, DateTime startDay, uint period = 0, bool showDone = true)
-    {
-        using var service = new SchedulerService(dbPath);
-        int days = period == 0 ? 1 : (int)period;
-        return await service.GetTasksByDateAsync(startDay, days, showDone);
-    }
-
-    public static async Task<List<KEvent>> GetTasksAsync(DateTime startDay, uint period = 0, bool showDone = true)
-    {
-        return await GetTasksAsync(DbPath, startDay, period, showDone);
-    }
-
-    /// <summary>
-    /// task 생성 (비동기, KEvent ItemType="task")
-    /// </summary>
-    public static async Task<int> InsertTaskEventAsync(string dbPath, KEvent taskEvent)
-    {
-        using var service = new SchedulerService(dbPath);
-        return await service.CreateTaskAsync(taskEvent);
-    }
-
-    public static async Task<int> InsertTaskEventAsync(KEvent taskEvent)
-    {
-        return await InsertTaskEventAsync(DbPath, taskEvent);
-    }
-
-    /// <summary>
-    /// task 수정 (비동기)
-    /// </summary>
-    public static async Task UpdateTaskEventAsync(string dbPath, KEvent taskEvent)
-    {
-        using var service = new SchedulerService(dbPath);
-        await service.UpdateTaskAsync(taskEvent);
-    }
-
-    public static async Task UpdateTaskEventAsync(KEvent taskEvent)
-    {
-        await UpdateTaskEventAsync(DbPath, taskEvent);
-    }
-
-    /// <summary>
-    /// task 삭제 (비동기)
-    /// </summary>
-    public static async Task<bool> DeleteTaskEventAsync(int taskNo)
-    {
-        using var service = new SchedulerService(DbPath);
-        return await service.DeleteTaskAsync(taskNo);
-    }
-
-    #endregion
+    // 정적 헬퍼(GetTasksAsync/InsertTaskEventAsync/UpdateTaskEventAsync/DeleteTaskEventAsync)는
+    // 호출부가 한 곳도 없었다(전수 조사 34차). 화면들은 CreateService() 로 SchedulerService 를
+    // 직접 쓰므로 이 얇은 래퍼는 불필요하다.
 }

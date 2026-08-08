@@ -2,6 +2,23 @@
 
 ## 미출시
 
+### 죽은 코드 제거 - 600줄 (2026-08-08)
+34차에서 "호출부 0건"으로 확인해 둔 것들을 지웠다. 테스트 375 -> 373개(지운 코드만 검증하던
+`TimetableServiceTests` 2건이 함께 빠졌다), 빌드 경고 0.
+
+- **`TimetableService` 의 쓰기 5개**(Course 생성/수정/삭제, 학급 시간표 일괄 등록/삭제) —
+  화면들이 같은 일을 직접·불안전하게 하고 있어서, 정작 이 **안전한(트랜잭션) 구현이 죽은 채**였다.
+  화면 쪽을 트랜잭션화한 지금은 중복이므로 지운다. 조회 2개는 그대로 쓰인다
+    - 이것만 쓰던 `TimetableUnitOfWork`(175줄)도 함께 제거
+- **`Scheduler` 의 정적 헬퍼 5개**(`GetTasksAsync`·`InsertTaskEventAsync`·`UpdateTaskEventAsync`·
+  `DeleteTaskEventAsync`) — 화면들은 `CreateService()` 로 `SchedulerService` 를 직접 쓴다
+- **`ClassDiaryViewModel` 의 학생 로그 메서드 5개**와 그것만 쓰던 `ClassDiaryService` 의 2개 —
+  학생 로그의 저장·삭제는 화면이 `LogListViewer` 를 통해 직접 한다.
+  쓰이지 않게 된 `_logRepo` 필드와, 예전 정리에서 남았던 빈 region 도 함께 정돈
+
+필요해지면 커밋 `decf101` 이전 이력에서 되살릴 수 있다.
+
+
 ### 34차 전수조사 - 진도·수업·일정 (2026-08-08)
 아직 정독한 적 없던 **진도 매트릭스·수업 관리·일정 대화상자**를 훑었다.
 테스트 364 -> 372개, 빌드 경고 0.

@@ -532,76 +532,9 @@ namespace NewSchool.ViewModels
             return logs;
         }
 
-        /// <summary>
-        /// 선택된 로그 목록 반환
-        /// </summary>
-        public List<StudentLogViewModel> GetSelectedLogs()
-        {
-            return StudentLogs.Where(log => log.IsSelected).ToList();
-        }
-
-        /// <summary>
-        /// 선택된 로그들 저장
-        /// </summary>
-        public async Task SaveSelectedLogsAsync()
-        {
-            var selectedLogs = GetSelectedLogs();
-            if (selectedLogs.Count == 0) return;
-
-            foreach (var logVM in selectedLogs)
-            {
-                await _diaryService.SaveStudentLogAsync(logVM.StudentLog);
-                logVM.IsSelected = false;
-            }
-        }
-
-        /// <summary>
-        /// 새 로그 추가 (다이얼로그에서 생성된 로그)
-        /// </summary>
-        public async Task AddNewLogAsync(StudentLogViewModel logViewModel)
-        {
-            // DB에 저장
-            await _diaryService.SaveStudentLogAsync(logViewModel.StudentLog);
-            
-            // 컨렉션에 추가
-            StudentLogs.Add(logViewModel);
-        }
-
-        /// <summary>
-        /// 선택된 로그들 삭제
-        /// </summary>
-        public async Task DeleteSelectedLogsAsync()
-        {
-            var selectedLogs = GetSelectedLogs();
-            if (selectedLogs.Count == 0) return;
-
-            foreach (var logVM in selectedLogs)
-            {
-                await _diaryService.DeleteStudentLogAsync(logVM.No);
-                StudentLogs.Remove(logVM);
-            }
-        }
-
-        /// <summary>
-        /// 학생 로그 목록을 Life 필드에 업데이트
-        /// </summary>
-        public async Task UpdateLifeFieldAsync()
-        {
-            if (StudentLogs.Count == 0)
-            {
-                Life = string.Empty;
-                return;
-            }
-
-            var sb = new StringBuilder();
-            foreach (var log in StudentLogs.OrderBy(l => l.Date))
-            {
-                string timeStr = log.Date.ToString("HH:mm");
-                sb.AppendLine($"({timeStr}){log.Name}({log.Number}): {log.Log}");
-            }
-
-            Life = sb.ToString();
-        }
+        // GetSelectedLogs / SaveSelectedLogsAsync / AddNewLogAsync / DeleteSelectedLogsAsync /
+        // UpdateLifeFieldAsync 는 호출부가 한 곳도 없었다(전수 조사 34차).
+        // 학생 로그의 저장·삭제는 화면이 LogListViewer 를 통해 직접 한다.
 
         #endregion
 

@@ -20,13 +20,11 @@ namespace NewSchool.Services
     public sealed class ClassDiaryService : IDisposable
     {
         private readonly ClassDiaryRepository _diaryRepo;
-        private readonly StudentLogRepository _logRepo;
         private bool _disposed;
 
         public ClassDiaryService(string dbPath)
         {
             _diaryRepo = new ClassDiaryRepository(dbPath);
-            _logRepo = new StudentLogRepository(dbPath);
         }
 
         #region 일지 생성 & 수정
@@ -177,50 +175,6 @@ namespace NewSchool.Services
             return await StudentLogViewModel.CreateManyAsync(logs);
         }
 
-        /// <summary>
-        /// 학생 로그 저장 (생성 또는 수정)
-        /// </summary>
-        public async Task<bool> SaveStudentLogAsync(StudentLog log)
-        {
-            try
-            {
-                if (log.No > 0)
-                {
-                    // 수정
-                    return await _logRepo.UpdateAsync(log);
-                }
-                else
-                {
-                    // 생성
-                    await _logRepo.CreateAsync(log);
-                    return log.No > 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"학생 로그 저장 실패: {ex.Message}", ex);
-            }
-        }
-
-        /// <summary>
-        /// 학생 로그 삭제
-        /// </summary>
-        public async Task<bool> DeleteStudentLogAsync(int logNo)
-        {
-            try
-            {
-                return await _logRepo.DeleteAsync(logNo);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"학생 로그 삭제 실패: {ex.Message}", ex);
-            }
-        }
-
-        #endregion
-
-        #region Helper Methods
-
         #endregion
 
         #region IDisposable
@@ -230,18 +184,10 @@ namespace NewSchool.Services
             if (!_disposed)
             {
                 _diaryRepo?.Dispose();
-                _logRepo?.Dispose();
                 _disposed = true;
             }
         }
 
         #endregion
     }
-
-    #region ViewModel Classes
-
-    /// <summary>
-    /// 출결 통계
-    /// </summary>
-    #endregion
 }
