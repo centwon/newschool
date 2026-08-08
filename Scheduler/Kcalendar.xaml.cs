@@ -67,9 +67,16 @@ public sealed partial class Kcalendar : Page
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"달력 초기화 오류: {ex.Message}");
-            System.Diagnostics.Debug.WriteLine($"스택 트레이스: {ex.StackTrace}");
-            await ShowErrorAsync($"달력 초기화 오류: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"달력 초기화 오류: {ex}");
+
+            // 초기화가 실패해도 조작은 살려 둔다. 예전에는 _isInitialized 가 false 로 남는데
+            // Loaded 구독은 아래에서 해제돼, 이전/다음 달 버튼과 월 선택이 전부 조용히
+            // 무반응이 되고 되살릴 방법이 없었다(달력이 영구히 죽었다).
+            // 셀은 이미 만들어져 있으므로 달을 옮기면 다시 읽어볼 수 있다.
+            _isInitialized = true;
+
+            await ShowErrorAsync(
+                $"달력을 불러오지 못했습니다.\n{ex.Message}\n\n달을 옮기거나 새로고침하면 다시 시도합니다.");
         }
         finally
         {
@@ -143,6 +150,11 @@ public sealed partial class Kcalendar : Page
         List<SchoolSchedule> newSchedules = new();
         List<KEvent> newEvents = new();
 
+        // 무엇을 못 읽었는지 모아 두었다가 한 번에 알린다. 예전에는 어느 쪽이 실패해도
+        // Debug 로그만 남기고 빈 목록으로 넘어가, 달력이 "그 달에 아무 일정도 없는" 것처럼
+        // 보였다 — 일정·할 일이 통째로 사라져도 사용자는 알 수 없었다.
+        var failed = new List<string>();
+
         try
         {
             Debug.WriteLine($"[Kcalendar] 데이터 로드 시작");
@@ -175,7 +187,8 @@ public sealed partial class Kcalendar : Page
                         }
                         else
                         {
-                            Debug.WriteLine($"[Kcalendar] 경고: DB에 데이터가 없습니다!");
+                            Debug.WriteLine($"[Kcalendar] 학사일정 조회 실패: {schedules.Message}");
+                            failed.Add("학사일정");
                         }
                     }
                     else
@@ -189,6 +202,7 @@ public sealed partial class Kcalendar : Page
                                                                                    startDate: calendarStart,
                                                                                    endDate: calendarEnd);
                         if (downloads.Success) { newSchedules = downloads.Schedules; }
+                        else { failed.Add("학사일정"); }
                         Debug.WriteLine($"[Kcalendar] API 로드 결과: {newSchedules.Count}개");
                     }
 
@@ -196,8 +210,9 @@ public sealed partial class Kcalendar : Page
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Kcalendar] 스케줄 로드 오류: {ex.Message}");
+                    Debug.WriteLine($"[Kcalendar] 스케줄 로드 오류: {ex}");
                     newSchedules = new List<SchoolSchedule>();
+                    failed.Add("학사일정");
                 }
             }
 
@@ -225,8 +240,9 @@ public sealed partial class Kcalendar : Page
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Kcalendar] KEvent 로드 오류: {ex.Message}");
+                Debug.WriteLine($"[Kcalendar] KEvent 로드 오류: {ex}");
                 newEvents = new List<KEvent>();
+                failed.Add("일정·할 일");
             }
 
             // 속성 업데이트
@@ -236,11 +252,18 @@ public sealed partial class Kcalendar : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Kcalendar] 데이터 로드 전체 오류: {ex.Message}");
-            Debug.WriteLine($"[Kcalendar] 스택: {ex.StackTrace}");
+            Debug.WriteLine($"[Kcalendar] 데이터 로드 전체 오류: {ex}");
 
             SchoolSchedules = new List<SchoolSchedule>();
             KEvents = new List<KEvent>();
+            failed.Add("달력 데이터");
+        }
+
+        if (failed.Count > 0 && App.MainWindow is MainWindow main)
+        {
+            main.ShowGlobalWarning(
+                "달력의 일부 정보를 불러오지 못했습니다",
+                $"{string.Join(", ", failed.Distinct())} — 빈 달력이 아니라 조회 실패입니다. 잠시 후 다시 확인해주세요.");
         }
     }
 

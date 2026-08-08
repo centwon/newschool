@@ -123,7 +123,7 @@ public class HtmlExportService
         var number = studentVm.Enrollment?.Number ?? 0;
         var name = studentVm.Name ?? string.Empty;
 
-        var fileName = $"누가기록_{grade}학년{classNo}반_{number}번_{name}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+        var fileName = $"누가기록_{grade}학년{classNo}반_{number}번_{FileNameHelper.Sanitize(name)}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
         var filePath = Path.Combine(GetOutputDir(), fileName);
 
         var html = BuildStudentLogsHtml(studentVm, logs);
@@ -252,7 +252,7 @@ public class HtmlExportService
         int year, int grade, int classNo, int number, string name,
         List<StudentSpecial> specs)
     {
-        var fileName = $"학생부_{grade}학년{classNo}반_{number}번_{name}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+        var fileName = $"학생부_{grade}학년{classNo}반_{number}번_{FileNameHelper.Sanitize(name)}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
         var filePath = Path.Combine(GetOutputDir(), fileName);
         var html = BuildStudentSpecHtml(year, grade, classNo, number, name, specs);
         File.WriteAllText(filePath, html, Encoding.UTF8);
@@ -273,7 +273,7 @@ public class HtmlExportService
         sb.AppendLine("<th style=\"width:40px\">번호</th>");
         sb.AppendLine("<th style=\"width:70px\">이름</th>");
         sb.AppendLine("<th style=\"width:90px\">영역</th>");
-        sb.AppendLine("<th style=\"width:80px\">과목</th>");
+        sb.AppendLine("<th style=\"width:80px\">과목/분야</th>");
         sb.AppendLine("<th>특기사항</th>");
         sb.AppendLine("<th style=\"width:70px\">바이트</th>");
         sb.AppendLine("</tr></thead><tbody>");
@@ -297,7 +297,8 @@ public class HtmlExportService
                     first = false;
                 }
                 sb.Append($"<td class=\"center\">{E(spec.Type)}</td>");
-                sb.Append($"<td class=\"center\">{E(spec.SubjectName)}</td>");
+                // 진로활동은 희망분야, 교과활동은 "과목 (N학기)" — 화면 목록과 같은 기준
+                sb.Append($"<td class=\"center\">{E(NeisHelper.BuildSubjectDisplay(spec.Type, spec.SubjectName, spec.Title, spec.Semester))}</td>");
                 sb.Append($"<td>{E(spec.Content)}</td>");
                 sb.Append($"<td class=\"center{(over ? " over" : string.Empty)}\">{byteCount}/{maxBytes}</td>");
                 sb.AppendLine("</tr>");
@@ -376,7 +377,7 @@ public class HtmlExportService
     {
         sb.AppendLine("<table><thead><tr>");
         sb.AppendLine("<th style=\"width:100px\">영역</th>");
-        sb.AppendLine("<th style=\"width:90px\">과목</th>");
+        sb.AppendLine("<th style=\"width:90px\">과목/분야</th>");
         sb.AppendLine("<th>특기사항</th>");
         sb.AppendLine("<th style=\"width:80px\">바이트</th>");
         sb.AppendLine("</tr></thead><tbody>");
@@ -389,7 +390,8 @@ public class HtmlExportService
 
             sb.Append("<tr>");
             sb.Append($"<td class=\"center\">{E(spec.Type)}</td>");
-            sb.Append($"<td class=\"center\">{E(spec.SubjectName)}</td>");
+            // 진로활동은 희망분야, 교과활동은 "과목 (N학기)" — 화면 목록과 같은 기준
+            sb.Append($"<td class=\"center\">{E(NeisHelper.BuildSubjectDisplay(spec.Type, spec.SubjectName, spec.Title, spec.Semester))}</td>");
             sb.Append($"<td>{E(spec.Content)}</td>");
             sb.Append($"<td class=\"center{(over ? " over" : string.Empty)}\">{byteCount}/{maxBytes}</td>");
             sb.AppendLine("</tr>");

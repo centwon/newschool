@@ -180,22 +180,8 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
     ///  · 진로활동   → 희망분야(Title). 분량이 특기사항과 합산되므로 같은 행에서 함께 보여준다
     ///  · 그 외      → 빈칸
     /// </summary>
-    public string SubjectDisplay
-    {
-        get
-        {
-            // 진로활동처럼 Title 이 분량에 포함되는 영역은 그 Title(희망분야)을 보여준다
-            if (Helpers.NeisHelper.TitleCountsInBytes(_special.Type))
-                return _special.Title ?? string.Empty;
-
-            var subject = _special.SubjectName ?? string.Empty;
-            if (Helpers.NeisHelper.IsSemesterScoped(_special.Type) && _special.Semester > 0)
-                return string.IsNullOrEmpty(subject)
-                    ? $"{_special.Semester}학기"
-                    : $"{subject} ({_special.Semester}학기)";
-            return subject;
-        }
-    }
+    public string SubjectDisplay => Helpers.NeisHelper.BuildSubjectDisplay(
+        _special.Type, _special.SubjectName, _special.Title, _special.Semester);
 
     /// <summary>
     /// 목록에서 직접 편집 가능한 Title(진로활동 희망분야). 그 외 영역에서는 편집칸을 숨긴다.

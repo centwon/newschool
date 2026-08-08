@@ -1308,7 +1308,10 @@ public sealed partial class AnnualLessonPlanPage : Page
         {
             var picker = new FileSavePicker();
             picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-            picker.SuggestedFileName = $"{_selectedCourse?.Subject ?? "단원"}_단원구조";
+            // 과목명은 사용자가 직접 입력한 값이라 "국어/문학" 처럼 경로 문자가 섞일 수 있다
+            var subjectPart = Helpers.FileNameHelper.Sanitize(_selectedCourse?.Subject);
+            if (subjectPart.Length == 0) subjectPart = "단원";
+            picker.SuggestedFileName = $"{subjectPart}_단원구조";
             picker.FileTypeChoices.Add("CSV 파일", new List<string> { ".csv" });
 
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
@@ -2639,7 +2642,7 @@ public sealed partial class AnnualLessonPlanPage : Page
         {
             var picker = new FileSavePicker();
             picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-            picker.SuggestedFileName = $"연간수업계획_{_selectedCourse.Subject}_{DateTime.Now:yyyyMMdd}";
+            picker.SuggestedFileName = $"연간수업계획_{Helpers.FileNameHelper.Sanitize(_selectedCourse.Subject)}_{DateTime.Now:yyyyMMdd}";
             picker.FileTypeChoices.Add("Excel 파일", new List<string> { ".xlsx" });
 
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);

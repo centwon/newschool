@@ -44,7 +44,9 @@ public class StudentSpecExportService
                     번호 = number,
                     이름 = name,
                     영역 = spec.Type,
-                    과목 = spec.SubjectName ?? string.Empty,
+                    // 진로활동은 희망분야, 교과활동은 "과목 (N학기)" — 화면 목록과 같은 기준
+                    과목 = NeisHelper.BuildSubjectDisplay(
+                        spec.Type, spec.SubjectName, spec.Title, spec.Semester),
                     특기사항 = spec.Content ?? string.Empty,
                     바이트 = $"{byteCount}/{maxBytes}",
                     마감 = spec.IsFinalized ? "Y" : string.Empty,

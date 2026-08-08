@@ -673,7 +673,7 @@ public sealed partial class ProgressMatrixPage : Page
         var picker = new Windows.Storage.Pickers.FileSavePicker();
         picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
         picker.FileTypeChoices.Add("Excel 파일", new List<string> { ".xlsx" });
-        picker.SuggestedFileName = $"진도현황_{_selectedCourse.Subject}_{DateTime.Now:yyyyMMdd}";
+        picker.SuggestedFileName = $"진도현황_{Helpers.FileNameHelper.Sanitize(_selectedCourse.Subject)}_{DateTime.Now:yyyyMMdd}";
 
         // WinUI 3에서 FileSavePicker 사용
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);

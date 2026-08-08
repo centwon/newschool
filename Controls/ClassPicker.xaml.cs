@@ -121,10 +121,13 @@ public sealed partial class ClassPicker : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ClassPicker] 학년 조회 오류: {ex.Message}");
+            Debug.WriteLine($"[ClassPicker] 학년 조회 오류: {ex}");
         }
 
-        if (grades.Count == 0) grades = new HashSet<int> { 1, 2, 3 };
+        // 아직 학생이 없거나 조회가 실패했을 때의 기본 목록.
+        // 예전에는 1~3 이라 초등학교(4~6학년)에서는 담당 학년이 아예 안 보였다
+        // — 학생 추가 화면은 29차에 1~6 으로 넓혔는데 이 선택기만 남아 있었다.
+        if (grades.Count == 0) grades = new HashSet<int> { 1, 2, 3, 4, 5, 6 };
 
         CBoxGrade.Items.Clear();
         if (IncludeAllGrade)

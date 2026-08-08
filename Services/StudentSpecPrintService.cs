@@ -32,7 +32,7 @@ public class StudentSpecPrintService
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
-        var fileName = $"학생부_{grade}학년{classNo}반_{number}번_{name}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+        var fileName = $"학생부_{grade}학년{classNo}반_{number}번_{Helpers.FileNameHelper.Sanitize(name)}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
         var filePath = Path.Combine(GetOutputDir(), fileName);
 
         Document.Create(container =>
@@ -151,7 +151,7 @@ public class StudentSpecPrintService
                      .AlignCenter().AlignMiddle().Text(text).Style(style);
 
                 H(header.Cell(), "영역");
-                H(header.Cell(), "과목");
+                H(header.Cell(), "과목/분야");
                 H(header.Cell(), "특기사항");
                 H(header.Cell(), "Byte");
             });
@@ -167,7 +167,9 @@ public class StudentSpecPrintService
                      .LineHeight(wrap ? 1.4f : 1f);
 
                 Cell(table.Cell(), spec.Type);
-                Cell(table.Cell(), spec.SubjectName ?? string.Empty);
+                // 진로활동은 희망분야, 교과활동은 "과목 (N학기)" — 화면 목록과 같은 기준
+                Cell(table.Cell(), Helpers.NeisHelper.BuildSubjectDisplay(
+                    spec.Type, spec.SubjectName, spec.Title, spec.Semester));
                 Cell(table.Cell(), spec.Content ?? string.Empty, true);
 
                 var byteCount = Helpers.NeisHelper.CountSpecBytes(spec.Type, spec.Title, spec.Content);
@@ -209,7 +211,7 @@ public class StudentSpecPrintService
                 H(header.Cell(), "번호");
                 H(header.Cell(), "이름");
                 H(header.Cell(), "영역");
-                H(header.Cell(), "과목");
+                H(header.Cell(), "과목/분야");
                 H(header.Cell(), "특기사항");
                 H(header.Cell(), "Byte");
             });
@@ -242,7 +244,9 @@ public class StudentSpecPrintService
                          .Text(text ?? string.Empty).FontSize(8);
 
                     D(table.Cell(), spec.Type);
-                    D(table.Cell(), spec.SubjectName ?? string.Empty);
+                    // 진로활동은 희망분야, 교과활동은 "과목 (N학기)" — 화면 목록과 같은 기준
+                    D(table.Cell(), Helpers.NeisHelper.BuildSubjectDisplay(
+                        spec.Type, spec.SubjectName, spec.Title, spec.Semester));
 
                     // 특기사항 (줄바꿈 허용)
                     table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten2)

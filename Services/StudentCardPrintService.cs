@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -45,7 +45,7 @@ public class StudentCardPrintService
         var number = viewModel.Enrollment?.Number ?? 0;
         var year = viewModel.Enrollment?.Year ?? Settings.WorkYear.Value;
 
-        var suggestedFileName = $"학생정보_{grade}학년{classNo}반_{number}번_{viewModel.Name}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+        var suggestedFileName = $"학생정보_{grade}학년{classNo}반_{number}번_{Helpers.FileNameHelper.Sanitize(viewModel.Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
 
         var savePicker = new FileSavePicker();
         var hwnd = WindowNative.GetWindowHandle(window);

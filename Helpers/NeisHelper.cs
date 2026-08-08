@@ -141,6 +141,29 @@ public static class NeisHelper
             ? CountByte(title ?? string.Empty) + CountByte(content ?? string.Empty)
             : CountByte(content ?? string.Empty);
 
+    /// <summary>
+    /// 목록·인쇄·내보내기의 "과목/분야" 칸에 넣을 값. 영역마다 담기는 정보가 달라서 한 칸에 모은다.
+    ///  · 교과활동   → 과목명 + 학기("국어 (2학기)") — 교과 세특만 학기별이라 학기를 함께 노출
+    ///  · 개인별세특 → 과목명만(학년 단위)
+    ///  · 진로활동   → 희망분야(Title). 분량이 특기사항과 합산되므로 함께 보여야 한다
+    ///  · 그 외      → 빈칸
+    ///
+    /// 화면 목록에만 이 규칙이 있고 인쇄·엑셀·HTML 은 <c>SubjectName</c> 만 찍어서,
+    /// <b>진로활동 희망분야가 출력물에서 통째로 빠지고</b>(바이트는 합산돼 숫자가 안 맞아 보였다)
+    /// 교과활동 학기도 사라졌다. 기준을 한 곳으로 모은다.
+    /// </summary>
+    public static string BuildSubjectDisplay(string type, string? subjectName, string? title, int semester)
+    {
+        if (TitleCountsInBytes(type))
+            return title ?? string.Empty;
+
+        var subject = subjectName ?? string.Empty;
+        if (IsSemesterScoped(type) && semester > 0)
+            return string.IsNullOrEmpty(subject) ? $"{semester}학기" : $"{subject} ({semester}학기)";
+
+        return subject;
+    }
+
     // 미사용 메서드 제거 (2026-04-22):
     //   GetAreaDisplayName / IsOverLimit / GetByteInfo / GetRemainingBytes — 호출처 0건
     //   유지되는 공개 API: CountByte, GetMaxBytes, Areas
