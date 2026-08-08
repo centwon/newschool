@@ -46,18 +46,26 @@ public class ProgressSyncService
         DateTime makeupDate,
         string? memo = null)
     {
-        var result = new SyncResult { ActionType = SyncActionType.Makeup };
+        var result = new SyncResult
+        {
+            ActionType = SyncActionType.Makeup,
+            RequestedCount = sectionIds.Count,
+        };
 
         try
         {
             foreach (var sectionId in sectionIds)
             {
-                await _progressRepo.MarkAsMakeupAsync(sectionId, room, makeupDate, memo);
-                result.AffectedCount++;
+                // 반영되지 않은 단원을 세지 않는다 — 예전에는 무조건 세어
+                // 아무것도 저장되지 않아도 "N개 보강 처리 완료"라고 알렸다.
+                if (await _progressRepo.MarkAsMakeupAsync(sectionId, room, makeupDate, memo))
+                    result.AffectedCount++;
             }
 
-            result.Success = true;
-            result.Message = $"{result.AffectedCount}개 단원 보강 처리 완료";
+            result.Success = result.AffectedCount == result.RequestedCount;
+            result.Message = result.Success
+                ? $"{result.AffectedCount}개 단원 보강 처리 완료"
+                : $"{result.RequestedCount}개 중 {result.AffectedCount}개만 보강 처리됐습니다.";
             return result;
         }
         catch (Exception ex)
@@ -87,7 +95,11 @@ public class ProgressSyncService
         DateTime completedDate,
         int? scheduleId = null)
     {
-        var result = new SyncResult { ActionType = SyncActionType.Merge };
+        var result = new SyncResult
+        {
+            ActionType = SyncActionType.Merge,
+            RequestedCount = sectionIds.Count,
+        };
 
         try
         {
@@ -108,12 +120,14 @@ public class ProgressSyncService
                 progress.Memo = $"{sectionIds.Count}개 단원 병합";
                 progress.UpdatedAt = DateTime.Now;
 
-                await _progressRepo.UpdateAsync(progress);
-                result.AffectedCount++;
+                if (await _progressRepo.UpdateAsync(progress))
+                    result.AffectedCount++;
             }
 
-            result.Success = true;
-            result.Message = $"{result.AffectedCount}개 단원 병합 완료";
+            result.Success = result.AffectedCount == result.RequestedCount;
+            result.Message = result.Success
+                ? $"{result.AffectedCount}개 단원 병합 완료"
+                : $"{result.RequestedCount}개 중 {result.AffectedCount}개만 병합됐습니다.";
             return result;
         }
         catch (Exception ex)
@@ -137,15 +151,15 @@ public class ProgressSyncService
         int sectionId,
         string? reason = null)
     {
-        var result = new SyncResult { ActionType = SyncActionType.Skip };
+        var result = new SyncResult { ActionType = SyncActionType.Skip, RequestedCount = 1 };
 
         try
         {
-            await _progressRepo.MarkAsSkippedAsync(sectionId, room, reason);
-
-            result.Success = true;
-            result.AffectedCount = 1;
-            result.Message = "단원 건너뛰기 완료";
+            result.Success = await _progressRepo.MarkAsSkippedAsync(sectionId, room, reason);
+            result.AffectedCount = result.Success ? 1 : 0;
+            result.Message = result.Success
+                ? "단원 건너뛰기 완료"
+                : "건너뛰기가 저장되지 않았습니다.";
             return result;
         }
         catch (Exception ex)
@@ -165,18 +179,24 @@ public class ProgressSyncService
         List<int> sectionIds,
         string? reason = null)
     {
-        var result = new SyncResult { ActionType = SyncActionType.Skip };
+        var result = new SyncResult
+        {
+            ActionType = SyncActionType.Skip,
+            RequestedCount = sectionIds.Count,
+        };
 
         try
         {
             foreach (var sectionId in sectionIds)
             {
-                await _progressRepo.MarkAsSkippedAsync(sectionId, room, reason);
-                result.AffectedCount++;
+                if (await _progressRepo.MarkAsSkippedAsync(sectionId, room, reason))
+                    result.AffectedCount++;
             }
 
-            result.Success = true;
-            result.Message = $"{result.AffectedCount}개 단원 건너뛰기 완료";
+            result.Success = result.AffectedCount == result.RequestedCount;
+            result.Message = result.Success
+                ? $"{result.AffectedCount}개 단원 건너뛰기 완료"
+                : $"{result.RequestedCount}개 중 {result.AffectedCount}개만 건너뛰기 처리됐습니다.";
             return result;
         }
         catch (Exception ex)
@@ -364,12 +384,15 @@ public class ProgressSyncService
                 targetProgress.Memo = $"복사됨 ({sourceRoom})";
                 targetProgress.UpdatedAt = DateTime.Now;
 
-                await _progressRepo.UpdateAsync(targetProgress);
-                result.AffectedCount++;
+                result.RequestedCount++;
+                if (await _progressRepo.UpdateAsync(targetProgress))
+                    result.AffectedCount++;
             }
 
-            result.Success = true;
-            result.Message = $"{sourceRoom} → {targetRoom}: {result.AffectedCount}개 진도 복사 완료";
+            result.Success = result.AffectedCount == result.RequestedCount;
+            result.Message = result.Success
+                ? $"{sourceRoom} → {targetRoom}: {result.AffectedCount}개 진도 복사 완료"
+                : $"{sourceRoom} → {targetRoom}: {result.RequestedCount}개 중 {result.AffectedCount}개만 복사됐습니다.";
             return result;
         }
         catch (Exception ex)
@@ -409,14 +432,17 @@ public class ProgressSyncService
                         progress.ScheduleId = schedule.No;
                         progress.UpdatedAt = DateTime.Now;
 
-                        await _progressRepo.UpdateAsync(progress);
-                        result.AffectedCount++;
+                        result.RequestedCount++;
+                        if (await _progressRepo.UpdateAsync(progress))
+                            result.AffectedCount++;
                     }
                 }
             }
 
-            result.Success = true;
-            result.Message = $"{result.AffectedCount}개 단원 진도 동기화 완료";
+            result.Success = result.AffectedCount == result.RequestedCount;
+            result.Message = result.Success
+                ? $"{result.AffectedCount}개 단원 진도 동기화 완료"
+                : $"{result.RequestedCount}개 중 {result.AffectedCount}개만 동기화됐습니다.";
             return result;
         }
         catch (Exception ex)
@@ -497,6 +523,11 @@ public class SyncResult
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
     public SyncActionType ActionType { get; set; }
+
+    /// <summary>처리를 시도한 건수.</summary>
+    public int RequestedCount { get; set; }
+
+    /// <summary>DB 에 실제로 반영된 건수. <see cref="RequestedCount"/> 와 다르면 부분 실패다.</summary>
     public int AffectedCount { get; set; }
 }
 

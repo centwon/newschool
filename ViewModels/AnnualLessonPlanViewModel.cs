@@ -446,9 +446,20 @@ namespace NewSchool.ViewModels
                     SemesterStart,
                     SemesterEnd);
 
-                // 기존 데이터 삭제 후 새로 저장
-                await hoursRepo.DeleteByYearPlanAsync(CurrentPlan.No);
-                await hoursRepo.CreateBatchAsync(calculatedHours);
+                // 삭제 후 재저장은 한 트랜잭션이어야 한다. 나뉘어 있으면 중간 실패 시
+                // 기존 주차별 시수만 통째로 사라진 채 남는다(예외는 아래에서 삼켜졌다).
+                hoursRepo.BeginTransaction();
+                try
+                {
+                    await hoursRepo.DeleteByYearPlanAsync(CurrentPlan.No);
+                    await hoursRepo.CreateBatchAsync(calculatedHours);
+                    hoursRepo.Commit();
+                }
+                catch
+                {
+                    hoursRepo.Rollback();
+                    throw;
+                }
 
                 _dispatcherQueue.TryEnqueue(() =>
                 {
@@ -468,7 +479,10 @@ namespace NewSchool.ViewModels
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[AnnualLessonPlanVM] 시수 계산 오류: {ex.Message}");
+                // 사용자가 명시적으로 요청한 계산이다 — 조용히 삼키면 시수표가 왜 비었는지
+                // 알 수 없다(예전에는 Debug 로그만 남겼다).
+                Debug.WriteLine($"[AnnualLessonPlanVM] 시수 계산 오류: {ex}");
+                await Controls.UserErrorReporter.ReportAsync("주차별 시수 계산", ex);
             }
             finally
             {

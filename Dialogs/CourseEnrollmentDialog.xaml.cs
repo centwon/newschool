@@ -528,43 +528,62 @@ namespace NewSchool.Dialogs
             {
                 using var repo = new CourseEnrollmentRepository(SchoolDatabase.DbPath);
 
-                // 1. 새로 등록 (Room 포함)
-                foreach (var kvp in _toAdd)
+                // 세 단계를 한 트랜잭션으로 묶는다. 예전에는 건별로 즉시 반영돼서,
+                // 중간에 실패하면 앞부분만 저장된 채 창이 남았고 — CourseEnrollment 에
+                // UNIQUE(StudentID, CourseNo) 가 있어 — 다시 저장을 눌러도 이미 들어간
+                // 학생 때문에 UNIQUE 위반이 나서 영영 저장할 수 없었다.
+                repo.BeginTransaction();
+                try
                 {
-                    var enrollment = new CourseEnrollment
+                    // 1. 새로 등록 (Room 포함)
+                    foreach (var kvp in _toAdd)
                     {
-                        StudentID = kvp.Key,
-                        CourseNo = _course.No,
-                        Status = CourseEnrollmentStatus.Active,
-                        Room = kvp.Value
-                    };
-                    await repo.CreateAsync(enrollment);
-                }
-
-                // 2. 등록 해제
-                foreach (var studentId in _toRemove)
-                {
-                    var original = _originalEnrollments.FirstOrDefault(oe => oe.StudentID == studentId);
-                    if (original != null)
-                    {
-                        await repo.DeleteAsync(original.No);
-                    }
-                }
-
-                // 3. 강의실 변경 (기존 등록 학생)
-                foreach (var original in _originalEnrollments)
-                {
-                    if (_toRemove.Contains(original.StudentID)) continue;
-
-                    if (_enrolledRooms.TryGetValue(original.StudentID, out var newRoom))
-                    {
-                        if (newRoom != (original.Room ?? string.Empty))
+                        var enrollment = new CourseEnrollment
                         {
-                            original.Room = newRoom;
-                            original.UpdatedAt = DateTime.Now;
-                            await repo.UpdateAsync(original);
+                            StudentID = kvp.Key,
+                            CourseNo = _course.No,
+                            Status = CourseEnrollmentStatus.Active,
+                            Room = kvp.Value
+                        };
+                        if (await repo.CreateAsync(enrollment) <= 0)
+                            throw new InvalidOperationException($"학생 {kvp.Key} 수강 등록이 저장되지 않았습니다.");
+                    }
+
+                    // 2. 등록 해제
+                    foreach (var studentId in _toRemove)
+                    {
+                        var original = _originalEnrollments.FirstOrDefault(oe => oe.StudentID == studentId);
+                        if (original != null)
+                        {
+                            if (!await repo.DeleteAsync(original.No))
+                                throw new InvalidOperationException($"학생 {studentId} 수강 해제가 반영되지 않았습니다.");
                         }
                     }
+
+                    // 3. 강의실 변경 (기존 등록 학생)
+                    foreach (var original in _originalEnrollments)
+                    {
+                        if (_toRemove.Contains(original.StudentID)) continue;
+
+                        if (_enrolledRooms.TryGetValue(original.StudentID, out var newRoom))
+                        {
+                            if (newRoom != (original.Room ?? string.Empty))
+                            {
+                                original.Room = newRoom;
+                                original.UpdatedAt = DateTime.Now;
+                                if (!await repo.UpdateAsync(original))
+                                    throw new InvalidOperationException(
+                                        $"학생 {original.StudentID} 강의실 변경이 반영되지 않았습니다.");
+                            }
+                        }
+                    }
+
+                    repo.Commit();
+                }
+                catch
+                {
+                    repo.Rollback();
+                    throw;
                 }
 
                 Debug.WriteLine($"[CourseEnrollmentDialog] 저장 완료 - 추가: {_toAdd.Count}, 제거: {_toRemove.Count}");

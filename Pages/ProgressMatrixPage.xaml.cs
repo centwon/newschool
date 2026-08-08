@@ -327,7 +327,10 @@ public sealed partial class ProgressMatrixPage : Page
             // 학급별로 그룹화하여 처리
             var byRoom = _selectedCells.GroupBy(c => c.Room);
 
+            int totalRequested = 0;
             int totalAffected = 0;
+            string? failMessage = null;
+
             foreach (var group in byRoom)
             {
                 var sectionIds = group.Select(c => c.SectionId).ToList();
@@ -337,12 +340,21 @@ public sealed partial class ProgressMatrixPage : Page
                     sectionIds,
                     datePicker.Date.Value.DateTime);
 
+                totalRequested += syncResult.RequestedCount;
                 totalAffected += syncResult.AffectedCount;
+                if (!syncResult.Success)
+                    failMessage ??= syncResult.Message;
             }
 
             ClearSelection();
             await LoadMatrixAsync();
-            ShowSuccess($"{totalAffected}개 단원 보강 처리 완료");
+
+            // 예전에는 결과를 보지 않고 무조건 성공으로 알려, 한 건도 저장되지 않아도
+            // "0개 단원 보강 처리 완료"라는 성공 메시지가 떴다.
+            if (failMessage == null)
+                ShowSuccess($"{totalAffected}개 단원 보강 처리 완료");
+            else
+                ShowWarning($"{totalRequested}개 중 {totalAffected}개만 보강 처리됐습니다.\n{failMessage}");
         }
         catch (Exception ex)
         {
@@ -460,7 +472,9 @@ public sealed partial class ProgressMatrixPage : Page
 
             var service = new ProgressSyncService(progressRepo, sectionRepo, scheduleRepo, mapRepo);
 
+            int totalRequested = 0;
             int totalAffected = 0;
+            string? failMessage = null;
             var byRoom = _selectedCells.GroupBy(c => c.Room);
 
             foreach (var group in byRoom)
@@ -472,12 +486,19 @@ public sealed partial class ProgressMatrixPage : Page
                     sectionIds,
                     string.IsNullOrEmpty(textBox.Text) ? null : textBox.Text);
 
+                totalRequested += syncResult.RequestedCount;
                 totalAffected += syncResult.AffectedCount;
+                if (!syncResult.Success)
+                    failMessage ??= syncResult.Message;
             }
 
             ClearSelection();
             await LoadMatrixAsync();
-            ShowSuccess($"{totalAffected}개 단원 건너뛰기 처리 완료");
+
+            if (failMessage == null)
+                ShowSuccess($"{totalAffected}개 단원 건너뛰기 처리 완료");
+            else
+                ShowWarning($"{totalRequested}개 중 {totalAffected}개만 건너뛰기 처리됐습니다.\n{failMessage}");
         }
         catch (Exception ex)
         {
@@ -515,6 +536,15 @@ public sealed partial class ProgressMatrixPage : Page
             var service = new ProgressSyncService(progressRepo, sectionRepo, scheduleRepo, mapRepo);
 
             var analysis = await service.AnalyzeProgressGapAsync(_selectedCourse.No, _rooms);
+
+            // 분석이 실패하면 통계가 전부 0 이라, 그대로 띄우면 "최대 격차 0단원"으로 보여
+            // 모든 학급 진도가 같다는 정반대의 안심을 준다.
+            if (!analysis.Success)
+            {
+                ShowError($"격차 분석 실패: {analysis.Message}");
+                return;
+            }
+
             var suggestions = await service.SuggestSyncActionsAsync(_selectedCourse.No, _rooms);
 
             // 결과 표시 다이얼로그
@@ -604,15 +634,25 @@ public sealed partial class ProgressMatrixPage : Page
 
             var service = new ProgressSyncService(progressRepo, sectionRepo, scheduleRepo, mapRepo);
 
+            int totalRequested = 0;
             int totalAffected = 0;
+            string? failMessage = null;
+
             foreach (var room in _rooms)
             {
                 var syncResult = await service.SyncProgressFromSchedulesAsync(_selectedCourse.No, room);
+                totalRequested += syncResult.RequestedCount;
                 totalAffected += syncResult.AffectedCount;
+                if (!syncResult.Success)
+                    failMessage ??= syncResult.Message;
             }
 
             await LoadMatrixAsync();
-            ShowSuccess($"{totalAffected}개 단원 동기화 완료");
+
+            if (failMessage == null)
+                ShowSuccess($"{totalAffected}개 단원 동기화 완료");
+            else
+                ShowWarning($"{totalRequested}개 중 {totalAffected}개만 동기화됐습니다.\n{failMessage}");
         }
         catch (Exception ex)
         {
@@ -698,6 +738,11 @@ public sealed partial class ProgressMatrixPage : Page
             var service = new ProgressSyncService(progressRepo, sectionRepo, scheduleRepo, mapRepo);
 
             _matrixData = await service.GetProgressMatrixAsync(_selectedCourse.No, _rooms);
+
+            // 실패해도 빈 결과를 돌려주므로, 확인하지 않으면 "단원이 없는 수업"과 구분되지 않는다.
+            if (!_matrixData.Success)
+                ShowError($"진도 데이터 로드 실패: {_matrixData.Message}");
+
             _sections = _matrixData.Sections;
 
             // 연간계획에서 주차별 단원 배치 로드

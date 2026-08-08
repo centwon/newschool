@@ -163,24 +163,41 @@ public sealed partial class CourseScheduleDialog : ContentDialog
         {
             using var repo = new LessonRepository(SchoolDatabase.DbPath);
 
-            // 1. 기존 정기 수업 삭제
-            await repo.DeleteByCourseAsync(_course.No);
-
-            // 2. 새 정기 수업 저장
-            foreach (var lesson in _lessons)
+            // 삭제 후 재생성은 반드시 한 트랜잭션이어야 한다. 예전에는 나뉘어 있어서
+            // 저장 도중 실패하면 기존 배치는 이미 사라지고 새 배치는 일부만 남았다
+            // (창은 열린 채였지만 되돌릴 원본이 없었다).
+            repo.BeginTransaction();
+            try
             {
-                lesson.Course = _course.No;
-                lesson.Teacher = _course.TeacherID;
-                lesson.Year = _course.Year;
-                lesson.Semester = _course.Semester;
-                lesson.Grade = _course.Grade;
-                lesson.IsRecurring = true;
-                await repo.CreateAsync(lesson);
+                // 1. 기존 정기 수업 삭제
+                await repo.DeleteByCourseAsync(_course.No);
+
+                // 2. 새 정기 수업 저장
+                foreach (var lesson in _lessons)
+                {
+                    lesson.Course = _course.No;
+                    lesson.Teacher = _course.TeacherID;
+                    lesson.Year = _course.Year;
+                    lesson.Semester = _course.Semester;
+                    lesson.Grade = _course.Grade;
+                    lesson.IsRecurring = true;
+
+                    if (await repo.CreateAsync(lesson) <= 0)
+                        throw new InvalidOperationException(
+                            $"{lesson.ScheduleDisplay}가 저장되지 않았습니다.");
+                }
+
+                repo.Commit();
+            }
+            catch
+            {
+                repo.Rollback();
+                throw;
             }
         }
         catch (Exception ex)
         {
-            ShowError($"저장 중 오류가 발생했습니다.\n{ex.Message}");
+            ShowError($"저장 중 오류가 발생했습니다.\n{ex.Message}\n기존 배치는 그대로 유지됩니다.");
             args.Cancel = true;
         }
         finally

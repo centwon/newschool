@@ -442,20 +442,37 @@ public sealed partial class KAgendaControl : UserControl
         if (sender is not Microsoft.UI.Xaml.Controls.Primitives.ToggleButton btn ||
             btn.Tag is not AgendaItem item || item.SourceEvent == null || !item.IsTask)
             return;
+        var taskEvent = item.SourceEvent;
+        bool prevIsDone = taskEvent.IsDone;
+        string prevUpdated = taskEvent.Updated;
+        string prevCompleted = taskEvent.Completed;
+
         try
         {
-            var taskEvent = item.SourceEvent;
             taskEvent.IsDone  = btn.IsChecked == true;
             taskEvent.Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
             taskEvent.Completed = taskEvent.IsDone ? taskEvent.Updated : string.Empty;
             item.IsTaskDone = taskEvent.IsDone;
 
             using var svc = Scheduler.CreateService();
-            await svc.UpdateTaskAsync(taskEvent);
+
+            // 반영 여부를 확인한다. 예전에는 결과도 예외도 보지 않아, 화면은 완료인데
+            // DB 는 미완료로 갈라진 채 다음 새로고침에 소리 없이 되돌아갔다.
+            // (달력 셀은 20차에 고쳤는데 목록 보기만 남아 있었다.)
+            if (!await svc.UpdateTaskAsync(taskEvent))
+                throw new InvalidOperationException("변경된 항목이 없습니다. 이미 지워진 할 일일 수 있습니다.");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[KAgendaControl] TaskToggle_Click 오류: {ex.Message}");
+            Debug.WriteLine($"[KAgendaControl] TaskToggle_Click 오류: {ex}");
+
+            taskEvent.IsDone = prevIsDone;
+            taskEvent.Updated = prevUpdated;
+            taskEvent.Completed = prevCompleted;
+            item.IsTaskDone = prevIsDone;
+            btn.IsChecked = prevIsDone;
+
+            await Controls.UserErrorReporter.ReportAsync("할 일 완료 표시", ex);
         }
     }
 }

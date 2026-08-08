@@ -138,24 +138,39 @@ public sealed partial class ClassTimetableEditDialog : ContentDialog
         {
             using var repo = new ClassTimetableRepository(SchoolDatabase.DbPath);
 
-            // 1. 기존 시간표 삭제
-            await repo.DeleteByClassAsync(_schoolCode, _year, _semester, _grade, _class);
-
-            // 2. 새 시간표 저장
-            foreach (var timetable in _timetables)
+            // 삭제 후 재생성은 반드시 한 트랜잭션이어야 한다. 예전에는 나뉘어 있어서
+            // 저장 도중 실패하면 기존 시간표만 통째로 사라졌다.
+            repo.BeginTransaction();
+            try
             {
-                timetable.SchoolCode = _schoolCode;
-                timetable.Year = _year;
-                timetable.Semester = _semester;
-                timetable.Grade = _grade;
-                timetable.Class = _class;
+                // 1. 기존 시간표 삭제
+                await repo.DeleteByClassAsync(_schoolCode, _year, _semester, _grade, _class);
 
-                await repo.CreateAsync(timetable);
+                // 2. 새 시간표 저장
+                foreach (var timetable in _timetables)
+                {
+                    timetable.SchoolCode = _schoolCode;
+                    timetable.Year = _year;
+                    timetable.Semester = _semester;
+                    timetable.Grade = _grade;
+                    timetable.Class = _class;
+
+                    if (await repo.CreateAsync(timetable) <= 0)
+                        throw new InvalidOperationException(
+                            $"{timetable.DayName} {timetable.Period}교시가 저장되지 않았습니다.");
+                }
+
+                repo.Commit();
+            }
+            catch
+            {
+                repo.Rollback();
+                throw;
             }
         }
         catch (Exception ex)
         {
-            ShowError($"저장 중 오류가 발생했습니다.\n{ex.Message}");
+            ShowError($"저장 중 오류가 발생했습니다.\n{ex.Message}\n기존 시간표는 그대로 유지됩니다.");
             args.Cancel = true;
         }
         finally

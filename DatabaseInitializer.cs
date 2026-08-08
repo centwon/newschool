@@ -27,8 +27,9 @@ namespace NewSchool.Database
         /// 스키마를 바꿀 때마다 이 상수를 올리고 대응 마이그레이션을 추가한다.
         ///
         /// 2: StudentSpecial.Semester 추가(교과활동만 학기별, 나머지 0=학년 단위).
+        /// 3: LessonProgress 외래키에 ON DELETE 절 부여(CourseSection=CASCADE, Schedule=SET NULL).
         /// </summary>
-        public const int SchemaVersion = 2;
+        public const int SchemaVersion = 3;
 
         private readonly string _dbPath;
         private SqliteConnection? _connection;
@@ -593,6 +594,10 @@ namespace NewSchool.Database
 
             await CreateRepositoryOwnedTablesAsync(cmd);
 
+            // 기존 DB 마이그레이션: LessonProgress 의 외래키에 ON DELETE 절을 붙인다.
+            // 부모 테이블(CourseSection·Schedule)이 만들어진 뒤여야 한다.
+            await RebuildLessonProgressForeignKeysAsync(cmd);
+
             Debug.WriteLine("[DatabaseInitializer] 모든 테이블 생성 완료");
         }
 
@@ -817,6 +822,84 @@ namespace NewSchool.Database
             int filled = await cmd.ExecuteNonQueryAsync();
 
             Debug.WriteLine($"[DatabaseInitializer] StudentSpecial.Semester 컬럼 추가 + 교과활동 {filled}행 학기 백필");
+        }
+
+        /// <summary>
+        /// 기존 DB 의 <c>LessonProgress</c> 외래키에 <c>ON DELETE</c> 절을 붙인다(테이블 재작성).
+        ///
+        /// 처음 정의에는 절이 없어 NO ACTION 이었다. 그 결과 진도 기록이 한 건이라도 있으면
+        /// ① 수업 삭제(Course→CourseSection 이 CASCADE 라 자식이 지워지는 순간 위반),
+        /// ② 단원 삭제, ③ 진도가 참조하는 시간표 일정 삭제가 모두
+        /// <c>FOREIGN KEY constraint failed</c> 로 **영구 실패**했다. 진도 매트릭스를 한 번이라도
+        /// 쓴 수업은 지울 수 없었다는 뜻이다.
+        ///
+        /// SQLite 는 제약만 바꾸는 ALTER 가 없으므로 새 표를 만들어 옮겨 담는다.
+        /// Microsoft.Data.Sqlite 는 공유 캐시가 아닌 연결에서 외래키를 자동으로 켜므로
+        /// 이관 도중에도 제약이 살아 있다 — 그래서 부모가 없는 행은 옮기지 않고 걸러낸다.
+        ///
+        /// 이미 절이 붙어 있으면(신규 DB 포함) 아무것도 하지 않는다.
+        /// </summary>
+        private static async Task RebuildLessonProgressForeignKeysAsync(SqliteCommand cmd)
+        {
+            // 현재 정의 확인 — on_delete 가 하나라도 NO ACTION 이면 옛 스키마다.
+            // (표가 없으면 결과가 비어 있어 그대로 통과한다.)
+            cmd.CommandText =
+                "SELECT COUNT(*) FROM pragma_foreign_key_list('LessonProgress') WHERE \"on_delete\" = 'NO ACTION';";
+            if (Convert.ToInt32(await cmd.ExecuteScalarAsync()) == 0)
+                return;
+
+            Debug.WriteLine("[DatabaseInitializer] LessonProgress 외래키 재작성 시작(구 스키마 감지)");
+
+            using var tx = cmd.Connection!.BeginTransaction();
+            cmd.Transaction = tx;
+            try
+            {
+                // 1. 새 표 — 정의는 리포지토리의 정본 하나뿐, 이름만 바꿔 쓴다.
+                //    (직전 시도가 중간에 끊겼다면 남아 있을 수 있어 먼저 지운다)
+                cmd.CommandText = "DROP TABLE IF EXISTS LessonProgress_new;";
+                await cmd.ExecuteNonQueryAsync();
+
+                cmd.CommandText = Repositories.LessonProgressRepository.TableSql
+                    .Replace("LessonProgress", "LessonProgress_new");
+                await cmd.ExecuteNonQueryAsync();
+
+                // 2. 옮겨 담기. 제약이 꺼진 채 쌓였을 수 있는 고아 행은 여기서 정리한다.
+                //    부모 없는 단원의 진도는 버리고(CASCADE 의도), 사라진 일정 참조는 NULL 로(SET NULL 의도).
+                cmd.CommandText = @"
+                    INSERT INTO LessonProgress_new
+                        (No, CourseSectionId, Room, IsCompleted, CompletedDate,
+                         ProgressType, ScheduleId, Memo, CreatedAt, UpdatedAt)
+                    SELECT lp.No, lp.CourseSectionId, lp.Room, lp.IsCompleted, lp.CompletedDate,
+                           lp.ProgressType,
+                           CASE WHEN lp.ScheduleId IN (SELECT No FROM Schedule) THEN lp.ScheduleId END,
+                           lp.Memo, lp.CreatedAt, lp.UpdatedAt
+                      FROM LessonProgress lp
+                     WHERE lp.CourseSectionId IN (SELECT No FROM CourseSection);";
+                int moved = await cmd.ExecuteNonQueryAsync();
+
+                // 3. 교체 (옛 표의 인덱스는 DROP 과 함께 사라진다)
+                cmd.CommandText = "DROP TABLE LessonProgress;";
+                await cmd.ExecuteNonQueryAsync();
+
+                cmd.CommandText = "ALTER TABLE LessonProgress_new RENAME TO LessonProgress;";
+                await cmd.ExecuteNonQueryAsync();
+
+                // 4. 인덱스 복구 — 정본 스키마를 그대로 다시 실행(표는 IF NOT EXISTS 라 no-op)
+                cmd.CommandText = Repositories.LessonProgressRepository.SchemaSql;
+                await cmd.ExecuteNonQueryAsync();
+
+                tx.Commit();
+                Debug.WriteLine($"[DatabaseInitializer] LessonProgress 외래키 재작성 완료: {moved}행 이관");
+            }
+            catch
+            {
+                tx.Rollback();
+                throw;
+            }
+            finally
+            {
+                cmd.Transaction = null;
+            }
         }
 
         private async Task CleanupOrphansAsync()

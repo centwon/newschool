@@ -21,8 +21,12 @@ public sealed class LessonProgressRepository : IDisposable
 
     #region Table Management
 
-    /// <summary>LessonProgress 스키마 정본 — <c>DatabaseInitializer</c> 가 함께 실행한다.</summary>
-    internal const string SchemaSql = @"
+    /// <summary>
+    /// 테이블 정의 부분만 따로 — 제약을 바꿀 때 테이블을 재작성해야 하므로
+    /// <c>DatabaseInitializer</c> 마이그레이션이 표 이름만 바꿔 재사용한다.
+    /// 정의를 두 벌 두지 않기 위해 인덱스와 분리해 두었다.
+    /// </summary>
+    internal const string TableSql = @"
             CREATE TABLE IF NOT EXISTS LessonProgress (
                 No INTEGER PRIMARY KEY AUTOINCREMENT,
                 CourseSectionId INTEGER NOT NULL,
@@ -34,11 +38,19 @@ public sealed class LessonProgressRepository : IDisposable
                 Memo TEXT,
                 CreatedAt TEXT NOT NULL,
                 UpdatedAt TEXT,
-                FOREIGN KEY (CourseSectionId) REFERENCES CourseSection(No),
-                FOREIGN KEY (ScheduleId) REFERENCES Schedule(No)
+                -- ON DELETE 절이 없으면 NO ACTION 이라 부모를 지우려는 쪽이 막힌다.
+                -- 실제로 진도 기록이 하나라도 있으면 수업 삭제(Course→CourseSection CASCADE)와
+                -- 단원 삭제가 'FOREIGN KEY constraint failed' 로 영구 실패했다.
+                -- 단원이 사라지면 그 진도도 의미가 없으므로 CASCADE,
+                -- 일정은 진도의 부가 정보일 뿐이라 SET NULL 이 맞다(일정 삭제를 막으면 안 됨).
+                FOREIGN KEY (CourseSectionId) REFERENCES CourseSection(No) ON DELETE CASCADE,
+                FOREIGN KEY (ScheduleId) REFERENCES Schedule(No) ON DELETE SET NULL
             );
+        ";
 
-            CREATE INDEX IF NOT EXISTS idx_lessonprogress_section 
+    /// <summary>LessonProgress 스키마 정본 — <c>DatabaseInitializer</c> 가 함께 실행한다.</summary>
+    internal const string SchemaSql = TableSql + @"
+            CREATE INDEX IF NOT EXISTS idx_lessonprogress_section
             ON LessonProgress(CourseSectionId);
 
             CREATE INDEX IF NOT EXISTS idx_lessonprogress_room 
@@ -375,21 +387,23 @@ public sealed class LessonProgressRepository : IDisposable
     /// <summary>
     /// 보강으로 표시
     /// </summary>
-    public async Task MarkAsMakeupAsync(int sectionId, string room, DateTime date, string? memo = null)
+    /// <returns>실제로 반영됐으면 true</returns>
+    public async Task<bool> MarkAsMakeupAsync(int sectionId, string room, DateTime date, string? memo = null)
     {
         var progress = await GetOrCreateAsync(sectionId, room);
         progress.MarkAsMakeup(date, memo);
-        await UpdateAsync(progress);
+        return await UpdateAsync(progress);
     }
 
     /// <summary>
     /// 건너뛰기 처리
     /// </summary>
-    public async Task MarkAsSkippedAsync(int sectionId, string room, string? reason = null)
+    /// <returns>실제로 반영됐으면 true</returns>
+    public async Task<bool> MarkAsSkippedAsync(int sectionId, string room, string? reason = null)
     {
         var progress = await GetOrCreateAsync(sectionId, room);
         progress.MarkAsSkipped(reason);
-        await UpdateAsync(progress);
+        return await UpdateAsync(progress);
     }
 
     /// <summary>

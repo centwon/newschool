@@ -404,10 +404,17 @@ public sealed partial class UnifiedItemDialog : ContentDialog
                     await PushToGoogleAsync(ResultEvent);
             }
         }
+        catch (ValidationAbort)
+        {
+            // 입력 검증은 이미 자체 안내를 띄웠다 — 창만 유지한다
+            args.Cancel = true;
+        }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[UnifiedItemDialog] 저장 오류: {ex.Message}");
+            // 예전에는 창만 남기고 아무 말이 없어서, 저장 버튼이 안 먹는 것처럼 보였다
+            Debug.WriteLine($"[UnifiedItemDialog] 저장 오류: {ex}");
             args.Cancel = true;
+            await UserErrorReporter.ReportAsync("일정 저장", ex);
         }
         finally
         {
@@ -427,23 +434,36 @@ public sealed partial class UnifiedItemDialog : ContentDialog
                     && !string.IsNullOrEmpty(_taskEvent.SeriesId)
                     && RbDeleteSeries?.IsChecked == true;
 
-                if (deleteSeries)
-                    await service.DeleteSeriesFromAsync(_taskEvent.SeriesId, _taskEvent.Start.Date);
-                else if (_isTaskMode)
-                    await service.DeleteEventAsync(_taskEvent.No);
-                else
-                    await service.DeleteEventAsync(_event.No);
+                // 삭제 결과를 확인한다. 예전에는 반환값을 버리고 예외도 Debug 로만 남긴 뒤
+                // 창을 그대로 닫아서, 지워지지 않았는데 지운 것처럼 보였다
+                // (호출부가 목록을 다시 읽으면 항목이 되살아났다).
+                bool deleted = deleteSeries
+                    ? await service.DeleteSeriesFromAsync(_taskEvent.SeriesId, _taskEvent.Start.Date) > 0
+                    : await service.DeleteEventAsync(_isTaskMode ? _taskEvent.No : _event.No);
+
+                if (!deleted)
+                {
+                    args.Cancel = true;
+                    await MessageBox.ShowAsync(
+                        "삭제되지 않았습니다. 이미 지워진 항목일 수 있습니다.\n창을 닫았다가 다시 열어보세요.",
+                        "삭제 실패");
+                }
             }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[UnifiedItemDialog] 삭제 오류: {ex.Message}");
+            Debug.WriteLine($"[UnifiedItemDialog] 삭제 오류: {ex}");
+            args.Cancel = true;
+            await UserErrorReporter.ReportAsync("일정 삭제", ex);
         }
         finally
         {
             deferral.Complete();
         }
     }
+
+    /// <summary>입력 검증 실패로 저장을 중단할 때 쓰는 신호 — 안내는 이미 띄운 상태다.</summary>
+    private sealed class ValidationAbort : Exception;
 
     private async Task SaveTaskAsync()
     {
@@ -457,7 +477,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (string.IsNullOrWhiteSpace(_taskEvent.Title))
         {
             await MessageBox.ShowAsync("제목을 입력해주세요.");
-            throw new InvalidOperationException("제목이 비어있습니다.");
+            throw new ValidationAbort();
         }
 
         _taskEvent.Start = DateTime.SpecifyKind(_taskEvent.Start, DateTimeKind.Unspecified);
@@ -503,7 +523,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (string.IsNullOrWhiteSpace(_event.Title))
         {
             await MessageBox.ShowAsync("제목을 입력해주세요.");
-            throw new InvalidOperationException("제목이 비어있습니다.");
+            throw new ValidationAbort();
         }
 
         _event.Start = DateTime.SpecifyKind(_event.Start, DateTimeKind.Unspecified);
