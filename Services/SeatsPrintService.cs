@@ -1,4 +1,4 @@
-using NewSchool.Controls;
+﻿using NewSchool.Controls;
 using NewSchool.Models;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -133,7 +133,8 @@ public class SeatsPrintService
         if (loaded == null) return null;
         var (cells, jul, jjak, _, _) = loaded.Value;
 
-        int totalCols = jul * jjak;
+        // 호출부가 DB 값을 그대로 넘길 수 있어 여기서도 보정한다(0 이면 나눗셈이 깨진다)
+        int totalCols = SafeGrid(jul) * SafeGrid(jjak);
         int totalRows = cells.Count > 0
             ? (int)Math.Ceiling((double)cells.Count / totalCols)
             : 1;
@@ -247,8 +248,18 @@ public class SeatsPrintService
             });
         }
 
-        return (cells, arrangement.Jul, arrangement.Jjak, arrangement.Message, arrangement.ShowPhoto);
+        return (cells, SafeGrid(arrangement.Jul), SafeGrid(arrangement.Jjak),
+                arrangement.Message, arrangement.ShowPhoto);
     }
+
+    /// <summary>
+    /// 줄 수·짝 수를 최소 1 로 보정한다.
+    ///
+    /// 세 출력 경로(PDF·HTML·Excel)가 모두 <c>jul * jjak</c> 으로 나누는데, 이 값들은
+    /// DB 에서 그대로 온다. 26차에 확인했듯 구데이터나 초기화 실패로 0 이 들어 있을 수 있고,
+    /// 그러면 0 으로 나뉘어 좌석표가 깨지거나 QuestPDF 안쪽에서 이유를 알 수 없는 오류로 터졌다.
+    /// </summary>
+    private static int SafeGrid(int value) => Math.Max(1, value);
 
     #endregion
 
@@ -274,7 +285,8 @@ public class SeatsPrintService
         var filePath = Path.Combine(printsDir, fileName);
 
         // 그리드 크기
-        int totalCols = jul * jjak;
+        // 호출부가 DB 값을 그대로 넘길 수 있어 여기서도 보정한다(0 이면 나눗셈이 깨진다)
+        int totalCols = SafeGrid(jul) * SafeGrid(jjak);
         int totalRows = cards.Count > 0
             ? (int)Math.Ceiling((double)cards.Count / totalCols)
             : 1;
@@ -601,7 +613,8 @@ public class SeatsPrintService
         PrintOrientation orientation = PrintOrientation.Auto,
         bool includeRoster = false)
     {
-        int totalCols = jul * jjak;
+        // 호출부가 DB 값을 그대로 넘길 수 있어 여기서도 보정한다(0 이면 나눗셈이 깨진다)
+        int totalCols = SafeGrid(jul) * SafeGrid(jjak);
         int totalRows = cells.Count > 0
             ? (int)Math.Ceiling((double)cells.Count / totalCols)
             : 1;

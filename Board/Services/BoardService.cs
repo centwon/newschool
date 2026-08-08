@@ -41,11 +41,17 @@ public partial class BoardService:IDisposable
                 {
                     // 새 Post 생성
                     postId = await uow.Posts.CreateAsync(post);
+                    if (postId <= 0)
+                        throw new InvalidOperationException("글이 저장되지 않았습니다.");
                 }
                 else
                 {
-                    // 기존 Post 수정
-                    await uow.Posts.UpdateAsync(post);
+                    // 기존 Post 수정 — 반영 여부를 확인한다.
+                    // 예전에는 결과를 버리고 무조건 post.No 를 돌려줘서, 갱신된 행이 없어도
+                    // (이미 지워진 글 등) 호출부가 성공으로 보고 창을 닫았다 — 편집이 유실됐다.
+                    if (!await uow.Posts.UpdateAsync(post))
+                        throw new InvalidOperationException(
+                            $"글 #{post.No} 이 갱신되지 않았습니다. 이미 지워진 글일 수 있습니다.");
                     postId = post.No;
                 }
 

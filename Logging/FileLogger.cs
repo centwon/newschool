@@ -270,9 +270,11 @@ namespace NewSchool.Logging
             try
             {
                 var cutoffDate = DateTime.Now.AddDays(-30);
-                var files = Directory.GetFiles(LogDirectory, "log_*.txt");
 
-                foreach (var file in files)
+                // Archive 하위까지 훑는다. 회전(RotateLogIfNeeded)은 10MB 마다 로그를
+                // Archive 로 옮기는데 정리는 최상위만 보고 있어서, 보관본이 한 번도
+                // 지워지지 않고 무한히 쌓였다.
+                foreach (var file in Directory.GetFiles(LogDirectory, "log_*.txt", SearchOption.AllDirectories))
                 {
                     var fileInfo = new FileInfo(file);
                     if (fileInfo.LastWriteTime < cutoffDate)

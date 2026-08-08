@@ -216,8 +216,11 @@ public static class DateTimeHelper
             }
         }
 
-        // 폴백
-        if (DateTime.TryParse(dateString, out var fallback))
+        // 폴백 — 이 파일의 다른 파싱과 같이 InvariantCulture 로 통일한다.
+        // 여기만 현재 문화권을 쓰고 있어서, 로캘에 따라 "01/02/2026" 의 월·일 해석이
+        // 달라질 수 있었다(DB 에 들어간 값은 문화권과 무관한데도).
+        if (DateTime.TryParse(dateString, CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var fallback))
             return fallback;
 
         return DateTime.MinValue;
