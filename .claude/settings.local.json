@@ -437,7 +437,11 @@
       "Bash(curl -sL -o Installer/prerequisites/WindowsAppRuntimeInstall-x64.exe -w \"HTTP %{http_code}  최종URL: %{url_effective}  크기: %{size_download} bytes\\\\n\" \"https://aka.ms/windowsappsdk/2.3/latest/windowsappruntimeinstall-x64.exe\")",
       "Bash(powershell -NoProfile -Command ' *)",
       "Bash(git check-ignore *)",
-      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" \"Installer/NewSchoolSetup.iss\")"
+      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" \"Installer/NewSchoolSetup.iss\")",
+      "Bash(grep -vE \"^\\\\> *;|^\\\\> *$\")",
+      "Bash(grep \"\\\\.iss$\")",
+      "Bash(grep -i \"^nul$\")",
+      "Bash(grep -rnE \"^\\\\s*//\\\\s*\\(무시|ignore\\)\" --include=*.cs .)"
     ]
   }
 }
