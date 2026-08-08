@@ -330,7 +330,11 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                         if (student != null)
                         {
                             student.Name = vm.Name;
-                            await studentService.UpdateBasicInfoAsync(student);
+
+                            // 결과를 확인한다 — 예전에는 버려서, 정본(Student)은 옛 이름인데
+                            // 학적(Enrollment)만 새 이름이 되어 화면마다 이름이 달라질 수 있었다.
+                            if (!await studentService.UpdateBasicInfoAsync(student))
+                                throw new InvalidOperationException("이름 갱신이 반영되지 않았습니다.");
                         }
                     }
 

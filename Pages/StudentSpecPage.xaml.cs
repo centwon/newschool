@@ -114,20 +114,28 @@ public sealed partial class StudentSpecPage : Page, IDisposable
 
             if (confirmed)
             {
+                int saved = 0;
                 foreach (var spec in selectedSpecs)
                 {
-                    if (spec.Special.No > 0)
-                    {
-                        await _specialService.UpdateAsync(spec.Special);
-                    }
-                    else
-                    {
-                        spec.Special.No = await _specialService.CreateAsync(spec.Special);
-                    }
+                    // 반영된 항목만 "저장됨"으로 표시한다. 예전에는 결과를 버리고 무조건
+                    // MarkAsSaved 를 불러, 한 건도 저장되지 않아도 변경 표시가 사라지고
+                    // 사용자는 저장됐다고 믿었다.
+                    bool ok = spec.Special.No > 0
+                        ? await _specialService.UpdateAsync(spec.Special)
+                        : (spec.Special.No = await _specialService.CreateAsync(spec.Special)) > 0;
+
+                    if (!ok) continue;
+
                     spec.MarkAsSaved();
+                    saved++;
                 }
 
-                await MessageBox.ShowAsync("저장되었습니다", "완료");
+                if (saved == selectedSpecs.Count)
+                    await MessageBox.ShowAsync("저장되었습니다", "완료");
+                else
+                    await MessageBox.ShowAsync(
+                        $"{selectedSpecs.Count}개 중 {saved}개만 저장됐습니다.\n" +
+                        "저장되지 않은 항목은 변경 표시가 남아 있습니다.", "일부 저장 실패");
             }
         }
         catch (Exception ex)
@@ -166,13 +174,20 @@ public sealed partial class StudentSpecPage : Page, IDisposable
                 int deletedCount = 0;
                 foreach (var spec in savedSpecs)
                 {
-                    await _specialService.DeleteAsync(spec.Special.No);
-                    deletedCount++;
+                    // 실제로 지워진 것만 센다 — 예전에는 결과를 버리고 무조건 세어
+                    // 한 건도 안 지워져도 "N개 삭제되었습니다"라고 알렸다.
+                    if (await _specialService.DeleteAsync(spec.Special.No))
+                        deletedCount++;
                 }
 
                 // 새로고침
                 await LoadSpecsAsync();
-                await MessageBox.ShowAsync($"{deletedCount + unsavedSpecs.Count}개 항목이 삭제되었습니다", "완료");
+
+                if (deletedCount == savedSpecs.Count)
+                    await MessageBox.ShowAsync($"{deletedCount + unsavedSpecs.Count}개 항목이 삭제되었습니다", "완료");
+                else
+                    await MessageBox.ShowAsync(
+                        $"{savedSpecs.Count}개 중 {deletedCount}개만 삭제됐습니다.", "일부 삭제 실패");
             }
         }
         catch (Exception ex)

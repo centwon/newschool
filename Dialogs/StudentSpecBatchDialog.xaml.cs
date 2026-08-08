@@ -484,14 +484,15 @@ public sealed partial class StudentSpecBatchDialog : Window
 
                 try
                 {
-                    if (spec.No > 0)
-                    {
-                        await service.UpdateAsync(spec);
-                    }
-                    else
-                    {
-                        spec.No = await service.CreateAsync(spec);
-                    }
+                    // 반영 여부를 확인한다 — 예전에는 결과를 버려서 0행 갱신도 성공으로 셌다.
+                    // 실패로 처리하면 아래 재시도 로직(변경 목록에 남겨두기)이 실제로 작동한다.
+                    bool ok = spec.No > 0
+                        ? await service.UpdateAsync(spec)
+                        : (spec.No = await service.CreateAsync(spec)) > 0;
+
+                    if (!ok)
+                        throw new InvalidOperationException("갱신된 행이 없습니다. 이미 지워진 기록일 수 있습니다.");
+
                     savedCount++;
                     savedIds.Add(studentId);
                 }

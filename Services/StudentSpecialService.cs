@@ -174,11 +174,17 @@ public sealed class StudentSpecialService : IDisposable
                 await EnsureNotFinalizedAsync(special.No);
                 if (special.No > 0)
                 {
-                    await _repository.UpdateAsync(special);
+                    // 반영 여부를 확인해야 "하나라도 실패하면 전체 롤백"이 실제로 성립한다.
+                    // 예전에는 결과를 버려서 0행 갱신(이미 지워진 기록 등)도 그대로 커밋됐다.
+                    if (!await _repository.UpdateAsync(special))
+                        throw new InvalidOperationException(
+                            $"기록 #{special.No}({special.Type})이 갱신되지 않았습니다. 이미 지워졌을 수 있습니다.");
                 }
                 else
                 {
                     special.No = await _repository.CreateAsync(special);
+                    if (special.No <= 0)
+                        throw new InvalidOperationException($"{special.Type} 기록이 저장되지 않았습니다.");
                 }
             }
 

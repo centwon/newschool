@@ -129,12 +129,18 @@ public sealed partial class CourseSpecPage : Page, IDisposable
                 int deletedCount = 0;
                 foreach (var spec in savedSpecs)
                 {
-                    await _specialService.DeleteAsync(spec.Special.No);
-                    deletedCount++;
+                    // 실제로 지워진 것만 센다 — 예전에는 결과를 버리고 무조건 세었다.
+                    if (await _specialService.DeleteAsync(spec.Special.No))
+                        deletedCount++;
                 }
 
                 await LoadSpecsAsync();
-                await MessageBox.ShowAsync($"{deletedCount + unsavedSpecs.Count}개 항목이 삭제되었습니다", "완료");
+
+                if (deletedCount == savedSpecs.Count)
+                    await MessageBox.ShowAsync($"{deletedCount + unsavedSpecs.Count}개 항목이 삭제되었습니다", "완료");
+                else
+                    await MessageBox.ShowAsync(
+                        $"{savedSpecs.Count}개 중 {deletedCount}개만 삭제됐습니다.", "일부 삭제 실패");
             }
         }
         catch (Exception ex)

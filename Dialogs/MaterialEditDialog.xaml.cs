@@ -211,12 +211,20 @@ namespace NewSchool.Dialogs
                 try
                 {
                     using var boardService = Board.Board.CreateService();
-                    await boardService.DeletePostFileAsync(fileNo, _category);
 
-                    var fileVm = Files.FirstOrDefault(f => f.No == fileNo);
-                    if (fileVm != null)
+                    // DB 에서 지워진 뒤에 목록에서 뺀다 — 예전에는 결과와 무관하게 화면에서
+                    // 지워, 창을 다시 열면 첨부가 되살아났다.
+                    if (!await boardService.DeletePostFileAsync(fileNo, _category))
                     {
-                        Files.Remove(fileVm);
+                        ShowError("파일 삭제에 실패했습니다. 이미 지워진 파일일 수 있습니다.");
+                    }
+                    else
+                    {
+                        var fileVm = Files.FirstOrDefault(f => f.No == fileNo);
+                        if (fileVm != null)
+                        {
+                            Files.Remove(fileVm);
+                        }
                     }
                 }
                 catch (Exception ex)

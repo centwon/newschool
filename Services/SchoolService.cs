@@ -46,7 +46,13 @@ namespace NewSchool.Services
                 existing.IsActive = true;
                 existing.UpdatedAt = DateTime.Now;
 
-                await repo.UpdateAsync(existing);
+                // 반영 여부를 확인한다 — 예전에는 결과를 버려서, 저장이 실패해도
+                // 호출부(초기 설정·설정 화면)는 성공으로 넘어갔고
+                // 설정>학교정보는 계속 옛 정보를 보여줬다.
+                if (!await repo.UpdateAsync(existing))
+                    throw new InvalidOperationException(
+                        $"학교 정보({school.SchoolCode})가 갱신되지 않았습니다.");
+
                 return existing;
             }
             else
@@ -57,6 +63,10 @@ namespace NewSchool.Services
                 school.UpdatedAt = DateTime.Now;
 
                 school.No = await repo.CreateAsync(school);
+                if (school.No <= 0)
+                    throw new InvalidOperationException(
+                        $"학교 정보({school.SchoolCode})가 저장되지 않았습니다.");
+
                 return school;
             }
         }

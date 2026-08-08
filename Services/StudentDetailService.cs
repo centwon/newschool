@@ -55,6 +55,7 @@ namespace NewSchool.Services
         /// <summary>
         /// 학생 상세 정보 생성 또는 업데이트 (Upsert)
         /// </summary>
+        /// <returns>반영된 행의 No. 반영되지 않았으면 0.</returns>
         public async Task<int> CreateOrUpdateAsync(StudentDetail detail)
         {
             ValidateStudentDetail(detail);
@@ -74,8 +75,10 @@ namespace NewSchool.Services
                 detail.No = existing.No;
                 detail.CreatedAt = existing.CreatedAt;
                 detail.UpdatedAt = DateTime.Now;
-                await _detailRepo.UpdateAsync(detail);
-                return existing.No;
+
+                // 갱신 결과를 확인한다 — 예전에는 결과를 버리고 무조건 No 를 돌려줘서
+                // 호출부가 반환값을 검사해도 실패를 알 수 없었다. 0 = 반영 안 됨.
+                return await _detailRepo.UpdateAsync(detail) ? existing.No : 0;
             }
         }
 

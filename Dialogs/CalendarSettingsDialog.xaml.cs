@@ -220,8 +220,11 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
                 {
                     local.GoogleId = targetGoogleId;
                     if (local.SyncMode == "None") local.SyncMode = "TwoWay";
-                    await service.UpdateCalendarAsync(local);
-                    mapped++;
+
+                    // 반영된 것만 센다 — 매핑이 저장되지 않으면 다음 실행에서 동기화가
+                    // 조용히 빠지는데, 화면은 "매핑 완료"라고 알렸다.
+                    if (await service.UpdateCalendarAsync(local))
+                        mapped++;
                 }
             }
 
@@ -278,6 +281,7 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
         try
         {
             using var service = Scheduler.Scheduler.CreateService();
+            int attempted = 0;
             int saved = 0;
 
             foreach (var item in items)
@@ -289,13 +293,19 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
                     if (cal.SyncMode != newMode)
                     {
                         cal.SyncMode = newMode;
-                        await service.UpdateCalendarAsync(cal);
-                        saved++;
+                        attempted++;
+
+                        // 반영된 것만 센다 — 예전에는 결과를 버려서, 동기화 설정이
+                        // 저장되지 않아도 "저장 완료"라고 알렸다(체크는 되돌아간다).
+                        if (await service.UpdateCalendarAsync(cal))
+                            saved++;
                     }
                 }
             }
 
-            GoogleCalendarListHint.Text = $"✅ 저장 완료 ({saved}개 변경됨)";
+            GoogleCalendarListHint.Text = saved == attempted
+                ? $"✅ 저장 완료 ({saved}개 변경됨)"
+                : $"⚠️ {attempted}개 중 {saved}개만 저장됐습니다.";
         }
         catch (Exception ex)
         {

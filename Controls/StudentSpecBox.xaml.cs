@@ -228,7 +228,15 @@ public sealed partial class StudentSpecBox : UserControl
             if (_special.No > 0)
             {
                 using var service = new StudentSpecialService();
-                await service.DeleteAsync(_special.No);
+
+                // 결과를 확인한다 — 예전에는 버려서, 안 지워졌는데도 화면만 비우고
+                // "삭제되었습니다"라고 알렸다(새로 고치면 내용이 되살아났다).
+                if (!await service.DeleteAsync(_special.No))
+                {
+                    await MessageBox.ShowAsync(
+                        "삭제되지 않았습니다. 이미 지워진 기록일 수 있습니다.", "삭제 실패");
+                    return;
+                }
             }
 
             // UI 초기화
@@ -297,15 +305,18 @@ public sealed partial class StudentSpecBox : UserControl
 
             using var service = new StudentSpecialService();
 
-            if (_special.No > 0)
+            // 반영 여부를 확인한다. 예전에는 결과를 버리고 무조건 성공 처리해서,
+            // 갱신된 행이 없어도(이미 지워진 기록 등) 변경 표시가 사라지고 편집이 유실됐다.
+            bool ok = _special.No > 0
+                ? await service.UpdateAsync(_special)
+                : (_special.No = await service.CreateAsync(_special)) > 0;
+
+            if (!ok)
             {
-                // 기존 레코드 업데이트
-                await service.UpdateAsync(_special);
-            }
-            else
-            {
-                // 새 레코드 생성
-                _special.No = await service.CreateAsync(_special);
+                await MessageBox.ShowAsync(
+                    "저장되지 않았습니다. 이미 지워진 기록일 수 있습니다.\n" +
+                    "화면을 새로 고친 뒤 다시 시도해 주세요.", "저장 실패");
+                return false;
             }
 
             // 저장 성공

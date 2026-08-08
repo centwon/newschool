@@ -281,10 +281,18 @@ public sealed partial class CourseSectionDialog : ContentDialog
             // DB 저장
             using var repo = new CourseSectionRepository(SchoolDatabase.DbPath);
 
+            // 반영 여부를 확인한다. 예전에는 결과를 버려서, 갱신된 행이 없어도
+            // (예: 다른 화면에서 이미 지운 단원) 창이 닫히며 저장된 것처럼 보였다.
+            // 형제인 CourseEditDialog 는 원래부터 확인하고 있었다.
             if (_isEditMode)
             {
                 // 편집 모드: 업데이트
-                await repo.UpdateAsync(section);
+                if (!await repo.UpdateAsync(section))
+                {
+                    ShowError("단원 수정에 실패했습니다. 이미 지워진 단원일 수 있습니다.");
+                    args.Cancel = true;
+                    return;
+                }
                 Debug.WriteLine($"[CourseSectionDialog] 단원 수정: {section.FullPath}");
             }
             else
@@ -295,7 +303,12 @@ public sealed partial class CourseSectionDialog : ContentDialog
                     ? existing.Max(s => s.SortOrder) + 1
                     : 1;
 
-                await repo.CreateAsync(section);
+                if (await repo.CreateAsync(section) <= 0)
+                {
+                    ShowError("단원 추가에 실패했습니다.");
+                    args.Cancel = true;
+                    return;
+                }
                 Debug.WriteLine($"[CourseSectionDialog] 단원 추가: {section.FullPath}, SortOrder={section.SortOrder}");
             }
         }

@@ -1151,7 +1151,10 @@ public sealed partial class PageStudentInfo : Page, IDisposable
                         {
                             SetStudentFieldValue(student, field, value!);
                         }
-                        await studentService.UpdateBasicInfoAsync(student);
+                        // 반영 여부를 확인한다 — 예전에는 결과를 버려서 0행 갱신도
+                        // "저장되었습니다"에 포함됐다(아래 실패 집계가 무의미했다).
+                        if (!await studentService.UpdateBasicInfoAsync(student))
+                            throw new InvalidOperationException("기본 정보가 갱신되지 않았습니다.");
                     }
                 }
 
@@ -1169,7 +1172,8 @@ public sealed partial class PageStudentInfo : Page, IDisposable
                         SetDetailFieldValue(detail, field, value!);
                     }
 
-                    await detailService.CreateOrUpdateAsync(detail);
+                    if (await detailService.CreateOrUpdateAsync(detail) <= 0)
+                        throw new InvalidOperationException("상세 정보가 갱신되지 않았습니다.");
                 }
 
                 successCount++;

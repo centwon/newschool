@@ -237,27 +237,45 @@ public sealed partial class PageStudentLog : Page, IDisposable
         {
             var selectedLogs = LogList.SelectedLogs.ToList();
             using var service = new StudentLogService();
+
+            int saved = 0;
             foreach (var logViewModel in selectedLogs)
             {
                 var log = logViewModel.StudentLog;
-                
+
+                // 반영된 것만 센다 — 예전에는 결과를 버려서, 한 건도 저장되지 않아도
+                // 선택이 풀리며 "저장이 완료되었습니다"라고 알렸다.
+                bool ok;
                 if (log.No > 0)
                 {
-                    await service.UpdateAsync(log);
+                    ok = await service.UpdateAsync(log);
                 }
                 else
                 {
-                    var newNo = await service.InsertAsync(log);
-                    log.No = newNo;
-                    logViewModel.StudentLog = log;
+                    log.No = await service.InsertAsync(log);
+                    ok = log.No > 0;
+                    if (ok) logViewModel.StudentLog = log;
                 }
-                
+
+                if (!ok) continue;
+
                 logViewModel.IsSelected = false;
+                saved++;
             }
 
-            if (selectedLogs.Count > 0)
+            if (selectedLogs.Count == 0)
+            {
+                // 저장할 항목이 선택되지 않음 — 종전대로 조용히 넘어간다
+            }
+            else if (saved == selectedLogs.Count)
             {
                 await ShowInfoDialogAsync("저장이 완료되었습니다.", "완료");
+            }
+            else
+            {
+                await MessageBox.ShowAsync(
+                    $"{selectedLogs.Count}건 중 {saved}건만 저장됐습니다.\n" +
+                    "저장되지 않은 기록은 선택된 채로 남아 있습니다.", "일부 저장 실패");
             }
         }
         catch (Exception ex)
@@ -284,7 +302,15 @@ public sealed partial class PageStudentLog : Page, IDisposable
                     if (log.No > 0)
                     {
                         using var service = new StudentLogService();
-                        await service.DeleteAsync(log.No);
+
+                        // DB 에서 지워진 것만 목록에서 뺀다 — 예전에는 결과와 무관하게
+                        // 화면에서 지워, 새로 고치면 기록이 되살아났다.
+                        if (!await service.DeleteAsync(log.No))
+                        {
+                            await MessageBox.ShowAsync(
+                                "삭제되지 않았습니다. 이미 지워진 기록일 수 있습니다.", "삭제 실패");
+                            continue;
+                        }
                     }
                     LogList.Logs?.Remove(logViewModel);
                 }
@@ -670,16 +696,24 @@ public sealed partial class PageStudentLog : Page, IDisposable
                 using var service = new StudentLogService();
                 if (result)
                 {
+                    // 학생을 바꾸기 직전의 마지막 저장 기회다 — 반영되지 않았는데 선택을
+                    // 풀어버리면 그대로 유실된다. 실패하면 표시를 유지하고 알린다.
+                    bool ok;
                     if (log.No > 0)
                     {
-                        await service.UpdateAsync(log);
+                        ok = await service.UpdateAsync(log);
                     }
                     else
                     {
-                        var newNo = await service.InsertAsync(log); 
-                        log.No = newNo;
+                        log.No = await service.InsertAsync(log);
+                        ok = log.No > 0;
                     }
-                    logViewModel.IsSelected = false;
+
+                    if (ok)
+                        logViewModel.IsSelected = false;
+                    else
+                        await MessageBox.ShowAsync(
+                            "저장되지 않았습니다. 기록은 선택된 채로 남겨 둡니다.", "저장 실패");
                 }
             }
         }
