@@ -120,9 +120,12 @@
                                   Click="ChkViewPhoto_Click"/>
                         <Button x:Name="BtnInit" Content="초기화"
                                 Click="BtnInit_Click"/>
+                        <!-- 오른쪽 클릭 = 시연용 배정. 학생들 앞에서 돌리는 용도라
+                             화면에는 단서를 두지 않는다(툴팁 없음) — 안내서에만 적어 둔다. -->
                         <Button x:Name="BtnArrange" Content="자동배정"
                                 Style="{StaticResource AccentButtonStyle}"
-                                Click="BtnArrange_Click"/>
+                                Click="BtnArrange_Click"
+                                RightTapped="BtnArrange_RightTapped"/>
                         <Button x:Name="BtnSave"
                                 Click="BtnSave_Click"
                                 ToolTipService.ToolTip="저장 (Ctrl+S)">

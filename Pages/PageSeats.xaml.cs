@@ -597,10 +597,33 @@ public sealed partial class PageSeats : Page, IDisposable
             return;
         }
 
-        await ArrangeSeatAsync();
+        await ArrangeSeatAsync(demoMode: false);
     }
 
-    private async Task ArrangeSeatAsync()
+    /// <summary>
+    /// 시연용 배정(오른쪽 클릭) — 학생들 앞에서 돌릴 때 쓴다.
+    ///
+    /// 앞자리 우선·짝 고정·짝 분리는 교사의 개입이라, 적용하면 결과에 패턴이 남아
+    /// "무작위로 뽑았다"는 겉모습이 깨진다. 시연에서는 이 셋을 빼고 돌린다.
+    /// 지난 짝·자리 회피는 학생 눈에 드러나지 않으므로 그대로 둔다.
+    ///
+    /// 최종 배정은 왼쪽 클릭이다. 화면에 시연 표시를 남기지 않는 것이 이 기능의 요구사항이라
+    /// (학생들이 보는 화면이다) 안내·저장 확인을 두지 않는다 — 안내서에만 적어 둔다.
+    /// </summary>
+    private async void BtnArrange_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        e.Handled = true;
+
+        if (!isInitialized)
+        {
+            await MessageBox.ShowAsync("초기화되지 않았습니다.", "오류");
+            return;
+        }
+
+        await ArrangeSeatAsync(demoMode: true);
+    }
+
+    private async Task ArrangeSeatAsync(bool demoMode)
     {
         if (!CheckSeat()) return;
         if (_isLocked)
@@ -662,8 +685,13 @@ public sealed partial class PageSeats : Page, IDisposable
             }
 
             // 1) 앞자리 우선 학생을 먼저 배치 (FrontPriorityMaxRow 이하 Row에 한정)
+            //    시연에서는 건너뛴다 — 같은 학생이 매번 앞자리면 학생들이 바로 눈치챈다.
+            var frontPriorityIds = demoMode
+                ? (IReadOnlyList<string>)Array.Empty<string>()
+                : _options.FrontPriorityStudentIds;
+
             var placedIds = new HashSet<string>();
-            foreach (var frontId in _options.FrontPriorityStudentIds)
+            foreach (var frontId in frontPriorityIds)
             {
                 var student = students.FirstOrDefault(s => s.StudentID == frontId);
                 if (student == null) continue;
@@ -712,7 +740,7 @@ public sealed partial class PageSeats : Page, IDisposable
             }
 
             // 3) 제약 검증 (기존 짝 제약 + 이력 짝 + 남녀 교차)
-            if (IsValidArrangement(recentPairs, requireMixedGender))
+            if (IsValidArrangement(recentPairs, requireMixedGender, ignorePairRules: demoMode))
             {
                 satisfied = true;
                 // 남녀 교차를 켰는데 그 조건을 푼 뒤에야 찾았다면 사용자에게 알린다.
@@ -732,6 +760,12 @@ public sealed partial class PageSeats : Page, IDisposable
         // 시도 횟수를 모두 소진했는데도 제약을 만족하지 못한 경우.
         // 예전에는 마지막 시도(= 제약 위반 배치)를 아무 안내 없이 확정해버려,
         // 교사가 분리·고정·남녀 교차가 지켜진 줄 알고 그대로 저장했다.
+        // 시연은 학생들 앞에서 돌린다 — 여기서 대화상자가 뜨면 연출이 무너지고,
+        // "적용된 조건" 목록이 뜨면 조건이 있다는 사실 자체가 드러난다.
+        // (게다가 시연에서 안 쓴 앞자리 우선·짝 고정·분리까지 목록에 섞여 내용도 틀린다.)
+        // 어느 쪽으로 돌렸는지는 방금 누른 사용자가 안다 — 시연에서는 아무것도 띄우지 않는다.
+        if (demoMode) return;
+
         if (!satisfied)
         {
             await MessageBox.ShowAsync(
@@ -782,10 +816,17 @@ public sealed partial class PageSeats : Page, IDisposable
     /// 남녀 교차를 필수로 볼지 여부. 성비가 불균형한 학급에서는 모든 짝을 남녀로 만드는 것이
     /// 불가능하므로, 1차 시도가 모두 실패하면 이 조건만 풀고 재시도한다(옵션 이름이 "우선").
     /// </param>
-    private bool IsValidArrangement(HashSet<(string, string)> recentPairs, bool requireMixedGender)
+    /// <param name="ignorePairRules">
+    /// 짝 고정·분리를 무시할지 여부. 시연용 배정에서만 true — 이 둘은 교사가 지정한 쌍이라
+    /// 결과에 패턴으로 남아 "무작위" 겉모습을 깨뜨린다.
+    /// </param>
+    private bool IsValidArrangement(
+        HashSet<(string, string)> recentPairs, bool requireMixedGender, bool ignorePairRules = false)
     {
         // 분리/고정 (기존)
-        if ((_exclusionPairs.Count > 0 || _fixedPairs.Count > 0) && HasPairViolation())
+        if (!ignorePairRules
+            && (_exclusionPairs.Count > 0 || _fixedPairs.Count > 0)
+            && HasPairViolation())
             return false;
 
         // 짝 모드가 아니면 이하 제약 무관
