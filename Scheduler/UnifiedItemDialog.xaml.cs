@@ -34,6 +34,13 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     private List<KCalendarList> _calendars = [];
     private List<string> _titles = [];
 
+    /// <summary>
+    /// 이번 저장으로 만들어진 할 일 전부(반복 생성 포함).
+    /// <see cref="ResultEvent"/> 는 대표 1건만 담으므로, 구글 Push 는 이 목록을 쓴다
+    /// — 예전에는 첫 항목만 올라가고 나머지 반복분이 구글에 없었다.
+    /// </summary>
+    private readonly List<KEvent> _savedTasks = [];
+
     #endregion
 
     #region Constructors
@@ -400,8 +407,34 @@ public sealed partial class UnifiedItemDialog : ContentDialog
                 bool shouldSync = _isTaskMode
                     ? ChkTaskGoogleSync.IsChecked == true
                     : ChkEventGoogleSync.IsChecked == true;
+
                 if (shouldSync)
-                    await PushToGoogleAsync(ResultEvent);
+                {
+                    // 반복 할 일은 생성된 항목 전부를 올린다. 예전에는 ResultEvent(=첫 항목)만
+                    // 넘겨서, 반복으로 만든 나머지가 구글에 올라가지 않았다.
+                    var targets = _savedTasks.Count > 0
+                        ? _savedTasks
+                        : new List<KEvent> { ResultEvent };
+
+                    var failures = new List<string>();
+                    foreach (var target in targets)
+                    {
+                        string? failure = await PushToGoogleAsync(target);
+                        if (failure != null) failures.Add(failure);
+                    }
+
+                    // 로컬 저장은 이미 끝났다 — 창은 닫되(취소하지 않는다) 실패는 알린다.
+                    // 예전에는 실패를 통째로 삼켜서, 체크했는데 구글에 아무것도 안 생겨도
+                    // 사용자는 이유는커녕 실패했다는 사실조차 알 수 없었다.
+                    if (failures.Count > 0)
+                    {
+                        await MessageBox.ShowAsync(
+                            "저장은 됐지만 구글 캘린더에 올리지 못했습니다.\n\n" +
+                            string.Join("\n", failures.Distinct().Take(3)) +
+                            "\n\n다음 자동 동기화에서 다시 시도합니다.",
+                            "구글 캘린더 등록 실패");
+                    }
+                }
             }
         }
         catch (ValidationAbort)
@@ -488,6 +521,9 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         var tasks = GenerateRepeatTasks();
         using var service = Scheduler.CreateService();
 
+        // 재시도(저장 실패 후 다시 누르기) 시 이전 목록이 남아 중복 Push 되지 않도록 비운다
+        _savedTasks.Clear();
+
         Debug.WriteLine($"[SaveTaskAsync] IsAllday={_taskEvent.IsAllday}, Start={_taskEvent.Start:O}, End={_taskEvent.End:O}");
 
         if (tasks.Count <= 1)
@@ -509,6 +545,9 @@ public sealed partial class UnifiedItemDialog : ContentDialog
                 }
             });
             ResultEvent = tasks.First();
+
+            // 반복 생성분 전부를 구글 Push 대상으로 남긴다
+            _savedTasks.AddRange(tasks);
         }
     }
 
@@ -746,13 +785,20 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         }
     }
 
-    /// <summary>저장 후 구글 캘린더에 즉시 Push</summary>
-    private async Task PushToGoogleAsync(KEvent ev)
+    /// <summary>
+    /// 저장 후 구글 캘린더에 즉시 Push.
+    /// </summary>
+    /// <returns>성공하면 null, 실패하면 사용자에게 보여줄 이유.</returns>
+    private async Task<string?> PushToGoogleAsync(KEvent ev)
     {
         try
         {
             var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
-            if (cal == null || string.IsNullOrEmpty(cal.GoogleId)) return;
+            if (cal == null || string.IsNullOrEmpty(cal.GoogleId))
+                return "선택한 캘린더가 구글 캘린더와 연결되어 있지 않습니다.";
+
+            if (!GoogleAuthService.HasCredentials)
+                return "구글 연동 기능이 비활성화되어 있습니다(인증 정보 없음).";
 
             var authService = new GoogleAuthService();
             var apiClient = new GoogleCalendarApiClient(authService);
@@ -762,32 +808,38 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             {
                 // 신규 → Insert
                 var created = await apiClient.InsertEventAsync(cal.GoogleId, gEvent);
-                if (created?.Id != null)
-                {
-                    ev.GoogleId = created.Id;
-                    ev.Updated = created.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-                    using var service = Scheduler.CreateService();
-                    await service.UpdateEventAsync(ev);
-                }
+
+                // 구글이 오류 본문을 돌려주면 GoogleEvent 로 역직렬화돼도 Id 가 비어 있다.
+                // 예전에는 이 경우를 그냥 넘겨서, 등록이 안 됐는데도 조용히 성공처럼 끝났다.
+                if (created?.Id == null)
+                    return "구글이 등록 결과를 돌려주지 않았습니다(응답에 이벤트 ID 없음).";
+
+                ev.GoogleId = created.Id;
+                ev.Updated = created.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                using var service = Scheduler.CreateService();
+                await service.UpdateEventAsync(ev);
             }
             else
             {
                 // 수정 → Update
                 var updated = await apiClient.UpdateEventAsync(cal.GoogleId, ev.GoogleId, gEvent);
-                if (updated != null)
-                {
-                    ev.Updated = updated.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-                    using var service = Scheduler.CreateService();
-                    await service.UpdateEventAsync(ev);
-                }
+                if (updated == null)
+                    return "구글이 수정 결과를 돌려주지 않았습니다.";
+
+                ev.Updated = updated.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                using var service = Scheduler.CreateService();
+                await service.UpdateEventAsync(ev);
             }
 
             Debug.WriteLine($"[UnifiedItemDialog] 구글 Push 완료: {ev.Title}");
+            return null;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[UnifiedItemDialog] 구글 Push 실패: {ex.Message}");
-            // 실패해도 로컬 저장은 유지 — 다음 배치 동기화에서 재시도됨
+            // 로컬 저장은 유지하고 다음 배치 동기화에서 재시도되지만,
+            // 사용자가 "구글에 등록" 을 직접 체크한 동작이므로 실패는 알려야 한다.
+            Debug.WriteLine($"[UnifiedItemDialog] 구글 Push 실패: {ex}");
+            return ex.Message;
         }
     }
 

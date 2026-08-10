@@ -163,9 +163,13 @@ public sealed partial class LessonLogEditDialog : ContentDialog
             // 수정 모드에서 기존 단원 선택
             if (_isEdit && _lessonLog?.CourseSectionNo.HasValue == true)
             {
+                // 이 화면은 XAML 에서 Tag="1"(문자열)을 쓰는 콤보(교시)와
+                // 코드에서 Tag = int 를 넣는 콤보(단원)가 섞여 있다. (int) 로 언박싱하면
+                // 어느 쪽을 읽는지에 따라 터지므로, 문자열 경유로 통일해 읽는다.
                 var match = CBoxSection.Items
                     .OfType<ComboBoxItem>()
-                    .FirstOrDefault(i => (int)i.Tag == _lessonLog.CourseSectionNo.Value);
+                    .FirstOrDefault(i => int.TryParse(i.Tag?.ToString(), out int no)
+                                         && no == _lessonLog.CourseSectionNo.Value);
 
                 if (match != null)
                     CBoxSection.SelectedItem = match;

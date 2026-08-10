@@ -251,8 +251,11 @@ public sealed partial class SettingsPage : Page
         if (!_isInitialized) return;
         if (WorkSemesterComboBox.SelectedItem is ComboBoxItem item)
         {
-            int semester = (int)item.Tag;
-            Settings.WorkSemester.Set(semester);
+            // XAML 의 Tag="1" 은 **문자열**이다. 예전에는 (int)item.Tag 로 언박싱해서
+            // 학기를 고를 때마다 InvalidCastException 이 났고, 그 줄에서 멈추는 바람에
+            // 아래 저장이 아예 실행되지 않았다 — 학기가 영영 저장되지 않았다.
+            if (int.TryParse(item.Tag?.ToString(), out int semester))
+                Settings.WorkSemester.Set(semester);
         }
     }
 
