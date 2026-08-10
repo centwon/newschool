@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NewSchool - 교사를 위한 스마트 학급 관리 솔루션</title>
+    <title>NewSchool - 교사를 위한 스마트 학급 및 수업 관리 솔루션</title>
     <style>
         :root {
             --primary-color: #0078d4;
@@ -187,7 +187,7 @@
     <div class="container">
         <header>
             <h1 class="logo">NewSchool</h1>
-            <p class="tagline">선생님의 업무 경감을 위한 스마트 학급 운영 및 생기부 관리 솔루션</p>
+            <p class="tagline">선생님의 효율적인 학급 운영과 수업 관리를 위한 스마트 교사 솔루션</p>
             <div class="badge-container">
                 <span class="badge">Windows 11 Fluent Design</span>
                 <span class="badge">NEIS OpenAPI 연동</span>
@@ -196,13 +196,13 @@
         </header>
 
         <main>
-            <!-- 최신버전 다운로드 영역 -->
+            <!-- 최신버전 자동 추출 다운로드 영역 -->
             <div class="download-box">
-                <a href="https://github.com/centwon/newschool/releases/latest" class="btn-download" target="_blank" rel="noopener">
-                    📦 최신 버전 다운로드 (GitHub Releases)
+                <a id="download-btn" href="https://github.com/centwon/newschool/releases/latest" class="btn-download" target="_blank" rel="noopener">
+                    📥 최신 버전 다운로드 (.exe)
                 </a>
-                <div class="version-info">
-                    최신 설치 파일 및 패치 노트를 GitHub 저장소에서 바로 확인하실 수 있습니다.
+                <div class="version-info" id="version-info">
+                    최신 배포 버전 정보를 불러오는 중입니다...
                 </div>
             </div>
 
@@ -210,24 +210,24 @@
             <h2 class="section-title">주요 기능 안내</h2>
             <div class="feature-grid">
                 <div class="feature-item">
-                    <h3>👨‍🎓 학생 및 출결·상담 관리</h3>
-                    <p>학생 기본 인적사항부터 출결 현황, 학부모 상담 내용, 학생별 특이사항을 체계적으로 누적 기록하고 관리합니다.</p>
+                    <h3>👨‍🎓 체계적인 학급 관리</h3>
+                    <p>학생 기본 인적사항 관리, 출결 현황 기록, 학부모 상담 내용 누적 관리를 통해 효율적인 담임 업무를 지원합니다.</p>
                 </div>
                 <div class="feature-item">
-                    <h3>📝 행동특성 및 생기부 기초자료</h3>
-                    <p>학기 중 학생들의 일상 관찰 및 행동특성을 즉시 기록하여 학교생활기록부 작성 시 유용한 기초자료로 활용합니다.</p>
+                    <h3>📚 효율적인 수업 관리</h3>
+                    <p>수업 시간표 및 과목별 준비사항을 확인하고, 수업 진행과 관련된 메모와 전달사항을 손쉽게 정리할 수 있습니다.</p>
                 </div>
                 <div class="feature-item">
                     <h3>🏫 NEIS 연동 학사일정·시간표</h3>
-                    <p>나이스(NEIS) OpenAPI를 통해 우리 학교의 최신 학사일정과 시간표 데이터를 자동으로 연동하여 조회합니다.</p>
+                    <p>나이스(NEIS) OpenAPI를 활용하여 우리 학교의 최신 학사일정과 시간표 데이터를 자동으로 연동하여 조회합니다.</p>
                 </div>
                 <div class="feature-item">
                     <h3>📅 Google 캘린더 실시간 동기화</h3>
-                    <p>Google OAuth 연동을 지원하여 주요 학급 행사 및 업무 스케줄을 구글 캘린더와 실시간으로 동기화합니다.</p>
+                    <p>Google OAuth 연동을 통해 주요 학급 행사, 수업 일정, 개인 업무 스케줄을 구글 캘린더와 실시간 동기화합니다.</p>
                 </div>
                 <div class="feature-item">
-                    <h3>📋 학급일지 및 주간 업무 관리</h3>
-                    <p>학급일지 작성, 전달사항 기록, 주간 업무 메모 기능을 통해 놓치기 쉬운 담임 업무를 손쉽게 챙길 수 있습니다.</p>
+                    <h3>📋 학급일지 및 주간 업무</h3>
+                    <p>학급일지 작성, 전달사항 기록, 주간 업무 메모 기능을 통해 놓치기 쉬운 주요 교사 업무를 꼼꼼하게 관리합니다.</p>
                 </div>
                 <div class="feature-item">
                     <h3>🔒 세련된 UI & 안전한 데이터</h3>
@@ -254,5 +254,33 @@
             </div>
         </footer>
     </div>
+
+    <!-- GitHub API 기반 최신 .exe 파일 자동 추출 스크립트 -->
+    <script>
+        fetch('https://api.github.com/repos/centwon/newschool/releases/latest')
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.assets && data.assets.length > 0) {
+                    // .exe 실행파일 탐색
+                    const exeAsset = data.assets.find(asset => asset.name.endsWith('.exe'));
+                    const btn = document.getElementById('download-btn');
+                    const info = document.getElementById('version-info');
+                    
+                    if (exeAsset) {
+                        btn.href = exeAsset.browser_download_url;
+                        btn.innerHTML = `📥 최신 버전 다운로드 (${data.tag_name})`;
+                        info.innerHTML = `파일명: <strong>${exeAsset.name}</strong> | <a href="${data.html_url}" target="_blank" style="color: var(--primary-color);">릴리즈 노트 보기</a>`;
+                    } else {
+                        btn.href = data.html_url;
+                        info.innerHTML = `최신 버전: <strong>${data.tag_name}</strong> | <a href="${data.html_url}" target="_blank" style="color: var(--primary-color);">릴리즈 페이지로 이동</a>`;
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Release 정보 로드 실패:', err);
+                document.getElementById('version-info').innerHTML = 
+                    '<a href="https://github.com/centwon/newschool/releases/latest" target="_blank" style="color: var(--primary-color);">GitHub Releases 페이지에서 최신 설치 파일 확인하기</a>';
+            });
+    </script>
 </body>
 </html>
