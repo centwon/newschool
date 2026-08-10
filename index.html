@@ -3,14 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NewSchool - 교사를 위한 스마트 학급 관리</title>
+    <title>NewSchool - 교사를 위한 스마트 학급 관리 솔루션</title>
     <style>
         :root {
-            --primary-color: #0078d4; /* Windows/Fluent Blue */
-            --bg-color: #f3f3f3;
+            --primary-color: #0078d4;
+            --primary-hover: #106ebe;
+            --bg-color: #f8f9fa;
             --card-bg: #ffffff;
             --text-color: #202020;
             --sub-text: #505050;
+            --border-color: #e2e8f0;
+            --badge-bg: #e5f2fc;
+        }
+        * {
+            box-sizing: border-box;
         }
         body {
             font-family: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
@@ -22,72 +28,157 @@
             justify-content: center;
         }
         .container {
-            max-width: 720px;
+            max-width: 880px;
             width: 100%;
             background: var(--card-bg);
-            border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e5e5e5;
+            border-radius: 16px;
+            padding: 48px 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
         }
         header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 40px;
         }
         .logo {
-            font-size: 2.5rem;
-            font-weight: 700;
+            font-size: 2.8rem;
+            font-weight: 800;
             color: var(--primary-color);
-            margin: 0 0 8px 0;
+            margin: 0 0 10px 0;
+            letter-spacing: -0.5px;
         }
         .tagline {
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             color: var(--sub-text);
             margin: 0;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+        .badge-container {
+            margin-top: 16px;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
         .badge {
-            display: inline-block;
-            background: #e5f2fc;
+            background: var(--badge-bg);
             color: var(--primary-color);
             font-size: 0.85rem;
             font-weight: 600;
-            padding: 4px 12px;
-            border-radius: 16px;
+            padding: 5px 14px;
+            border-radius: 20px;
+        }
+        .download-box {
+            text-align: center;
+            background: linear-gradient(135deg, #f0f7ff 0%, #f8f9fa 100%);
+            border: 1px solid #d0e1f9;
+            border-radius: 12px;
+            padding: 32px 24px;
+            margin: 32px 0 40px 0;
+        }
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 14px 32px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 120, 212, 0.25);
+        }
+        .btn-download:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 120, 212, 0.35);
+        }
+        .version-info {
             margin-top: 12px;
+            font-size: 0.88rem;
+            color: var(--sub-text);
         }
         .section-title {
-            font-size: 1.25rem;
+            font-size: 1.3rem;
+            color: #111;
+            font-weight: 700;
             border-bottom: 2px solid var(--primary-color);
             padding-bottom: 8px;
-            margin-top: 32px;
-            margin-bottom: 16px;
+            margin-top: 40px;
+            margin-bottom: 20px;
         }
-        ul {
-            line-height: 1.8;
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .feature-item {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            transition: border-color 0.2s ease;
+        }
+        .feature-item:hover {
+            border-color: var(--primary-color);
+        }
+        .feature-item h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.05rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .feature-item p {
+            margin: 0;
+            font-size: 0.92rem;
             color: var(--sub-text);
-            padding-left: 20px;
+            line-height: 1.6;
+        }
+        .contact-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            color: var(--sub-text);
+            line-height: 1.7;
+        }
+        .contact-info a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .contact-info a:hover {
+            text-decoration: underline;
         }
         footer {
-            margin-top: 48px;
+            margin-top: 52px;
             padding-top: 24px;
-            border-top: 1px solid #e5e5e5;
+            border-top: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 16px;
         }
         .links a {
             color: var(--primary-color);
             text-decoration: none;
-            font-weight: 500;
-            margin-right: 16px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-right: 20px;
         }
         .links a:hover {
             text-decoration: underline;
         }
         .copyright {
-            font-size: 0.85rem;
+            font-size: 0.88rem;
             color: #888;
         }
     </style>
@@ -96,23 +187,61 @@
     <div class="container">
         <header>
             <h1 class="logo">NewSchool</h1>
-            <p class="tagline">교사를 위한 WinUI 3 기반 스마트 학급 관리 데스크톱 솔루션</p>
-            <span class="badge">.NET 10 / WinUI 3 Desktop App</span>
+            <p class="tagline">선생님의 업무 경감을 위한 스마트 학급 운영 및 생기부 관리 솔루션</p>
+            <div class="badge-container">
+                <span class="badge">Windows 11 Fluent Design</span>
+                <span class="badge">NEIS OpenAPI 연동</span>
+                <span class="badge">Google Calendar 동기화</span>
+            </div>
         </header>
 
         <main>
-            <h2 class="section-title">주요 기능</h2>
-            <ul>
-                <li><strong>학급 정보 관리:</strong> 학생 명단 및 학급 관련 데이터를 효율적으로 관리합니다.</li>
-                <li><strong>일정 및 Google 캘린더 연동:</strong> Google OAuth 연동을 통해 학교 및 학급 일정을 캘린더와 동기화합니다.</li>
-                <li><strong>직관적인 UI:</strong> Windows 11 디자인 시스템 기반의 깔끔하고 현대적인 사용자 경험을 제공합니다.</li>
-            </ul>
+            <!-- 최신버전 다운로드 영역 -->
+            <div class="download-box">
+                <a href="https://github.com/centwon/newschool/releases/latest" class="btn-download" target="_blank" rel="noopener">
+                    📦 최신 버전 다운로드 (GitHub Releases)
+                </a>
+                <div class="version-info">
+                    최신 설치 파일 및 패치 노트를 GitHub 저장소에서 바로 확인하실 수 있습니다.
+                </div>
+            </div>
 
-            <h2 class="section-title">문의 및 개발자 정보</h2>
-            <p style="color: var(--sub-text); line-height: 1.6;">
-                NewSchool 앱 이용 중 문의사항이나 버그 제보가 있으시면 아래 이메일로 연락해 주시기 바랍니다.<br>
-                <strong>이메일:</strong> <a href="mailto:centwon@gmail.com" style="color: var(--primary-color);">centwon@gmail.com</a>
-            </p>
+            <!-- 주요 기능 안내 -->
+            <h2 class="section-title">주요 기능 안내</h2>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h3>👨‍🎓 학생 및 출결·상담 관리</h3>
+                    <p>학생 기본 인적사항부터 출결 현황, 학부모 상담 내용, 학생별 특이사항을 체계적으로 누적 기록하고 관리합니다.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>📝 행동특성 및 생기부 기초자료</h3>
+                    <p>학기 중 학생들의 일상 관찰 및 행동특성을 즉시 기록하여 학교생활기록부 작성 시 유용한 기초자료로 활용합니다.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>🏫 NEIS 연동 학사일정·시간표</h3>
+                    <p>나이스(NEIS) OpenAPI를 통해 우리 학교의 최신 학사일정과 시간표 데이터를 자동으로 연동하여 조회합니다.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>📅 Google 캘린더 실시간 동기화</h3>
+                    <p>Google OAuth 연동을 지원하여 주요 학급 행사 및 업무 스케줄을 구글 캘린더와 실시간으로 동기화합니다.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>📋 학급일지 및 주간 업무 관리</h3>
+                    <p>학급일지 작성, 전달사항 기록, 주간 업무 메모 기능을 통해 놓치기 쉬운 담임 업무를 손쉽게 챙길 수 있습니다.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>🔒 세련된 UI & 안전한 데이터</h3>
+                    <p>Windows 11 Fluent UI 디자인 시스템을 적용하여 쾌적한 UX를 제공하며, 모든 데이터는 안전하게 보관됩니다.</p>
+                </div>
+            </div>
+
+            <!-- 문의 및 지원 -->
+            <h2 class="section-title">문의 및 지원</h2>
+            <div class="contact-info">
+                NewSchool 앱 이용 중 발생하는 문제나 기능 제안, 버그 제보는 아래 이메일로 전달해 주시기 바랍니다.<br>
+                • <strong>문의 이메일:</strong> <a href="mailto:centwon@gmail.com">centwon@gmail.com</a><br>
+                • <strong>소스코드 저장소:</strong> <a href="https://github.com/centwon/newschool" target="_blank" rel="noopener">GitHub centwon/newschool</a>
+            </div>
         </main>
 
         <footer>
