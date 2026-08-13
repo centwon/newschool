@@ -77,7 +77,10 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
             }
             else
             {
-                GoogleAuthStatusText.Text = "❌ 인증에 실패했습니다.";
+                // 부분 동의(권한 일부만 허용) 등 사용자가 고칠 수 있는 실패가 있으므로 사유를 그대로 보여준다
+                GoogleAuthStatusText.Text = string.IsNullOrEmpty(authService.LastAuthError)
+                    ? "❌ 인증에 실패했습니다."
+                    : $"❌ {authService.LastAuthError}";
             }
         }
         catch (Exception ex)

@@ -23,7 +23,28 @@ public sealed class GoogleAuthService : IDisposable
     private const string AuthEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
     private const string TokenEndpoint = "https://oauth2.googleapis.com/token";
     private const string RevokeEndpoint = "https://oauth2.googleapis.com/revoke";
-    private const string Scope = "https://www.googleapis.com/auth/calendar";
+
+    // 전체 권한(auth/calendar)이 아니라 실제로 호출하는 API 에 맞춘 세분화 스코프만 요청한다.
+    // (공유 설정 변경·캘린더 삭제 권한은 앱이 쓰지 않으므로 요청하지 않음 — OAuth 검증 대응)
+    private const string ScopeCalendarList = "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
+    private const string ScopeCalendars = "https://www.googleapis.com/auth/calendar.calendars";
+    private const string ScopeEvents = "https://www.googleapis.com/auth/calendar.events";
+
+    /// <summary>이전 버전이 요청하던 전체 권한 스코프 — 세분화 스코프 3종을 모두 포함한다</summary>
+    private const string ScopeFullCalendar = "https://www.googleapis.com/auth/calendar";
+
+    private static readonly string[] RequiredScopes = [ScopeCalendarList, ScopeCalendars, ScopeEvents];
+
+    private const string Scope = $"{ScopeCalendarList} {ScopeCalendars} {ScopeEvents}";
+
+    /// <summary>스코프별 사용자 안내 문구 — 부분 동의로 빠졌을 때 무엇이 안 되는지 알려준다</summary>
+    private static string DescribeScope(string scope) => scope switch
+    {
+        ScopeCalendarList => "캘린더 목록 조회",
+        ScopeCalendars => "학교 전용 캘린더 생성",
+        ScopeEvents => "일정 조회·등록·수정·삭제",
+        _ => scope
+    };
 
     // ──────────────────────────────────────────────────────────────
     // Google Cloud Console에서 발급받은 OAuth 2.0 인증 정보
@@ -42,6 +63,12 @@ public sealed class GoogleAuthService : IDisposable
     /// <summary>인증 완료 여부</summary>
     public bool IsAuthenticated =>
         HasCredentials && !string.IsNullOrEmpty(Settings.GoogleRefreshToken.Value);
+
+    /// <summary>
+    /// 마지막 인증 시도가 실패한 이유(사용자에게 보여줄 문구). 성공했거나 시도 전이면 null.
+    /// AuthenticateAsync 가 false 를 돌려줄 때 호출자가 읽어 쓴다.
+    /// </summary>
+    public string? LastAuthError { get; private set; }
 
     /// <summary>
     /// 유효한 Access Token 반환 (만료 시 자동 갱신)
@@ -74,9 +101,11 @@ public sealed class GoogleAuthService : IDisposable
     {
         string clientId = ClientId;
         string clientSecret = ClientSecret;
+        LastAuthError = null;
 
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
         {
+            LastAuthError = "Google 인증 정보(Client ID/Secret)가 설정되어 있지 않습니다.";
             Debug.WriteLine("[GoogleAuth] Client ID/Secret이 설정되지 않았습니다.");
             return false;
         }
@@ -132,6 +161,9 @@ public sealed class GoogleAuthService : IDisposable
 
             if (string.IsNullOrEmpty(code))
             {
+                LastAuthError = error == "access_denied"
+                    ? "Google 동의 화면에서 권한 허용이 취소되었습니다."
+                    : $"인증에 실패했습니다. ({error})";
                 Debug.WriteLine($"[GoogleAuth] 인증 실패: {error}");
                 return false;
             }
@@ -141,11 +173,13 @@ public sealed class GoogleAuthService : IDisposable
         }
         catch (OperationCanceledException)
         {
+            LastAuthError = "인증 시간이 초과되었거나 취소되었습니다.";
             Debug.WriteLine("[GoogleAuth] 인증 시간 초과 또는 취소");
             return false;
         }
         catch (Exception ex)
         {
+            LastAuthError = ex.Message;
             Debug.WriteLine($"[GoogleAuth] 인증 실패: {ex.Message}");
             return false;
         }
@@ -212,22 +246,7 @@ public sealed class GoogleAuthService : IDisposable
     /// <summary>연결 해제 (토큰 revoke + 삭제)</summary>
     public async Task SignOutAsync()
     {
-        try
-        {
-            string accessToken = Decrypt(Settings.GoogleAccessToken.Value);
-            if (!string.IsNullOrEmpty(accessToken))
-            {
-                var content = new FormUrlEncodedContent(new[]
-                {
-                    new KeyValuePair<string, string>("token", accessToken)
-                });
-                await _httpClient.PostAsync(RevokeEndpoint, content);
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GoogleAuth] Revoke 실패 (무시): {ex.Message}");
-        }
+        await RevokeTokenAsync(Decrypt(Settings.GoogleAccessToken.Value));
 
         // 토큰 삭제
         Settings.GoogleAccessToken.Set("");
@@ -257,12 +276,34 @@ public sealed class GoogleAuthService : IDisposable
 
         if (!response.IsSuccessStatusCode)
         {
+            LastAuthError = $"토큰 발급에 실패했습니다. (HTTP {(int)response.StatusCode})";
             Debug.WriteLine($"[GoogleAuth] 토큰 교환 실패: {json}");
             return false;
         }
 
         var tokenResp = JsonSerializer.Deserialize(json, GoogleCalendarJsonContext.Default.GoogleTokenResponse);
-        if (tokenResp == null) return false;
+        if (tokenResp == null)
+        {
+            LastAuthError = "Google 응답을 해석하지 못했습니다.";
+            return false;
+        }
+
+        // 부분 동의(granular consent) 확인 — 세분화 스코프는 동의 화면에서 체크박스가 따로 뜨므로
+        // 사용자가 일부만 허용할 수 있다. 그대로 토큰을 저장하면 앱은 "연동됨"인데 동기화만
+        // 403 으로 조용히 실패한다. 부족하면 토큰을 버리고 재연동을 유도한다.
+        var missing = FindMissingScopes(tokenResp.Scope);
+        if (missing.Count > 0)
+        {
+            LastAuthError = "동기화에 필요한 권한이 모두 허용되지 않았습니다(" +
+                string.Join(", ", missing.ConvertAll(DescribeScope)) +
+                "). 다시 연동하면서 모든 항목에 체크해 주세요.";
+            Debug.WriteLine($"[GoogleAuth] 부분 동의 — 누락 스코프: {string.Join(" ", missing)}");
+
+            // 반쪽짜리 권한의 토큰은 남기지 않는다. 저장 전이라 로컬은 건드릴 게 없고,
+            // 이미 발급된 액세스 토큰만 Google 쪽에서 무효화한다.
+            await RevokeTokenAsync(tokenResp.AccessToken);
+            return false;
+        }
 
         // 토큰 저장
         SaveAccessToken(tokenResp.AccessToken, tokenResp.ExpiresIn);
@@ -274,6 +315,47 @@ public sealed class GoogleAuthService : IDisposable
 
         Debug.WriteLine("[GoogleAuth] 토큰 교환 완료");
         return true;
+    }
+
+    /// <summary>
+    /// 토큰 응답의 scope 문자열에서 빠진 필수 스코프를 찾는다.
+    /// 전체 권한(auth/calendar)이 부여됐다면 세분화 3종을 모두 포함하므로 통과시킨다
+    /// (전체 권한 시절에 연동한 사용자가 재연동할 때 Google 이 상위 스코프만 돌려줄 수 있음).
+    /// scope 필드 자체가 없으면(구형 응답) 판단 근거가 없으므로 통과시킨다 — 실제 실패는
+    /// API 호출 시 403 으로 드러난다.
+    /// </summary>
+    internal static List<string> FindMissingScopes(string? grantedScopes)
+    {
+        if (string.IsNullOrWhiteSpace(grantedScopes)) return [];
+
+        var granted = grantedScopes.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (Array.IndexOf(granted, ScopeFullCalendar) >= 0) return [];
+
+        var missing = new List<string>();
+        foreach (var required in RequiredScopes)
+        {
+            if (Array.IndexOf(granted, required) < 0)
+                missing.Add(required);
+        }
+        return missing;
+    }
+
+    /// <summary>액세스 토큰을 Google 쪽에서 무효화 (실패해도 무시)</summary>
+    private static async Task RevokeTokenAsync(string accessToken)
+    {
+        if (string.IsNullOrEmpty(accessToken)) return;
+        try
+        {
+            var content = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("token", accessToken)
+            });
+            await _httpClient.PostAsync(RevokeEndpoint, content);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GoogleAuth] Revoke 실패 (무시): {ex.Message}");
+        }
     }
 
     private static void SaveAccessToken(string accessToken, int expiresIn)
