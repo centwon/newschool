@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -174,6 +174,31 @@ public class KEventRepository : BaseRepository
         catch (Exception ex)
         {
             LogError($"KEvent 수정 실패: No={ev.No}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 구글 동기화 식별자만 갱신한다(제목·시각 등 나머지 열은 건드리지 않음).
+    ///
+    /// 업로드는 대화상자를 닫은 뒤 배경에서 도는데, 그동안 사용자가 같은 항목을 다시
+    /// 편집할 수 있다. 전체 행을 쓰는 <see cref="UpdateAsync"/> 로 되돌려 쓰면
+    /// 그 편집이 조용히 사라지므로, 여기서는 두 열만 갱신한다.
+    /// </summary>
+    public async Task<bool> UpdateGoogleSyncFieldsAsync(int no, string googleId, string updated)
+    {
+        const string query = "UPDATE KEvent SET GoogleId=@GoogleId, Updated=@Updated WHERE No=@No";
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", no);
+            cmd.Parameters.AddWithValue("@GoogleId", googleId ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Updated", updated ?? string.Empty);
+            return await cmd.ExecuteNonQueryAsync() > 0;
+        }
+        catch (Exception ex)
+        {
+            LogError($"KEvent 구글 식별자 갱신 실패: No={no}", ex);
             throw;
         }
     }

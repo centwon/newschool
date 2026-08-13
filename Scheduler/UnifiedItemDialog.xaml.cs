@@ -413,27 +413,14 @@ public sealed partial class UnifiedItemDialog : ContentDialog
                     // 반복 할 일은 생성된 항목 전부를 올린다. 예전에는 ResultEvent(=첫 항목)만
                     // 넘겨서, 반복으로 만든 나머지가 구글에 올라가지 않았다.
                     var targets = _savedTasks.Count > 0
-                        ? _savedTasks
+                        ? new List<KEvent>(_savedTasks)
                         : new List<KEvent> { ResultEvent };
 
-                    var failures = new List<string>();
-                    foreach (var target in targets)
-                    {
-                        string? failure = await PushToGoogleAsync(target);
-                        if (failure != null) failures.Add(failure);
-                    }
-
-                    // 로컬 저장은 이미 끝났다 — 창은 닫되(취소하지 않는다) 실패는 알린다.
-                    // 예전에는 실패를 통째로 삼켜서, 체크했는데 구글에 아무것도 안 생겨도
-                    // 사용자는 이유는커녕 실패했다는 사실조차 알 수 없었다.
-                    if (failures.Count > 0)
-                    {
-                        await MessageBox.ShowAsync(
-                            "저장은 됐지만 구글 캘린더에 올리지 못했습니다.\n\n" +
-                            string.Join("\n", failures.Distinct().Take(3)) +
-                            "\n\n다음 자동 동기화에서 다시 시도합니다.",
-                            "구글 캘린더 등록 실패");
-                    }
+                    // 구글 왕복을 여기서 기다리지 않는다. deferral 이 완료될 때까지 대화상자가
+                    // 열린 채로 남으므로, 네트워크가 끝날 때까지 저장 버튼이 멈춘 것처럼 보였다
+                    // (반복 항목 수만큼 순차 왕복 + 실패 시 2·4·8초 백오프까지 겹친다).
+                    // 로컬 저장은 이미 끝났으니 창은 바로 닫고, 업로드는 뒤에서 진행한다.
+                    _ = PushToGoogleInBackgroundAsync(targets);
                 }
             }
         }
@@ -786,6 +773,41 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     }
 
     /// <summary>
+    /// 대화상자를 닫은 뒤 배경에서 구글 캘린더에 올린다.
+    ///
+    /// 실패는 모달 대신 <see cref="MainWindow.ShowGlobalWarning"/> 로 알린다 —
+    /// 이 시점엔 대화상자가 이미 닫혀 있고, 사용자가 다른 작업을 하고 있을 수 있다.
+    /// 앱을 바로 닫아 업로드가 중단돼도 <c>GoogleId</c> 가 비어 있으므로
+    /// 다음 자동 동기화(미동기화 항목 조회)가 집어 간다.
+    /// </summary>
+    private async Task PushToGoogleInBackgroundAsync(List<KEvent> targets)
+    {
+        try
+        {
+            var failures = new List<string>();
+            foreach (var target in targets)
+            {
+                string? failure = await PushToGoogleAsync(target);
+                if (failure != null) failures.Add(failure);
+            }
+
+            if (failures.Count > 0 && App.MainWindow is MainWindow main)
+            {
+                main.ShowGlobalWarning(
+                    "구글 캘린더 등록 실패",
+                    $"저장은 됐지만 구글에 올리지 못했습니다 — " +
+                    string.Join(" / ", failures.Distinct().Take(2)) +
+                    " (다음 자동 동기화에서 다시 시도합니다)");
+            }
+        }
+        catch (Exception ex)
+        {
+            // 배경 작업이라 여기서 새어 나가면 관측되지 않는다
+            Debug.WriteLine($"[UnifiedItemDialog] 구글 Push(배경) 실패: {ex}");
+        }
+    }
+
+    /// <summary>
     /// 저장 후 구글 캘린더에 즉시 Push.
     /// </summary>
     /// <returns>성공하면 null, 실패하면 사용자에게 보여줄 이유.</returns>
@@ -816,8 +838,11 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
                 ev.GoogleId = created.Id;
                 ev.Updated = created.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+
+                // 식별자 두 열만 되써 넣는다 — 배경 업로드 중에 사용자가 같은 항목을
+                // 수정했을 수 있어, 전체 행을 쓰면 그 편집이 조용히 사라진다.
                 using var service = Scheduler.CreateService();
-                await service.UpdateEventAsync(ev);
+                await service.UpdateGoogleSyncFieldsAsync(ev.No, ev.GoogleId, ev.Updated);
             }
             else
             {
@@ -828,7 +853,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
                 ev.Updated = updated.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
                 using var service = Scheduler.CreateService();
-                await service.UpdateEventAsync(ev);
+                await service.UpdateGoogleSyncFieldsAsync(ev.No, ev.GoogleId, ev.Updated);
             }
 
             Debug.WriteLine($"[UnifiedItemDialog] 구글 Push 완료: {ev.Title}");

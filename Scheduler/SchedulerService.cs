@@ -258,6 +258,23 @@ namespace NewSchool.Scheduler
             }
         }
 
+        /// <summary>
+        /// 구글 업로드 직후 식별자만 되써 넣는다 — 배경 업로드 도중 사용자가 같은 항목을
+        /// 수정했을 때 전체 행을 덮어써 그 편집을 지우는 일이 없도록 두 열만 갱신한다.
+        /// </summary>
+        public async Task<bool> UpdateGoogleSyncFieldsAsync(int no, string googleId, string updated)
+        {
+            try
+            {
+                return await KEventRepo.UpdateGoogleSyncFieldsAsync(no, googleId, updated);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SchedulerService] 구글 식별자 갱신 실패: {ex.Message}");
+                throw;
+            }
+        }
+
         public async Task<bool> DeleteEventAsync(int no)
         {
             try
