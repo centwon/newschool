@@ -285,6 +285,48 @@ public sealed partial class Kcalendar : Page
 
             await Task.Run(() =>
             {
+                // 셀마다 전체 목록을 다시 훑으면 O(42 × N) 이 된다.
+                // 날짜별 버킷을 한 번만 만들어 두고 각 셀은 자기 날짜만 꺼내 쓴다(O(N)).
+                // ItemType="schoolschedule"(학사일정 자동동기화분)은 날짜 옆 DateName 에 이미
+                // 표시되므로 목록에서 제외 — 사용자가 직접 넣은 항목("event")은 그대로 둔다.
+                var scheduleByDate = new Dictionary<DateTime, List<SchoolSchedule>>();
+                if (SchoolSchedules != null)
+                {
+                    foreach (var s in SchoolSchedules)
+                    {
+                        if (!scheduleByDate.TryGetValue(s.AA_YMD.Date, out var bucket))
+                            scheduleByDate[s.AA_YMD.Date] = bucket = new List<SchoolSchedule>();
+                        bucket.Add(s);
+                    }
+                }
+
+                var tasksByDate  = new Dictionary<DateTime, List<KEvent>>();
+                var eventsByDate = new Dictionary<DateTime, List<KEvent>>();
+                if (KEvents != null)
+                {
+                    var windowStart = calendarStart.Date;
+                    var windowEnd   = calendarStart.Date.AddDays(41);
+
+                    foreach (var ev in KEvents)
+                    {
+                        if (ev.ItemType == "schoolschedule") continue;
+
+                        var target = ev.ItemType == "task" ? tasksByDate : eventsByDate;
+
+                        // 다중일 이벤트는 Start~End 전 구간에 걸쳐 넣는다(End 는 inclusive).
+                        // 표시 창 밖으로는 확장하지 않는다.
+                        var day = ev.Start.Date < windowStart ? windowStart : ev.Start.Date;
+                        var last = ev.End.Date > windowEnd ? windowEnd : ev.End.Date;
+
+                        for (; day <= last; day = day.AddDays(1))
+                        {
+                            if (!target.TryGetValue(day, out var bucket))
+                                target[day] = bucket = new List<KEvent>();
+                            bucket.Add(ev);
+                        }
+                    }
+                }
+
                 for (int i = 0; i < 42; i++)
                 {
                     var cellDate = DateTime.SpecifyKind(
@@ -294,27 +336,12 @@ public sealed partial class Kcalendar : Page
 
                     try
                     {
-                        var schedules = SchoolSchedules?
-                            .Where(x => x.AA_YMD.Date == cellDate.Date)
-                            .ToList() ?? new List<SchoolSchedule>();
-
-                        if (schedules.Count > 0)
-                            Debug.WriteLine($"[UpdateCells] {cellDate:yyyy-MM-dd} 스케줄: {schedules.Count}개");
-
-                        // KEvent를 task와 event로 분리 (다중일 이벤트: Start~End 범위, End는 inclusive)
-                        // ItemType="schoolschedule"(학사일정 자동동기화분)은 날짜 옆 DateName(SchoolSchedules)에
-                        // 이미 표시되므로 목록에서 제외 — 사용자가 직접 넣은 항목(ItemType="event")은 그대로 표시.
-                        var dayEvents = KEvents?
-                            .Where(x => cellDate.Date >= x.Start.Date && cellDate.Date <= x.End.Date)
-                            .ToList() ?? new List<KEvent>();
-
-                        var tasks = dayEvents.Where(e => e.ItemType == "task").ToList();
-                        var events = dayEvents
-                            .Where(e => e.ItemType != "task" && e.ItemType != "schoolschedule")
-                            .ToList();
-
-                        if (dayEvents.Count > 0)
-                            Debug.WriteLine($"[UpdateCells] {cellDate:yyyy-MM-dd} KEvent: {dayEvents.Count}개 (task: {tasks.Count}, event: {events.Count})");
+                        var schedules = scheduleByDate.TryGetValue(cellDate.Date, out var sList)
+                            ? sList : new List<SchoolSchedule>();
+                        var tasks = tasksByDate.TryGetValue(cellDate.Date, out var tList)
+                            ? tList : new List<KEvent>();
+                        var events = eventsByDate.TryGetValue(cellDate.Date, out var eList)
+                            ? eList : new List<KEvent>();
 
                         dayInfos[i] = new DayInfo(cellDate, schedules, tasks, events);
                     }

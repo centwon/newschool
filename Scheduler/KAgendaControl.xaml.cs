@@ -187,9 +187,9 @@ public sealed partial class KAgendaControl : UserControl
 
             // task 항목: 과거 미완료 + 미래 전체
             var tasks = await svc.GetPendingAndFutureTasksAsync();
-            // event 항목: 60일 범위 (task 제외)
+            // event 항목: 60일 범위 (task·학사일정 제외 — ExcludedFromAgenda 참고)
             var events = await svc.GetEventsByDateAsync(DateTime.Today, 60);
-            var calendarEvents = events.Where(e => e.ItemType != "task").ToList();
+            var calendarEvents = events.Where(e => !ExcludedFromAgenda(e)).ToList();
 
             var allItems = new List<KEvent>(tasks.Count + calendarEvents.Count);
             allItems.AddRange(tasks);
@@ -204,6 +204,17 @@ public sealed partial class KAgendaControl : UserControl
         }
     }
 
+    /// <summary>
+    /// 아젠다 목록에서 뺄 항목인가.
+    ///
+    /// · task — 이 목록은 event 와 task 를 따로 담으므로 event 쪽에서 중복 제외한다.
+    /// · schoolschedule — 학사일정은 이 컨트롤을 쓰는 화면마다 이미 제 자리가 있다
+    ///   (오늘 화면의 학사일정 카드·헤더, 달력의 날짜 옆 DateName). 여기서 또 뿌리면
+    ///   같은 일정이 한 화면에 두 번 나온다. <c>DayCell</c> 과 같은 규칙을 쓴다.
+    /// </summary>
+    private static bool ExcludedFromAgenda(KEvent e)
+        => e.ItemType == "task" || e.ItemType == "schoolschedule";
+
     /// <summary>날짜 범위 지정 로드</summary>
     public async Task LoadByDateRangeAsync(DateTime start, int days = 30, bool showCompleted = true)
     {
@@ -214,9 +225,9 @@ public sealed partial class KAgendaControl : UserControl
 
             // task 항목: 범위 내 (ItemType="task"만)
             var tasks = await svc.GetTasksByDateAsync(start, days, showCompleted);
-            // event 항목: 범위 내 (task 제외)
+            // event 항목: 범위 내 (task·학사일정 제외 — ExcludedFromAgenda 참고)
             var events = await svc.GetEventsByDateAsync(start, days);
-            var calendarEvents = events.Where(e => e.ItemType != "task").ToList();
+            var calendarEvents = events.Where(e => !ExcludedFromAgenda(e)).ToList();
 
             var allItems = new List<KEvent>(tasks.Count + calendarEvents.Count);
             allItems.AddRange(tasks);

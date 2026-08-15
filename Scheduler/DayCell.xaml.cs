@@ -518,93 +518,25 @@ public sealed partial class DayCell : UserControl
     }
 
     /// <summary>
-    /// 비동기 업데이트 (필요 시 사용)
+    /// 비동기 표시 업데이트 — UI 스레드 보장만 담당하고, 실제 갱신은
+    /// <see cref="UpdateDayDisplaySync"/> 한 곳에 위임한다.
+    ///
+    /// 예전에는 이 메서드가 날짜·이벤트·할 일 갱신을 따로 복제해 갖고 있었다.
+    /// 그 결과 <see cref="UpdateColorDisplay"/> 호출이 이쪽에만 빠져 있는 등
+    /// 두 경로가 조용히 어긋났고, 실제로 한 번 버그가 났다(할 일 필터가 한쪽에만 적용).
+    /// 표시 로직은 갈래를 만들지 않는다.
     /// </summary>
     public async Task UpdateDayDisplayAsync(DayInfo dayInfo)
     {
-        if (dayInfo == null)
+        if (dayInfo == null) return;
+
+        if (!this.DispatcherQueue.HasThreadAccess)
         {
-            Debug.WriteLine($"[DayCell] UpdateDayDisplayAsync: dayInfo가 null입니다.");
+            await this.DispatcherQueue.EnqueueAsync(() => UpdateDayDisplaySync(dayInfo));
             return;
         }
 
-        try
-        {
-            Debug.WriteLine($"[DayCell] 표시 업데이트 시작: {dayInfo.Date:yyyy-MM-dd}");
-
-            // UI 스레드에서 실행되는지 확인
-            if (!this.DispatcherQueue.HasThreadAccess)
-            {
-                Debug.WriteLine($"[DayCell] 잘못된 스레드에서 호출됨. DispatcherQueue로 전환.");
-                await this.DispatcherQueue.EnqueueAsync(async () =>
-                {
-                    await UpdateDayDisplayAsync(dayInfo);
-                });
-                return;
-            }
-
-            // ✅ 여기서부터는 UI 스레드에서 실행됨이 보장됨
-
-            // ✅ 일자 표시
-            if (LbDate != null)
-            {
-                LbDate.Text = dayInfo.Date.Day.ToString();
-                LbDate.FontSize = Settings.DateFontSize.Value;
-            }
-            else
-            {
-                Debug.WriteLine($"[DayCell] 경고: LbDate가 null입니다.");
-            }
-
-            // ✅ 날짜 이름 표시 (공휴일 등)
-            if (TbDateName != null)
-            {
-                TbDateName.Text = dayInfo.DateName ?? string.Empty;
-                // 설정 다이얼로그의 "학사일정 폰트"(EventFontSize)가 이 텍스트를 가리킴
-                TbDateName.FontSize = Settings.EventFontSize.Value;
-                TbDateName.Visibility = string.IsNullOrEmpty(dayInfo.DateName)
-                    ? Visibility.Collapsed
-                    : Visibility.Visible;
-            }
-
-            // ✅ 오늘 날짜 강조
-            if (TodayHighlight != null)
-            {
-                TodayHighlight.Visibility = dayInfo.IsToday
-                    ? Visibility.Visible
-                    : Visibility.Collapsed;
-            }
-
-            // ✅ 이벤트 표시 (EventsRepeater) — 새 리스트로 참조 변경하여 UI 갱신 보장
-            if (EventsRepeater != null)
-            {
-                EventsRepeater.ItemsSource = null;
-                if (dayInfo.Events?.Count > 0)
-                    EventsRepeater.ItemsSource = new List<KEvent>(dayInfo.Events);
-            }
-
-            // ✅ 작업 표시 + 개수 배지 — UpdateTasksDisplay 에 위임한다.
-            // 예전에는 여기서 dayInfo.Tasks 를 필터 없이 그대로 뿌렸는데,
-            // UpdateTasksDisplay 는 Settings.ShowTasks(완료 항목 표시) 필터를 적용한다.
-            // 두 경로가 갈려 있어 "할 일 표시" 를 꺼둔 상태에서 완료 체크를 하면
-            // 숨겨져야 할 항목이 남고 배지 숫자도 줄지 않았다. 한쪽으로 통일.
-            UpdateTasksDisplay(dayInfo);
-
-            Debug.WriteLine($"[DayCell] 표시 업데이트 완료: {dayInfo.Date:yyyy-MM-dd}");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[DayCell] UpdateDayDisplayAsync 오류: {ex.Message}");
-            Debug.WriteLine($"[DayCell] 스택 트레이스: {ex.StackTrace}");
-
-            // ✅ COMException인 경우 추가 정보
-            if (ex is System.Runtime.InteropServices.COMException comEx)
-            {
-                Debug.WriteLine($"[DayCell] COM 오류 코드: 0x{comEx.ErrorCode:X8}");
-            }
-
-            throw;
-        }
+        UpdateDayDisplaySync(dayInfo);
     }
     private void UpdateDateDisplay(DayInfo dayInfo)
     {
@@ -729,8 +661,11 @@ public sealed partial class DayCell : UserControl
                 return;
             }
 
-            var tasks = dayInfo?.Tasks ?? new List<KEvent>();
-            var displayTasks = tasks.Where(t => !t.IsDone || Settings.ShowTasks).ToList();
+            // Settings.ShowTasks("할 일 표시/숨김")는 Kcalendar.LoadCalendarDataAsync 가
+            // 조회 단계에서 이미 적용한다(꺼져 있으면 task 가 아예 실려오지 않고, 설정을
+            // 바꾸면 RefreshCalendarAsync 로 다시 읽는다). 여기서 한 번 더 거르면
+            // 판정이 두 곳으로 갈리므로 받은 목록을 그대로 쓴다.
+            var displayTasks = dayInfo?.Tasks ?? new List<KEvent>();
 
             // ✅ ItemsSource 변경 전 기존 바인딩 해제
             if (TasksRepeater.ItemsSource != null)

@@ -88,7 +88,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@FromDate", from.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@ToDate",   to.ToString("yyyy-MM-dd"));
 
-            list = await ExecuteListAsync(cmd, Map);
+            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
 
             LogInfo($"KEvent 범위 조회: {list.Count}개 ({startDate:yyyy-MM-dd}, {days}일)");
             return list;
@@ -124,7 +124,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@FromDate", from.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@ToDate",   to.ToString("yyyy-MM-dd"));
 
-            list = await ExecuteListAsync(cmd, Map);
+            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
 
             return list;
         }
@@ -336,6 +336,35 @@ public class KEventRepository : BaseRepository
         return Map(r, c);
     }
 
+    /// <summary>
+    /// 표시 순서로 정렬한다. <b>SQL 의 <c>ORDER BY Start</c> 만으로는 정렬이 어긋난다</b> —
+    /// Start 열에 두 가지 형식이 섞여 있기 때문이다:
+    /// 종일은 로컬 날짜(<c>yyyy-MM-dd</c>), 시간 이벤트는 UTC(<c>yyyy-MM-ddTHH:mm:ss.fffZ</c>).
+    ///
+    /// WHERE 절은 <c>IsAllday</c> 로 분기해 각각 맞는 값과 비교하지만 ORDER BY 에는 그 분기가
+    /// 없어서 두 형식이 한 축에서 바이트 비교된다. KST(UTC+9) 예:
+    /// 8/15 08:00 은 "2026-08-14T23:00…" 이라 종일 항목 "2026-08-15" 보다 앞서고,
+    /// 8/15 20:00 은 "2026-08-15T11:00…" 이라 뒤에 온다 → 종일 항목이 오전·오후 일정 사이에 낀다.
+    ///
+    /// <see cref="Map"/> 이 이미 로컬 <see cref="DateTime"/> 으로 되돌려 놓으므로,
+    /// 메모리에서 정렬해야 올바른 순서(하루 안에서 종일 먼저, 그 다음 시각순)가 나온다.
+    /// </summary>
+    internal static List<KEvent> SortForDisplay(List<KEvent> list)
+    {
+        list.Sort(static (a, b) =>
+        {
+            int c = a.Start.Date.CompareTo(b.Start.Date);
+            if (c != 0) return c;
+
+            // 같은 날: 종일 항목을 먼저
+            if (a.IsAllday != b.IsAllday) return a.IsAllday ? -1 : 1;
+
+            c = a.Start.CompareTo(b.Start);
+            return c != 0 ? c : string.CompareOrdinal(a.Title, b.Title);
+        });
+        return list;
+    }
+
     private static string TryGetString(SqliteDataReader r, ReaderColumnCache c, string col, string fallback)
         => c.TryGetOrdinal(col, out var i) && !r.IsDBNull(i) ? r.GetString(i) : fallback;
 
@@ -460,7 +489,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@FromDate", from.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@ToDate",   to.ToString("yyyy-MM-dd"));
 
-            list = await ExecuteListAsync(cmd, Map);
+            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
 
             LogInfo($"Task 범위 조회: {list.Count}개 ({startDate:yyyy-MM-dd}, {days}일)");
         }
@@ -495,7 +524,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@TodayUtc",  todayUtc);
             cmd.Parameters.AddWithValue("@TodayDate", todayDate);
 
-            list = await ExecuteListAsync(cmd, Map);
+            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
 
             LogInfo($"미완료+미래 Task 조회: {list.Count}개 (기준: {today:yyyy-MM-dd})");
         }
@@ -530,7 +559,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@TodayUtc",  todayUtc);
             cmd.Parameters.AddWithValue("@TodayDate", todayDate);
 
-            list = await ExecuteListAsync(cmd, Map);
+            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
         }
         catch (Exception ex)
         {
@@ -574,7 +603,7 @@ public class KEventRepository : BaseRepository
             query += " ORDER BY Start ASC";
 
             using var cmd = CreateCommand(query);
-            list = await ExecuteListAsync(cmd, Map);
+            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
         }
         catch (Exception ex)
         {
@@ -609,7 +638,7 @@ public class KEventRepository : BaseRepository
             cmd.Parameters.AddWithValue("@FromUtc", fromUtc);
             cmd.Parameters.AddWithValue("@FromDate", fromDateStr);
 
-            list = await ExecuteListAsync(cmd, Map);
+            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
         }
         catch (Exception ex)
         {

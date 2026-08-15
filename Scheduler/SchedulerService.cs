@@ -29,60 +29,27 @@ namespace NewSchool.Scheduler
 
         #region Task Operations (KEvent ItemType="task")
 
+        // 아래 위임 메서드들에는 try/catch 를 두지 않는다.
+        // KEventRepository 가 이미 catch 에서 LogError(FileLogger) 후 rethrow 하므로,
+        // 여기서 다시 잡아 Debug.WriteLine 하고 throw 하면 로그만 두 번 남고 동작은 같다.
+        // (게다가 Debug.WriteLine 은 [Conditional("DEBUG")] 이라 릴리스에선 사라진다.)
+
         /// <summary>
         /// 작업 생성 (KEvent, ItemType="task" 자동 설정)
         /// </summary>
         public async Task<int> CreateTaskAsync(KEvent task)
         {
-            try
-            {
-                task.ItemType = "task";
-                int no = await KEventRepo.CreateAsync(task);
-                Debug.WriteLine($"[SchedulerService] 작업 생성 완료: {no}");
-                return no;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 작업 생성 실패: {ex.Message}");
-                throw;
-            }
+            task.ItemType = "task";
+            return await KEventRepo.CreateAsync(task);
         }
 
-        /// <summary>
-        /// 작업 수정
-        /// </summary>
+        /// <summary>작업 수정</summary>
         public async Task<bool> UpdateTaskAsync(KEvent task)
-        {
-            try
-            {
-                bool success = await KEventRepo.UpdateAsync(task);
-                Debug.WriteLine($"[SchedulerService] 작업 수정 완료: {task.No}");
-                return success;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 작업 수정 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.UpdateAsync(task);
 
-        /// <summary>
-        /// 작업 삭제
-        /// </summary>
+        /// <summary>작업 삭제</summary>
         public async Task<bool> DeleteTaskAsync(int no)
-        {
-            try
-            {
-                bool success = await SmartDeleteAsync(no);
-                Debug.WriteLine($"[SchedulerService] 작업 삭제 완료: {no}");
-                return success;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 작업 삭제 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await SmartDeleteAsync(no);
 
         /// <summary>
         /// 동기화 여부에 따른 스마트 삭제:
@@ -92,9 +59,19 @@ namespace NewSchool.Scheduler
         private async Task<bool> SmartDeleteAsync(int no)
         {
             var ev = await KEventRepo.GetByIdAsync(no);
-            if (ev != null && !string.IsNullOrEmpty(ev.GoogleId))
-                return await KEventRepo.MarkCancelledAsync(no);
-            return await KEventRepo.DeleteAsync(no);
+            return await SmartDeleteAsync(KEventRepo, ev?.No ?? no, ev?.GoogleId);
+        }
+
+        /// <summary>
+        /// 스마트 삭제의 실제 규칙. 호출부가 이미 항목을 들고 있으면
+        /// <paramref name="googleId"/> 를 넘겨 재조회를 피한다.
+        /// </summary>
+        private static async Task<bool> SmartDeleteAsync(
+            Repositories.KEventRepository repo, int no, string? googleId)
+        {
+            if (!string.IsNullOrEmpty(googleId))
+                return await repo.MarkCancelledAsync(no);
+            return await repo.DeleteAsync(no);
         }
 
         /// <summary>영구 삭제(hard-delete). Google 삭제 전파 완료 후 cancelled 행 정리에 사용.</summary>
@@ -106,209 +83,89 @@ namespace NewSchool.Scheduler
         /// </summary>
         public async Task<int> DeleteSeriesFromAsync(string seriesId, DateTime fromDate)
         {
-            try
+            // 단일 연결·단일 트랜잭션으로 처리한다. 예전에는 항목마다 따로 커밋해서
+            // 도중에 실패하면 시리즈가 반만 지워진 채 남았다(생성 경로는 이미
+            // UnifiedItemDialog 에서 UnitOfWork 로 원자적으로 넣고 있었다).
+            //
+            // 또 항목마다 SmartDeleteAsync(no) 가 GoogleId 를 보려고 GetByIdAsync 를
+            // 다시 던졌는데, 조회 결과에 이미 GoogleId 가 들어 있다 → 1+2N 쿼리였던 것을
+            // 1+N 으로 줄인다(365개 시리즈면 731회 → 366회).
+            using var uow = new UnitOfWork(_dbPath);
+            int count = await uow.ExecuteInTransactionAsync(async () =>
             {
-                var members = await KEventRepo.GetBySeriesIdFromAsync(seriesId, fromDate);
-                int count = 0;
+                var members = await uow.KEvents.GetBySeriesIdFromAsync(seriesId, fromDate);
+                int n = 0;
                 foreach (var ev in members)
                 {
-                    if (await SmartDeleteAsync(ev.No))
-                        count++;
+                    if (await SmartDeleteAsync(uow.KEvents, ev.No, ev.GoogleId))
+                        n++;
                 }
-                Debug.WriteLine($"[SchedulerService] 시리즈 삭제 완료: SeriesId={seriesId}, {count}건");
-                return count;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 시리즈 삭제 실패: {ex.Message}");
-                throw;
-            }
+                return n;
+            });
+
+            Debug.WriteLine($"[SchedulerService] 시리즈 삭제 완료: SeriesId={seriesId}, {count}건");
+            return count;
         }
 
-        /// <summary>
-        /// 작업 조회 (ID)
-        /// </summary>
+        /// <summary>작업 조회 (ID)</summary>
         public async Task<KEvent?> GetTaskAsync(int no)
-        {
-            try
-            {
-                return await KEventRepo.GetByIdAsync(no);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 작업 조회 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.GetByIdAsync(no);
 
-        /// <summary>
-        /// 날짜 범위로 작업 조회 (ItemType="task"만)
-        /// </summary>
+        /// <summary>날짜 범위로 작업 조회 (ItemType="task"만)</summary>
         public async Task<List<KEvent>> GetTasksByDateAsync(
             DateTime startDate,
             int days = 1,
             bool showCompleted = true)
-        {
-            try
-            {
-                return await KEventRepo.GetTasksByDateRangeAsync(startDate, days, showCompleted);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 작업 조회 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.GetTasksByDateRangeAsync(startDate, days, showCompleted);
 
-        /// <summary>
-        /// 오늘 기준 미완료 할일 + 오늘 이후 모든 할일 조회 (ItemType="task"만)
-        /// </summary>
+        /// <summary>오늘 기준 미완료 할일 + 오늘 이후 모든 할일 조회 (ItemType="task"만)</summary>
         public async Task<List<KEvent>> GetPendingAndFutureTasksAsync()
-        {
-            try
-            {
-                return await KEventRepo.GetPendingAndFutureTasksAsync(DateTime.Today);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 작업 조회 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.GetPendingAndFutureTasksAsync(DateTime.Today);
 
-        /// <summary>
-        /// CalendarId 기준 미완료 + 미래 작업 조회 (ItemType="task"만)
-        /// </summary>
+        /// <summary>CalendarId 기준 미완료 + 미래 작업 조회 (ItemType="task"만)</summary>
         public async Task<List<KEvent>> GetTasksByCalendarIdAsync(int calendarId)
-        {
-            try
-            {
-                return await KEventRepo.GetTasksByCalendarIdPendingAsync(calendarId, DateTime.Today);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] CalendarId={calendarId} 작업 조회 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.GetTasksByCalendarIdPendingAsync(calendarId, DateTime.Today);
 
         /// <summary>
         /// 모든 작업 조회 (ItemType="task"만)
         /// </summary>
         public async Task<List<KEvent>> GetAllTasksAsync(bool showCompleted = true)
-        {
-            try
-            {
-                return await KEventRepo.GetAllTasksAsync(showCompleted);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 전체 작업 조회 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.GetAllTasksAsync(showCompleted);
 
-        /// <summary>
-        /// 작업 개수 조회 (ItemType="task"만)
-        /// </summary>
+        /// <summary>작업 개수 조회 (ItemType="task"만)</summary>
         public async Task<int> GetTaskCountAsync(bool onlyIncomplete = false)
-        {
-            try
-            {
-                return await KEventRepo.GetTaskCountAsync(onlyIncomplete);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 작업 개수 조회 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.GetTaskCountAsync(onlyIncomplete);
 
         #endregion
 
         #region KEvent Operations
 
         public async Task<int> CreateEventAsync(KEvent ev)
-        {
-            try
-            {
-                int no = await KEventRepo.CreateAsync(ev);
-                Debug.WriteLine($"[SchedulerService] 이벤트 생성 완료: {no}");
-                return no;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 이벤트 생성 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.CreateAsync(ev);
 
         public async Task<bool> UpdateEventAsync(KEvent ev)
-        {
-            try
-            {
-                bool ok = await KEventRepo.UpdateAsync(ev);
-                Debug.WriteLine($"[SchedulerService] 이벤트 수정 완료: {ev.No}");
-                return ok;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 이벤트 수정 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.UpdateAsync(ev);
 
         /// <summary>
         /// 구글 업로드 직후 식별자만 되써 넣는다 — 배경 업로드 도중 사용자가 같은 항목을
         /// 수정했을 때 전체 행을 덮어써 그 편집을 지우는 일이 없도록 두 열만 갱신한다.
         /// </summary>
         public async Task<bool> UpdateGoogleSyncFieldsAsync(int no, string googleId, string updated)
-        {
-            try
-            {
-                return await KEventRepo.UpdateGoogleSyncFieldsAsync(no, googleId, updated);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 구글 식별자 갱신 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await KEventRepo.UpdateGoogleSyncFieldsAsync(no, googleId, updated);
 
         public async Task<bool> DeleteEventAsync(int no)
-        {
-            try
-            {
-                bool ok = await SmartDeleteAsync(no);
-                Debug.WriteLine($"[SchedulerService] 이벤트 삭제 완료: {no}");
-                return ok;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchedulerService] 이벤트 삭제 실패: {ex.Message}");
-                throw;
-            }
-        }
+            => await SmartDeleteAsync(no);
 
         public async Task<KEvent?> GetEventAsync(int no)
-        {
-            try { return await KEventRepo.GetByIdAsync(no); }
-            catch (Exception ex) { Debug.WriteLine($"[SchedulerService] 이벤트 조회 실패: {ex.Message}"); throw; }
-        }
+            => await KEventRepo.GetByIdAsync(no);
 
         /// <summary>날짜 범위로 이벤트 조회</summary>
         public async Task<List<KEvent>> GetEventsByDateAsync(DateTime startDate, int days = 1)
-        {
-            try { return await KEventRepo.GetByDateRangeAsync(startDate, days); }
-            catch (Exception ex) { Debug.WriteLine($"[SchedulerService] 이벤트 범위 조회 실패: {ex.Message}"); throw; }
-        }
+            => await KEventRepo.GetByDateRangeAsync(startDate, days);
 
         /// <summary>특정 캘린더 소속 + 특정 ItemType 전체 조회 (학사일정 재조정 동기화용)</summary>
         public async Task<List<KEvent>> GetEventsByCalendarAndTypeAsync(int calendarId, string itemType)
-        {
-            try { return await KEventRepo.GetByCalendarIdAndTypeAsync(calendarId, itemType); }
-            catch (Exception ex) { Debug.WriteLine($"[SchedulerService] 캘린더+타입별 조회 실패: {ex.Message}"); throw; }
-        }
+            => await KEventRepo.GetByCalendarIdAndTypeAsync(calendarId, itemType);
 
         #endregion
 
