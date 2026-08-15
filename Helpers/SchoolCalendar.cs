@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NewSchool.Models;
 
 namespace NewSchool.Helpers;
@@ -6,10 +6,10 @@ namespace NewSchool.Helpers;
 /// <summary>
 /// 학사일정·요일 판정을 한곳에 모은 헬퍼.
 ///
-/// ⚠ 여기 있는 두 규칙은 원래 자동배치(<c>SchedulingEngine</c>)와 밀기/당기기
-/// (<c>ScheduleShiftService</c>)에 <b>복붙</b>돼 있었다. 두 곳의 기준이 어긋나면
-/// "최초 배치 땐 뺐던 공휴일로 밀기가 수업을 옮기는" 식으로 조용히 깨지므로
-/// (실제로 한 번 어긋나 맞춘 이력이 있다) 반드시 이 메서드만 쓸 것.
+/// ⚠ 현재 프로덕션 호출부가 없다 — 이 규칙을 쓰던 자동배치·밀기/당기기를
+/// 1.0 정리에서 걷어냈다. 학사일정 기반 판정이 다시 필요해지면 여기서 시작하면 되고,
+/// 그때도 규칙을 화면마다 복붙하지 말 것(예전에 두 곳의 기준이 어긋나
+/// "최초 배치 땐 뺐던 공휴일로 밀기가 수업을 옮기는" 식으로 조용히 깨진 적이 있다).
 /// </summary>
 public static class SchoolCalendar
 {

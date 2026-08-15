@@ -89,9 +89,6 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
 
     [Theory]
     [InlineData("CourseSection")]
-    [InlineData("Schedule")]
-    [InlineData("ScheduleUnitMap")]
-    [InlineData("UndoHistory")]
     public async Task 초기화기만으로_리포지토리_소유_테이블이_만들어진다(string table)
     {
         var names = await TableNamesAsync();

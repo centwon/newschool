@@ -597,7 +597,7 @@ namespace NewSchool.Database
         /// 정의를 각 리포지토리가 들고 있는 테이블들을 초기화 시점에 미리 만든다.
         ///
         /// 예전에는 해당 리포지토리 생성자가 처음 호출될 때만 만들어졌는데,
-        /// 이 중 <c>Schedule</c>·<c>CourseSection</c> 은 다른 테이블의
+        /// 이 중 <c>CourseSection</c> 은 다른 테이블의
         /// FK 부모다. <c>foreign_keys=ON</c> 에서 부모 테이블이 없으면 자식 테이블에 대한
         /// INSERT/UPDATE 가 준비 단계에서 <c>no such table</c> 로 실패한다
         /// 지금까지는 화면들이 우연히 부모 리포지토리를 먼저 열어서 가려져 있었을 뿐이므로,
@@ -612,9 +612,6 @@ namespace NewSchool.Database
             var schemas = new (string Name, string Sql)[]
             {
                 ("CourseSection",     Repositories.CourseSectionRepository.SchemaSql),
-                ("Schedule",          Repositories.ScheduleRepository.SchemaSql),
-                ("ScheduleUnitMap",   Repositories.ScheduleUnitMapRepository.SchemaSql),
-                ("UndoHistory",       Repositories.UndoHistoryRepository.SchemaSql),
             };
 
             foreach (var (name, sql) in schemas)
