@@ -600,7 +600,6 @@ namespace NewSchool.Database
         /// 이 중 <c>Schedule</c>·<c>CourseSection</c> 은 다른 테이블의
         /// FK 부모다. <c>foreign_keys=ON</c> 에서 부모 테이블이 없으면 자식 테이블에 대한
         /// INSERT/UPDATE 가 준비 단계에서 <c>no such table</c> 로 실패한다
-        /// (예: ScheduleRepository 를 한 번도 만들지 않은 채 LessonProgress 를 갱신).
         /// 지금까지는 화면들이 우연히 부모 리포지토리를 먼저 열어서 가려져 있었을 뿐이므로,
         /// 순서 의존을 없애기 위해 여기서 한 번에 만든다.
         ///
@@ -615,7 +614,6 @@ namespace NewSchool.Database
                 ("CourseSection",     Repositories.CourseSectionRepository.SchemaSql),
                 ("Schedule",          Repositories.ScheduleRepository.SchemaSql),
                 ("ScheduleUnitMap",   Repositories.ScheduleUnitMapRepository.SchemaSql),
-                ("LessonProgress",    Repositories.LessonProgressRepository.SchemaSql),
                 ("UndoHistory",       Repositories.UndoHistoryRepository.SchemaSql),
             };
 

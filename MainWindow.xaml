@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="NewSchool.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -122,13 +122,6 @@
                             Content="수업홈">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE80F;"/>
-                            </NavigationViewItem.Icon>
-                        </NavigationViewItem>
-                        <NavigationViewItem
-                            Tag="ProgressMatrix"
-                            Content="진도 관리">
-                            <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE9D5;"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem

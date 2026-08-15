@@ -267,10 +267,6 @@ public sealed partial class MainWindow : Window
                     // 수업 관리 (신규)
                     WorkFrame.Navigate(typeof(CourseManagementPage));
                     break;
-                case "ProgressMatrix":
-                    // 진도 관리
-                    WorkFrame.Navigate(typeof(ProgressMatrixPage));
-                    break;
                 case "LessonActivity":
                     // 수업 관리 (신규)
                     WorkFrame.Navigate(typeof(LessonActivityPage));

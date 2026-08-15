@@ -91,7 +91,6 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
     [InlineData("CourseSection")]
     [InlineData("Schedule")]
     [InlineData("ScheduleUnitMap")]
-    [InlineData("LessonProgress")]
     [InlineData("UndoHistory")]
     public async Task 초기화기만으로_리포지토리_소유_테이블이_만들어진다(string table)
     {
@@ -99,27 +98,6 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
         Assert.Contains(table, names);
     }
 
-    /// <summary>
-    /// 21차에서 실제로 밟았던 실패 재현 — ScheduleRepository 를 만들지 않은 채
-    /// LessonProgress 를 갱신하면 FK 부모(Schedule) 부재로 터졌다.
-    /// </summary>
-    [Fact]
-    public async Task 부모_리포지토리_없이도_LessonProgress_갱신이_동작한다()
-    {
-        using var repo = new LessonProgressRepository(_fx.DbPath);
-
-        var ghost = new LessonProgress
-        {
-            No = 999_999,
-            CourseSectionId = 1,
-            Room = "2-3",
-            ProgressType = ProgressType.Normal,
-            UpdatedAt = DateTime.Now,
-        };
-
-        // 갱신 대상이 없으니 false — 예외 없이 여기까지 오는 것이 핵심
-        Assert.False(await repo.UpdateAsync(ghost));
-    }
 
     /// <summary>
     /// LessonLog 는 초기화기와 리포지토리가 서로 다른 정의를 갖고 있었다.

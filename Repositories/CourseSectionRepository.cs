@@ -23,7 +23,7 @@ public class CourseSectionRepository : BaseRepository
     /// CourseSection 스키마 정본(기본 컬럼만 — 기존 DB 호환).
     /// v2 추가 컬럼과 인덱스는 이 리포지토리 생성 시 <c>AddNewColumnsIfNeeded</c> 가 붙인다.
     /// <c>DatabaseInitializer</c> 가 이 상수를 함께 실행한다
-    /// (LessonProgress·ScheduleUnitMap 이 FK 부모로 참조).
+    /// (ScheduleUnitMap 이 FK 부모로 참조).
     /// </summary>
     internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS CourseSection (
@@ -626,19 +626,7 @@ public class CourseSectionRepository : BaseRepository
                 return 0;
             }
 
-            // 2. LessonProgress 삭제 (외래 키 제약)
-            string progressDeleteQuery = $"DELETE FROM LessonProgress WHERE CourseSectionId IN ({string.Join(",", sectionIds)})";
-            try
-            {
-                using var progressCmd = CreateCommand(progressDeleteQuery);
-                await progressCmd.ExecuteNonQueryAsync();
-            }
-            catch (Exception ex)
-            {
-                LogInfo($"LessonProgress 삭제 스킵 (테이블 없음): {ex.Message}");
-            }
-
-            // 3. ScheduleUnitMap 삭제 (외래 키 제약)
+            // 2. ScheduleUnitMap 삭제 (외래 키 제약)
             string mapDeleteQuery = $"DELETE FROM ScheduleUnitMap WHERE CourseSectionId IN ({string.Join(",", sectionIds)})";
             try
             {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -511,7 +511,7 @@ public sealed partial class CourseSectionPage : Page
     }
 
     // SaveSectionsAsync 제거됨 (v2 리팩토링)
-    // 기존: BulkCreateAsync로 전체 삭제+재생성 → ScheduleUnitMap/LessonProgress 소실 문제
+    // 기존: BulkCreateAsync로 전체 삭제+재생성 → ScheduleUnitMap 소실 문제
     // 변경: 개별 작업별로 적절한 Repository 메서드 직접 호출
     //   - 삭제: repo.DeleteAsync(no)
     //   - 전체 삭제: repo.DeleteByCourseAsync(courseNo)
