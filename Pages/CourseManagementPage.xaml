@@ -199,9 +199,14 @@
                                             Click="OnEnrollClick"
                                             Tag="{x:Bind}"/>
 
-                                        <Button 
+                                        <Button
                                             Content="시간표 배치"
                                             Click="OnScheduleClick"
+                                            Tag="{x:Bind}"/>
+
+                                        <Button
+                                            Content="단원 관리"
+                                            Click="OnSectionsClick"
                                             Tag="{x:Bind}"/>
 
                                         <Button 

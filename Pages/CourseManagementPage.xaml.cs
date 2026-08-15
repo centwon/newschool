@@ -169,6 +169,13 @@ public sealed partial class CourseManagementPage : Page
     /// <summary>
     /// 시간표 배치 버튼 클릭
     /// </summary>
+    /// <summary>단원 관리 페이지로 이동 (단원은 교과에 종속되므로 여기서 들어간다)</summary>
+    private void OnSectionsClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is not Course course) return;
+        Frame.Navigate(typeof(CourseSectionPage), course);
+    }
+
     private async void OnScheduleClick(object sender, RoutedEventArgs e)
     {
         var button = sender as Button;
