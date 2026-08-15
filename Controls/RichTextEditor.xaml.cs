@@ -32,6 +32,7 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
     private RichEditorView? _view;     // ShowToolbar=true 일 때만
     private RichEditor? _editor;       // 실제 편집면 (두 경우 모두)
     private byte[]? _pendingFlow;      // Build 전에 LoadFlow 호출 시 보류 (Text DP 와 동일 패턴)
+    private string? _pendingHtml;      // Build 전에 InsertHtml 호출 시 보류 (동일 패턴)
     private bool _isUpdatingFromEditor;
     private bool _disposed;
 
@@ -85,6 +86,10 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
         // 보류된 flow 가 있으면 우선 적용(.flow 로드 경로), 없으면 Text(HTML) 적용
         if (_pendingFlow != null) { ApplyFlow(_pendingFlow); _pendingFlow = null; }
         else ApplyText(Text);
+
+        // Build 전에 들어온 InsertHtml 을 여기서 흘려보낸다.
+        // (새 글의 머리말 삽입처럼 페이지 초기화 중에 호출되는 경로 — 그때는 _editor 가 아직 없다)
+        if (_pendingHtml != null) { _editor.InsertHtml(_pendingHtml); _pendingHtml = null; }
     }
 
     #region Dependency Properties
@@ -161,7 +166,16 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
     public Task<string> GetHtmlAsync() => Task.FromResult(_editor?.ToHtml() ?? string.Empty);
 
     /// <summary>캐럿 위치에 HTML 삽입 (JoditEditor 의 editor.selection.insertHTML 대응).</summary>
-    public void InsertHtml(string html) => _editor?.InsertHtml(html);
+    /// <summary>
+    /// 캐럿 위치에 HTML 을 삽입한다.
+    /// 아직 Build 전이면(페이지 초기화 중 호출) 보류했다가 Build 에서 흘려보낸다 —
+    /// 예전에는 <c>_editor?.</c> 로 조용히 버려져서 새 글 머리말이 들어가지 않았다.
+    /// </summary>
+    public void InsertHtml(string html)
+    {
+        if (_editor == null) { _pendingHtml = (_pendingHtml ?? string.Empty) + html; return; }
+        _editor.InsertHtml(html);
+    }
 
     /// <summary>현재 문서를 .flow 패키지 바이트로 직렬화 (DB BLOB 저장용). 이미지는 원본 바이트로 압축 포함.</summary>
     public byte[] GetFlowBytes()

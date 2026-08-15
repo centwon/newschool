@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -147,6 +148,19 @@ public sealed partial class PostEditPage : Page
                 {
                     _post.Subject = _parameter.DefaultSubject;
                     SubjectComboBox.Text = _parameter.DefaultSubject;
+                }
+
+                // 수업 일지 등에서 넘어온 기본값. 어디까지나 시작값이라 그대로 편집할 수 있다.
+                if (!string.IsNullOrEmpty(_parameter.SeedTitle))
+                {
+                    TitleTextBox.Text = _parameter.SeedTitle;
+                    _post.Title = _parameter.SeedTitle;
+                }
+
+                if (!string.IsNullOrEmpty(_parameter.SeedFirstLine))
+                {
+                    // 본문 첫 줄로 넣는다 — PlainText 로 저장되므로 단원명·페이지가 검색에 걸린다.
+                    ContentEditor.InsertHtml($"<p>{WebUtility.HtmlEncode(_parameter.SeedFirstLine)}</p><p></p>");
                 }
             }
         }

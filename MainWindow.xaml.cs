@@ -290,6 +290,19 @@ public sealed partial class MainWindow : Window
                     WorkFrame.Navigate(typeof(ClubActivityPage));
                     break;
 
+                case "LessonJournal":
+                    // 수업 일지 — 수업 카테고리 안의 전용 게시판.
+                    // 새 글을 쓰면 날짜·교시·교과·강의실·단원 다이얼로그가 먼저 뜨고,
+                    // 그 결과가 제목과 본문 첫 줄의 기본값으로 들어간다.
+                    WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
+                    {
+                        Category = "수업",
+                        Subject = "수업일지",
+                        Title = "수업 일지",
+                        AllowCategoryChange = false,
+                        UseLessonJournalTemplate = true
+                    });
+                    break;
                 case "LessonBoard":
                     // 수업 게시판
                     WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter

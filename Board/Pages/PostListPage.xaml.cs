@@ -474,22 +474,35 @@ public sealed partial class PostListPage : Page
     /// <summary>
     /// 새 글 작성 버튼
     /// </summary>
-    private void NewPostButton_Click(object sender, RoutedEventArgs e)
+    private async void NewPostButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_parameter != null)
-        {
-            // 파라미터가 있으면 카테고리/Subject 전달
-            Frame.Navigate(typeof(PostEditPage), new PostEditPageParameter
-            {
-                DefaultCategory = _parameter.Category,
-                DefaultSubject = _parameter.Subject,
-                AllowCategoryChange = _parameter.AllowCategoryChange
-            });
-        }
-        else
+        if (_parameter == null)
         {
             Frame.Navigate(typeof(PostEditPage));
+            return;
         }
+
+        string? seedTitle = null;
+        string? seedFirstLine = null;
+
+        // 수업 일지 게시판이면 머리 정보를 먼저 받는다. 취소하면 글쓰기 자체를 중단한다.
+        if (_parameter.UseLessonJournalTemplate)
+        {
+            var dialog = new NewSchool.Dialogs.LessonJournalDialog { XamlRoot = this.XamlRoot };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+            seedTitle = dialog.GeneratedTitle;
+            seedFirstLine = dialog.GeneratedFirstLine;
+        }
+
+        Frame.Navigate(typeof(PostEditPage), new PostEditPageParameter
+        {
+            DefaultCategory = _parameter.Category,
+            DefaultSubject = _parameter.Subject,
+            AllowCategoryChange = _parameter.AllowCategoryChange,
+            SeedTitle = seedTitle,
+            SeedFirstLine = seedFirstLine
+        });
     }
 
     /// <summary>

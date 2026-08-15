@@ -16,4 +16,10 @@ public class PostEditPageParameter
 
     /// <summary>카테고리 변경 허용 여부</summary>
     public bool AllowCategoryChange { get; set; } = true;
+
+    /// <summary>새 글 제목 기본값(수업 일지 등). 비어 있으면 제목 칸을 비운 채 시작한다.</summary>
+    public string? SeedTitle { get; set; }
+
+    /// <summary>새 글 본문 첫 줄 기본값. 비어 있으면 본문을 비운 채 시작한다.</summary>
+    public string? SeedFirstLine { get; set; }
 }

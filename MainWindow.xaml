@@ -146,6 +146,13 @@
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem
+                            Tag="LessonJournal"
+                            Content="수업 일지">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE70F;"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem
                             Tag="LessonBoard"
                             Content="수업 게시판">
                             <NavigationViewItem.Icon>

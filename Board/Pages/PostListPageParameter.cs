@@ -37,6 +37,12 @@ public class PostListPageParameter
     /// <summary>개인 영역 표시</summary>
     public bool IsPrivate { get; set; } = false;
 
+    /// <summary>
+    /// 새 글을 쓸 때 수업 일지 머리 정보(날짜·교시·교과·강의실·단원) 다이얼로그를 먼저 띄운다.
+    /// 결과는 제목과 본문 첫 줄의 <b>기본값</b>으로만 들어가며, 편집기에서 자유롭게 고칠 수 있다.
+    /// </summary>
+    public bool UseLessonJournalTemplate { get; set; } = false;
+
     // ========== 기존 필드 유지 ==========
 
     /// <summary>새 글 작성 시 기본 카테고리</summary>
