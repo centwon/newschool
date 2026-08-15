@@ -125,13 +125,6 @@
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem
-                            Tag="AnnualLessonPlan"
-                            Content="연간 수업 계획">
-                            <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE787;"/>
-                            </NavigationViewItem.Icon>
-                        </NavigationViewItem>
-                        <NavigationViewItem
                             Tag="ProgressMatrix"
                             Content="진도 관리">
                             <NavigationViewItem.Icon>

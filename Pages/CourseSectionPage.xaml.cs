@@ -123,7 +123,7 @@ public sealed partial class CourseSectionPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AnnualLessonPlanPage] CSV 가져오기 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionPage] CSV 가져오기 실패: {ex.Message}");
             ShowSectionError($"CSV 파일 가져오기 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
@@ -161,11 +161,11 @@ public sealed partial class CourseSectionPage : Page
             }
 
             UpdateSectionUI();
-            Debug.WriteLine($"[AnnualLessonPlanPage] CSV 가져오기 완료: {sections.Count}개");
+            Debug.WriteLine($"[CourseSectionPage] CSV 가져오기 완료: {sections.Count}개");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AnnualLessonPlanPage] CSV 가져오기 저장 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionPage] CSV 가져오기 저장 실패: {ex.Message}");
             ShowSectionError($"CSV 가져오기 저장 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
@@ -197,11 +197,11 @@ public sealed partial class CourseSectionPage : Page
             var csv = GenerateCsv();
             await FileIO.WriteTextAsync(file, csv, Windows.Storage.Streams.UnicodeEncoding.Utf8);
 
-            Debug.WriteLine($"[AnnualLessonPlanPage] CSV 내보내기 완료: {file.Path}");
+            Debug.WriteLine($"[CourseSectionPage] CSV 내보내기 완료: {file.Path}");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AnnualLessonPlanPage] CSV 내보내기 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionPage] CSV 내보내기 실패: {ex.Message}");
             ShowSectionError($"CSV 파일 내보내기 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
@@ -224,11 +224,11 @@ public sealed partial class CourseSectionPage : Page
             var template = GenerateCsvTemplate();
             await FileIO.WriteTextAsync(file, template, Windows.Storage.Streams.UnicodeEncoding.Utf8);
 
-            Debug.WriteLine($"[AnnualLessonPlanPage] 템플릿 다운로드 완료: {file.Path}");
+            Debug.WriteLine($"[CourseSectionPage] 템플릿 다운로드 완료: {file.Path}");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AnnualLessonPlanPage] 템플릿 다운로드 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionPage] 템플릿 다운로드 실패: {ex.Message}");
             ShowSectionError($"템플릿 다운로드 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
@@ -295,7 +295,7 @@ public sealed partial class CourseSectionPage : Page
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[AnnualLessonPlanPage] CSV 라인 파싱 실패 (라인 {i + 1}): {ex.Message}");
+                Debug.WriteLine($"[CourseSectionPage] CSV 라인 파싱 실패 (라인 {i + 1}): {ex.Message}");
             }
         }
 
@@ -389,7 +389,7 @@ public sealed partial class CourseSectionPage : Page
         {
             // 다이얼로그에서 저장됨 - 데이터 다시 로드
             await LoadCourseSectionsAsync(_selectedCourse.No);
-            Debug.WriteLine("[AnnualLessonPlanPage] 단원 추가 완료 - 데이터 새로고침");
+            Debug.WriteLine("[CourseSectionPage] 단원 추가 완료 - 데이터 새로고침");
         }
     }
 
@@ -412,7 +412,7 @@ public sealed partial class CourseSectionPage : Page
         {
             // 다이얼로그에서 저장됨 - 데이터 다시 로드
             await LoadCourseSectionsAsync(_selectedCourse.No);
-            Debug.WriteLine("[AnnualLessonPlanPage] 단원 편집 완료 - 데이터 새로고침");
+            Debug.WriteLine("[CourseSectionPage] 단원 편집 완료 - 데이터 새로고침");
         }
     }
 
@@ -433,11 +433,11 @@ public sealed partial class CourseSectionPage : Page
 
                     _courseSections.Remove(section);
                     UpdateSectionUI();
-                    Debug.WriteLine($"[AnnualLessonPlanPage] 소단원 삭제: {section.FullPath}");
+                    Debug.WriteLine($"[CourseSectionPage] 소단원 삭제: {section.FullPath}");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[AnnualLessonPlanPage] 소단원 삭제 실패: {ex.Message}");
+                    Debug.WriteLine($"[CourseSectionPage] 소단원 삭제 실패: {ex.Message}");
                     ShowSectionError($"삭제 중 오류가 발생했습니다.\n{ex.Message}");
                 }
             }
@@ -473,11 +473,11 @@ public sealed partial class CourseSectionPage : Page
             UpdateSectionUI();
             ClearAllFlyout.Hide();
 
-            Debug.WriteLine("[AnnualLessonPlanPage] 전체 삭제 완료");
+            Debug.WriteLine("[CourseSectionPage] 전체 삭제 완료");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AnnualLessonPlanPage] 전체 삭제 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionPage] 전체 삭제 실패: {ex.Message}");
             ShowSectionError($"전체 삭제 중 오류가 발생했습니다.\n{ex.Message}");
             ClearAllFlyout.Hide();
         }
@@ -534,7 +534,7 @@ public sealed partial class CourseSectionPage : Page
 
             try
             {
-                Debug.WriteLine($"[AnnualLessonPlanPage] 드래그 완료: {_courseSections.Count}개 단원 정렬");
+                Debug.WriteLine($"[CourseSectionPage] 드래그 완료: {_courseSections.Count}개 단원 정렬");
 
                 // SortOrder 값 갱신 (ObservableCollection은 이미 드래그 순서로 정렬됨)
                 for (int i = 0; i < _courseSections.Count; i++)
@@ -550,11 +550,11 @@ public sealed partial class CourseSectionPage : Page
                 // DB에서 재로드하여 순서와 연번을 확실하게 반영
                 await LoadCourseSectionsAsync(_selectedCourse.No);
 
-                Debug.WriteLine($"[AnnualLessonPlanPage] SortOrder 일괄 업데이트 + 재로드 완료");
+                Debug.WriteLine($"[CourseSectionPage] SortOrder 일괄 업데이트 + 재로드 완료");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[AnnualLessonPlanPage] 단원 순서 변경 실패: {ex.Message}");
+                Debug.WriteLine($"[CourseSectionPage] 단원 순서 변경 실패: {ex.Message}");
                 ShowSectionError($"순서 변경 중 오류가 발생했습니다.\n{ex.Message}");
             }
         }

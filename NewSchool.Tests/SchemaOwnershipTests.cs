@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -12,7 +12,7 @@ namespace NewSchool.Tests;
 /// <summary>
 /// 스키마 소유권 회귀 테스트 — 전수 조사 21차 1단계.
 ///
-/// 예전에는 Schedule·CourseSection·SubjectYearPlan 등 8개 테이블이 각자의 리포지토리
+/// 예전에는 Schedule·CourseSection 등 여러 테이블이 각자의 리포지토리
 /// 생성자에서만 만들어졌다. 이들 중 일부는 다른 테이블의 FK 부모라, 부모 리포지토리를
 /// 한 번도 만들지 않은 상태에서 자식 테이블에 쓰면 <c>no such table</c> 로 실패했다.
 /// 앱에서는 화면들이 우연히 부모를 먼저 열어서 가려져 있었을 뿐이다.
@@ -92,9 +92,6 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
     [InlineData("Schedule")]
     [InlineData("ScheduleUnitMap")]
     [InlineData("LessonProgress")]
-    [InlineData("SubjectYearPlan")]
-    [InlineData("WeeklyLessonHours")]
-    [InlineData("WeeklyUnitPlan")]
     [InlineData("UndoHistory")]
     public async Task 초기화기만으로_리포지토리_소유_테이블이_만들어진다(string table)
     {

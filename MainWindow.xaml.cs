@@ -267,16 +267,6 @@ public sealed partial class MainWindow : Window
                     // 수업 관리 (신규)
                     WorkFrame.Navigate(typeof(CourseManagementPage));
                     break;
-                case "AnnualLessonPlan":
-                    // 연간수업계획
-                    WorkFrame.Navigate(typeof(AnnualLessonPlanPage), new AnnualLessonPlanPageParameter
-                    {
-                        TeacherId = Settings.User.Value,
-                        DbPath = Settings.SchoolDB.Value,
-                        Year = Settings.WorkYear.Value,
-                        Semester = Settings.WorkSemester.Value
-                    });
-                    break;
                 case "ProgressMatrix":
                     // 진도 관리
                     WorkFrame.Navigate(typeof(ProgressMatrixPage));

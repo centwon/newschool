@@ -30,9 +30,6 @@ public sealed partial class ProgressMatrixPage : Page
     private ProgressMatrixData? _matrixData;
 
     // 연간계획 연동 데이터
-    private Dictionary<int, int> _sectionPlannedWeek = new(); // SectionNo → PlannedWeek
-    private int _currentWeek;                                  // 현재 주차
-    private int _plannedSectionsUpToNow;                       // 현재 주차까지 계획된 단원 수
 
     // 선택된 셀 추적
     private readonly HashSet<(int SectionId, string Room)> _selectedCells = new();
@@ -745,8 +742,6 @@ public sealed partial class ProgressMatrixPage : Page
 
             _sections = _matrixData.Sections;
 
-            // 연간계획에서 주차별 단원 배치 로드
-            await LoadPlanDataAsync();
 
             BuildMatrix();
             UpdateSummary();
@@ -762,72 +757,6 @@ public sealed partial class ProgressMatrixPage : Page
         }
     }
 
-    /// <summary>
-    /// 연간계획에서 주차별 단원 배치 + 현재 주차 계산
-    /// </summary>
-    private async Task LoadPlanDataAsync()
-    {
-        _sectionPlannedWeek.Clear();
-        _currentWeek = 0;
-        _plannedSectionsUpToNow = 0;
-
-        if (_selectedCourse == null) return;
-
-        try
-        {
-            using var planRepo = new SubjectYearPlanRepository(SchoolDatabase.DbPath);
-            using var unitPlanRepo = new WeeklyUnitPlanRepository(SchoolDatabase.DbPath);
-            using var hoursRepo = new WeeklyLessonHoursRepository(SchoolDatabase.DbPath);
-
-            // 해당 과목의 연간계획 조회
-            var plans = await planRepo.GetByCourseNoAsync(_selectedCourse.No);
-            if (plans.Count == 0) return;
-
-            // 첫 번째 계획 사용 (학년 전체 또는 첫 학급)
-            var plan = plans[0];
-
-            // 주차별 단원 배치 로드
-            var unitPlans = await unitPlanRepo.GetByYearPlanAsync(plan.No);
-            foreach (var up in unitPlans)
-            {
-                // 같은 단원이 여러 주에 걸칠 수 있으므로 첫 주차만 저장
-                if (!_sectionPlannedWeek.ContainsKey(up.SectionNo))
-                {
-                    _sectionPlannedWeek[up.SectionNo] = up.Week;
-                }
-            }
-
-            // 현재 주차 계산
-            var weeklyHours = await hoursRepo.GetByYearPlanAsync(plan.No);
-            var today = DateTime.Today;
-
-            foreach (var wh in weeklyHours)
-            {
-                if (DateTime.TryParse(wh.WeekStartDate, out var start) &&
-                    DateTime.TryParse(wh.WeekEndDate, out var end))
-                {
-                    if (today >= start && today <= end)
-                    {
-                        _currentWeek = wh.Week;
-                        break;
-                    }
-                    if (today > end)
-                    {
-                        _currentWeek = wh.Week; // 지나간 주 중 가장 최근
-                    }
-                }
-            }
-
-            // 현재 주차까지 계획된 단원 수
-            _plannedSectionsUpToNow = _sectionPlannedWeek
-                .Count(kvp => kvp.Value <= _currentWeek);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[ProgressMatrixPage] 계획 데이터 로드 실패: {ex.Message}");
-            // 계획 데이터 없어도 매트릭스는 표시
-        }
-    }
 
     private void BuildMatrix()
     {
@@ -839,20 +768,11 @@ public sealed partial class ProgressMatrixPage : Page
         if (_matrixData == null || _sections.Count == 0 || _rooms.Count == 0)
             return;
 
-        bool hasPlan = _sectionPlannedWeek.Count > 0;
-
-        // 열 정의: 번호 + 단원명 + [계획] + 학급들 + 합계
+        // 열 정의: 번호 + 단원명 + 학급들 + 합계
         MatrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });  // 번호
         MatrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) }); // 단원명
 
-        int planCol = -1;
-        if (hasPlan)
-        {
-            planCol = 2;
-            MatrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) }); // 계획 주차
-        }
-
-        int roomStartCol = hasPlan ? 3 : 2;
+        const int roomStartCol = 2;
         foreach (var room in _rooms)
         {
             MatrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
@@ -874,9 +794,6 @@ public sealed partial class ProgressMatrixPage : Page
         AddHeaderCell(0, 0, "#");
         AddHeaderCell(0, 1, "단원");
 
-        if (hasPlan)
-            AddHeaderCell(0, planCol, "계획");
-
         for (int i = 0; i < _rooms.Count; i++)
         {
             AddHeaderCell(0, roomStartCol + i, _rooms[i]);
@@ -884,59 +801,23 @@ public sealed partial class ProgressMatrixPage : Page
 
         AddHeaderCell(0, roomStartCol + _rooms.Count, "완료");
 
-        // 현재 주차 경계선을 그을 행 인덱스 계산
-        int currentWeekBoundaryRow = -1;
-        if (hasPlan && _currentWeek > 0)
-        {
-            // 현재 주차까지 계획된 마지막 단원의 행 찾기
-            for (int i = _sections.Count - 1; i >= 0; i--)
-            {
-                if (_sectionPlannedWeek.TryGetValue(_sections[i].No, out var w) && w <= _currentWeek)
-                {
-                    currentWeekBoundaryRow = i + 1; // +1 because row 0 is header
-                    break;
-                }
-            }
-        }
-
-        // 데이터 행 추가
         for (int row = 0; row < _sections.Count; row++)
         {
             var section = _sections[row];
             int gridRow = row + 1;
-            bool isPlanned = _sectionPlannedWeek.TryGetValue(section.No, out var plannedWeek);
-            bool isPastDue = hasPlan && isPlanned && plannedWeek <= _currentWeek;
 
             // 번호
             AddDataCell(gridRow, 0, (row + 1).ToString());
 
-            // 단원명 — 지연 시 배경색 변경
-            var tooltip = section.ShortInfo;
-            if (isPlanned)
-                tooltip += $"\n계획: {plannedWeek}주차";
-
-            AddDataCell(gridRow, 1, section.SectionName, tooltip);
-
-            // 계획 주차
-            if (hasPlan)
-            {
-                if (isPlanned)
-                {
-                    AddPlanWeekCell(gridRow, planCol, plannedWeek, isPastDue);
-                }
-                else
-                {
-                    AddDataCell(gridRow, planCol, "-");
-                }
-            }
+            // 단원명
+            AddDataCell(gridRow, 1, section.SectionName, section.ShortInfo);
 
             // 학급별 진도
             int completedCount = 0;
             for (int col = 0; col < _rooms.Count; col++)
             {
                 var cell = _matrixData.GetCell(section.No, _rooms[col]);
-                AddProgressCell(gridRow, roomStartCol + col, section.No, _rooms[col], cell,
-                    isPastDue && !(cell?.IsCompleted ?? false)); // 지연 경고
+                AddProgressCell(gridRow, roomStartCol + col, section.No, _rooms[col], cell, false);
 
                 if (cell?.IsCompleted == true)
                     completedCount++;
@@ -946,33 +827,9 @@ public sealed partial class ProgressMatrixPage : Page
             AddDataCell(gridRow, roomStartCol + _rooms.Count, $"{completedCount}/{_rooms.Count}");
         }
 
-        // 현재 주차 경계선 (가로 빨간 점선)
-        if (currentWeekBoundaryRow > 0 && currentWeekBoundaryRow <= _sections.Count)
-        {
-            int totalCols = hasPlan ? 3 + _rooms.Count + 1 : 2 + _rooms.Count + 1;
-            var lineRow = currentWeekBoundaryRow;
-
-            var lineBorder = new Border
-            {
-                BorderBrush = RedLineBrush,
-                BorderThickness = new Thickness(0, 0, 0, 2.5),
-                IsHitTestVisible = false
-            };
-
-            ToolTipService.SetToolTip(lineBorder, $"현재 {_currentWeek}주차 — 여기까지 진행 예정");
-            Grid.SetRow(lineBorder, lineRow);
-            Grid.SetColumn(lineBorder, 0);
-            Grid.SetColumnSpan(lineBorder, totalCols);
-            MatrixGrid.Children.Add(lineBorder);
-        }
-
-        // 합계 행
         int summaryRow = _sections.Count + 1;
         AddHeaderCell(summaryRow, 0, "");
         AddHeaderCell(summaryRow, 1, "합계");
-
-        if (hasPlan)
-            AddDataCell(summaryRow, planCol, "");
 
         for (int col = 0; col < _rooms.Count; col++)
         {
@@ -1040,46 +897,6 @@ public sealed partial class ProgressMatrixPage : Page
         MatrixGrid.Children.Add(border);
     }
 
-    /// <summary>계획 주차 셀</summary>
-    private void AddPlanWeekCell(int row, int col, int plannedWeek, bool isPastDue)
-    {
-        var isCurrentWeek = plannedWeek == _currentWeek;
-
-        var border = new Border
-        {
-            BorderBrush = CellBorder,
-            BorderThickness = new Thickness(0, 0, 1, 1),
-            Background = isCurrentWeek ? CurrentWeekBg :
-                         isPastDue ? PastDueBg :
-                         TransparentBrush,
-            Padding = new Thickness(4)
-        };
-
-        var textBlock = new TextBlock
-        {
-            Text = $"{plannedWeek}주",
-            FontSize = 11,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Foreground = isCurrentWeek ? CurrentWeekFg :
-                         isPastDue ? PastDueFg :
-                         PlanDefaultFg
-        };
-
-        if (isCurrentWeek)
-            textBlock.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-
-        border.Child = textBlock;
-
-        var tip = isCurrentWeek ? $"현재 {plannedWeek}주차 진행 중" :
-                  isPastDue ? $"계획 {plannedWeek}주차 — 지연" :
-                  $"계획 {plannedWeek}주차";
-        ToolTipService.SetToolTip(border, tip);
-
-        Grid.SetRow(border, row);
-        Grid.SetColumn(border, col);
-        MatrixGrid.Children.Add(border);
-    }
 
     private void AddProgressCell(int row, int col, int sectionId, string room,
         ProgressMatrixCell? cell, bool isDelayed = false)
@@ -1331,19 +1148,10 @@ public sealed partial class ProgressMatrixPage : Page
 
         TxtTotalSections.Text = _sections.Count.ToString();
 
-        // 계획 진도 표시
-        bool hasPlan = _sectionPlannedWeek.Count > 0;
-        PnlPlanProgress.Visibility = hasPlan ? Visibility.Visible : Visibility.Collapsed;
-        PnlCurrentWeek.Visibility = hasPlan && _currentWeek > 0 ? Visibility.Visible : Visibility.Collapsed;
-        PnlDelayLegend.Visibility = hasPlan ? Visibility.Visible : Visibility.Collapsed;
-
-        if (hasPlan)
-        {
-            TxtPlanProgress.Text = $"{_plannedSectionsUpToNow}/{_sections.Count}단원";
-
-            if (_currentWeek > 0)
-                TxtCurrentWeek.Text = $"{_currentWeek}주차";
-        }
+        // 연간계획 기반 표시(계획 진도·현재 주차·지연 범례)는 연간계획 제거와 함께 내렸다
+        PnlPlanProgress.Visibility = Visibility.Collapsed;
+        PnlCurrentWeek.Visibility = Visibility.Collapsed;
+        PnlDelayLegend.Visibility = Visibility.Collapsed;
 
         // 학급별 통계가 없으면 초기값 표시
         if (_matrixData.StatsByRoom.Count == 0)

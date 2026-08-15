@@ -597,7 +597,7 @@ namespace NewSchool.Database
         /// 정의를 각 리포지토리가 들고 있는 테이블들을 초기화 시점에 미리 만든다.
         ///
         /// 예전에는 해당 리포지토리 생성자가 처음 호출될 때만 만들어졌는데,
-        /// 이 중 <c>Schedule</c>·<c>CourseSection</c>·<c>SubjectYearPlan</c> 은 다른 테이블의
+        /// 이 중 <c>Schedule</c>·<c>CourseSection</c> 은 다른 테이블의
         /// FK 부모다. <c>foreign_keys=ON</c> 에서 부모 테이블이 없으면 자식 테이블에 대한
         /// INSERT/UPDATE 가 준비 단계에서 <c>no such table</c> 로 실패한다
         /// (예: ScheduleRepository 를 한 번도 만들지 않은 채 LessonProgress 를 갱신).
@@ -616,9 +616,6 @@ namespace NewSchool.Database
                 ("Schedule",          Repositories.ScheduleRepository.SchemaSql),
                 ("ScheduleUnitMap",   Repositories.ScheduleUnitMapRepository.SchemaSql),
                 ("LessonProgress",    Repositories.LessonProgressRepository.SchemaSql),
-                ("SubjectYearPlan",   Repositories.SubjectYearPlanRepository.SchemaSql),
-                ("WeeklyLessonHours", Repositories.WeeklyLessonHoursRepository.SchemaSql),
-                ("WeeklyUnitPlan",    Repositories.WeeklyUnitPlanRepository.SchemaSql),
                 ("UndoHistory",       Repositories.UndoHistoryRepository.SchemaSql),
             };
 
