@@ -149,6 +149,20 @@ public sealed partial class PageSeats : Page, IDisposable
     {
         try
         {
+            // ⚠ 기본값을 반드시 콤보박스 채우기 '앞'에 둔다.
+            //
+            // 아래 CBoxGrade.SelectedItem 대입은 SelectionChanged(async void) 를 발동시키고,
+            // 그 사슬이 CBoxRooms.SelectedItem → LoadStudentsAsync →
+            // TryLoadSavedArrangementAsync 까지 이어져 저장된 줄·짝을 복원한다.
+            // 그런데 Microsoft.Data.Sqlite 의 *Async 는 대개 완료된 Task 를 돌려주므로
+            // await 가 양보하지 않고 그 사슬이 **여기서 동기적으로 끝까지 실행된다**.
+            // 그래서 예전처럼 기본값 대입이 뒤에 있으면, 복원된 값을 곧바로 5·1 로 덮어써
+            // 헤더의 도트 패턴이 저장 내용과 무관하게 "5줄·짝 없음" 으로 보였다
+            // (NumberBox 는 복원된 값을 그대로 표시하고 있어 둘이 어긋났다).
+            _jul = 5;
+            _jjak = 1;
+            UpdateDotPattern();
+
             // 콤보박스 데이터 초기화
             for (int i = 1; i <= 3; i++)
             {
@@ -161,11 +175,8 @@ public sealed partial class PageSeats : Page, IDisposable
                 if (Settings.HomeGrade.Value == i)
                 {
                     CBoxGrade.SelectedItem = comboBoxItem;
-                }   
+                }
             }
-            _jul = 5;
-            _jjak = 1;
-            UpdateDotPattern();
         }
         catch (Exception ex)
         {
@@ -896,9 +907,16 @@ public sealed partial class PageSeats : Page, IDisposable
 
         _savedRoundsCount = await CountRoundsAsync();
 
-        // 레이아웃 복원: Jul·Jjak·Rows 반영 후 InitSeats 재호출
-        _jul = saved.Jul;
-        _jjak = saved.Jjak;
+        // 레이아웃 복원: Jul·Jjak 반영 후 InitSeats 재호출
+        // (Rows 는 저장돼 있지만 InitSeats 가 학생 수로 다시 계산하므로 쓰지 않는다)
+        //
+        // 저장값을 그대로 믿지 않고 화면이 표현할 수 있는 범위로 맞춘다.
+        // Jjak 이 0 인 배치가 실제로 존재하고(구 데이터·초기화 실패), 그대로 넣으면
+        //   · 도트 패턴이 new string('●', 0) = "" 이 되어 헤더에서 점이 사라지고
+        //   · InitSeats 가 _jjak <= 0 가드에 걸려 좌석을 아예 그리지 않는다.
+        // Jul 은 NumberBox(2~8)가 대입 시 잘라주지만, 필드도 같은 값으로 맞춰 둔다.
+        _jjak = saved.Jjak == 2 ? 2 : 1;
+        _jul = Math.Clamp(saved.Jul, (int)NBoxJul.Minimum, (int)NBoxJul.Maximum);
         NBoxJul.Value = _jul;
         ChkJJak.IsChecked = _jjak == 2;
         IsViewPhoto = saved.ShowPhoto;
