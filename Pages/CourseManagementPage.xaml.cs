@@ -18,18 +18,10 @@ namespace NewSchool.Pages;
 public sealed partial class CourseManagementPage : Page
 {
     private ObservableCollection<Course> _courses = new();
-    private bool _isInitialized = false;
 
     public CourseManagementPage()
     {
         this.InitializeComponent();
-        this.Loaded += CourseManagementPage_Loaded;
-    }
-
-    private void CourseManagementPage_Loaded(object sender, RoutedEventArgs e)
-    {
-        // YearSemPicker/ClassFilter 가 자체 초기화 후 ClassChanged 를 발생시켜 수업 목록을 로드함
-        _isInitialized = true;
     }
 
     private async void YearSemPicker_YearSemesterChanged(object? sender, YearSemesterChangedEventArgs e)
@@ -38,11 +30,18 @@ public sealed partial class CourseManagementPage : Page
     }
 
     /// <summary>
-    /// 필터 변경 이벤트
+    /// 필터 변경 이벤트 — 학년도·학기·학년이 정해지면 목록을 다시 읽는다.
+    ///
+    /// ⚠ 예전에는 페이지의 Loaded 에서 세운 _isInitialized 플래그로 이 핸들러를 막았다.
+    /// 그런데 WinUI 는 자식 컨트롤의 Loaded 를 페이지의 Loaded 보다 먼저 보내므로,
+    /// YearSemesterPicker 자체 초기화 → ClassFilter.LoadAsync → ClassChanged 로 이어지는
+    /// **최초 로드가 통째로 버려졌다.** 그래서 페이지에 처음 들어가면 목록도 빈 상태 메시지도
+    /// 없이 비어 있었고, 필터를 한 번 건드려야 그제야 떴다.
+    ///
+    /// 준비 여부는 LoadCoursesAsync 가 학년도·학기 0 검사로 이미 막고 있으므로 플래그는 필요 없다.
     /// </summary>
     private void ClassFilter_ClassChanged(object? sender, ClassChangedEventArgs e)
     {
-        if (!_isInitialized) return;
         LoadCoursesAsync();
     }
 

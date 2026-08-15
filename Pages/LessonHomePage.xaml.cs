@@ -232,11 +232,31 @@ public sealed partial class LessonHomePage : Page
     }
 
     /// <summary>
+    /// 저장된 수업 기록에서 교과 번호를 되찾는다.
+    ///
+    /// LessonLog 는 교과 번호를 직접 갖고 있지 않고 과목명·학년·학급만 남긴다.
+    /// 이미 불러둔 담당 교과(<see cref="_courses"/>) 안에서 과목명으로 맞추되,
+    /// 같은 과목을 여러 학년에서 가르치는 경우가 있으므로 학년까지 일치하는 것을 먼저 본다.
+    /// 못 찾으면 null — 다이얼로그가 단원 콤보를 비활성으로 두고 나머지는 정상 동작한다.
+    /// </summary>
+    private int? FindCourseNo(LessonLog log)
+    {
+        if (string.IsNullOrWhiteSpace(log.Subject)) return null;
+
+        var match = _courses.FirstOrDefault(c => c.Subject == log.Subject && c.Grade == log.Grade)
+                 ?? _courses.FirstOrDefault(c => c.Subject == log.Subject);
+
+        return match?.No;
+    }
+
+    /// <summary>
     /// 수업 기록 선택됨 → 편집 다이얼로그
     /// </summary>
     private async void LessonLogList_LessonSelected(object sender, LessonLog lessonLog)
     {
-        var dialog = new LessonLogEditDialog(lessonLog)
+        // 교과 번호를 함께 넘겨야 단원 콤보가 살아난다. 넘기지 않으면 다이얼로그가
+        // "수업(Course) 정보 없음" 으로 비활성 처리한다(LessonLogEditDialog.LoadSectionsAsync).
+        var dialog = new LessonLogEditDialog(lessonLog, FindCourseNo(lessonLog))
         {
             XamlRoot = XamlRoot
         };
@@ -254,12 +274,15 @@ public sealed partial class LessonHomePage : Page
     /// </summary>
     private async void LessonLogList_AddRequested(object sender, EventArgs e)
     {
-        // 과목 필터 없으므로 기본 과목으로 생성
-        var subject = _courses.Count > 0 ? _courses[0].Subject : "";
+        // 과목 필터가 없으므로 첫 교과를 기본으로 삼는다. 교과를 정했으면 번호·학년·강의실도
+        // 함께 넘긴다 — 예전에는 과목명만 넘겨서 단원 콤보가 늘 비활성이었고 강의실도 비어 있었다.
+        var course = _courses.Count > 0 ? _courses[0] : null;
         var dialog = new LessonLogEditDialog(
             Settings.User.Value,
-            subject,
-            string.Empty)
+            course?.Subject ?? string.Empty,
+            course?.RoomList.FirstOrDefault() ?? string.Empty,
+            grade: course?.Grade ?? 0,
+            courseNo: course?.No)
         {
             XamlRoot = XamlRoot
         };
