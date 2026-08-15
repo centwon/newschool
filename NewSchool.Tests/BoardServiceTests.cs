@@ -75,4 +75,36 @@ public class BoardServiceTests : IClassFixture<BoardTestFixture>
         var all = await svc.GetMemosAsync(category: "", subject: "전체메모");
         Assert.Equal(2, all.Count);
     }
+
+    /// <summary>
+    /// 회귀: 예전에는 조회수를 올리기 <b>전에</b> 읽은 객체를 그대로 돌려줘서,
+    /// 글을 열었을 때 화면의 조회수가 DB 보다 항상 1 작았다(자기 열람이 반영 안 된 숫자).
+    /// </summary>
+    [Fact]
+    public async Task GetPost_조회수증가_반환값에도_반영된다()
+    {
+        using var svc = new BoardService(_db.DbPath);
+        int no = await svc.SavePostAsync(TestData.NewPost(title: "조회수"));
+
+        // 첫 열람: 0 -> 1 이 되고, 돌려받은 객체도 1 이어야 한다
+        var first = await svc.GetPostAsync(no, incrementReadCount: true);
+        Assert.Equal(1, first!.ReadCount);
+
+        // 증가 없이 다시 읽어도 DB 값은 1 — 화면과 DB 가 일치한다
+        Assert.Equal(1, (await svc.GetPostAsync(no, incrementReadCount: false))!.ReadCount);
+
+        // 두 번째 열람: 1 -> 2
+        Assert.Equal(2, (await svc.GetPostAsync(no, incrementReadCount: true))!.ReadCount);
+        Assert.Equal(2, (await svc.GetPostAsync(no, incrementReadCount: false))!.ReadCount);
+    }
+
+    [Fact]
+    public async Task GetPost_증가안함이면_조회수_그대로()
+    {
+        using var svc = new BoardService(_db.DbPath);
+        int no = await svc.SavePostAsync(TestData.NewPost(title: "조회수유지"));
+
+        Assert.Equal(0, (await svc.GetPostAsync(no, incrementReadCount: false))!.ReadCount);
+        Assert.Equal(0, (await svc.GetPostAsync(no, incrementReadCount: false))!.ReadCount);
+    }
 }

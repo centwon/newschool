@@ -79,6 +79,11 @@ public partial class BoardService:IDisposable
             if (post != null && incrementReadCount)
             {
                 await uow.Posts.IncrementReadCountAsync(no);
+
+                // 읽어온 값은 증가 이전 값이라, 그대로 돌려주면 화면의 조회수가 DB 보다
+                // 항상 1 작다(글을 열었는데 그 열람이 반영 안 된 숫자가 보인다).
+                // 다시 SELECT 하지 않고 메모리에서 맞춘다.
+                post.ReadCount++;
             }
 
             return post;

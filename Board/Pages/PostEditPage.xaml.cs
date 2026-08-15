@@ -493,30 +493,32 @@ public sealed partial class PostEditPage : Page
             var sourceFile = await StorageFile.GetFileFromPathAsync(sourceFilePath);
             var properties = await sourceFile.GetBasicPropertiesAsync();
 
-            // 고유한 파일명 생성
+            // 저장할 이름(희망값). 타임스탬프는 초 단위라 이것만으로는 유일하지 않다.
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             var extension = Path.GetExtension(sourceFile.Name);
             var fileNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile.Name);
-            var fileName = $"{timestamp}_{fileNameWithoutExt}{extension}";
+            var desiredName = $"{timestamp}_{fileNameWithoutExt}{extension}";
 
-            // 목적지 경로
-            var destinationPath = Board.GetFilePath(fileName, category);
             var destinationFolder = await StorageFolder.GetFolderFromPathAsync(
-                Path.GetDirectoryName(destinationPath));
+                Path.GetDirectoryName(Board.GetFilePath(desiredName, category)));
 
-            // 파일 복사
-            await sourceFile.CopyAsync(destinationFolder, fileName, NameCollisionOption.ReplaceExisting);
+            // ⚠ ReplaceExisting 을 쓰면 안 된다. 새 첨부는 "붙일 때"가 아니라 저장 버튼을 눌렀을 때
+            // 한 루프에서 한꺼번에 복사되므로 전부 같은 초를 받는다. 그래서 이름이 같은 파일을
+            // 두 개 붙이면(다른 폴더의 동명 파일) 뒤엣것이 앞엣것을 조용히 덮어썼고,
+            // DB 에는 첨부 2건이 남는데 실물은 1개뿐인 상태가 됐다.
+            // → 충돌 해소는 OS 에 맡기고(GenerateUniqueName), 실제로 저장된 이름을 DB 에 넣는다.
+            var savedFile = await sourceFile.CopyAsync(
+                destinationFolder, desiredName, NameCollisionOption.GenerateUniqueName);
 
-            // PostFile 객체 생성
             var postFile = new PostFile
             {
                 Post = postNo,
-                FileName = fileName,
+                FileName = savedFile.Name,
                 FileSize = (int)properties.Size,
                 DateTime = DateTime.Now
             };
 
-            Debug.WriteLine($"파일 저장 완료: {destinationPath}");
+            Debug.WriteLine($"파일 저장 완료: {savedFile.Path}");
             return postFile;
         }
         catch (Exception ex)

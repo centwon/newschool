@@ -266,30 +266,29 @@ public sealed partial class MemoEditDialog : Window
             var sourceFile = await StorageFile.GetFileFromPathAsync(sourceFilePath);
             var properties = await sourceFile.GetBasicPropertiesAsync();
 
-            // 고유한 파일명 생성
+            // 저장할 이름(희망값). 타임스탬프는 초 단위라 이것만으로는 유일하지 않다.
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             var extension = Path.GetExtension(sourceFile.Name);
             var fileNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile.Name);
-            var fileName = $"{timestamp}_{fileNameWithoutExt}{extension}";
+            var desiredName = $"{timestamp}_{fileNameWithoutExt}{extension}";
 
-            // 목적지 경로
-            var destinationPath = Board.GetFilePath(fileName, category);
             var destinationFolder = await StorageFolder.GetFolderFromPathAsync(
-                Path.GetDirectoryName(destinationPath));
+                Path.GetDirectoryName(Board.GetFilePath(desiredName, category)));
 
-            // 파일 복사
-            await sourceFile.CopyAsync(destinationFolder, fileName, NameCollisionOption.ReplaceExisting);
+            // ⚠ ReplaceExisting 금지 — 같은 초에 저장되는 동명 첨부가 서로를 조용히 덮어썼다.
+            // 충돌 해소는 OS 에 맡기고, 실제로 저장된 이름을 DB 에 넣는다. (PostEditPage 와 동일)
+            var savedFile = await sourceFile.CopyAsync(
+                destinationFolder, desiredName, NameCollisionOption.GenerateUniqueName);
 
-            // PostFile 객체 생성
             var postFile = new PostFile
             {
                 Post = postNo,
-                FileName = fileName,
+                FileName = savedFile.Name,
                 FileSize = (int)properties.Size,
                 DateTime = DateTime.Now
             };
 
-            Debug.WriteLine($"[MemoEditDialog] 파일 저장 완료: {destinationPath}");
+            Debug.WriteLine($"[MemoEditDialog] 파일 저장 완료: {savedFile.Path}");
             return postFile;
         }
         catch (Exception ex)

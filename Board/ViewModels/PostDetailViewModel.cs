@@ -490,19 +490,22 @@ public class PostDetailViewModel : INotifyPropertyChanged
         {
             Board.EnsureCategoryDirectory(category);
 
+            // 저장할 이름(희망값). 타임스탬프는 초 단위라 이것만으로는 유일하지 않다.
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             var extension = Path.GetExtension(file.Name);
             var fileNameWithoutExt = Path.GetFileNameWithoutExtension(file.Name);
-            var fileName = $"comment_{timestamp}_{fileNameWithoutExt}{extension}";
+            var desiredName = $"comment_{timestamp}_{fileNameWithoutExt}{extension}";
 
-            var destinationPath = Board.GetFilePath(fileName, category);
             var destinationFolder = await StorageFolder.GetFolderFromPathAsync(
-                Path.GetDirectoryName(destinationPath));
+                Path.GetDirectoryName(Board.GetFilePath(desiredName, category)));
 
-            await file.CopyAsync(destinationFolder, fileName, NameCollisionOption.ReplaceExisting);
+            // ⚠ ReplaceExisting 금지 — 같은 초에 저장되는 동명 첨부가 서로를 조용히 덮어썼다.
+            // 충돌 해소는 OS 에 맡기고, 실제로 저장된 이름을 반환한다. (PostEditPage 와 동일)
+            var savedFile = await file.CopyAsync(
+                destinationFolder, desiredName, NameCollisionOption.GenerateUniqueName);
 
-            Debug.WriteLine($"댓글 파일 저장 완료: {destinationPath}");
-            return fileName;
+            Debug.WriteLine($"댓글 파일 저장 완료: {savedFile.Path}");
+            return savedFile.Name;
         }
         catch (Exception ex)
         {

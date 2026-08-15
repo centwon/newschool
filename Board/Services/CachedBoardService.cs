@@ -112,7 +112,7 @@ namespace NewSchool.Board.Services
             if (result > 0)
             {
                 // 관련 캐시 무효화
-                InvalidatePostCaches(post.Category);
+                InvalidatePostCaches();
                 _cache.Remove(CacheKeys.Post(result));
             }
 
@@ -129,7 +129,7 @@ namespace NewSchool.Board.Services
             if (result)
             {
                 // 관련 캐시 무효화
-                InvalidatePostCaches(category);
+                InvalidatePostCaches();
                 _cache.Remove(CacheKeys.Post(postNo));
                 _cache.Remove(CacheKeys.Comments(postNo));
                 _cache.Remove(CacheKeys.PostFiles(postNo));
@@ -295,12 +295,14 @@ namespace NewSchool.Board.Services
         #region Cache Management
 
         /// <summary>
-        /// Post 관련 캐시 무효화
+        /// Post 관련 캐시 무효화.
+        ///
+        /// 목록 캐시는 카테고리·주제·검색어·페이지가 키에 섞여 있어 개별 지목이 어렵다.
+        /// 어차피 짧은 캐시(2분)라 접두사로 통째로 비운다.
         /// </summary>
-        private void InvalidatePostCaches(string category)
+        private void InvalidatePostCaches()
         {
             _cache.RemoveByPattern("board:posts:");
-            _cache.RemoveByPattern($"board:count:{category}");
             // 카테고리/주제 목록은 30분 캐시라, 새 주제·카테고리로 글을 쓰면
             // 필터 콤보에 한참 안 나타난다 — 글 저장/삭제 시 함께 무효화
             _cache.Remove(CacheKeys.Categories());

@@ -466,6 +466,5 @@ namespace NewSchool.Board.Caching
             => $"board:posts:{page}:{pageSize}:{category}:{subject}:{search}";
         public static string Comments(int postNo) => $"board:comments:{postNo}";
         public static string PostFiles(int postNo) => $"board:files:{postNo}";
-        public static string PostCount(string category) => $"board:count:{category}";
     }
 }
