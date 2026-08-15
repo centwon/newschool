@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <ContentDialog
     x:Class="NewSchool.Dialogs.CourseSectionDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -106,7 +106,7 @@
 
             <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
 
-            <!-- 유형 및 기본 정보 -->
+            <!-- 차시·페이지 -->
             <Grid ColumnSpacing="12" RowSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -117,21 +117,9 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- 유형 -->
-                <ComboBox x:Name="CmbSectionType" 
-                          Grid.Column="0" Grid.Row="0"
-                          Header="유형"
-                          HorizontalAlignment="Stretch" 
-                          SelectedIndex="0">
-                    <ComboBoxItem Content="일반수업" Tag="Normal"/>
-                    <ComboBoxItem Content="지필고사" Tag="Exam"/>
-                    <ComboBoxItem Content="수행평가" Tag="Assessment"/>
-                    <ComboBoxItem Content="행사/기타" Tag="Event"/>
-                </ComboBox>
-
                 <!-- 예상 차시 -->
-                <NumberBox x:Name="NumEstimatedHours" 
-                           Grid.Column="1" Grid.Row="0"
+                <NumberBox x:Name="NumEstimatedHours"
+                           Grid.Column="0" Grid.Row="0"
                            Header="예상 차시"
                            Minimum="1" 
                            Maximum="20" 
@@ -156,74 +144,6 @@
                            Value="0" 
                            SpinButtonPlacementMode="Compact"/>
             </Grid>
-
-            <!-- 고정 날짜 (평가용) -->
-            <StackPanel x:Name="PinnedDatePanel" Spacing="6" Visibility="Collapsed">
-                <TextBlock Text="고정 날짜 (평가 일정)" FontSize="13" FontWeight="SemiBold"/>
-                <CalendarDatePicker x:Name="DpPinnedDate" 
-                                    PlaceholderText="날짜 선택"
-                                    DateFormat="{}{year.full}-{month.integer(2)}-{day.integer(2)}"
-                                    HorizontalAlignment="Stretch"/>
-            </StackPanel>
-
-            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-
-            <!-- 학습 목표 -->
-            <StackPanel Spacing="6">
-                <TextBlock Text="학습 목표" FontSize="13" FontWeight="SemiBold"/>
-                <TextBox x:Name="TxtLearningObjective"
-                         PlaceholderText="예) 자연수의 혼합 계산 순서를 알고 계산할 수 있다"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         Height="60"
-                         MaxLength="500"/>
-            </StackPanel>
-
-            <!-- 수업 계획 메모 -->
-            <StackPanel Spacing="6">
-                <TextBlock Text="수업 계획 메모" FontSize="13" FontWeight="SemiBold"/>
-                <TextBox x:Name="TxtLessonPlan"
-                         PlaceholderText="예) 개념 도입 → 모둠 활동 → 평가"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         Height="70"/>
-            </StackPanel>
-
-            <!-- 자료 파일 -->
-            <StackPanel Spacing="6">
-                <TextBlock Text="자료 파일 (PPT, PDF 등)" FontSize="13" FontWeight="SemiBold"/>
-                <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="TxtMaterialPath" 
-                             Grid.Column="0"
-                             PlaceholderText="파일 경로"
-                             IsReadOnly="True"/>
-                    <Button Grid.Column="1" 
-                            Content="찾아보기..." 
-                            Click="OnBrowseMaterialClick"
-                            Padding="16,8"/>
-                </Grid>
-            </StackPanel>
-
-            <!-- 자료 웹 링크 -->
-            <StackPanel Spacing="6">
-                <TextBlock Text="자료 웹 링크" FontSize="13" FontWeight="SemiBold"/>
-                <TextBox x:Name="TxtMaterialUrl" 
-                         PlaceholderText="https://..."/>
-            </StackPanel>
-
-            <!-- 수업 후기/메모 -->
-            <StackPanel Spacing="6">
-                <TextBlock Text="수업 후기/메모 (차년도 참고용)" FontSize="13" FontWeight="SemiBold"/>
-                <TextBox x:Name="TxtMemo" 
-                         PlaceholderText="수업 후 작성"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         Height="80"/>
-            </StackPanel>
 
             <!-- 오류 메시지 -->
             <InfoBar x:Name="ErrorInfoBar"

@@ -22,16 +22,8 @@ public class CourseSection : NotifyPropertyChangedBase
     private int _endPage;
     private int _estimatedHours = 1;
     private int _sortOrder;
-    private string _lessonPlan = string.Empty;
 
     // 신규 필드 (v2)
-    private string _sectionType = "Normal";
-    private bool _isPinned;
-    private DateTime? _pinnedDate;
-    private string _learningObjective = string.Empty;
-    private string _materialPath = string.Empty;
-    private string _materialUrl = string.Empty;
-    private string _memo = string.Empty;
 
     #endregion
 
@@ -126,82 +118,11 @@ public class CourseSection : NotifyPropertyChangedBase
         set => SetProperty(ref _estimatedHours, value);
     }
 
-    /// <summary>수업 계획 메모 (교수학습 활동, 평가 방법 등)</summary>
-    public string LessonPlan
-    {
-        get => _lessonPlan;
-        set => SetProperty(ref _lessonPlan, value);
-    }
-
-    #endregion
-
-    #region Properties - 정렬
-
     /// <summary>정렬 순서</summary>
     public int SortOrder
     {
         get => _sortOrder;
         set => SetProperty(ref _sortOrder, value);
-    }
-
-    #endregion
-
-    #region Properties - 유형 및 고정 (v2 신규)
-
-    /// <summary>
-    /// 단원 유형
-    /// Normal: 일반수업, Exam: 지필고사, Assessment: 수행평가, Event: 행사/기타
-    /// </summary>
-    public string SectionType
-    {
-        get => _sectionType;
-        set => SetProperty(ref _sectionType, value);
-    }
-
-    /// <summary>날짜 고정 여부 (Anchor 배치용)</summary>
-    public bool IsPinned
-    {
-        get => _isPinned;
-        set => SetProperty(ref _isPinned, value);
-    }
-
-    /// <summary>고정된 날짜 (지필고사, 수행평가 등)</summary>
-    public DateTime? PinnedDate
-    {
-        get => _pinnedDate;
-        set => SetProperty(ref _pinnedDate, value);
-    }
-
-    #endregion
-
-    #region Properties - 추가 정보 (v2 신규)
-
-    /// <summary>학습 목표</summary>
-    public string LearningObjective
-    {
-        get => _learningObjective;
-        set => SetProperty(ref _learningObjective, value);
-    }
-
-    /// <summary>자료 파일 경로 (PPT, PDF 등)</summary>
-    public string MaterialPath
-    {
-        get => _materialPath;
-        set => SetProperty(ref _materialPath, value);
-    }
-
-    /// <summary>자료 웹 링크</summary>
-    public string MaterialUrl
-    {
-        get => _materialUrl;
-        set => SetProperty(ref _materialUrl, value);
-    }
-
-    /// <summary>수업 후기/메모 (차년도 참고용)</summary>
-    public string Memo
-    {
-        get => _memo;
-        set => SetProperty(ref _memo, value);
     }
 
     #endregion
@@ -233,15 +154,6 @@ public class CourseSection : NotifyPropertyChangedBase
 
     #region Computed Properties - 신규 (v2)
 
-    /// <summary>평가 단원 여부 (지필고사 또는 수행평가)</summary>
-    public bool IsEvaluation => SectionType == "Exam" || SectionType == "Assessment";
-
-    /// <summary>일반 수업 여부</summary>
-    public bool IsNormal => SectionType == "Normal";
-
-    /// <summary>이동 불가 여부 (고정되었거나 평가 단원)</summary>
-    public bool IsFixed => IsPinned || IsEvaluation;
-
     /// <summary>페이지 범위 표시 (예: "p.8~12")</summary>
     public string PageRangeDisplay
     {
@@ -254,57 +166,8 @@ public class CourseSection : NotifyPropertyChangedBase
         }
     }
 
-    /// <summary>유형 표시 (한글)</summary>
-    public string SectionTypeDisplay => SectionType switch
-    {
-        "Normal" => "일반",
-        "Exam" => "지필고사",
-        "Assessment" => "수행평가",
-        "Event" => "행사",
-        _ => SectionType
-    };
-
-    /// <summary>유형 아이콘 (Segoe Fluent Icons)</summary>
-    public string SectionTypeIcon => SectionType switch
-    {
-        "Normal" => "\uE7C3",      // 책
-        "Exam" => "\uE9D9",        // 체크리스트
-        "Assessment" => "\uE82D",  // 사람+체크
-        "Event" => "\uE787",       // 달력
-        _ => "\uE7C3"
-    };
-
-    /// <summary>고정 날짜 표시 (예: "3/15")</summary>
-    public string PinnedDateDisplay => PinnedDate?.ToString("M/d") ?? "";
-
-    /// <summary>고정 날짜 전체 표시 (예: "2025-03-15")</summary>
-    public string PinnedDateFullDisplay => PinnedDate?.ToString("yyyy-MM-dd") ?? "";
-
-    /// <summary>자료 존재 여부</summary>
-    public bool HasMaterial => !string.IsNullOrEmpty(MaterialPath) || !string.IsNullOrEmpty(MaterialUrl);
-
-    /// <summary>자료 표시 (파일명 또는 URL)</summary>
-    public string MaterialDisplay
-    {
-        get
-        {
-            if (!string.IsNullOrEmpty(MaterialPath))
-                return System.IO.Path.GetFileName(MaterialPath);
-            if (!string.IsNullOrEmpty(MaterialUrl))
-                return "웹 링크";
-            return "";
-        }
-    }
-
-    /// <summary>메모 존재 여부</summary>
-    public bool HasMemo => !string.IsNullOrEmpty(Memo);
-
-    /// <summary>학습 목표 존재 여부</summary>
-    public bool HasLearningObjective => !string.IsNullOrEmpty(LearningObjective);
-
     /// <summary>간단한 정보 표시 (목록용)</summary>
-    public string ShortInfo => $"{SectionTypeDisplay} | {HoursDisplay}" + 
-        (IsFixed ? $" | 📌{PinnedDateDisplay}" : "");
+    public string ShortInfo => $"{PageRangeDisplay} | {HoursDisplay}".TrimStart(' ', '|');
 
     #endregion
 
@@ -341,15 +204,7 @@ public class CourseSection : NotifyPropertyChangedBase
             StartPage = this.StartPage,
             EndPage = this.EndPage,
             EstimatedHours = this.EstimatedHours,
-            SortOrder = this.SortOrder,
-            LessonPlan = this.LessonPlan,
-            SectionType = this.SectionType,
-            IsPinned = this.IsPinned,
-            PinnedDate = this.PinnedDate,
-            LearningObjective = this.LearningObjective,
-            MaterialPath = this.MaterialPath,
-            MaterialUrl = this.MaterialUrl,
-            Memo = this.Memo
+            SortOrder = this.SortOrder
         };
     }
 

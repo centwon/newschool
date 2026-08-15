@@ -61,7 +61,6 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
     /// 초기화기만 돌린 DB 가 이 컬럼들을 모두 갖고 있어야 한다.
     /// </summary>
     [Theory]
-    [InlineData("CourseSection", "LessonPlan,SectionType,IsPinned,PinnedDate,LearningObjective,MaterialPath,MaterialUrl,Memo")]
     [InlineData("ClassDiary", "CreatedAt,UpdatedAt")]
     [InlineData("LessonLog", "Grade,Class,CourseSectionNo,SectionName,Note,CreatedAt,UpdatedAt")]
     [InlineData("StudentSpecial", "Semester")]

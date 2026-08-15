@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using NewSchool.Repositories;
 using NewSchool.Tests.Infrastructure;
 using Xunit;
@@ -81,22 +81,4 @@ public class CourseRepositoryTests : IClassFixture<SqliteTestFixture>
         Assert.Equal(5, totalHours);
     }
 
-    [Fact]
-    public async Task Section_고정날짜_설정과_고정목록_조회()
-    {
-        using var courseRepo = new CourseRepository(_db.DbPath);
-        int courseNo = await courseRepo.CreateAsync(TestData.NewCourse(subject: "고정과목"));
-
-        using var sectionRepo = new CourseSectionRepository(_db.DbPath);
-        int no = await sectionRepo.CreateAsync(TestData.NewSection(courseNo, sectionName: "고정절"));
-
-        Assert.True(await sectionRepo.SetPinnedDateAsync(no, new System.DateTime(TestData.Year, 5, 10)));
-        var pinned = await sectionRepo.GetPinnedSectionsAsync(courseNo);
-        Assert.Single(pinned);
-        Assert.Equal("고정절", pinned[0].SectionName);
-
-        // 고정 해제
-        Assert.True(await sectionRepo.SetPinnedDateAsync(no, null));
-        Assert.Empty(await sectionRepo.GetPinnedSectionsAsync(courseNo));
-    }
 }

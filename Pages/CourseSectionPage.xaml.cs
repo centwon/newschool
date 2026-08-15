@@ -265,28 +265,11 @@ public sealed partial class CourseSectionPage : Page
                     SectionName = fields[5].Trim(),
                     StartPage = fields.Length > 6 && int.TryParse(fields[6], out var startPage) ? startPage : 0,
                     EndPage = fields.Length > 7 && int.TryParse(fields[7], out var endPage) ? endPage : 0,
-                    EstimatedHours = hoursParsed && hours > 0 ? hours : 1,
-                    SectionType = fields.Length > 9 && !string.IsNullOrWhiteSpace(fields[9]) ? fields[9].Trim() : "Normal",
-                    LearningObjective = fields.Length > 10 ? fields[10].Trim() : string.Empty,
-                    LessonPlan = fields.Length > 11 ? fields[11].Trim() : string.Empty,
-                    MaterialPath = fields.Length > 12 ? fields[12].Trim() : string.Empty,
-                    MaterialUrl = fields.Length > 13 ? fields[13].Trim() : string.Empty,
-                    Memo = fields.Length > 14 ? fields[14].Trim() : string.Empty
+                    EstimatedHours = hoursParsed && hours > 0 ? hours : 1
                 };
 
-                if (fields.Length > 15 && !string.IsNullOrWhiteSpace(fields[15]))
-                {
-                    if (DateTime.TryParse(fields[15].Trim(), out var pinnedDate))
-                    {
-                        section.IsPinned = true;
-                        section.PinnedDate = pinnedDate;
-                    }
-                }
-
-                if (section.SectionType == "Exam" || section.SectionType == "Assessment")
-                {
-                    section.IsPinned = true;
-                }
+                // 10번째 열 이후(유형·학습목표·수업계획·자료·메모·고정날짜)는 1.0 에서 제거됐다.
+                // 옛 CSV 를 가져와도 그 열들은 그냥 무시된다.
 
                 if (section.UnitNo > 0 && !string.IsNullOrWhiteSpace(section.SectionName))
                 {
@@ -313,7 +296,7 @@ public sealed partial class CourseSectionPage : Page
     {
         var sb = new StringBuilder();
         sb.Append('\uFEFF');
-        sb.AppendLine("대단원번호,대단원명,중단원번호,중단원명,소단원번호,소단원명,시작페이지,끝페이지,예상차시,유형,학습목표,수업계획,자료파일,자료링크,메모,고정날짜");
+        sb.AppendLine("대단원번호,대단원명,중단원번호,중단원명,소단원번호,소단원명,시작페이지,끝페이지,예상차시");
 
         foreach (var section in _courseSections)
         {
@@ -326,14 +309,7 @@ public sealed partial class CourseSectionPage : Page
                 EscapeCsv(section.SectionName),
                 section.StartPage,
                 section.EndPage,
-                section.EstimatedHours,
-                section.SectionType,
-                EscapeCsv(section.LearningObjective),
-                EscapeCsv(section.LessonPlan),
-                EscapeCsv(section.MaterialPath),
-                EscapeCsv(section.MaterialUrl),
-                EscapeCsv(section.Memo),
-                section.PinnedDate?.ToString("yyyy-MM-dd") ?? ""
+                section.EstimatedHours
             ));
         }
 
@@ -344,11 +320,10 @@ public sealed partial class CourseSectionPage : Page
     {
         var sb = new StringBuilder();
         sb.Append('\uFEFF');
-        sb.AppendLine("대단원번호,대단원명,중단원번호,중단원명,소단원번호,소단원명,시작페이지,끝페이지,예상차시,유형,학습목표,수업계획,자료파일,자료링크,메모,고정날짜");
-        sb.AppendLine("1,수와 연산,1,자연수의 혼합 계산,1,덧셈과 뺄셈의 혼합 계산,8,11,2,Normal,덧셈과 뺄셈의 혼합 계산 순서를 안다,개념 도입 → 연습,,,,,");
-        sb.AppendLine("1,수와 연산,1,자연수의 혼합 계산,2,곱셈과 나눗셈의 혼합 계산,12,15,2,Normal,곱셈과 나눗셈의 혼합 계산을 할 수 있다,모둠 활동,,,,,");
-        sb.AppendLine("0,1학기 중간고사,0,지필평가,1,1단원 평가,0,0,1,Exam,1단원 학습 내용 평가,시험,,,,,2026-04-15");
-        sb.AppendLine("0,수행평가,0,포트폴리오,1,수학 탐구 보고서,0,0,2,Assessment,탐구 주제 선정 및 보고서 작성,발표,,,,,2026-05-20");
+        sb.AppendLine("대단원번호,대단원명,중단원번호,중단원명,소단원번호,소단원명,시작페이지,끝페이지,예상차시");
+        sb.AppendLine("1,수와 연산,1,자연수의 혼합 계산,1,덧셈과 뺄셈의 혼합 계산,8,11,2");
+        sb.AppendLine("1,수와 연산,1,자연수의 혼합 계산,2,곱셈과 나눗셈의 혼합 계산,12,15,2");
+        sb.AppendLine("2,문자와 식,1,문자의 사용,1,문자를 사용한 식,16,20,3");
         return sb.ToString();
     }
 

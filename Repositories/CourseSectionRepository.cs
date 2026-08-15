@@ -38,14 +38,6 @@ public class CourseSectionRepository : BaseRepository
                 EndPage INTEGER DEFAULT 0,
                 EstimatedHours INTEGER DEFAULT 1,
                 SortOrder INTEGER DEFAULT 0,
-                LessonPlan TEXT DEFAULT '',
-                SectionType TEXT DEFAULT 'Normal',
-                IsPinned INTEGER DEFAULT 0,
-                PinnedDate TEXT,
-                LearningObjective TEXT DEFAULT '',
-                MaterialPath TEXT DEFAULT '',
-                MaterialUrl TEXT DEFAULT '',
-                Memo TEXT DEFAULT '',
                 FOREIGN KEY (Course) REFERENCES Course(No) ON DELETE CASCADE
             );
         ";
@@ -73,9 +65,7 @@ public class CourseSectionRepository : BaseRepository
         var indexes = new[]
         {
             "CREATE INDEX IF NOT EXISTS idx_coursesection_course ON CourseSection(Course)",
-            "CREATE INDEX IF NOT EXISTS idx_coursesection_sort ON CourseSection(Course, SortOrder)",
-            "CREATE INDEX IF NOT EXISTS idx_coursesection_type ON CourseSection(Course, SectionType)",
-            "CREATE INDEX IF NOT EXISTS idx_coursesection_pinned ON CourseSection(Course, IsPinned)"
+            "CREATE INDEX IF NOT EXISTS idx_coursesection_sort ON CourseSection(Course, SortOrder)"
         };
 
         foreach (var indexSql in indexes)
@@ -104,14 +94,12 @@ public class CourseSectionRepository : BaseRepository
         const string query = @"
             INSERT INTO CourseSection (
                 Course, UnitNo, UnitName, ChapterNo, ChapterName,
-                SectionNo, SectionName, StartPage, EndPage, EstimatedHours, 
-                SortOrder, LessonPlan, SectionType, IsPinned, PinnedDate,
-                LearningObjective, MaterialPath, MaterialUrl, Memo
+                SectionNo, SectionName, StartPage, EndPage, EstimatedHours,
+                SortOrder
             ) VALUES (
                 @Course, @UnitNo, @UnitName, @ChapterNo, @ChapterName,
                 @SectionNo, @SectionName, @StartPage, @EndPage, @EstimatedHours,
-                @SortOrder, @LessonPlan, @SectionType, @IsPinned, @PinnedDate,
-                @LearningObjective, @MaterialPath, @MaterialUrl, @Memo
+                @SortOrder
             );
             SELECT last_insert_rowid();";
 
@@ -227,81 +215,6 @@ public class CourseSectionRepository : BaseRepository
     }
 
     /// <summary>
-    /// 고정된 단원 조회 (Anchor 배치용)
-    /// </summary>
-    public async Task<List<CourseSection>> GetPinnedSectionsAsync(int courseNo)
-    {
-        const string query = @"
-            SELECT * FROM CourseSection
-            WHERE Course = @Course AND (IsPinned = 1 OR SectionType IN ('Exam', 'Assessment'))
-            ORDER BY PinnedDate, SortOrder";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Course", courseNo);
-
-            return await ExecuteQueryAsync(cmd);
-        }
-        catch (Exception ex)
-        {
-            LogError($"고정 단원 조회 실패: Course={courseNo}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 일반 단원 조회 (Fill 배치용 - 고정되지 않은 것만)
-    /// </summary>
-    public async Task<List<CourseSection>> GetNormalSectionsAsync(int courseNo)
-    {
-        const string query = @"
-            SELECT * FROM CourseSection
-            WHERE Course = @Course 
-              AND IsPinned = 0 
-              AND SectionType NOT IN ('Exam', 'Assessment')
-            ORDER BY SortOrder, UnitNo, ChapterNo, SectionNo";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Course", courseNo);
-
-            return await ExecuteQueryAsync(cmd);
-        }
-        catch (Exception ex)
-        {
-            LogError($"일반 단원 조회 실패: Course={courseNo}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 유형별 단원 조회
-    /// </summary>
-    public async Task<List<CourseSection>> GetByTypeAsync(int courseNo, string sectionType)
-    {
-        const string query = @"
-            SELECT * FROM CourseSection
-            WHERE Course = @Course AND SectionType = @SectionType
-            ORDER BY SortOrder, UnitNo, ChapterNo, SectionNo";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Course", courseNo);
-            cmd.Parameters.AddWithValue("@SectionType", sectionType);
-
-            return await ExecuteQueryAsync(cmd);
-        }
-        catch (Exception ex)
-        {
-            LogError($"유형별 단원 조회 실패: Course={courseNo}, Type={sectionType}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
     /// 과목의 총 예상 차시 조회
     /// </summary>
     public async Task<int> GetTotalEstimatedHoursAsync(int courseNo)
@@ -322,39 +235,6 @@ public class CourseSectionRepository : BaseRepository
         catch (Exception ex)
         {
             LogError($"총 예상 차시 조회 실패: Course={courseNo}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 유형별 차시 통계
-    /// </summary>
-    public async Task<Dictionary<string, int>> GetHoursByTypeAsync(int courseNo)
-    {
-        const string query = @"
-            SELECT SectionType, COALESCE(SUM(EstimatedHours), 0) as TotalHours
-            FROM CourseSection
-            WHERE Course = @Course
-            GROUP BY SectionType";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Course", courseNo);
-
-            var result = new Dictionary<string, int>();
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                var type = reader.GetString(0);
-                var hours = reader.GetInt32(1);
-                result[type] = hours;
-            }
-            return result;
-        }
-        catch (Exception ex)
-        {
-            LogError($"유형별 차시 통계 조회 실패: Course={courseNo}", ex);
             throw;
         }
     }
@@ -414,14 +294,6 @@ public class CourseSectionRepository : BaseRepository
                 EndPage = @EndPage,
                 EstimatedHours = @EstimatedHours,
                 SortOrder = @SortOrder,
-                LessonPlan = @LessonPlan,
-                SectionType = @SectionType,
-                IsPinned = @IsPinned,
-                PinnedDate = @PinnedDate,
-                LearningObjective = @LearningObjective,
-                MaterialPath = @MaterialPath,
-                MaterialUrl = @MaterialUrl,
-                Memo = @Memo
             WHERE No = @No";
 
         try
@@ -440,80 +312,6 @@ public class CourseSectionRepository : BaseRepository
         catch (Exception ex)
         {
             LogError($"단원 수정 실패: No={section.No}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 고정 날짜 설정
-    /// </summary>
-    public async Task<bool> SetPinnedDateAsync(int no, DateTime? pinnedDate)
-    {
-        const string query = @"
-            UPDATE CourseSection SET
-                IsPinned = @IsPinned,
-                PinnedDate = @PinnedDate
-            WHERE No = @No";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@No", no);
-            cmd.Parameters.AddWithValue("@IsPinned", pinnedDate.HasValue ? 1 : 0);
-            cmd.Parameters.AddWithValue("@PinnedDate", pinnedDate?.ToString("yyyy-MM-dd") ?? (object)DBNull.Value);
-
-            int affected = await cmd.ExecuteNonQueryAsync();
-            return affected > 0;
-        }
-        catch (Exception ex)
-        {
-            LogError($"고정 날짜 설정 실패: No={no}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 유형 변경
-    /// </summary>
-    public async Task<bool> SetSectionTypeAsync(int no, string sectionType)
-    {
-        const string query = "UPDATE CourseSection SET SectionType = @SectionType WHERE No = @No";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@No", no);
-            cmd.Parameters.AddWithValue("@SectionType", sectionType);
-
-            int affected = await cmd.ExecuteNonQueryAsync();
-            return affected > 0;
-        }
-        catch (Exception ex)
-        {
-            LogError($"유형 변경 실패: No={no}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 메모 업데이트
-    /// </summary>
-    public async Task<bool> UpdateMemoAsync(int no, string memo)
-    {
-        const string query = "UPDATE CourseSection SET Memo = @Memo WHERE No = @No";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@No", no);
-            cmd.Parameters.AddWithValue("@Memo", memo);
-
-            int affected = await cmd.ExecuteNonQueryAsync();
-            return affected > 0;
-        }
-        catch (Exception ex)
-        {
-            LogError($"메모 업데이트 실패: No={no}", ex);
             throw;
         }
     }
@@ -660,14 +458,6 @@ public class CourseSectionRepository : BaseRepository
         cmd.Parameters.AddWithValue("@EndPage", section.EndPage);
         cmd.Parameters.AddWithValue("@EstimatedHours", section.EstimatedHours);
         cmd.Parameters.AddWithValue("@SortOrder", section.SortOrder);
-        cmd.Parameters.AddWithValue("@LessonPlan", section.LessonPlan ?? string.Empty);
-        cmd.Parameters.AddWithValue("@SectionType", section.SectionType ?? "Normal");
-        cmd.Parameters.AddWithValue("@IsPinned", section.IsPinned ? 1 : 0);
-        cmd.Parameters.AddWithValue("@PinnedDate", section.PinnedDate?.ToString("yyyy-MM-dd") ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@LearningObjective", section.LearningObjective ?? string.Empty);
-        cmd.Parameters.AddWithValue("@MaterialPath", section.MaterialPath ?? string.Empty);
-        cmd.Parameters.AddWithValue("@MaterialUrl", section.MaterialUrl ?? string.Empty);
-        cmd.Parameters.AddWithValue("@Memo", section.Memo ?? string.Empty);
     }
 
     private async Task<List<CourseSection>> ExecuteQueryAsync(SqliteCommand cmd)
@@ -696,22 +486,8 @@ public class CourseSectionRepository : BaseRepository
             StartPage = GetIntOrDefault(reader, "StartPage", 0),
             EndPage = GetIntOrDefault(reader, "EndPage", 0),
             EstimatedHours = GetIntOrDefault(reader, "EstimatedHours", 1),
-            SortOrder = GetIntOrDefault(reader, "SortOrder", 0),
-            LessonPlan = GetStringOrDefault(reader, "LessonPlan"),
-            SectionType = GetStringOrDefault(reader, "SectionType", "Normal"),
-            IsPinned = GetIntOrDefault(reader, "IsPinned", 0) == 1,
-            LearningObjective = GetStringOrDefault(reader, "LearningObjective"),
-            MaterialPath = GetStringOrDefault(reader, "MaterialPath"),
-            MaterialUrl = GetStringOrDefault(reader, "MaterialUrl"),
-            Memo = GetStringOrDefault(reader, "Memo")
+            SortOrder = GetIntOrDefault(reader, "SortOrder", 0)
         };
-
-        // PinnedDate 파싱
-        var pinnedDateStr = GetStringOrDefault(reader, "PinnedDate");
-        if (!string.IsNullOrEmpty(pinnedDateStr) && DateTime.TryParse(pinnedDateStr, out var pinnedDate))
-        {
-            section.PinnedDate = pinnedDate;
-        }
 
         return section;
     }

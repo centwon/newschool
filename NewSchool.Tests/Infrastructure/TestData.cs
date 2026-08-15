@@ -133,7 +133,6 @@ public static class TestData
         StartPage = 1,
         EndPage = 10,
         EstimatedHours = hours,
-        LessonPlan = string.Empty,
         SortOrder = sectionNo,
     };
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -35,7 +35,7 @@ public sealed partial class CourseSectionDialog : ContentDialog
         _isEditMode = section != null;
 
         LoadCourseInfo();
-        SetupEventHandlers();
+
 
         if (_isEditMode && _existingSection != null)
         {
@@ -64,29 +64,6 @@ public sealed partial class CourseSectionDialog : ContentDialog
         TxtCourseInfo.Text = $"{_course.Grade}학년 · {_course.Type}";
     }
 
-    /// <summary>
-    /// 이벤트 핸들러 설정
-    /// </summary>
-    private void SetupEventHandlers()
-    {
-        CmbSectionType.SelectionChanged += OnSectionTypeChanged;
-    }
-
-    /// <summary>
-    /// 유형 선택 변경 시 고정 날짜 패널 표시/숨김
-    /// </summary>
-    private void OnSectionTypeChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (CmbSectionType == null || PinnedDatePanel == null) return;
-
-        if (CmbSectionType.SelectedItem is ComboBoxItem item && item.Tag is string type)
-        {
-            PinnedDatePanel.Visibility = (type == "Exam" || type == "Assessment")
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-        }
-    }
-
     #endregion
 
     #region Data Loading/Saving
@@ -105,27 +82,6 @@ public sealed partial class CourseSectionDialog : ContentDialog
         NumStartPage.Value = section.StartPage;
         NumEndPage.Value = section.EndPage;
         NumEstimatedHours.Value = section.EstimatedHours;
-
-        // 유형 선택
-        CmbSectionType.SelectedIndex = section.SectionType switch
-        {
-            "Exam" => 1,
-            "Assessment" => 2,
-            "Event" => 3,
-            _ => 0
-        };
-
-        // 고정 날짜
-        if (section.PinnedDate.HasValue)
-        {
-            DpPinnedDate.Date = new DateTimeOffset(section.PinnedDate.Value);
-        }
-
-        TxtLearningObjective.Text = section.LearningObjective;
-        TxtLessonPlan.Text = section.LessonPlan;
-        TxtMaterialPath.Text = section.MaterialPath;
-        TxtMaterialUrl.Text = section.MaterialUrl;
-        TxtMemo.Text = section.Memo;
     }
 
     /// <summary>
@@ -146,32 +102,6 @@ public sealed partial class CourseSectionDialog : ContentDialog
         section.StartPage = (int)NumStartPage.Value;
         section.EndPage = (int)NumEndPage.Value;
         section.EstimatedHours = (int)NumEstimatedHours.Value;
-
-        // 유형
-        var sectionType = "Normal";
-        if (CmbSectionType.SelectedItem is ComboBoxItem item && item.Tag is string type)
-        {
-            sectionType = type;
-        }
-        section.SectionType = sectionType;
-
-        // 평가 유형이면 고정 설정
-        if (sectionType == "Exam" || sectionType == "Assessment")
-        {
-            section.IsPinned = true;
-            section.PinnedDate = DpPinnedDate.Date?.DateTime;
-        }
-        else
-        {
-            section.IsPinned = false;
-            section.PinnedDate = null;
-        }
-
-        section.LearningObjective = TxtLearningObjective.Text?.Trim() ?? string.Empty;
-        section.LessonPlan = TxtLessonPlan.Text?.Trim() ?? string.Empty;
-        section.MaterialPath = TxtMaterialPath.Text?.Trim() ?? string.Empty;
-        section.MaterialUrl = TxtMaterialUrl.Text?.Trim() ?? string.Empty;
-        section.Memo = TxtMemo.Text?.Trim() ?? string.Empty;
 
         return section;
     }
@@ -203,59 +133,11 @@ public sealed partial class CourseSectionDialog : ContentDialog
             return false;
         }
 
-        // 평가 단원 날짜 검증
-        if (CmbSectionType.SelectedItem is ComboBoxItem item && item.Tag is string type)
-        {
-            if ((type == "Exam" || type == "Assessment") && DpPinnedDate.Date == null)
-            {
-                ShowError("평가 단원은 고정 날짜를 설정해주세요.");
-                DpPinnedDate.Focus(FocusState.Programmatic);
-                return false;
-            }
-        }
-
         return true;
     }
 
     #endregion
 
-    #region File Browsing
-
-    /// <summary>
-    /// 자료 파일 찾아보기
-    /// </summary>
-    private async void OnBrowseMaterialClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var picker = new FileOpenPicker();
-            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-            picker.FileTypeFilter.Add(".ppt");
-            picker.FileTypeFilter.Add(".pptx");
-            picker.FileTypeFilter.Add(".pdf");
-            picker.FileTypeFilter.Add(".doc");
-            picker.FileTypeFilter.Add(".docx");
-            picker.FileTypeFilter.Add(".hwp");
-            picker.FileTypeFilter.Add(".hwpx");
-            picker.FileTypeFilter.Add("*");
-
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-            var file = await picker.PickSingleFileAsync();
-            if (file != null)
-            {
-                TxtMaterialPath.Text = file.Path;
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[CourseSectionDialog] 파일 선택 실패: {ex.Message}");
-            await NewSchool.Controls.UserErrorReporter.ReportAsync("파일 선택", ex);
-        }
-    }
-
-    #endregion
 
     #region Save
 
