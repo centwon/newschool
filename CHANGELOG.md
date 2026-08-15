@@ -1,6 +1,132 @@
 ﻿# Changelog
 
-## 미출시
+## v1.0.0 — 첫 공개 릴리스 (출시 예정)
+
+> 코드·문서는 1.0.0 으로 맞춰 두었고 **아직 배포하지 않았다.** 실제로 릴리스하는 날
+> 이 제목의 "(출시 예정)" 을 날짜로 바꾼다.
+>
+> **버전 재조정 안내**
+> 2026-03 ~ 08 사이에 `v1.0.0`~`v1.3.0` 태그로 배포한 빌드가 있었으나 실제로 내려받은
+> 사용자가 없었다(GitHub 릴리스 자산 다운로드 0회 확인). 공개 출시 시점을 1.0.0 으로
+> 맞추기 위해 버전을 되돌렸고, 기존 태그는 GitHub 에서 pre-release 로 표시해
+> 갱신 확인(`/releases/latest`)에서 제외되도록 했다.
+> 그래서 지금은 `/releases/latest` 가 404 이고, 앱의 "업데이트 확인" 은
+> "아직 게시된 릴리스가 없습니다" 로 안내한다 — v1.0.0 을 올리면 해소된다.
+> 아래 **개발 이력**은 그 기간의 작업 기록이며, 내용은 손대지 않고 그대로 보존한다.
+> 괄호 안의 "구 vX.Y.Z" 는 되돌리기 전에 쓰던 번호다.
+
+### 배포 전 마이그레이션 정리 (2026-08-15)
+1.0 을 첫 배포로 잡았으므로, **배포된 적 없는 스키마를 위한 하위호환 코드**를 전부 걷어냈다.
+컬럼 추가 마이그레이션은 지우기 전에 `CREATE TABLE` 정의로 접어 넣었다 — 빠뜨리면
+기존 개발 DB 에는 컬럼이 남아 있어 모른 채 지나가고 **새로 만드는 DB 에서만** 사라진다.
+
+- `CREATE TABLE` 로 접어 넣은 컬럼 11개
+    - `CourseSection` 8개(LessonPlan·SectionType·IsPinned·PinnedDate·LearningObjective·
+      MaterialPath·MaterialUrl·Memo) — `EndPage` 는 CREATE 와 ALTER 양쪽에 중복돼 있었다
+    - `ClassDiary` CreatedAt·UpdatedAt, `KCalendarList` SyncToken
+- 제거한 마이그레이션 — `LessonLog` 컬럼 7종, `Post` IsCompleted·PlainText,
+  `Post` Memo→Category 이관 2종, `Comment` ReplyOrder→ParentNo 개명,
+  `KEvent`/`KCalendarList` 컬럼 5종, `StudentSpecial.Semester` 추가+백필,
+  `LessonProgress` 외래키 재작성
+- `PRAGMA user_version` 기록은 **남기고 1(= v1.0.0 출시 스키마)로 되돌렸다.**
+  1.0 이 나간 뒤 스키마를 바꾸려면 "이 파일이 어느 세대인지" 판별할 수단이 필요하다
+- **검증** — 실사용 DB 3개(school·board·scheduler)의 스키마를 기준선으로 뜬 뒤,
+  초기화기만 돌린 새 DB 와 컬럼 집합을 대조했다: **36개 테이블 전부 일치, 불일치 0건**
+  (순서만 다른 곳이 둘 있으나 SQLite 는 이름으로 조회하므로 무관)
+    - 예전에 ALTER 로만 붙던 컬럼 18개를 `SchemaOwnershipTests` 에 못박아 회귀 테스트로 남겼다
+- 함께 제거한 테스트 — `StudentSpecialSemesterMigrationTests`(마이그레이션 자체를 검증),
+  `LessonProgressCascadeTests.구스키마_DB_는_초기화_시_외래키가_교정된다`
+- 참고: 실사용 DB 에는 코드가 더 이상 만들지 않는 잔여 테이블이 있다
+  (school: Attachment·Evaluation·TodoItem·WorkLog / scheduler: Ktask·KtaskList).
+  **코드 참조 0건**이며 이번 변경과 무관한 옛 흔적이다
+
+### 자리 배정 — 저장된 줄·짝이 헤더 도트에 안 뜨던 문제 (2026-08-15)
+지난 배치를 불러오면 좌석은 제대로 그려지는데 헤더의 도트 패턴만 늘 "5줄·짝 없음" 이었다.
+NumberBox 는 복원된 줄 수를 보여주고 있어서 둘이 서로 어긋났다.
+
+- 원인은 `InitializeData()` 의 **순서**였다. 콤보박스에 학년을 채우면서 `SelectedItem` 을
+  대입하는데, 이게 `SelectionChanged`(async void) 사슬을 발동시켜
+  `LoadStudentsAsync` -> `TryLoadSavedArrangementAsync` 까지 이어진다.
+  `Microsoft.Data.Sqlite` 의 `*Async` 는 대개 완료된 Task 를 돌려줘 `await` 가 양보하지 않으므로,
+  **그 사슬이 대입 지점에서 동기적으로 끝까지 실행되며 저장값을 복원**한다.
+  그런데 기본값 `_jul = 5; _jjak = 1;` 대입이 그 **뒤에** 있어서 복원 결과를 곧바로 덮어썼다
+    -> 기본값을 콤보박스 채우기 앞으로 옮겼다. 어느 쪽이 먼저 끝나든 결과가 같아진다
+- 저장값 방어 추가 — `Jjak` 이 0 인 배치가 실제로 존재하는데(구 데이터·초기화 실패),
+  그대로 쓰면 `new string('●', 0)` 이 빈 문자열이라 **헤더에서 점이 사라지고**
+  `InitSeats` 도 `_jjak <= 0` 가드에 걸려 좌석을 아예 안 그린다.
+  이제 `Jjak` 은 1·2 로, `Jul` 은 NumberBox 범위(2~8)로 맞춰서 받는다
+    - 같은 원인(DB 의 Jul·Jjak = 0)으로 인쇄 경로가 이미 한 번 깨져 `SeatGridGuardTests` 가
+      있다(26·36차 전수조사). 이번은 화면 로드 경로였다
+- `Rows` 는 저장돼 있지만 `InitSeats` 가 학생 수로 다시 계산하므로 쓰지 않는다는 점을
+  주석에 명시(기존 주석은 "Rows 반영" 이라고 적혀 있었으나 반영한 적이 없다)
+
+### 게시판 — 첨부 유실·조회수·죽은 캐시 (2026-08-15)
+- **첨부 파일이 조용히 덮어써지던 문제** — 이름이 같은 파일을 한 글에 둘 붙이면 뒤엣것이
+  앞엣것을 지웠다(DB 에는 첨부 2건, 실물은 1개). 저장 이름의 유일성이 **초 단위 타임스탬프**
+  에만 걸려 있었고, 새 첨부는 붙일 때가 아니라 **저장 버튼을 눌렀을 때 한 루프에서 한꺼번에**
+  복사돼 전부 같은 초를 받는다 -> 다른 폴더의 동명 파일 두 개는 반드시 충돌했다
+    - 충돌 해소를 OS 에 맡기고(`GenerateUniqueName`), `CopyAsync` 가 돌려준 **실제 저장 이름**을
+      DB 에 넣는다. 게시글·댓글·메모 첨부 3곳 모두 수정
+    - `PhotoService` 도 `ReplaceExisting` 을 쓰지만 학생 사진을 같은 경로에 갈아끼우는
+      **의도된 교체**라 제외. 이미 덮어써진 파일은 복구할 수 없다
+- **조회수가 DB 보다 항상 1 작게 보이던 문제** — 조회수를 올리기 전에 읽은 객체를 그대로
+  돌려주고 있었다(자기 열람이 반영 안 된 숫자). 회귀 테스트 2개 추가
+- 한 번도 저장된 적 없는 캐시 키(`CacheKeys.PostCount`)와 그것을 지우던 무효화 코드 제거
+- 게시글 답글 3필드(`RefNo`·`ReplyOrder`·`Depth`)에 미사용 경위 주석 — 값을 넣는 코드도
+  답글 UI 도 없다. 1인용 메모·자료 보관함이라 되살리지 않기로 했고(덧붙이기는 댓글 +
+  1단계 대댓글이 담당), DB 컬럼은 `DEFAULT 0` 이라 그대로 둔다
+- 테스트 421개 통과
+
+### 스케줄러 — 표시 순서·필터·트랜잭션 (2026-08-15)
+- **종일 항목이 오전·오후 일정 사이에 끼어 보이던 문제** — `KEvent.Start` 에 형식이 두 가지
+  섞여 있다(종일=로컬 날짜 `yyyy-MM-dd`, 시간=UTC `…THH:mm:ss.fffZ`). `WHERE` 는 `IsAllday`
+  로 분기하는데 `ORDER BY Start` 에는 그 분기가 없어 두 형식이 한 축에서 바이트 비교됐다.
+  KST 기준 8/15 08:00 은 `2026-08-14T23:00…` 이라 종일 `2026-08-15` 보다 앞서고,
+  8/15 20:00 은 뒤에 온다
+    -> 로컬 `DateTime` 기준으로 메모리에서 재정렬(`SortForDisplay`). 하루 안에서 종일 먼저,
+       그다음 시각순, 동시각이면 제목순. 회귀 테스트 6개 추가
+- **달력 셀의 할 일 필터가 아무것도 거르지 못하던 것을 제거** — `!t.IsDone || Settings.ShowTasks`
+  는 `ShowTasks`("할 일 표시/숨김")의 의미를 잘못 읽은 조건이라 어느 상태에서도 무효였다
+  (켜져 있으면 전부 통과, 꺼져 있으면 `Kcalendar` 가 이미 상류에서 걷어내 목록이 비어 있음).
+  표시 여부 판정을 조회 단계 한 곳으로 모았다
+- **셀 표시 경로가 둘로 갈려 있던 것을 하나로** — `UpdateDayDisplayAsync` 가
+  `UpdateDayDisplaySync` 를 복제해 갖고 있었고 `UpdateColorDisplay` 호출만 빠져 있었다.
+  이 갈림 때문에 이미 한 번 버그가 났던 자리다 -> 비동기 쪽은 UI 스레드 보장만 하고
+  실제 갱신은 동기 메서드에 위임
+- **반복 일정 "이후 모두 삭제"가 트랜잭션 없이 돌던 문제** — 중간에 실패하면 시리즈가 반만
+  지워진 채 남았다(생성 경로는 이미 `UnitOfWork` 로 원자적이었다). 항목마다 `GoogleId` 를
+  보려고 던지던 재조회도 제거(조회 결과에 이미 들어 있다)
+  -> 365개 시리즈 기준 쿼리 731회 -> 366회
+- **달력 셀 채우기 O(42 × N) -> O(N)** — 42개 셀마다 전체 목록을 다시 훑던 것을 날짜별 버킷
+  1회 생성으로 대체(다중일 이벤트는 표시 창 안에서만 전개)
+- `SchedulerService` 의 try/catch 위임 20곳 제거 — 리포지토리가 이미 `LogError` 후 rethrow 해
+  로그만 두 번 남았다. 같은 파일의 나머지 절반이 쓰던 한 줄 위임 스타일로 통일
+- 스키마·DB 무변경. 순 -148줄, 테스트 419개 통과
+
+### 기록 리포지토리 기반 통일 (2026-08-15)
+"학생기록·학생부·수업일지·학급일지를 게시판으로 통합할 수 있나"를 검토한 결과
+**모델 통합은 하지 않기로 하고**, 실제 중복이 있던 리포지토리 층만 정리했다.
+
+- 통합을 접은 이유 — Board 는 별도 DB(`board.db`)라 `Student`/`Teacher`/`Course` FK 가 전부
+  끊기고(SQLite 는 파일 간 FK 불가), 4종의 구조화 필드·`ClassDiary` 의 하루 1건 UNIQUE 제약·
+  NEIS 바이트 한도 로직이 `Category` 문자열 하나로 뭉개진다
+- **`LessonLogRepository` 를 `BaseRepository` 로 편입** — 형제 3종(StudentLog·StudentSpecial·
+  ClassDiary)은 이미 상속 중인데 이것만 `IDisposable` 을 직접 구현하고 맨 연결을 열어서
+  **WAL·`foreign_keys=ON`·busy_timeout 이 적용되지 않았다**
+    - FK 가 켜지므로 `TeacherID` 빈 문자열을 NULL 로 바꿔 넣는다(빈 문자열은 NULL 이 아니라
+      제약 위반이 된다 — 형제 리포지토리와 같은 처리). `Lesson` FK 는 값을 넣는 곳이 없어 무관
+- `StudentSpecialRepository` 의 수동 reader 루프 10곳을 같은 base 의 `ExecuteListAsync` 로
+  통일 — 컬럼 인덱스 캐싱을 타게 되어 `GetOrdinal` 반복 호출이 사라진다
+- **잠복 버그 2건 수정** — `LessonLog.TeacherID`·`Subject` 와 `StudentSpecial.TeacherID`·`Tag`
+  를 NULL 검사 없이 `GetString` 하고 있었다. `CleanupOrphansAsync` 가 교사 삭제 시
+  `TeacherID` 를 NULL 로 만들기 때문에 실제로 도달 가능한 `InvalidCastException` 이었다
+- **소비처가 없던 모델 인터페이스 6종 제거**(`Models/Interfaces.cs` 삭제) — `IEntity`·
+  `IDeletable`·`IYearSemesterEntity`·`ITeacherRecord`·`IDailyRecord`·`IStudentRecord`.
+  25개 모델이 구현만 하고 있었고 이 타입으로 동작하는 코드는 없었다(제네릭 제약은 전부
+  `where T : class`, 리플렉션·XAML 참조 없음)
+    - 미사용에 그치지 않고 **틀린 사실을 만들고 있었다** — `IDailyRecord` 때문에 `LessonLog` 에
+      "ClassDiary 와 공통 기반 공유" 주석이 붙어 있었지만 공유되는 코드는 없었다
+- 스키마·DB·UI 무변경. 순 -122줄(29파일), 테스트 413개 통과
 
 ### 구글 캘린더 권한 최소화 (OAuth 검증 대응) (2026-08-13)
 Google OAuth 민감 스코프 검증을 앞두고, 요청 권한을 **실제로 호출하는 API 범위까지 좁혔다**.
@@ -272,7 +398,7 @@ Google OAuth 민감 스코프 검증을 앞두고, 요청 권한을 **실제로 
     - 게시판 글·댓글 저장은 22차에, 학생카드는 21차에 이미 정리됨
 
 
-## v1.3.0 (2026-07-25 ~ 2026-07-31)
+## 개발 이력 — 2026-07-25 ~ 07-31 (구 v1.3.0)
 
 ### 33차 전수조사 - 이번 세션 변경분 자체 검토 (2026-07-31)
 이번 세션에서 손댄 곳(학적 모델·급식 예외·죽은 코드 삭제·자동 저장)을 되짚었다.
@@ -903,7 +1029,7 @@ NEIS(교육행정정보시스템) 연동 경로—학교 검색·학사일정·�
   다른 델리게이트 인스턴스로 쌓였다(내부 `-=` 는 자기 것만 제거). 로드 시 전부 발동하며 오래된
   `dayInfo` 로 덮어쓸 수 있었다. → 대기 중인 대상만 갱신하고 구독은 1회로 고정
 
-## v1.2.0 (2026-07-19 ~ 2026-07-22)
+## 개발 이력 — 2026-07-19 ~ 07-22 (구 v1.2.0)
 
 전수 코드 검사 1~19차의 결과를 모은 릴리스. **핵심은 시간표 자동 배치의 신뢰성 확보** —
 배치 전 과정을 단일 트랜잭션으로 원자화하고, 그동안 막혀 있던 자동 배치 **다시 실행(Redo)** 을
@@ -1086,7 +1212,7 @@ NEIS(교육행정정보시스템) 연동 경로—학교 검색·학사일정·�
 - **학교 검색 HttpClient 공유**: NEIS 학교 검색이 호출마다 `new HttpClient()` 를 생성하던 소켓 고갈
   안티패턴 — 프로젝트 관례대로 `static readonly` 공유 인스턴스로 전환
 
-## v1.1.0 (2026-07-01 ~ 2026-07-15)
+## 개발 이력 — 2026-07-01 ~ 07-15 (구 v1.1.0)
 
 v1.0.4 이후 누적 대형 릴리스. **핵심은 에디터 엔진 전면 교체** — 웹 기반 Jodit(WebView2 + ~900KB JS)를
 네이티브 Win2D 리치에디터(WinUIRichEditor)로 바꾸고 WebView2 런타임 의존을 완전히 제거했다.
@@ -1289,7 +1415,7 @@ v1.0.4 이후 누적 대형 릴리스. **핵심은 에디터 엔진 전면 교�
   라이브러리에 ILLink 단독 실행→IL1034 실패하던 문제 해결(라이브러리 pubxml 의 앱스타일 트림/단일파일 설정 비활성화)
 - 검증: 프로필 AOT 게시 성공, IL1034·IL3050·IL2104 0, exe 기동 정상
 
-## v1.0.6 (2026-06-18 ~ 2026-06-27)
+## 개발 이력 — 2026-06-18 ~ 06-27 (구 v1.0.6)
 
 ### Post 콘텐츠 저장 .flow 전환 + 검색 평문 분리 (2026-06-27)
 - **에디터 내용을 WinUIRichEditor 네이티브 `.flow` 패키지(BLOB)로 저장** — 압축·무손실, 이미지는 base64 팽창 없이 원본 바이트
@@ -1342,7 +1468,7 @@ v1.0.4 이후 누적 대형 릴리스. **핵심은 에디터 엔진 전면 교�
 ### 버그 수정 (2026-06-18)
 - 좌석 복원 시 미사용 경고 오발 수정, `PhotoCard` 비동기 경합 해소, 명렬표 숫자만 표기
 
-## v1.0.5 (2026-04-19 ~ 2026-04-22)
+## 개발 이력 — 2026-04-19 ~ 04-22 (구 v1.0.5)
 
 ### CA1063/CA1001 전수 해결 (2026-04-22)
 - **CA1063 — IDisposable 구현 패턴**: 22개 클래스를 `sealed` 로 전환
@@ -1506,7 +1632,7 @@ v1.0.4 이후 누적 대형 릴리스. **핵심은 에디터 엔진 전면 교�
 - **컨텍스트 메뉴 동기화 수정** (`PhotoCard`)
   - 프로그램이 `IsUnUsed`/`IsFixed`/`IsHidden`을 설정할 때 우클릭 메뉴의 `ToggleMenuFlyoutItem.IsChecked`도 함께 갱신 → 복원된 배치에서 메뉴 상태 정상 표시
 
-## v1.0.4 (2026-04-06)
+## 개발 이력 — 2026-04-06 (구 v1.0.4)
 
 ### UI 개선
 - 달력 시인성 강화: 오늘 날짜에 파란 원형 배경 + 파란 테두리, 마우스 호버 시 회색 배경 효과 추가 (`DayCell`)
@@ -1585,7 +1711,7 @@ v1.0.4 이후 누적 대형 릴리스. **핵심은 에디터 엔진 전면 교�
   - 컨버터 8개: `YearToAcademicYearConverter`, `GradeConverter`, `ClassConverter`, `HtmlToPlainTextConverter`, `SizeFormatConverter`, `UtcToLocal`, `NeisByteConverter`, `InverseBooleanConverter`
 - StudentLogViewModel 미사용 코드 삭제: `CalculateNeisByte()` 메서드, 주석 처리된 `LogByteCount`/`LogCharCount`/`LogByteInfo` 프로퍼티
 
-## v1.0.3 (2026-03-30)
+## 개발 이력 — 2026-03-30 (구 v1.0.3)
 
 ### 보안
 - SQL Injection 취약 메서드 제거: `Sqlite.cs`의 `CountRecord`, `GetCondition` (미사용 레거시 코드 삭제)
@@ -1627,7 +1753,7 @@ v1.0.4 이후 누적 대형 릴리스. **핵심은 에디터 엔진 전면 교�
 ### 정리
 - 중복 `DateTimeToDateTimeOffsetConverter` 제거 (Tools.cs 삭제, CommonConverters.cs만 유지)
 
-## v1.0.1 (2026-03-24)
+## 개발 이력 — 2026-03-24 (구 v1.0.1)
 
 ### 버그 수정
 - 학생 삭제 쿼리 컬럼명 오류 수정 (`WHERE ID` → `WHERE StudentID`)
@@ -1662,7 +1788,7 @@ v1.0.4 이후 누적 대형 릴리스. **핵심은 에디터 엔진 전면 교�
 - KEvent CREATE TABLE에 `ItemType`, `IsDone`, `Completed` 컬럼 포함
 - 게시 폴더 정리 강화 (빈 폴더, Installer, prerequisites 제외)
 
-## v1.0.0 (2026-03-22)
+## 개발 이력 — 2026-03-22 (구 v1.0.0)
 
 - 최초 릴리스
 - 학급 경영: 학급 일지, 학생 정보, 누가 기록, 학생부, 자리 배정, 게시판, 시간표
