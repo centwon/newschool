@@ -37,7 +37,7 @@ public sealed partial class PostEditPage : Page
     private static readonly Dictionary<string, List<string>> _defaultTopics = new()
     {
         ["학급"] = new() { "통계", "학급 자료", "학생 자료", "학급 안내" },
-        ["수업"] = new() { "통계", "수업 자료", "과제" },
+        ["수업"] = new() { "수업일지", "통계", "수업 자료", "과제" },
         ["동아리"] = new() { "통계", "동아리 자료", "활동 안내" },
     };
 
@@ -95,19 +95,8 @@ public sealed partial class PostEditPage : Page
                 }
 
                 await LoadSubjectsAsync(_post.Category);
-                // 주제 목록에서 매칭되는 항목 선택, 없으면 텍스트 직접 설정
-                if (!string.IsNullOrEmpty(_post.Subject))
-                {
-                    var idx = _allSubjects.IndexOf(_post.Subject);
-                    if (idx >= 0)
-                    {
-                        SubjectComboBox.SelectedIndex = idx;
-                    }
-                    else
-                    {
-                        SubjectComboBox.Text = _post.Subject;
-                    }
-                }
+                // 기존 글의 주제 — 목록에 없으면 넣고 선택한다(수정 시 주제가 날아가지 않도록)
+                SelectOrAddSubject(_post.Subject);
 
                 // 기존 첨부파일 로드
                 var files = await service.GetPostFilesByPostAsync(postNo);
@@ -147,7 +136,7 @@ public sealed partial class PostEditPage : Page
                 if (!string.IsNullOrEmpty(_parameter.DefaultSubject))
                 {
                     _post.Subject = _parameter.DefaultSubject;
-                    SubjectComboBox.Text = _parameter.DefaultSubject;
+                    SelectOrAddSubject(_parameter.DefaultSubject);
                 }
 
                 // 수업 일지 등에서 넘어온 기본값. 어디까지나 시작값이라 그대로 편집할 수 있다.
@@ -269,6 +258,30 @@ public sealed partial class PostEditPage : Page
             Debug.WriteLine($"주제 목록 로드 실패: {ex.Message}");
             _allSubjects.Clear();
         }
+    }
+
+    /// <summary>
+    /// 주제를 콤보에서 실제로 <b>선택</b>한다. 목록에 없으면 먼저 넣고 고른다.
+    ///
+    /// ⚠ 편집 가능 ComboBox 에 <c>Text</c> 만 대입하면 항목에 없는 값은 남지 않는다.
+    /// 저장은 <c>SubjectComboBox.Text</c> 를 읽으므로(SaveButton_Click), 그대로 두면
+    /// 주제가 빈 채로 저장돼 해당 게시판에서 사라진다 — 수업일지처럼 아직 글이
+    /// 하나도 없어 목록에 없는 주제에서 실제로 그랬다.
+    /// </summary>
+    private void SelectOrAddSubject(string? subject)
+    {
+        if (string.IsNullOrWhiteSpace(subject)) return;
+
+        var idx = _allSubjects.IndexOf(subject);
+        if (idx < 0)
+        {
+            _allSubjects.Insert(0, subject);
+            SubjectComboBox.ItemsSource = null;
+            SubjectComboBox.ItemsSource = _allSubjects;
+            idx = 0;
+        }
+
+        SubjectComboBox.SelectedIndex = idx;
     }
 
     private void SubjectComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
