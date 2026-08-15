@@ -67,13 +67,8 @@ namespace NewSchool.Repositories
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@No", no);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    return MapStudentSpecial(reader);
-                }
-
-                return null;
+                var found = await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
+                return found.Count > 0 ? found[0] : null;
             }
             catch (Exception ex)
             {
@@ -99,14 +94,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
                 cmd.Parameters.AddWithValue("@Year", year);
 
-                var specials = new List<StudentSpecial>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    specials.Add(MapStudentSpecial(reader));
-                }
-
-                return specials;
+                return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -151,11 +139,9 @@ namespace NewSchool.Repositories
                 }
                 cmd.Parameters.AddWithValue("@Year", year);
 
-                using var reader = await cmd.ExecuteReaderAsync();
                 foreach (var id in idList) result[id] = new List<StudentSpecial>();
-                while (await reader.ReadAsync())
+                foreach (var spec in await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false))
                 {
-                    var spec = MapStudentSpecial(reader);
                     if (!result.TryGetValue(spec.StudentID, out var list))
                     {
                         list = new List<StudentSpecial>();
@@ -190,14 +176,7 @@ namespace NewSchool.Repositories
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
 
-                var specials = new List<StudentSpecial>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    specials.Add(MapStudentSpecial(reader));
-                }
-
-                return specials;
+                return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -223,14 +202,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@CourseNo", courseNo);
                 cmd.Parameters.AddWithValue("@Year", year);
 
-                var specials = new List<StudentSpecial>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    specials.Add(MapStudentSpecial(reader));
-                }
-
-                return specials;
+                return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -256,14 +228,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Type", type);
                 cmd.Parameters.AddWithValue("@Year", year);
 
-                var specials = new List<StudentSpecial>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    specials.Add(MapStudentSpecial(reader));
-                }
-
-                return specials;
+                return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -288,14 +253,7 @@ namespace NewSchool.Repositories
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@Type", type);
 
-                var specials = new List<StudentSpecial>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    specials.Add(MapStudentSpecial(reader));
-                }
-
-                return specials;
+                return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -321,14 +279,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@TeacherID", teacherId);
                 cmd.Parameters.AddWithValue("@Year", year);
 
-                var specials = new List<StudentSpecial>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    specials.Add(MapStudentSpecial(reader));
-                }
-
-                return specials;
+                return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -355,14 +306,7 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Year", year);
                 cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
 
-                var specials = new List<StudentSpecial>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    specials.Add(MapStudentSpecial(reader));
-                }
-
-                return specials;
+                return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -565,23 +509,32 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@Tag", special.Tag ?? string.Empty);
         }
 
-        private StudentSpecial MapStudentSpecial(SqliteDataReader reader)
+        private StudentSpecial MapStudentSpecial(SqliteDataReader reader, ReaderColumnCache cache)
         {
+            var semesterIdx = cache.GetOrdinal("Semester");
+            var courseNoIdx = cache.GetOrdinal("CourseNo");
+            var subjectNameIdx = cache.GetOrdinal("SubjectName");
+            // TeacherID 는 DatabaseInitializer.CleanupOrphansAsync 가 교사 삭제 시 NULL 로 만들고
+            // Tag 는 DEFAULT 가 없어 NULL 일 수 있다. 예전의 무조건 GetString 은
+            // 두 경우 모두 InvalidCastException 을 냈다.
+            var teacherIdIdx = cache.GetOrdinal("TeacherID");
+            var tagIdx = cache.GetOrdinal("Tag");
+
             return new StudentSpecial
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                StudentID = reader.GetString(reader.GetOrdinal("StudentID")),
-                Year = reader.GetInt32(reader.GetOrdinal("Year")),
-                Semester = reader.IsDBNull(reader.GetOrdinal("Semester")) ? 0 : reader.GetInt32(reader.GetOrdinal("Semester")),
-                Type = reader.GetString(reader.GetOrdinal("Type")),
-                Title = reader.GetString(reader.GetOrdinal("Title")),
-                Content = reader.GetString(reader.GetOrdinal("Content")),
-                Date = reader.GetString(reader.GetOrdinal("Date")),
-                TeacherID = reader.GetString(reader.GetOrdinal("TeacherID")),
-                CourseNo = reader.IsDBNull(reader.GetOrdinal("CourseNo")) ? 0 : reader.GetInt32(reader.GetOrdinal("CourseNo")),
-                SubjectName = reader.IsDBNull(reader.GetOrdinal("SubjectName")) ? string.Empty : reader.GetString(reader.GetOrdinal("SubjectName")),
-                IsFinalized = reader.GetInt32(reader.GetOrdinal("IsActive")) == 0,
-                Tag = reader.GetString(reader.GetOrdinal("Tag"))
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                StudentID = reader.GetString(cache.GetOrdinal("StudentID")),
+                Year = reader.GetInt32(cache.GetOrdinal("Year")),
+                Semester = reader.IsDBNull(semesterIdx) ? 0 : reader.GetInt32(semesterIdx),
+                Type = reader.GetString(cache.GetOrdinal("Type")),
+                Title = reader.GetString(cache.GetOrdinal("Title")),
+                Content = reader.GetString(cache.GetOrdinal("Content")),
+                Date = reader.GetString(cache.GetOrdinal("Date")),
+                TeacherID = reader.IsDBNull(teacherIdIdx) ? string.Empty : reader.GetString(teacherIdIdx),
+                CourseNo = reader.IsDBNull(courseNoIdx) ? 0 : reader.GetInt32(courseNoIdx),
+                SubjectName = reader.IsDBNull(subjectNameIdx) ? string.Empty : reader.GetString(subjectNameIdx),
+                IsFinalized = reader.GetInt32(cache.GetOrdinal("IsActive")) == 0,
+                Tag = reader.IsDBNull(tagIdx) ? string.Empty : reader.GetString(tagIdx)
             };
         }
 

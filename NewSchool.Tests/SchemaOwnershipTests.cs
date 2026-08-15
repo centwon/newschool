@@ -39,6 +39,41 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
         return names;
     }
 
+    private async Task<List<string>> ColumnsAsync(string table)
+    {
+        using var conn = new SqliteConnection($"Data Source={_fx.DbPath}");
+        await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT name FROM pragma_table_info('{table}') ORDER BY cid";
+        var cols = new List<string>();
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            cols.Add(reader.GetString(0));
+        return cols;
+    }
+
+    /// <summary>
+    /// v1.0.0 을 첫 배포로 잡으면서 그 이전의 컬럼 추가 마이그레이션(ALTER TABLE)을 전부 없애고
+    /// <c>CREATE TABLE</c> 정의에 접어 넣었다. 접어 넣기를 빠뜨리면 <b>새로 만드는 DB 에서만</b>
+    /// 컬럼이 사라지는데, 기존 개발 DB 에는 남아 있어 눈치채기 어렵다.
+    ///
+    /// 그래서 예전에 ALTER 로만 붙던 컬럼들을 여기에 못박아 둔다.
+    /// 초기화기만 돌린 DB 가 이 컬럼들을 모두 갖고 있어야 한다.
+    /// </summary>
+    [Theory]
+    [InlineData("CourseSection", "LessonPlan,SectionType,IsPinned,PinnedDate,LearningObjective,MaterialPath,MaterialUrl,Memo")]
+    [InlineData("ClassDiary", "CreatedAt,UpdatedAt")]
+    [InlineData("LessonLog", "Grade,Class,CourseSectionNo,SectionName,Note,CreatedAt,UpdatedAt")]
+    [InlineData("StudentSpecial", "Semester")]
+    public async Task 마이그레이션으로_붙던_컬럼이_CREATE_TABLE_에_들어있다(string table, string expectedCsv)
+    {
+        var actual = await ColumnsAsync(table);
+        Assert.NotEmpty(actual);
+
+        foreach (var col in expectedCsv.Split(','))
+            Assert.True(actual.Contains(col), $"{table}.{col} 컬럼이 없다 — CREATE TABLE 정의에서 빠졌다");
+    }
+
     [Fact]
     public async Task 초기화_후_스키마_버전이_찍힌다()
     {

@@ -84,14 +84,12 @@ namespace NewSchool.Scheduler
                     IsVisible INTEGER NOT NULL DEFAULT 1,
                     Updated   TEXT NOT NULL DEFAULT '',
                     SyncMode  TEXT NOT NULL DEFAULT 'None',
-                    SchoolCode TEXT NOT NULL DEFAULT ''
+                    SchoolCode TEXT NOT NULL DEFAULT '',
+                    SyncToken TEXT NOT NULL DEFAULT ''
                 );
             ";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[SchedulerDB] KCalendarList 테이블 생성 완료");
-
-            // 기존 DB 호환: 누락 컬럼 추가
-            await AddColumnIfNotExistsAsync(cmd, "KCalendarList", "SchoolCode", "TEXT NOT NULL DEFAULT ''");
 
             // KEvent 테이블 (일정 + 할일 통합)
             cmd.CommandText = @"
@@ -119,30 +117,8 @@ namespace NewSchool.Scheduler
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[SchedulerDB] KEvent 테이블 생성 완료");
 
-            // 기존 DB 호환: 누락 컬럼 추가
-            await AddColumnIfNotExistsAsync(cmd, "KEvent", "ItemType", "TEXT NOT NULL DEFAULT 'event'");
-            await AddColumnIfNotExistsAsync(cmd, "KEvent", "IsDone", "INTEGER NOT NULL DEFAULT 0");
-            await AddColumnIfNotExistsAsync(cmd, "KEvent", "Completed", "TEXT NOT NULL DEFAULT ''");
-            await AddColumnIfNotExistsAsync(cmd, "KEvent", "SeriesId", "TEXT NOT NULL DEFAULT ''");
-
             // 기본 목록 생성
             await SeedDefaultListsAsync(cmd);
-        }
-
-        private static async Task AddColumnIfNotExistsAsync(SqliteCommand cmd, string table, string column, string type)
-        {
-            cmd.CommandText = $"PRAGMA table_info({table})";
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                if (reader.GetString(reader.GetOrdinal("name")) == column)
-                    return; // 이미 존재
-            }
-            reader.Close();
-
-            cmd.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine($"[SchedulerDB] {table}.{column} 컴럼 추가 완료");
         }
 
         private static async Task SeedDefaultListsAsync(SqliteCommand cmd)
@@ -195,10 +171,6 @@ namespace NewSchool.Scheduler
             ";
 
             await cmd.ExecuteNonQueryAsync();
-
-            // SyncToken 컬럼 추가 (기존 DB 호환)
-            using var alterCmd = _connection.CreateCommand();
-            await AddColumnIfNotExistsAsync(alterCmd, "KCalendarList", "SyncToken", "TEXT NOT NULL DEFAULT ''");
 
             Debug.WriteLine("[SchedulerDB] 인덱스 생성 완료");
         }

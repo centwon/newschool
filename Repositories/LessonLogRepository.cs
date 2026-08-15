@@ -9,16 +9,16 @@ namespace NewSchool.Repositories;
 /// <summary>
 /// LessonLog 데이터 접근 리포지토리
 /// 수업 일지 CRUD
+///
+/// 연결·트랜잭션·에러 로깅은 <see cref="BaseRepository"/> 가 담당한다.
+/// 예전에는 이 클래스만 <c>IDisposable</c> 을 직접 구현하고 맨 연결
+/// (<c>Data Source=…</c>) 을 열어서, 형제 리포지토리(StudentLog·StudentSpecial·ClassDiary)
+/// 와 달리 WAL·<c>foreign_keys=ON</c>·busy_timeout 이 적용되지 않았다.
 /// </summary>
-public class LessonLogRepository : IDisposable
+public class LessonLogRepository : BaseRepository
 {
-    private readonly SqliteConnection _connection;
-    private bool _disposed;
-
-    public LessonLogRepository(string dbPath)
+    public LessonLogRepository(string dbPath) : base(dbPath)
     {
-        _connection = new SqliteConnection($"Data Source={dbPath}");
-        _connection.Open();
         EnsureTableExists();
     }
 
@@ -28,13 +28,8 @@ public class LessonLogRepository : IDisposable
     /// LessonLog 스키마 정본.
     ///
     /// 예전에는 <c>DatabaseInitializer</c> 와 이 리포지토리가 서로 다른 정의를 갖고 있었고
-    /// <c>CREATE TABLE IF NOT EXISTS</c> 특성상 먼저 실행한 쪽이 이겼다. 그 결과
-    /// "FK 있음 + TeacherID NULL 허용"(초기화기 우선, 실사용 DB) 과
-    /// "FK 없음 + TeacherID NOT NULL"(리포지토리 우선) 두 종류가 생길 수 있었다.
-    ///
-    /// 정본은 <b>실사용 DB 의 현재 실효 스키마</b> 로 맞춘다 — 초기화기의 컬럼 순서·제약에
-    /// 아래 2번에서 ALTER 로 붙던 7개 컬럼을 같은 순서로 이어 붙인 형태. 이렇게 해야
-    /// 새로 만든 DB 와 기존 DB 의 스키마가 일치한다.
+    /// <c>CREATE TABLE IF NOT EXISTS</c> 특성상 먼저 실행한 쪽이 이겼다.
+    /// 지금은 정의가 이 상수 하나뿐이다.
     /// </summary>
     internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS LessonLog (
@@ -66,20 +61,9 @@ public class LessonLogRepository : IDisposable
     /// </summary>
     private void EnsureTableExists()
     {
-        // 1. 테이블 생성 (새 DB용)
-        using (var cmd = new SqliteCommand(SchemaSql, _connection))
+        using (var cmd = CreateCommand(SchemaSql))
             cmd.ExecuteNonQuery();
 
-        // 2. 기존 DB 마이그레이션: 새 컬럼 추가 (이미 있으면 무시)
-        TryAddColumn("Grade", "INTEGER DEFAULT 0");
-        TryAddColumn("Class", "INTEGER DEFAULT 0");
-        TryAddColumn("CourseSectionNo", "INTEGER");
-        TryAddColumn("SectionName", "TEXT");
-        TryAddColumn("Note", "TEXT");
-        TryAddColumn("CreatedAt", "TEXT");
-        TryAddColumn("UpdatedAt", "TEXT");
-
-        // 3. 인덱스 생성 (컬럼 추가 후 실행해야 기존 DB에서 오류 안 남)
         const string indexSql = @"
             CREATE INDEX IF NOT EXISTS idx_lessonlog_teacher_year ON LessonLog(TeacherID, Year);
             CREATE INDEX IF NOT EXISTS idx_lessonlog_subject ON LessonLog(Subject);
@@ -87,25 +71,8 @@ public class LessonLogRepository : IDisposable
             CREATE INDEX IF NOT EXISTS idx_lessonlog_grade_class ON LessonLog(Grade, Class);
         ";
 
-        using (var cmd = new SqliteCommand(indexSql, _connection))
+        using (var cmd = CreateCommand(indexSql))
             cmd.ExecuteNonQuery();
-    }
-
-    /// <summary>
-    /// 컬럼 추가 시도 (이미 존재하면 무시)
-    /// </summary>
-    private void TryAddColumn(string columnName, string columnDef)
-    {
-        try
-        {
-            using var cmd = new SqliteCommand(
-                $"ALTER TABLE LessonLog ADD COLUMN {columnName} {columnDef}", _connection);
-            cmd.ExecuteNonQuery();
-        }
-        catch (SqliteException)
-        {
-            // 이미 존재하는 경우 무시
-        }
     }
 
     #endregion
@@ -130,7 +97,7 @@ public class LessonLogRepository : IDisposable
             SELECT last_insert_rowid();
         ";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         AddParameters(cmd, log);
 
         var result = await cmd.ExecuteScalarAsync();
@@ -163,7 +130,7 @@ public class LessonLogRepository : IDisposable
             WHERE No = @No
         ";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@No", log.No);
         AddParameters(cmd, log);
 
@@ -177,7 +144,7 @@ public class LessonLogRepository : IDisposable
     {
         const string sql = "DELETE FROM LessonLog WHERE No = @No";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@No", no);
 
         return await cmd.ExecuteNonQueryAsync();
@@ -190,15 +157,11 @@ public class LessonLogRepository : IDisposable
     {
         const string sql = "SELECT * FROM LessonLog WHERE No = @No";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@No", no);
 
-        using var reader = await cmd.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
-        {
-            return MapToLessonLog(reader);
-        }
-        return null;
+        var found = await ExecuteQueryAsync(cmd);
+        return found.Count > 0 ? found[0] : null;
     }
 
     /// <summary>
@@ -213,7 +176,7 @@ public class LessonLogRepository : IDisposable
         }
         sql += " ORDER BY Date DESC, Period DESC";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@TeacherID", teacherId);
         cmd.Parameters.AddWithValue("@Year", year);
         if (semester.HasValue)
@@ -235,7 +198,7 @@ public class LessonLogRepository : IDisposable
             ORDER BY Date DESC, Period DESC
         ";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@TeacherID", teacherId);
         cmd.Parameters.AddWithValue("@Year", year);
         cmd.Parameters.AddWithValue("@Semester", semester);
@@ -261,7 +224,7 @@ public class LessonLogRepository : IDisposable
         
         sql += $" ORDER BY Date DESC, Period DESC LIMIT {limit}";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@TeacherID", teacherId);
         cmd.Parameters.AddWithValue("@Year", year);
         cmd.Parameters.AddWithValue("@Semester", semester);
@@ -291,7 +254,7 @@ public class LessonLogRepository : IDisposable
         
         sql += $" ORDER BY Date DESC, Period DESC LIMIT {limit}";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@TeacherID", teacherId);
         cmd.Parameters.AddWithValue("@Year", year);
         cmd.Parameters.AddWithValue("@Semester", semester);
@@ -315,7 +278,7 @@ public class LessonLogRepository : IDisposable
             ORDER BY Period
         ";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@TeacherID", teacherId);
         cmd.Parameters.AddWithValue("@Date", date.ToString("yyyy-MM-dd"));
 
@@ -333,7 +296,7 @@ public class LessonLogRepository : IDisposable
             ORDER BY Room
         ";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@TeacherID", teacherId);
         cmd.Parameters.AddWithValue("@Year", year);
         cmd.Parameters.AddWithValue("@Semester", semester);
@@ -364,7 +327,7 @@ public class LessonLogRepository : IDisposable
         if (!string.IsNullOrEmpty(room))
             sql += " AND Room = @Room";
 
-        using var cmd = new SqliteCommand(sql, _connection);
+        using var cmd = CreateCommand(sql);
         cmd.Parameters.AddWithValue("@TeacherID", teacherId);
         cmd.Parameters.AddWithValue("@Year", year);
         cmd.Parameters.AddWithValue("@Semester", semester);
@@ -385,7 +348,11 @@ public class LessonLogRepository : IDisposable
     private void AddParameters(SqliteCommand cmd, LessonLog log)
     {
         cmd.Parameters.AddWithValue("@Lesson", log.Lesson.HasValue ? log.Lesson.Value : DBNull.Value);
-        cmd.Parameters.AddWithValue("@TeacherID", log.TeacherID);
+        // 빈 문자열은 NULL 로 바꿔 넣는다. TeacherID 는 Teacher(TeacherID) 를 참조하는데
+        // 빈 문자열은 NULL 이 아니라서 foreign_keys=ON 에서는 제약 위반이 된다
+        // (StudentLog·ClassDiary 리포지토리도 같은 이유로 같은 변환을 한다).
+        cmd.Parameters.AddWithValue("@TeacherID",
+            string.IsNullOrWhiteSpace(log.TeacherID) ? DBNull.Value : log.TeacherID);
         cmd.Parameters.AddWithValue("@Year", log.Year);
         cmd.Parameters.AddWithValue("@Semester", log.Semester);
         cmd.Parameters.AddWithValue("@Date", log.Date.ToString("yyyy-MM-dd"));
@@ -404,88 +371,66 @@ public class LessonLogRepository : IDisposable
     }
 
     private async Task<List<LessonLog>> ExecuteQueryAsync(SqliteCommand cmd)
-    {
-        var logs = new List<LessonLog>();
-        using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            logs.Add(MapToLessonLog(reader));
-        }
-        return logs;
-    }
+        => await ExecuteListAsync(cmd, MapToLessonLog).ConfigureAwait(false);
 
-    private LessonLog MapToLessonLog(SqliteDataReader reader)
+    private LessonLog MapToLessonLog(SqliteDataReader reader, ReaderColumnCache cache)
     {
+        var lessonIdx = cache.GetOrdinal("Lesson");
+        var teacherIdIdx = cache.GetOrdinal("TeacherID");
+        var dateIdx = cache.GetOrdinal("Date");
+        var periodIdx = cache.GetOrdinal("Period");
+        var subjectIdx = cache.GetOrdinal("Subject");
+
         return new LessonLog
         {
-            No = reader.GetInt32(reader.GetOrdinal("No")),
-            Lesson = reader.IsDBNull(reader.GetOrdinal("Lesson")) ? null : reader.GetInt32(reader.GetOrdinal("Lesson")),
-            TeacherID = reader.GetString(reader.GetOrdinal("TeacherID")),
-            Year = reader.GetInt32(reader.GetOrdinal("Year")),
-            Semester = reader.GetInt32(reader.GetOrdinal("Semester")),
-            Date = DateTime.Parse(reader.GetString(reader.GetOrdinal("Date"))),
-            Period = reader.IsDBNull(reader.GetOrdinal("Period")) ? 0 : reader.GetInt32(reader.GetOrdinal("Period")),
-            Subject = reader.GetString(reader.GetOrdinal("Subject")),
-            Grade = GetIntSafe(reader, "Grade"),
-            Class = GetIntSafe(reader, "Class"),
-            Room = GetStringSafe(reader, "Room"),
-            CourseSectionNo = GetNullableIntSafe(reader, "CourseSectionNo"),
-            SectionName = GetStringSafe(reader, "SectionName"),
-            Topic = GetStringSafe(reader, "Topic"),
-            Content = GetStringSafe(reader, "Content"),
-            Note = GetStringSafe(reader, "Note"),
-            CreatedAt = GetDateTimeSafe(reader, "CreatedAt"),
-            UpdatedAt = GetDateTimeSafe(reader, "UpdatedAt")
+            No = reader.GetInt32(cache.GetOrdinal("No")),
+            Lesson = reader.IsDBNull(lessonIdx) ? null : reader.GetInt32(lessonIdx),
+            // TeacherID·Subject 는 스키마상 NULL 이 가능하다. 특히 TeacherID 는
+            // DatabaseInitializer.CleanupOrphansAsync 가 교사 삭제 시 NULL 로 만들기 때문에
+            // 예전의 무조건 GetString 은 InvalidCastException 을 냈다.
+            TeacherID = reader.IsDBNull(teacherIdIdx) ? string.Empty : reader.GetString(teacherIdIdx),
+            Year = reader.GetInt32(cache.GetOrdinal("Year")),
+            Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
+            Date = reader.IsDBNull(dateIdx) ? DateTime.Today : DateTime.Parse(reader.GetString(dateIdx)),
+            Period = reader.IsDBNull(periodIdx) ? 0 : reader.GetInt32(periodIdx),
+            Subject = reader.IsDBNull(subjectIdx) ? string.Empty : reader.GetString(subjectIdx),
+            Grade = GetIntSafe(reader, cache, "Grade"),
+            Class = GetIntSafe(reader, cache, "Class"),
+            Room = GetStringSafe(reader, cache, "Room"),
+            CourseSectionNo = GetNullableIntSafe(reader, cache, "CourseSectionNo"),
+            SectionName = GetStringSafe(reader, cache, "SectionName"),
+            Topic = GetStringSafe(reader, cache, "Topic"),
+            Content = GetStringSafe(reader, cache, "Content"),
+            Note = GetStringSafe(reader, cache, "Note"),
+            CreatedAt = GetDateTimeSafe(reader, cache, "CreatedAt"),
+            UpdatedAt = GetDateTimeSafe(reader, cache, "UpdatedAt")
         };
     }
 
-    private static string GetStringSafe(SqliteDataReader reader, string column)
+    private static string GetStringSafe(SqliteDataReader reader, ReaderColumnCache cache, string column)
     {
-        var ordinal = reader.GetOrdinal(column);
+        var ordinal = cache.GetOrdinal(column);
         return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
     }
 
-    private static int GetIntSafe(SqliteDataReader reader, string column)
+    private static int GetIntSafe(SqliteDataReader reader, ReaderColumnCache cache, string column)
     {
-        var ordinal = reader.GetOrdinal(column);
+        var ordinal = cache.GetOrdinal(column);
         return reader.IsDBNull(ordinal) ? 0 : reader.GetInt32(ordinal);
     }
 
-    private static int? GetNullableIntSafe(SqliteDataReader reader, string column)
+    private static int? GetNullableIntSafe(SqliteDataReader reader, ReaderColumnCache cache, string column)
     {
-        var ordinal = reader.GetOrdinal(column);
+        var ordinal = cache.GetOrdinal(column);
         return reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal);
     }
 
-    private static DateTime GetDateTimeSafe(SqliteDataReader reader, string column)
+    private static DateTime GetDateTimeSafe(SqliteDataReader reader, ReaderColumnCache cache, string column)
     {
-        var ordinal = reader.GetOrdinal(column);
+        var ordinal = cache.GetOrdinal(column);
         if (reader.IsDBNull(ordinal)) return DateTime.Now;
         var str = reader.GetString(ordinal);
         return DateTime.TryParse(str, out var dt) ? dt : DateTime.Now;
-    }
-
-    #endregion
-
-    #region IDisposable
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposed)
-        {
-            if (disposing)
-            {
-                _connection?.Close();
-                _connection?.Dispose();
-            }
-            _disposed = true;
-        }
     }
 
     #endregion

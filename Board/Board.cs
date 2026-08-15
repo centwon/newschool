@@ -364,66 +364,6 @@ namespace NewSchool.Board
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] Post 테이블 생성 완료");
 
-            // 기존 DB에 IsCompleted 컨럼 추가 (마이그레이션)
-            try
-            {
-                cmd.CommandText = "ALTER TABLE Post ADD COLUMN IsCompleted INTEGER DEFAULT 0";
-                await cmd.ExecuteNonQueryAsync();
-                Debug.WriteLine("[DatabaseInitializer] IsCompleted 컬럼 추가 완료");
-            }
-            catch (SqliteException)
-            {
-                // 이미 컬럼이 존재하는 경우 무시
-            }
-
-            // 검색용 평문 컬럼 추가 (Content 는 .flow BLOB 라 직접 검색 불가)
-            try
-            {
-                cmd.CommandText = "ALTER TABLE Post ADD COLUMN PlainText TEXT NOT NULL DEFAULT ''";
-                await cmd.ExecuteNonQueryAsync();
-                Debug.WriteLine("[DatabaseInitializer] PlainText 컬럼 추가 완료");
-            }
-            catch (SqliteException)
-            {
-                // 이미 컬럼이 존재하는 경우 무시
-            }
-
-            // 마이그레이션: Category="Memo"인 기존 데이터의 Subject를 Category로 이동
-            try
-            {
-                cmd.CommandText = @"
-                    UPDATE Post
-                    SET Category = Subject, Subject = ''
-                    WHERE Category = 'Memo' AND Subject != '' AND Subject IS NOT NULL";
-                int migratedCount = await cmd.ExecuteNonQueryAsync();
-                if (migratedCount > 0)
-                {
-                    Debug.WriteLine($"[DatabaseInitializer] Memo→Category 마이그레이션 완료: {migratedCount}개");
-                }
-            }
-            catch (SqliteException ex)
-            {
-                Debug.WriteLine($"[DatabaseInitializer] Memo 마이그레이션 실패: {ex.Message}");
-            }
-
-            // 마이그레이션: 남은 Category="Memo" (Subject가 비어있던 것)을 "업무"로 변경
-            try
-            {
-                cmd.CommandText = @"
-                    UPDATE Post
-                    SET Category = '업무'
-                    WHERE Category = 'Memo'";
-                int remainingCount = await cmd.ExecuteNonQueryAsync();
-                if (remainingCount > 0)
-                {
-                    Debug.WriteLine($"[DatabaseInitializer] 잔여 Memo→업무 마이그레이션 완료: {remainingCount}개");
-                }
-            }
-            catch (SqliteException ex)
-            {
-                Debug.WriteLine($"[DatabaseInitializer] 잔여 Memo 마이그레이션 실패: {ex.Message}");
-            }
-
             // Comment 테이블
             cmd.CommandText = @"
             CREATE TABLE IF NOT EXISTS Comment (
@@ -440,18 +380,6 @@ namespace NewSchool.Board
             )";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] Comment 테이블 생성 완료");
-
-            // 마이그레이션: 기존 DB의 미사용 ReplyOrder 컬럼을 대댓글용 ParentNo로 전환 (0=최상위, 그 외=부모 댓글 No)
-            try
-            {
-                cmd.CommandText = "ALTER TABLE Comment RENAME COLUMN ReplyOrder TO ParentNo";
-                await cmd.ExecuteNonQueryAsync();
-                Debug.WriteLine("[DatabaseInitializer] Comment.ReplyOrder → ParentNo 컬럼 이름 변경 완료");
-            }
-            catch (SqliteException)
-            {
-                // 이미 ParentNo 로 존재하는 경우(신규 DB) 무시
-            }
 
             // PostFile 테이블
             cmd.CommandText = @"

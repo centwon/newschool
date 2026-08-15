@@ -39,6 +39,14 @@ public class CourseSectionRepository : BaseRepository
                 EndPage INTEGER DEFAULT 0,
                 EstimatedHours INTEGER DEFAULT 1,
                 SortOrder INTEGER DEFAULT 0,
+                LessonPlan TEXT DEFAULT '',
+                SectionType TEXT DEFAULT 'Normal',
+                IsPinned INTEGER DEFAULT 0,
+                PinnedDate TEXT,
+                LearningObjective TEXT DEFAULT '',
+                MaterialPath TEXT DEFAULT '',
+                MaterialUrl TEXT DEFAULT '',
+                Memo TEXT DEFAULT '',
                 FOREIGN KEY (Course) REFERENCES Course(No) ON DELETE CASCADE
             );
         ";
@@ -47,14 +55,9 @@ public class CourseSectionRepository : BaseRepository
     {
         try
         {
-            // 1. 테이블 생성 (기본 컬럼만 - 기존 DB 호환)
             using var cmd = CreateCommand(SchemaSql);
             cmd.ExecuteNonQuery();
 
-            // 2. 기존 테이블에 새 컬럼 추가 (v2 마이그레이션)
-            AddNewColumnsIfNeeded();
-
-            // 3. 인덱스 생성 (컬럼 추가 후)
             CreateIndexesIfNeeded();
         }
         catch (Exception ex)
@@ -86,48 +89,6 @@ public class CourseSectionRepository : BaseRepository
             catch (Exception ex)
             {
                 LogInfo($"인덱스 생성 스킵: {ex.Message}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// v2 신규 컬럼 추가 (기존 DB 마이그레이션)
-    /// </summary>
-    private void AddNewColumnsIfNeeded()
-    {
-        var columns = new Dictionary<string, string>
-        {
-            { "LessonPlan", "TEXT DEFAULT ''" },
-            { "EndPage", "INTEGER DEFAULT 0" },
-            { "SectionType", "TEXT DEFAULT 'Normal'" },
-            { "IsPinned", "INTEGER DEFAULT 0" },
-            { "PinnedDate", "TEXT" },
-            { "LearningObjective", "TEXT DEFAULT ''" },
-            { "MaterialPath", "TEXT DEFAULT ''" },
-            { "MaterialUrl", "TEXT DEFAULT ''" },
-            { "Memo", "TEXT DEFAULT ''" }
-        };
-
-        foreach (var (columnName, columnDef) in columns)
-        {
-            try
-            {
-                string checkSql = "SELECT EXISTS(SELECT 1 FROM pragma_table_info('CourseSection') WHERE name=@ColName)";
-                using var checkCmd = CreateCommand(checkSql);
-                checkCmd.Parameters.AddWithValue("@ColName", columnName);
-                var exists = Convert.ToInt32(checkCmd.ExecuteScalar()) == 1;
-
-                if (!exists)
-                {
-                    string alterSql = $"ALTER TABLE CourseSection ADD COLUMN {columnName} {columnDef}";
-                    using var alterCmd = CreateCommand(alterSql);
-                    alterCmd.ExecuteNonQuery();
-                    LogInfo($"CourseSection.{columnName} 컬럼 추가 완료");
-                }
-            }
-            catch (Exception ex)
-            {
-                LogError($"{columnName} 컬럼 추가 실패", ex);
             }
         }
     }

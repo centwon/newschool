@@ -12,28 +12,7 @@ namespace NewSchool.Repositories
     /// </summary>
     public class ClassDiaryRepository : BaseRepository
     {
-        public ClassDiaryRepository(string dbPath) : base(dbPath)
-        {
-            // 기존 DB 마이그레이션: CreatedAt/UpdatedAt 컬럼 추가
-            TryAddColumn("ClassDiary", "CreatedAt", "TEXT");
-            TryAddColumn("ClassDiary", "UpdatedAt", "TEXT");
-        }
-
-        /// <summary>
-        /// 컬럼 추가 시도 (이미 존재하면 무시)
-        /// </summary>
-        private void TryAddColumn(string table, string columnName, string columnDef)
-        {
-            try
-            {
-                using var cmd = CreateCommand($"ALTER TABLE {table} ADD COLUMN {columnName} {columnDef}");
-                cmd.ExecuteNonQuery();
-            }
-            catch (SqliteException)
-            {
-                // 이미 존재하는 경우 무시
-            }
-        }
+        public ClassDiaryRepository(string dbPath) : base(dbPath) { }
 
         #region Create
 

@@ -18,18 +18,16 @@ namespace NewSchool.Database
         /// <summary>
         /// 현재 스키마 세대 번호(<c>PRAGMA user_version</c>).
         ///
-        /// 지금까지는 값을 안 써서 모든 DB 가 0 이었고, "이 파일이 어느 시점 스키마인지"
-        /// 판별할 방법이 없었다. 초기화 끝에 이 값을 찍어두면, 향후 제약 변경 등으로
-        /// 테이블 재작성이 필요할 때 <c>if (user_version &lt; N) { …변환…; user_version = N; }</c>
-        /// 형태의 버전 기반 마이그레이션을 짤 수 있다.
+        /// <b>1 = v1.0.0 출시 스키마.</b> 1.0 을 첫 배포로 잡으면서 그 이전의 컬럼 추가·
+        /// 테이블 재작성 마이그레이션은 모두 <c>CREATE TABLE</c> 정의에 접어 넣고 제거했다
+        /// (배포된 적 없는 스키마를 위한 코드였다).
         ///
-        /// 데이터를 건드리지 않는 메타값이라 기존 DB·새 DB 모두에 무해하다.
-        /// 스키마를 바꿀 때마다 이 상수를 올리고 대응 마이그레이션을 추가한다.
-        ///
-        /// 2: StudentSpecial.Semester 추가(교과활동만 학기별, 나머지 0=학년 단위).
-        /// 3: LessonProgress 외래키에 ON DELETE 절 부여(CourseSection=CASCADE, Schedule=SET NULL).
+        /// 이 상수와 기록 자체는 남긴다 — 1.0 이 나간 뒤 스키마를 바꾸려면
+        /// "이 파일이 어느 세대인지" 알아야 하기 때문이다. 앞으로 스키마를 바꿀 때마다
+        /// 이 값을 올리고 <c>if (user_version &lt; N) { …변환…; user_version = N; }</c>
+        /// 형태의 마이그레이션을 추가한다.
         /// </summary>
-        public const int SchemaVersion = 3;
+        public const int SchemaVersion = 1;
 
         private readonly string _dbPath;
         private SqliteConnection? _connection;
@@ -397,10 +395,6 @@ namespace NewSchool.Database
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] StudentSpecial 테이블 생성 완료");
 
-            // 기존 DB 마이그레이션: Semester 컬럼 추가 + 학기 백필.
-            // 이미 있으면 ALTER 가 실패하므로 컬럼 존재 여부를 먼저 확인한다.
-            await AddStudentSpecialSemesterAsync(cmd);
-
             // ==========================================
             // 기존 테이블들 (유지)
             // ==========================================
@@ -474,6 +468,8 @@ namespace NewSchool.Database
                     Memo TEXT DEFAULT '',
                     Notice TEXT DEFAULT '',
                     Life TEXT DEFAULT '',
+                    CreatedAt TEXT,
+                    UpdatedAt TEXT,
                     FOREIGN KEY (SchoolCode) REFERENCES School(SchoolCode),
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL,
                     UNIQUE(SchoolCode, Year, Semester, Grade, Class, Date)
@@ -593,10 +589,6 @@ namespace NewSchool.Database
             Debug.WriteLine("  ✓ SeatPosHistory 테이블 생성");
 
             await CreateRepositoryOwnedTablesAsync(cmd);
-
-            // 기존 DB 마이그레이션: LessonProgress 의 외래키에 ON DELETE 절을 붙인다.
-            // 부모 테이블(CourseSection·Schedule)이 만들어진 뒤여야 한다.
-            await RebuildLessonProgressForeignKeysAsync(cmd);
 
             Debug.WriteLine("[DatabaseInitializer] 모든 테이블 생성 완료");
         }
@@ -789,117 +781,6 @@ namespace NewSchool.Database
             cmd.CommandText = $"PRAGMA user_version = {SchemaVersion};";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine($"[DatabaseInitializer] 스키마 버전 기록: {SchemaVersion}");
-        }
-
-        /// <summary>
-        /// 기존 DB 에 <c>StudentSpecial.Semester</c> 컬럼을 추가하고 학기를 백필한다.
-        ///
-        /// 백필 규칙: 교과활동(교과 세특)만 학기별이므로, 살아있는 <c>CourseNo</c> 가 있으면
-        /// 그 교과목의 학기를 가져온다. 그 외(개인별세특·자율·동아리·봉사·진로·종합의견,
-        /// 그리고 교과목이 이미 삭제돼 CourseNo 가 NULL 인 행)는 0(학년 단위)으로 남는다.
-        /// CourseNo 가 NULL 인 과거 교과활동은 학기를 복원할 방법이 없다 — 이 마이그레이션을
-        /// 도입한 이유 자체가 그 유실을 앞으로 막으려는 것이다.
-        ///
-        /// 컬럼이 이미 있으면 아무것도 하지 않는다(신규 DB 는 CREATE TABLE 에 포함됨).
-        /// </summary>
-        private static async Task AddStudentSpecialSemesterAsync(SqliteCommand cmd)
-        {
-            // 컬럼 존재 확인
-            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('StudentSpecial') WHERE name='Semester';";
-            var exists = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
-            if (exists) return;
-
-            cmd.CommandText = "ALTER TABLE StudentSpecial ADD COLUMN Semester INTEGER NOT NULL DEFAULT 0;";
-            await cmd.ExecuteNonQueryAsync();
-
-            // 교과활동만 백필 — Course 가 남아 있는 행에 한해 학기를 복원
-            cmd.CommandText = @"
-                UPDATE StudentSpecial
-                   SET Semester = COALESCE((
-                           SELECT c.Semester FROM Course c WHERE c.No = StudentSpecial.CourseNo
-                       ), 0)
-                 WHERE Type = '교과활동' AND CourseNo IS NOT NULL;";
-            int filled = await cmd.ExecuteNonQueryAsync();
-
-            Debug.WriteLine($"[DatabaseInitializer] StudentSpecial.Semester 컬럼 추가 + 교과활동 {filled}행 학기 백필");
-        }
-
-        /// <summary>
-        /// 기존 DB 의 <c>LessonProgress</c> 외래키에 <c>ON DELETE</c> 절을 붙인다(테이블 재작성).
-        ///
-        /// 처음 정의에는 절이 없어 NO ACTION 이었다. 그 결과 진도 기록이 한 건이라도 있으면
-        /// ① 수업 삭제(Course→CourseSection 이 CASCADE 라 자식이 지워지는 순간 위반),
-        /// ② 단원 삭제, ③ 진도가 참조하는 시간표 일정 삭제가 모두
-        /// <c>FOREIGN KEY constraint failed</c> 로 **영구 실패**했다. 진도 매트릭스를 한 번이라도
-        /// 쓴 수업은 지울 수 없었다는 뜻이다.
-        ///
-        /// SQLite 는 제약만 바꾸는 ALTER 가 없으므로 새 표를 만들어 옮겨 담는다.
-        /// Microsoft.Data.Sqlite 는 공유 캐시가 아닌 연결에서 외래키를 자동으로 켜므로
-        /// 이관 도중에도 제약이 살아 있다 — 그래서 부모가 없는 행은 옮기지 않고 걸러낸다.
-        ///
-        /// 이미 절이 붙어 있으면(신규 DB 포함) 아무것도 하지 않는다.
-        /// </summary>
-        private static async Task RebuildLessonProgressForeignKeysAsync(SqliteCommand cmd)
-        {
-            // 현재 정의 확인 — on_delete 가 하나라도 NO ACTION 이면 옛 스키마다.
-            // (표가 없으면 결과가 비어 있어 그대로 통과한다.)
-            cmd.CommandText =
-                "SELECT COUNT(*) FROM pragma_foreign_key_list('LessonProgress') WHERE \"on_delete\" = 'NO ACTION';";
-            if (Convert.ToInt32(await cmd.ExecuteScalarAsync()) == 0)
-                return;
-
-            Debug.WriteLine("[DatabaseInitializer] LessonProgress 외래키 재작성 시작(구 스키마 감지)");
-
-            using var tx = cmd.Connection!.BeginTransaction();
-            cmd.Transaction = tx;
-            try
-            {
-                // 1. 새 표 — 정의는 리포지토리의 정본 하나뿐, 이름만 바꿔 쓴다.
-                //    (직전 시도가 중간에 끊겼다면 남아 있을 수 있어 먼저 지운다)
-                cmd.CommandText = "DROP TABLE IF EXISTS LessonProgress_new;";
-                await cmd.ExecuteNonQueryAsync();
-
-                cmd.CommandText = Repositories.LessonProgressRepository.TableSql
-                    .Replace("LessonProgress", "LessonProgress_new");
-                await cmd.ExecuteNonQueryAsync();
-
-                // 2. 옮겨 담기. 제약이 꺼진 채 쌓였을 수 있는 고아 행은 여기서 정리한다.
-                //    부모 없는 단원의 진도는 버리고(CASCADE 의도), 사라진 일정 참조는 NULL 로(SET NULL 의도).
-                cmd.CommandText = @"
-                    INSERT INTO LessonProgress_new
-                        (No, CourseSectionId, Room, IsCompleted, CompletedDate,
-                         ProgressType, ScheduleId, Memo, CreatedAt, UpdatedAt)
-                    SELECT lp.No, lp.CourseSectionId, lp.Room, lp.IsCompleted, lp.CompletedDate,
-                           lp.ProgressType,
-                           CASE WHEN lp.ScheduleId IN (SELECT No FROM Schedule) THEN lp.ScheduleId END,
-                           lp.Memo, lp.CreatedAt, lp.UpdatedAt
-                      FROM LessonProgress lp
-                     WHERE lp.CourseSectionId IN (SELECT No FROM CourseSection);";
-                int moved = await cmd.ExecuteNonQueryAsync();
-
-                // 3. 교체 (옛 표의 인덱스는 DROP 과 함께 사라진다)
-                cmd.CommandText = "DROP TABLE LessonProgress;";
-                await cmd.ExecuteNonQueryAsync();
-
-                cmd.CommandText = "ALTER TABLE LessonProgress_new RENAME TO LessonProgress;";
-                await cmd.ExecuteNonQueryAsync();
-
-                // 4. 인덱스 복구 — 정본 스키마를 그대로 다시 실행(표는 IF NOT EXISTS 라 no-op)
-                cmd.CommandText = Repositories.LessonProgressRepository.SchemaSql;
-                await cmd.ExecuteNonQueryAsync();
-
-                tx.Commit();
-                Debug.WriteLine($"[DatabaseInitializer] LessonProgress 외래키 재작성 완료: {moved}행 이관");
-            }
-            catch
-            {
-                tx.Rollback();
-                throw;
-            }
-            finally
-            {
-                cmd.Transaction = null;
-            }
         }
 
         private async Task CleanupOrphansAsync()
