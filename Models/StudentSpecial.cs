@@ -7,7 +7,7 @@ namespace NewSchool.Models
     /// NEIS 입력용 최종 기록 (교과세특, 자율/동아리/진로활동, 종합의견)
     /// StudentLog(활동 근거자료)를 바탕으로 작성하며, 바이트 제한이 적용됨
     /// </summary>
-    public class StudentSpecial : NotifyPropertyChangedBase, IEntity
+    public class StudentSpecial : NotifyPropertyChangedBase
     {
         #region Fields
 

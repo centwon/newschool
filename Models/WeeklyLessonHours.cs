@@ -4,7 +4,7 @@ namespace NewSchool.Models
     /// 주차별 수업 시수
     /// 자동 계산 + 사용자 수정 가능
     /// </summary>
-    public class WeeklyLessonHours : NotifyPropertyChangedBase, IEntity
+    public class WeeklyLessonHours : NotifyPropertyChangedBase
     {
         #region Fields
 

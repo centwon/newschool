@@ -9,7 +9,7 @@ namespace NewSchool.Models
     /// Student와 1:1 관계 (선택적)
     /// 보호자, 가족, 진로, 특기사항 등
     /// </summary>
-    public class StudentDetail : NotifyPropertyChangedBase, IEntity
+    public class StudentDetail : NotifyPropertyChangedBase
     {
         #region Fields
 

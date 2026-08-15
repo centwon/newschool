@@ -6,7 +6,7 @@ namespace NewSchool.Models;
 /// 교과 단원 구조
 /// 대단원 > 중단원 > 소단원 계층 구조 (단일 테이블)
 /// </summary>
-public class CourseSection : NotifyPropertyChangedBase, IEntity
+public class CourseSection : NotifyPropertyChangedBase
 {
     #region Fields
 

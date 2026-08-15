@@ -8,7 +8,7 @@ namespace NewSchool.Models
     /// 출결 정보 (NEIS 표준)
     /// 학생의 일별 출결 상태 관리
     /// </summary>
-    public class Attendance : NotifyPropertyChangedBase, IEntity, IYearSemesterEntity
+    public class Attendance : NotifyPropertyChangedBase
     {
         #region Fields
 

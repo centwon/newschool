@@ -6,7 +6,7 @@ namespace NewSchool.Models
     /// 동아리 배정 정보
     /// 학생이 특정 동아리에 배정되는 정보
     /// </summary>
-    public class ClubEnrollment : NotifyPropertyChangedBase, IEntity
+    public class ClubEnrollment : NotifyPropertyChangedBase
     {
         #region Fields
 

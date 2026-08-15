@@ -15,7 +15,7 @@ namespace NewSchool.Models
     /// WinUI3 x:Bind를 위한 Bindable 특성 추가
     /// </summary>
     [Microsoft.UI.Xaml.Data.Bindable]
-    public class Enrollment : NotifyPropertyChangedBase, IEntity
+    public class Enrollment : NotifyPropertyChangedBase
     {
         #region Fields
 

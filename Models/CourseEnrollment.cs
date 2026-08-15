@@ -6,7 +6,7 @@ namespace NewSchool.Models;
 /// 수강 신청 정보
 /// 학생이 특정 과목을 수강하는 정보 (기존 CourseAssignment 대체)
 /// </summary>
-public partial class CourseEnrollment : NotifyPropertyChangedBase, IEntity
+public partial class CourseEnrollment : NotifyPropertyChangedBase
 {
     #region Fields
 

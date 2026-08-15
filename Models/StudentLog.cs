@@ -5,10 +5,9 @@ namespace NewSchool.Models
 {
     /// <summary>
     /// 학생 기록부 (행동 특성 및 종합의견)
-    /// IStudentRecord 인터페이스 구현
     /// ⭐ 확장 버전: 구조화된 활동 기록 필드 추가
     /// </summary>
-    public class StudentLog : NotifyPropertyChangedBase, IStudentRecord
+    public class StudentLog : NotifyPropertyChangedBase
     {
         #region Fields - 기본 정보
 
@@ -41,7 +40,7 @@ namespace NewSchool.Models
 
         #endregion
 
-        #region Properties - IEntity
+        #region Properties - 기본 정보
 
         /// <summary>PK (자동 증가)</summary>
         public int No
@@ -52,7 +51,7 @@ namespace NewSchool.Models
 
         #endregion
 
-        #region Properties - IStudentRecord
+        #region Properties - 기록 공통
 
         /// <summary>학생 ID (FK: Student.StudentID)</summary>
         public string StudentID

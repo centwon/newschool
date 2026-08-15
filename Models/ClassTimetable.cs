@@ -6,7 +6,7 @@ namespace NewSchool.Models
     /// 학급 시간표
     /// 학급 관점의 시간표 정보 관리 (학생/학급용)
     /// </summary>
-    public class ClassTimetable : NotifyPropertyChangedBase, IEntity, IYearSemesterEntity
+    public class ClassTimetable : NotifyPropertyChangedBase
     {
         #region Fields
 

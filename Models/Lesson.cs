@@ -6,7 +6,7 @@ namespace NewSchool.Models;
 /// 수업 시간표 (정기/비정기 수업)
 /// Course에 연결된 개별 수업 일정 관리
 /// </summary>
-public class Lesson : NotifyPropertyChangedBase, IEntity, IYearSemesterEntity
+public class Lesson : NotifyPropertyChangedBase
 {
     #region Fields
 

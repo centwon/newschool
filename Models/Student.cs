@@ -8,7 +8,7 @@ namespace NewSchool.Models
     /// 학생 기본 정보 (NEIS 표준)
     /// 순수 인적 정보만 포함 (학적 정보는 Enrollment, 상세 정보는 StudentDetail)
     /// </summary>
-    public class Student : NotifyPropertyChangedBase, IEntity
+    public class Student : NotifyPropertyChangedBase
     {
         #region Fields
 

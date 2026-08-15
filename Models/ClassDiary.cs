@@ -8,7 +8,7 @@ namespace NewSchool.Models
     /// 학급 일지 모델
     /// 출결, 메모, 알림장, 학생 생활 기록 관리
     /// </summary>
-    public class ClassDiary : NotifyPropertyChangedBase, IDailyRecord
+    public class ClassDiary : NotifyPropertyChangedBase
     {
         #region Fields - 기본 정보
 
@@ -46,7 +46,7 @@ namespace NewSchool.Models
 
         #endregion
 
-        #region Properties - IEntity
+        #region Properties - 기본 정보
 
         /// <summary>PK (자동 증가)</summary>
         public int No

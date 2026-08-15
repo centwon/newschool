@@ -7,7 +7,7 @@ namespace NewSchool.Models
     /// 동아리 정보
     /// 특정 학년도에 개설되는 동아리 정보 관리
     /// </summary>
-    public partial class Club : NotifyPropertyChangedBase, IEntity
+    public partial class Club : NotifyPropertyChangedBase
     {
         #region Fields
 

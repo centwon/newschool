@@ -7,7 +7,7 @@ namespace NewSchool.Models
     /// <summary>
     /// 학교 정보 (NEIS 표준)
     /// </summary>
-    public class School : NotifyPropertyChangedBase, IEntity
+    public class School : NotifyPropertyChangedBase
     {
         #region Fields
 

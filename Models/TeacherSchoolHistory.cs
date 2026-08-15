@@ -8,7 +8,7 @@ namespace NewSchool.Models
     /// 교사 근무 이력 (학교별)
     /// 교사가 여러 학교를 옮겨다니는 경우 이력 관리
     /// </summary>
-    public class TeacherSchoolHistory : NotifyPropertyChangedBase, IEntity
+    public class TeacherSchoolHistory : NotifyPropertyChangedBase
     {
         #region Fields
 

@@ -6,7 +6,7 @@ namespace NewSchool.Models
     /// 연간수업계획 기본정보
     /// Course + 학급별로 하나의 연간계획
     /// </summary>
-    public class SubjectYearPlan : NotifyPropertyChangedBase, IEntity
+    public class SubjectYearPlan : NotifyPropertyChangedBase
     {
         #region Fields
 

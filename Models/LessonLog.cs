@@ -5,9 +5,8 @@ namespace NewSchool.Models;
 /// <summary>
 /// 수업 일지 모델
 /// 교사의 교시별 수업 진행 기록
-/// IDailyRecord 구현으로 ClassDiary(학급일지)와 공통 기반 공유
 /// </summary>
-public class LessonLog : NotifyPropertyChangedBase, IDailyRecord
+public class LessonLog : NotifyPropertyChangedBase
 {
     #region Fields - 기본 정보
 
@@ -52,7 +51,7 @@ public class LessonLog : NotifyPropertyChangedBase, IDailyRecord
 
     #endregion
 
-    #region Properties - IDailyRecord
+    #region Properties - 기록 공통
 
     /// <summary>일련번호 (PK)</summary>
     public int No

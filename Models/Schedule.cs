@@ -8,7 +8,7 @@ namespace NewSchool.Models;
 /// 실제 배치된 수업 슬롯
 /// 날짜별 수업 관리 및 진도 추적
 /// </summary>
-public class Schedule : NotifyPropertyChangedBase, IEntity
+public class Schedule : NotifyPropertyChangedBase
 {
     #region Fields
 

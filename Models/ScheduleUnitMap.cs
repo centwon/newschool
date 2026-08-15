@@ -6,7 +6,7 @@ namespace NewSchool.Models;
 /// 수업-단원 매핑 (1:N 병합 지원)
 /// 하나의 Schedule에 여러 CourseSection을 매핑 가능
 /// </summary>
-public class ScheduleUnitMap : NotifyPropertyChangedBase, IEntity
+public class ScheduleUnitMap : NotifyPropertyChangedBase
 {
     #region Fields
 

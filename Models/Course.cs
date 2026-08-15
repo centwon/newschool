@@ -11,7 +11,7 @@ namespace NewSchool.Models;
 /// ⭐ 재설계: 시간표 정보는 CourseSchedule로 분리
 /// </summary>
 [Microsoft.UI.Xaml.Data.Bindable]
-public partial class Course : NotifyPropertyChangedBase, IEntity, IYearSemesterEntity
+public partial class Course : NotifyPropertyChangedBase
 {
     #region Fields
 

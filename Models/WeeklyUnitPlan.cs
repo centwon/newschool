@@ -4,7 +4,7 @@ namespace NewSchool.Models
     /// 주차별 단원 배치
     /// 어느 주에 어떤 단원을 몇 시간 진행할지 기록
     /// </summary>
-    public class WeeklyUnitPlan : NotifyPropertyChangedBase, IEntity
+    public class WeeklyUnitPlan : NotifyPropertyChangedBase
     {
         #region Fields
 

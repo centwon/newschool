@@ -147,7 +147,7 @@ public readonly record struct PeriodTimes(
 #region Core Models
 
 
-public class ClassAssignment : NotifyPropertyChangedBase, IEntity
+public class ClassAssignment : NotifyPropertyChangedBase
 {
     private int _no = -1;
     private int _year;
@@ -166,7 +166,7 @@ public class ClassAssignment : NotifyPropertyChangedBase, IEntity
     public string Name { get => _name; set => SetProperty(ref _name, value); }
 }
 
-public class Subject : NotifyPropertyChangedBase, IEntity
+public class Subject : NotifyPropertyChangedBase
 {
     private int _no = -1;
     private string _curriculum = string.Empty;
@@ -182,7 +182,7 @@ public class Subject : NotifyPropertyChangedBase, IEntity
 }
 
 
-public class CourseAssignment : NotifyPropertyChangedBase, IEntity
+public class CourseAssignment : NotifyPropertyChangedBase
 {
     private int _no = -1;
     private string _student = string.Empty;
