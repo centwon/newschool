@@ -1,15 +1,16 @@
 # NewSchool
 
-WinUI 3 (Windows App SDK 2.2) · .NET 10 · SQLite 기반 교사용 학급 관리 프로그램.
+WinUI 3 (Windows App SDK 2.4) · .NET 10 · SQLite 기반 교사용 학급 관리 프로그램.
 
 리치 텍스트 편집은 네이티브 Win2D 에디터(WinUIRichEditor)를 사용하며, WebView2 의존이 없습니다.
 
 ## 주요 기능
-- 오늘 대시보드(홈) — 현재 교시·오늘 시간표(내 수업/우리 반)·학사일정·급식·할일·메모
+- 오늘 대시보드(홈) — 날짜 이동·현재 교시·오늘 시간표(내 수업/우리 반)·학사일정·급식·할일·메모
 - 학생/학급 관리, 학생부 특기사항, 누가기록
 - 자리 배정 (DB 영속화, 이력 기반 배치 옵션)
-- 통합 내보내기 (누가기록·학생부·좌석배정·학생카드 × Excel/PDF/HTML)
-- 학사일정, 시간표, 학급 일지, 동아리, 게시판
+- 통합 내보내기 (누가기록·학생부·좌석배정·학생카드·학생정보 × Excel/PDF/HTML)
+- 수업 관리 6탭 — 수업 개설 · 단원 · 시수 · 진도 · 시간표 입력 · 주별 시간표(휴강·교체·보강·대강)
+- 학사일정, 학급 시간표, 학급 일지, 수업 일지, 동아리, 게시판
 - Google Calendar 연동, NEIS 오픈 API 연동
 
 전체 기능·파일 구조는 [FEATURES.md](FEATURES.md) 참조.
@@ -57,10 +58,18 @@ cp secrets.template.json secrets.json
 **2. 빌드**
 
 ```bash
-dotnet build -c Debug
+dotnet build -c Debug -p:Platform=x64
 ```
 
 또는 Visual Studio 에서 `NewSchool.sln` 열고 빌드.
+
+**3. 테스트**
+
+```bash
+dotnet test NewSchool.Tests -p:Platform=x64
+```
+
+게시 전 1회 실행을 습관화합니다 — 자세한 범위는 [TEST_PLAN.md](TEST_PLAN.md) 참조.
 
 ## 배포용 인스톨러 빌드
 
@@ -75,7 +84,10 @@ dotnet publish -c Release -p:Platform=x64
 `bin\Release\net10.0-windows10.0.26100.0\win-x64\publish\` 에 생성합니다. x86/arm64는 `-p:Platform=x86` 또는
 `-p:Platform=arm64` 로 교체.
 
-이후 Inno Setup 으로 `installer.iss` 또는 `Installer/NewSchoolSetup.iss` 컴파일.
+이후 Inno Setup 으로 `Installer/NewSchoolSetup.iss` 컴파일.
+
+> Release/게시에서만 나는 `CS1061` 류의 이상한 컴파일 오류는 대개 `obj\x64\Release` 에 남은
+> 옛 XAML 생성 파일(`*.g.cs`) 탓입니다. 그 폴더를 지우고 다시 빌드하면 해소됩니다.
 
 ## 설정 저장 위치
 

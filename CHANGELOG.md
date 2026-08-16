@@ -15,6 +15,24 @@
 > 아래 **개발 이력**은 그 기간의 작업 기록이며, 내용은 손대지 않고 그대로 보존한다.
 > 괄호 안의 "구 vX.Y.Z" 는 되돌리기 전에 쓰던 번호다.
 
+### 문서를 현재 코드에 맞춤 (2026-08-16)
+1.0 정리와 수업 관리 재구성으로 사라진 것들이 문서에 그대로 남아 있었다. 파일을 찾아가면
+없는 목록은 없느니만 못하다 — `FEATURES.md` 가 가리키는 경로가 실제로 있는지 전수 대조했다.
+
+- **내비게이션 표를 실제 메뉴 구조로 다시 썼다** — 일곱 갈래(홈·달력·학급·수업·업무·아카이브·설정)와
+  `Tag` → 페이지 매핑. 옛 표에는 없는 `ClubHome`·`Settings_General` 이 있었고,
+  게시판 넷(학급·수업·업무·아카이브)과 수업 일지·도움말·업데이트 확인은 아예 빠져 있었다
+- **없는 파일을 걷어냈다** — `Attachment`·`Evaluation`·`Interfaces` 계열, 1.0 정리에서 사라진
+  리포지토리 6종(`Schedule`·`SubjectYearPlan`·`WeeklyLessonHours`·`WeeklyUnitPlan`·
+  `ScheduleUnitMap`·`UndoHistory`), `ReportExportService`, `UI/`·`Validation/`·`Events/` 세 폴더
+- **새로 생긴 것을 넣었다** — `LessonChange`·`CourseWeeklyHours` 모델과 리포지토리,
+  `TimetableChangeMerger`, 수업 관리 여섯 탭 컨트롤, 새 다이얼로그 넷
+- `README` 의 Windows App SDK 2.2 → **2.4**, 존재하지 않는 `installer.iss` 참조 제거,
+  테스트 실행 절차 추가. 게시 때만 나는 `obj\x64\Release` 옛 `*.g.cs` 오류의 처방도 적어 뒀다
+- 테스트 수 표기 421 → **433** (`TEST_PLAN.md`)
+    - 죽은 페이지 둘(`ClubHomePage`·`HomeroomSettingsPage`)은 내비게이션에도 다른 호출부에도
+      없어 **차후 과제로 적어만 뒀다** — 지우는 것은 문서 작업이 아니다
+
 ### 날짜 이동 — 오늘 화면과 수업 홈 시간표 (2026-08-16)
 "내일 뭐 하지" 를 보려고 다른 화면을 찾아갈 일이 없게 했다.
 
