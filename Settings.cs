@@ -75,17 +75,34 @@ public class SettingProperty<T>
 /// </summary>
 public static class Settings
 {
+    /// <summary>포터블 표식 파일 — exe 옆에 이 파일이 있으면 포터블로 동작한다.</summary>
+    public const string PortableMarkerFileName = "portable.txt";
+
+    private readonly record struct DataLocation(string Root, string DataPath, bool IsPortable);
+
     /// <summary>
-    /// 데이터 경로 (앱 시작 시 1회 결정, 이후 불변)
+    /// 경로는 처음 요청될 때 1회 결정한다. 정적 생성자를 두지 않는 것은
+    /// Settings 의 순수 계산 메서드(ResolveSpecMaxBytes 등)만 쓰는 테스트가
+    /// 실제 데이터 폴더를 건드리지 않게 하기 위함이다.
     /// </summary>
-    public static string UserDataPath { get; } = ResolveDataPath();
+    private static readonly Lazy<DataLocation> _location = new(ResolveLocation);
+
+    /// <summary>
+    /// 앱 루트 — 포터블은 실행 파일 폴더, 설치본은 %USERPROFILE%\NewSchool.
+    /// 산출물(Logs·Exports·Prints·Backups)의 기준 경로다.
+    /// </summary>
+    public static string RootPath => _location.Value.Root;
+
+    /// <summary>
+    /// 사용자 자산(DB·Photos·Files) 폴더 = <see cref="RootPath"/>\Data.
+    /// 프로그램 파일과 섞이지 않도록 한 겹 내려 두었다 — 이 폴더만 옮기면 데이터가 통째로 따라온다.
+    /// </summary>
+    public static string UserDataPath => _location.Value.DataPath;
 
     /// <summary>
     /// 포터블 모드 여부
     /// </summary>
-    public static bool IsPortableMode { get; } = !UserDataPath.Equals(
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "NewSchool"),
-        StringComparison.OrdinalIgnoreCase);
+    public static bool IsPortableMode => _location.Value.IsPortable;
 
     /// <summary>
     /// 데이터 폴더 경로 (UserDataPath와 동일)
@@ -93,60 +110,51 @@ public static class Settings
     public static string DataDirectory => UserDataPath;
 
     /// <summary>
-    /// 데이터 경로 결정 로직:
-    /// 1. exe 옆에 Settings.db → 포터블
-    /// 2. %USERPROFILE%\NewSchool\Settings.db → 사용자 폴더
-    /// 3. 최초 실행: 시스템 경로이거나 쓰기 불가 → 사용자 폴더, 그 외 → 포터블
+    /// 루트·데이터 경로 결정.
     /// </summary>
-    private static string ResolveDataPath()
+    private static DataLocation ResolveLocation()
     {
         var exeDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var userPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "NewSchool");
+        var userRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "NewSchool");
 
-        // 1. exe 옆에 Settings.db 있으면 포터블
-        if (File.Exists(Path.Combine(exeDir, "Settings.db")))
-            return exeDir;
+        bool portable = IsPortableLayout(exeDir);
+        var root = portable ? exeDir : userRoot;
 
-        // 2. 사용자 폴더에 Settings.db 있으면 사용자 폴더
-        if (File.Exists(Path.Combine(userPath, "Settings.db")))
-            return userPath;
-
-        // 3. 최초 실행 — 경로 + 쓰기 권한으로 판단
-        if (IsSystemPath(exeDir) || !IsWritable(exeDir))
-            return userPath;
-
-        return exeDir; // 포터블
+        return new DataLocation(root, Path.Combine(root, "Data"), portable);
     }
 
     /// <summary>
-    /// Program Files, WindowsApps, 개발 빌드 경로 등 포터블 대상이 아닌 경로인지 확인
+    /// 포터블 판정 — 표식 파일이 기준이다.
+    /// 데이터 유무로 판정하던 옛 방식은 DB 가 사라지거나 동기화가 이름을 바꾸면
+    /// 조용히 사용자 폴더 모드로 넘어가 빈 화면을 띄웠다. 모드와 데이터 상태를 떼어 놓는다.
+    /// 표식이 없어도 옛 포터블 배치(exe 옆 Settings.db)면 포터블로 보고 표식을 만들어 준다.
     /// </summary>
-    private static bool IsSystemPath(string path)
+    internal static bool IsPortableLayout(string exeDir)
     {
-        var normalized = path.Replace('/', '\\').TrimEnd('\\').ToUpperInvariant();
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles).ToUpperInvariant();
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86).ToUpperInvariant();
-        var windowsApps = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Microsoft", "WindowsApps").ToUpperInvariant();
+        try
+        {
+            bool marked = File.Exists(Path.Combine(exeDir, PortableMarkerFileName));
 
-        // 시스템 설치 경로
-        if (normalized.StartsWith(programFiles)
-            || normalized.StartsWith(programFilesX86)
-            || normalized.StartsWith(windowsApps))
+            // 표식 도입(1.0) 이전 배치 — 루트 또는 Data 하위 어느 쪽이든 인정
+            bool legacy = !marked
+                && (File.Exists(Path.Combine(exeDir, "Settings.db"))
+                    || File.Exists(Path.Combine(exeDir, "Data", "Settings.db")));
+
+            if (!marked && !legacy) return false;
+
+            // 표식이 있어도 쓸 수 없는 자리(읽기 전용 매체·Program Files)면 사용자 폴더로 물러선다.
+            if (!IsWritable(exeDir)) return false;
+
+            if (legacy) TryCreatePortableMarker(exeDir);
             return true;
-
-        // 개발 빌드 경로 (bin\Debug, bin\Release, bin\x64\ 등)
-        if (normalized.Contains(@"\BIN\DEBUG\") || normalized.Contains(@"\BIN\RELEASE\")
-            || normalized.Contains(@"\OBJ\"))
-            return true;
-
-        return false;
+        }
+        catch
+        {
+            return false; // 판정 불가 — 항상 쓸 수 있는 사용자 폴더가 안전한 쪽
+        }
     }
 
-    /// <summary>
-    /// 해당 폴더에 쓰기 가능한지 테스트
-    /// </summary>
+    /// <summary>해당 폴더에 쓰기 가능한지 테스트</summary>
     private static bool IsWritable(string path)
     {
         try
@@ -157,6 +165,21 @@ public static class Settings
             return true;
         }
         catch { return false; }
+    }
+
+    private static void TryCreatePortableMarker(string exeDir)
+    {
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(exeDir, PortableMarkerFileName),
+                "이 파일이 있으면 NewSchool 은 포터블로 동작합니다." + Environment.NewLine +
+                "데이터는 이 폴더의 Data 하위에 저장됩니다. 파일을 지우면 사용자 폴더 모드로 바뀝니다." + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] 포터블 표식 생성 실패: {ex.Message}");
+        }
     }
 
     // Scheduler 관련 설정
@@ -559,6 +582,18 @@ public static class Settings
     }
 
     /// <summary>
+    /// 백업·복원 대상 DB 파일명. 앱이 만드는 것만 골라 담아 동기화 충돌본·수동 .bak 을 배제한다.
+    /// (사진·첨부는 용량이 커서 백업에 넣지 않는다 — Data 폴더째 복사가 그 역할이다.)
+    /// </summary>
+    private static string[] BackupDbFileNames() => new[]
+    {
+        "Settings.db",
+        SchoolDB?.Value ?? "school.db",
+        SchedulerDB?.Value ?? "scheduler.db",
+        Board_DB?.Value ?? "board.db",
+    };
+
+    /// <summary>
     /// 전체 데이터 백업 (Settings.db + 모든 DB) → 단일 ZIP 파일.
     /// 각 DB는 VACUUM INTO 로 스냅샷 — 다른 연결이 쓰는 중이어도 원자적이고,
     /// 빈 공간이 제거돼 파일도 작아진다. ZIP 압축(텍스트 위주 DB라 압축률 높음)까지 하면
@@ -571,10 +606,14 @@ public static class Settings
         {
             Directory.CreateDirectory(staging);
 
-            // UserDataPath의 모든 .db 파일 (Settings.db, school.db, scheduler.db, board.db 등)
-            foreach (var dbFile in Directory.GetFiles(UserDataPath, "*.db"))
+            // 앱이 관리하는 DB 만 담는다. "*.db 전부" 로 훑던 옛 방식은 동기화 충돌본
+            // (school-이름.db 따위)까지 백업에 넣고 복원 때 되살렸다.
+            foreach (var name in BackupDbFileNames())
             {
-                var target = Path.Combine(staging, Path.GetFileName(dbFile));
+                var dbFile = Path.Combine(UserDataPath, name);
+                if (!File.Exists(dbFile)) continue;
+
+                var target = Path.Combine(staging, name);
                 if (!TrySnapshotDb(dbFile, target))
                 {
                     // VACUUM INTO 실패 시 폴백: 체크포인트 후 파일 복사
@@ -583,7 +622,7 @@ public static class Settings
                 }
             }
 
-            var backupsRoot = Path.Combine(UserDataPath, "Backups");
+            var backupsRoot = BackupDirectory;
             Directory.CreateDirectory(backupsRoot);
             var zipPath = Path.Combine(backupsRoot, $"backup_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
             System.IO.Compression.ZipFile.CreateFromDirectory(
@@ -705,10 +744,12 @@ public static class Settings
             // 폴더 복원
             if (!Directory.Exists(backupDirOrFile)) return false;
 
-            var dbFiles = Directory.GetFiles(backupDirOrFile, "*.db");
-            foreach (var dbFile in dbFiles)
+            // 백업과 같은 화이트리스트로 되돌린다 — 옛 백업에 섞여 든 충돌본을 되살리지 않는다.
+            foreach (var fileName in BackupDbFileNames())
             {
-                var fileName = Path.GetFileName(dbFile);
+                var dbFile = Path.Combine(backupDirOrFile, fileName);
+                if (!File.Exists(dbFile)) continue;
+
                 if (fileName.Equals("Settings.db", StringComparison.OrdinalIgnoreCase))
                 {
                     SettingsDb.Restore(dbFile);
@@ -757,7 +798,7 @@ public static class Settings
     {
         try
         {
-            var backupsRoot = Path.Combine(UserDataPath, "Backups");
+            var backupsRoot = BackupDirectory;
             if (!Directory.Exists(backupsRoot)) return;
 
             // ZIP(신규)과 폴더(구버전) 백업을 함께 정렬 — 이름이 backup_yyyyMMdd_HHmmss 라 문자열 내림차순 = 최신순
@@ -781,9 +822,10 @@ public static class Settings
     }
 
     /// <summary>
-    /// 백업 폴더 경로
+    /// 백업 폴더 경로. Data 폴더 <b>밖</b>에 둔다 — 안에 두면 백업이 자기 자신을 담고,
+    /// Data 폴더째 복사할 때 백업 사본까지 딸려와 용량이 배로 불어난다.
     /// </summary>
-    public static string BackupDirectory => Path.Combine(UserDataPath, "Backups");
+    public static string BackupDirectory => Path.Combine(RootPath, "Backups");
 
     /// <summary>
     /// 디버그 출력

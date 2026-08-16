@@ -20,7 +20,7 @@ namespace NewSchool.Services
 
         private static string GetOutputDir()
         {
-            var dir = Path.Combine(Settings.UserDataPath, "Prints");
+            var dir = Path.Combine(Settings.RootPath, "Prints");
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
             return dir;

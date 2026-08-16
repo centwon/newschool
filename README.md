@@ -89,11 +89,38 @@ dotnet publish -c Release -p:Platform=x64
 > Release/게시에서만 나는 `CS1061` 류의 이상한 컴파일 오류는 대개 `obj\x64\Release` 에 남은
 > 옛 XAML 생성 파일(`*.g.cs`) 탓입니다. 그 폴더를 지우고 다시 빌드하면 해소됩니다.
 
-## 설정 저장 위치
+## 데이터 저장 위치
 
-- **앱 데이터**: `%APPDATA%\NewSchool\` — DB, 사진, 백업
-- **설정 DB**: `Settings.db` — 사용자 환경설정 키-값 저장
-- **비밀 정보**: `secrets.json` (실행 디렉터리 옆)
+실행 파일 옆에 `portable.txt` 가 있으면 **포터블**, 없으면 **설치본**으로 동작합니다.
+판정 기준은 표식 파일 하나뿐입니다 — 데이터 유무로 판정하면 DB 가 사라지거나 동기화가
+파일 이름을 바꿨을 때 조용히 다른 폴더를 보게 됩니다.
+
+| | 루트 |
+|---|---|
+| 포터블 | 실행 파일 폴더 |
+| 설치본 | `%USERPROFILE%\NewSchool\` |
+
+루트 아래 배치는 두 모드가 같습니다.
+
+```
+<루트>\
+├── Data\            ← 사용자 자산. 이 폴더만 옮기면 데이터가 통째로 따라온다
+│   ├── Settings.db · school.db · scheduler.db · board.db
+│   ├── Photos\{연도}\      학생 사진
+│   └── Files\{게시판}\     게시글 첨부
+├── Backups\         backup_yyyyMMdd_HHmmss.zip (DB만 담김 — 사진·첨부 제외)
+├── Exports\         xlsx · html · csv
+├── Prints\          pdf
+└── Logs\            30일 경과분 자동 삭제
+```
+
+- **비밀 정보**: `secrets.json` — 실행 파일 옆(데이터가 아니라 배포물이라 `Data\` 밖)
+- **이관**: 1.0 이전 배치(루트에 DB·`Photos`·`Files` 가 흩어져 있던 형태)는 손으로 `Data\` 에 옮깁니다.
+  앱을 완전히 종료한 뒤 `-wal`·`-shm` 까지 **함께** 옮겨야 합니다 — `.db` 만 옮기면 WAL 에만 있던
+  최근 커밋이 사라집니다. 옮기고 나면 `Data\Settings.db` 를 보고 포터블로 알아보므로
+  `portable.txt` 를 따로 만들 필요는 없습니다.
+- **주의**: 학생 민감 필드와 구글 토큰은 DPAPI(CurrentUser)로 암호화됩니다. `Data\` 를 다른 Windows
+  계정이나 PC 로 옮기면 구글 재로그인이 필요합니다(데이터가 깨지지는 않습니다).
 
 ## 라이선스
 

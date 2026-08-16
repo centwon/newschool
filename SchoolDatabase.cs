@@ -101,81 +101,9 @@ namespace NewSchool
 
         #region Database Management
 
-        /// <summary>
-        /// 데이터베이스 백업
-        /// </summary>
-        public static async Task<bool> BackupDatabaseAsync()
-        {
-            try
-            {
-                if (!File.Exists(DbPath))
-                {
-                    Debug.WriteLine("[SchoolDatabase] 백업할 DB 파일이 없습니다.");
-                    return false;
-                }
-
-                string backupDir = Path.Combine(Settings.UserDataPath, "Backup");
-
-                if (!Directory.Exists(backupDir))
-                {
-                    Directory.CreateDirectory(backupDir);
-                }
-
-                string backupFileName = $"School_{DateTime.Now:yyyyMMdd_HHmmss}.db";
-                string backupPath = Path.Combine(backupDir, backupFileName);
-
-                await Task.Run(() =>
-                {
-                    // WAL의 미체크포인트 커밋을 본 파일에 합친 뒤 복사 (최근 데이터 누락 방지)
-                    Settings.CheckpointWal(DbPath);
-                    File.Copy(DbPath, backupPath, true);
-                });
-
-                Debug.WriteLine($"[SchoolDatabase] DB 백업 완료: {backupPath}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchoolDatabase] DB 백업 실패: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// 데이터베이스 복원
-        /// </summary>
-        public static async Task<bool> RestoreDatabaseAsync(string backupPath)
-        {
-            try
-            {
-                if (!File.Exists(backupPath))
-                {
-                    Debug.WriteLine($"[SchoolDatabase] 백업 파일이 존재하지 않습니다: {backupPath}");
-                    return false;
-                }
-
-                await Task.Run(() =>
-                {
-                    // 열린 연결 풀과 잔여 -wal/-shm 정리 후 덮어쓰기 (복원본 오염 방지)
-                    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-                    foreach (var suffix in new[] { "-wal", "-shm" })
-                    {
-                        var sidecar = DbPath + suffix;
-                        if (File.Exists(sidecar)) File.Delete(sidecar);
-                    }
-                    File.Copy(backupPath, DbPath, true);
-                });
-
-                Debug.WriteLine($"[SchoolDatabase] DB 복원 완료: {backupPath}");
-                Settings.School_Inited.Set(false); // 재초기화 필요
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchoolDatabase] DB 복원 실패: {ex.Message}");
-                return false;
-            }
-        }
+        // 미사용 메서드 제거 (2026-08-16): BackupDatabaseAsync·RestoreDatabaseAsync — 호출처 0건.
+        // 전자는 Settings.Backup 이 쓰는 Backups\ 와 별개로 Backup\ 폴더에 School_*.db 를 쌓아
+        // 정리 정책도 복원 경로도 없는 사본을 만들었다. 백업은 Settings.Backup/Restore 하나로 간다.
 
         /// <summary>
         /// 데이터베이스 완전 초기화 (모든 데이터 삭제)

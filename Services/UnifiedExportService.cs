@@ -189,7 +189,8 @@ public class UnifiedExportService
             보호자연락처 = vm.Detail?.GetPrimaryContact() ?? string.Empty,
         }).ToList();
 
-        var dir = System.IO.Path.Combine(Settings.UserDataPath, "Prints");
+        // xlsx 는 인쇄물이 아니라 내보내기 — 다른 xlsx·html·csv 와 같은 Exports 로 간다.
+        var dir = System.IO.Path.Combine(Settings.RootPath, "Exports");
         if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
         var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
         var filePath = System.IO.Path.Combine(dir, fileName);

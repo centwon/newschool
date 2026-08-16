@@ -476,7 +476,7 @@ public class StudentCardPrintService
         var students = await LoadClassStudentsAsync(year, grade, classNo);
         if (students.Count == 0) return null;
 
-        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        var dir = Path.Combine(Settings.RootPath, "Prints");
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"학생카드_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
         var filePath = Path.Combine(dir, fileName);
@@ -551,7 +551,7 @@ public class StudentCardPrintService
             메모 = vm.Detail?.Memo ?? string.Empty,
         }).ToList();
 
-        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        var dir = Path.Combine(Settings.RootPath, "Prints");
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"학생카드_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
         var filePath = Path.Combine(dir, fileName);
@@ -600,7 +600,7 @@ public class StudentCardPrintService
         var students = await LoadClassStudentsAsync(year, grade, classNo);
         if (students.Count == 0) return null;
 
-        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        var dir = Path.Combine(Settings.RootPath, "Prints");
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
         var filePath = Path.Combine(dir, fileName);

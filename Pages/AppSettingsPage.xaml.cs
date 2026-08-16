@@ -272,7 +272,7 @@ public sealed partial class AppSettingsPage : Page
 
     private void OnOpenLogFolderClick(object sender, RoutedEventArgs e)
     {
-        var logDir = System.IO.Path.Combine(Settings.UserDataPath, "Logs");
+        var logDir = System.IO.Path.Combine(Settings.RootPath, "Logs");
         if (!System.IO.Directory.Exists(logDir))
             System.IO.Directory.CreateDirectory(logDir);
         Process.Start(new ProcessStartInfo { FileName = logDir, UseShellExecute = true });

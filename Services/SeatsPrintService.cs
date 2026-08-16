@@ -115,7 +115,7 @@ public class SeatsPrintService
 
         var html = BuildSeatsHtml(cells, grade, classNo, jul, jjak, message, showPhoto, orientation, includeRoster);
 
-        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        var dir = Path.Combine(Settings.RootPath, "Prints");
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"좌석배정표_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.html";
         var filePath = Path.Combine(dir, fileName);
@@ -167,7 +167,7 @@ public class SeatsPrintService
             .Select(s => new RosterExportDto { 번호 = s.Number, 이름 = s.Name })
             .ToList();
 
-        var dir = Path.Combine(Settings.UserDataPath, "Prints");
+        var dir = Path.Combine(Settings.RootPath, "Prints");
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"좌석배정표_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
         var filePath = Path.Combine(dir, fileName);
@@ -279,7 +279,7 @@ public class SeatsPrintService
         QuestPDF.Settings.License = LicenseType.Community;
 
         var fileName = $"좌석배정표_{grade}학년{classRoom}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var printsDir = Path.Combine(Settings.UserDataPath, "Prints");
+        var printsDir = Path.Combine(Settings.RootPath, "Prints");
         if (!Directory.Exists(printsDir))
             Directory.CreateDirectory(printsDir);
         var filePath = Path.Combine(printsDir, fileName);

@@ -15,7 +15,7 @@ public class StudentLogExportService
 {
     private static string GetOutputDir()
     {
-        var dir = Path.Combine(Settings.UserDataPath, "Exports");
+        var dir = Path.Combine(Settings.RootPath, "Exports");
         if (!Directory.Exists(dir))
             Directory.CreateDirectory(dir);
         return dir;
