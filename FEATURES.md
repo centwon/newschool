@@ -448,7 +448,6 @@
 | 과제 | 요약 | 상세 |
 |------|------|------|
 | ~~**테스트 확충**~~ ✅ 완료 | 테스트 25개 → 211개(0~4단계, 2026-07-12) → **433개**(2026-08-16 기준, 이후 회귀 테스트 누적). 리포지토리 CRUD·경계 → 서비스 로직·회귀 → 헬퍼·파서 → VM 변환. 잠재 버그 2건도 작성 중 발견·수정. 잔여(Settings 파서·Excel 헤더 탐지 등)는 ROI 낮아 보류 | [TEST_PLAN.md](TEST_PLAN.md) |
-| 닿지 않는 페이지 정리 | `Pages/ClubHomePage.xaml`·`Pages/HomeroomSettingsPage.xaml` 은 내비게이션에도 다른 호출부에도 없다 — 지우거나 다시 연결할지 판단 필요 | `MainWindow.xaml.cs` |
 | qpdf.dll 게시 제외 검토 | QuestPDF 부속 네이티브(4.2MB). PDF 병합/PDF-A 미사용이면 게시에서 제외 가능성 — 런타임 로드 여부 확인 필요 | — |
 | 학생 관리 상태 편집 | 학생 목록에서 재학/전학/휴학 상태를 콤보로 변경(현재 읽기 전용) | `Pages/StudentManagementPage.xaml` |
 | 진급 처리 UI | `EnrollmentService.PromoteStudentsAsync`(같은 StudentID 로 다음 학년도 학적 생성 — 다년 이력 연속성 확보)의 노출. 반/번호 재배정 미리보기·확정 화면 필요. 졸업 마감(GraduateAsync)은 불필요 판단으로 제거함(2026-07-15) | `Services/EnrollmentService.cs` |

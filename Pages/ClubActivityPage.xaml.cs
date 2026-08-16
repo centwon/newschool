@@ -71,7 +71,8 @@ public sealed partial class ClubActivityPage : Page
     {
         base.OnNavigatedTo(e);
 
-        // ClubHomePage에서 전달된 Club 정보
+        // 파라미터로 동아리를 받으면 그것을 고른 채로 연다.
+        // 지금 호출부(메인 네비게이션)는 파라미터 없이 열고, 그때는 콤보에서 고른다.
         if (e.Parameter is Club club)
         {
             _selectedClub = club;
