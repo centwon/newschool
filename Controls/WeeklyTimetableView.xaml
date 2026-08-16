@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="NewSchool.Controls.WeeklyTimetableView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        표는 날짜 수 × 교시 수만큼 코드에서 만든다.
+        색을 코드에 박으면 테마를 바꿔도 그대로 남으므로 스타일로 뺀다.
+    -->
+    <UserControl.Resources>
+        <Style x:Key="WeekHeaderCellStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <!-- 주 구분 줄 -->
+        <Style x:Key="WeekBandStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+
+        <!-- 날짜 칸 -->
+        <Style x:Key="WeekDateCellStyle" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <!-- 수업이 없는 날 -->
+        <Style x:Key="WeekOffDateCellStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Opacity" Value="0.6"/>
+        </Style>
+
+        <Style x:Key="WeekEmptySlotStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource ControlAltFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="4,2"/>
+        </Style>
+
+        <!-- 평소대로인 칸 -->
+        <Style x:Key="WeekUsualSlotStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource AccentFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="4,2"/>
+        </Style>
+
+        <!-- 그 날만 다른 칸 (교체·보강·대강) -->
+        <Style x:Key="WeekChangedSlotStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource SystemFillColorCautionBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource SystemFillColorCautionBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="4,2"/>
+        </Style>
+
+        <!-- 휴강 -->
+        <Style x:Key="WeekCancelledSlotStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource ControlAltFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Opacity" Value="0.65"/>
+        </Style>
+
+        <Style x:Key="WeekHeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="WeekBandTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="WeekDateTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="WeekReasonTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+
+        <Style x:Key="WeekSubjectStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+
+        <Style x:Key="WeekSubjectStruckStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="TextDecorations" Value="Strikethrough"/>
+        </Style>
+
+        <Style x:Key="WeekRoomTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 도구 모음 -->
+        <Grid Grid.Row="0">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Click="OnPreviousClick" ToolTipService.ToolTip="한 주 앞으로">
+                    <FontIcon Glyph="&#xE76B;" FontSize="12"/>
+                </Button>
+                <Button Content="이번 주" Click="OnTodayClick"/>
+                <Button Click="OnNextClick" ToolTipService.ToolTip="한 주 뒤로">
+                    <FontIcon Glyph="&#xE76C;" FontSize="12"/>
+                </Button>
+
+                <TextBlock x:Name="TxtRange"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Margin="8,0,0,0"/>
+
+                <TextBlock FontSize="11"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           MaxWidth="420"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                           Text="칸을 오른쪽 클릭해 (휴)휴강 · (보)보강 · (대)대강을 넣습니다. 칸끼리 끌면 맞바꾸기(교체). 평소 시간표는 그대로입니다."/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button Click="OnRefreshClick" ToolTipService.ToolTip="다시 읽기">
+                    <FontIcon Glyph="&#xE72C;" FontSize="14"/>
+                </Button>
+                <Button Click="OnChangeListClick"
+                        ToolTipService.ToolTip="오늘 이후로 등록된 변경을 모두 훑어봅니다">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE787;" FontSize="14"/>
+                        <TextBlock Text="변경 목록"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- 표 -->
+        <Border Grid.Row="1"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="4">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <Grid x:Name="WeekGrid"
+                      Margin="8"
+                      IsTabStop="True"
+                      UseSystemFocusVisuals="False"
+                      KeyDown="OnGridKeyDown"
+                      GotFocus="OnGridGotFocus"
+                      LostFocus="OnGridLostFocus"/>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="2" Spacing="4">
+            <TextBlock x:Name="TxtStatus"
+                       FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <InfoBar x:Name="WeekInfoBar"
+                     IsOpen="False"
+                     Severity="Warning"
+                     IsClosable="True"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -27,6 +27,9 @@ public sealed partial class LessonHomePage : Page
 
     private List<Course> _courses = [];
 
+    /// <summary>내 시간표에서 보고 있는 주의 월요일</summary>
+    private DateTime _weekMonday = DefaultWeekMonday();
+
     // 오늘의 수업
     private readonly ObservableCollection<TodayLessonItem> _todayLessons = [];
 
@@ -188,11 +191,87 @@ public sealed partial class LessonHomePage : Page
 
     #region 시간표 로드
 
+    private static DateTime MondayOf(DateTime date)
+    {
+        var monday = date.Date;
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+            monday = monday.AddDays(-1);
+        return monday;
+    }
+
+    /// <summary>
+    /// 처음 열 때 보여줄 주. <b>주말이면 다가오는 주</b>를 연다 —
+    /// 일요일에 이미 끝난 주를 펼쳐 봐야 쓸모가 없다.
+    /// </summary>
+    private static DateTime DefaultWeekMonday()
+    {
+        var today = DateTime.Today;
+
+        return today.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday
+            ? MondayOf(today).AddDays(7)
+            : MondayOf(today);
+    }
+
+    /// <summary>오늘을 기준으로 그 주가 언제인지 (지난 주 · 이번 주 · 다음 주)</summary>
+    private static string RelativeWeekLabel(DateTime monday)
+    {
+        int weeks = (int)Math.Round((monday - MondayOf(DateTime.Today)).TotalDays / 7);
+
+        return weeks switch
+        {
+            -1 => " · 지난 주",
+            0 => " · 이번 주",
+            1 => " · 다음 주",
+            _ => ""
+        };
+    }
+
+    /// <summary>
+    /// 그 주 시간표를 그린다 — 평소 시간표에 그 주 변경(휴강·교체·보강·대강)이 얹힌다.
+    /// 읽기 전용이다: 변경을 넣고 고치는 곳은 수업 관리의 [주별 시간표 확인 및 변경] 탭이다.
+    /// </summary>
+    private async Task LoadWeekAsync(DateTime monday)
+    {
+        _weekMonday = monday;
+
+        await Timetable.LoadMyWeekScheduleAsync(monday);
+
+        bool thisWeek = monday == MondayOf(DateTime.Today);
+
+        // 범위 옆에 늘 "이번 주 / 다음 주 / 지난 주" 를 붙인다 —
+        // 날짜만 있으면 그게 어느 주인지 매번 머리로 세어야 한다.
+        TxtWeekRange.Text = $"{monday:M/d} ~ {monday.AddDays(4):M/d}{RelativeWeekLabel(monday)}";
+
+        BtnThisWeek.Visibility = thisWeek ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private async void OnPreviousWeekClick(object sender, RoutedEventArgs e)
+        => await MoveWeekAsync(_weekMonday.AddDays(-7));
+
+    private async void OnNextWeekClick(object sender, RoutedEventArgs e)
+        => await MoveWeekAsync(_weekMonday.AddDays(7));
+
+    private async void OnThisWeekClick(object sender, RoutedEventArgs e)
+        => await MoveWeekAsync(MondayOf(DateTime.Today));
+
+    private async Task MoveWeekAsync(DateTime monday)
+    {
+        // async void 핸들러라 여기서 새는 예외는 아무 데도 잡히지 않는다.
+        try
+        {
+            await LoadWeekAsync(monday);
+        }
+        catch (Exception ex)
+        {
+            await Controls.UserErrorReporter.ReportAsync("주 이동", ex);
+        }
+    }
+
     private async Task LoadTimetableAsync()
     {
         try
         {
-            await Timetable.LoadMyScheduleAsync();
+            await LoadWeekAsync(_weekMonday);
             Debug.WriteLine("[LessonHomePage] 시간표 로드 완료");
         }
         catch (Exception ex)

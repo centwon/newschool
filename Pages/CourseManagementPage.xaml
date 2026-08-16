@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="NewSchool.Pages.CourseManagementPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -6,225 +6,302 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:NewSchool.Controls"
+    xmlns:models="using:NewSchool.Models"
     mc:Ignorable="d">
 
-    <Grid Padding="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <Page.Resources>
+        <!--
+            Pivot 의 기본 머리글은 24pt 라 다섯 개가 늘어서면 화면 위쪽을 다 먹는다.
+            머리글에 TextBlock 을 직접 넣어 크기를 낮춘다.
+        -->
+        <Style x:Key="TabHeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Page.Resources>
 
-        <!-- 헤더 영역 -->
-        <Grid Grid.Row="0" Margin="0,0,0,24">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+    <!--
+        페이지 헤더가 없다 — 제목은 상단 내비게이션의 [수업]과 겹치고,
+        필터(학년도·학기·학년·수업)는 탭이 쓰는 것이라 탭 <b>위</b>에 있으면 순서가 뒤집혀 보인다.
+        그래서 필터 바를 탭마다 하나씩, 각 탭의 첫 줄에 둔다.
+    -->
+    <Grid Padding="24,12,24,24">
+        <Pivot x:Name="TabsPivot" SelectionChanged="OnTabChanged">
 
-            <!-- 제목 -->
-            <TextBlock 
-                Grid.Row="0"
-                Text="수업 관리" 
-                FontSize="28" 
-                FontWeight="Bold"
-                Margin="0,0,0,16"/>
+            <!-- ============ 1. 수업 개설 ============ -->
+            <PivotItem>
+                <PivotItem.Header>
+                    <TextBlock Text="수업 개설" Style="{StaticResource TabHeaderTextStyle}"/>
+                </PivotItem.Header>
 
-            <!-- 필터 및 버튼 영역 -->
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                <!-- 필터 -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                    <controls:YearSemesterPicker
-                        x:Name="YearSemPicker"
-                        YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
-                    <controls:ClassPicker
-                        x:Name="ClassFilter"
-                        ShowClass="False"
-                        IncludeAllGrade="True"
-                        AutoLoad="False"
-                        ClassChanged="ClassFilter_ClassChanged"/>
-                </StackPanel>
+                    <Grid Grid.Row="0">
+                        <!-- 수업 개설 탭은 목록 자체가 대상이라 수업 콤보를 끈다 -->
+                        <controls:CourseScopeBar x:Name="ScopeCourses"
+                                                 ShowCourse="False"
+                                                 HorizontalAlignment="Left"/>
 
-                <!-- 버튼 -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button 
-                        x:Name="BtnAdd"
-                        Content="수업 추가"
-                        Style="{StaticResource AccentButtonStyle}"
-                        Click="OnAddClick">
-                        <Button.KeyboardAccelerators>
-                            <KeyboardAccelerator Key="N" Modifiers="Control"/>
-                        </Button.KeyboardAccelerators>
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Grid>
-
-        <!-- 컨텐츠 영역 -->
-        <Grid Grid.Row="1">
-            <!-- 로딩 상태 -->
-            <StackPanel 
-                x:Name="LoadingState"
-                Visibility="Collapsed"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Spacing="12">
-                <ProgressRing IsActive="True" Width="48" Height="48"/>
-                <TextBlock Text="수업 목록을 불러오는 중..." FontSize="14"/>
-            </StackPanel>
-
-            <!-- 빈 상태 -->
-            <StackPanel 
-                x:Name="EmptyState"
-                Visibility="Collapsed"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Spacing="12">
-                <FontIcon 
-                    Glyph="&#xE8F1;" 
-                    FontSize="64"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock 
-                    Text="등록된 수업이 없습니다" 
-                    FontSize="16"
-                    FontWeight="SemiBold"/>
-                <TextBlock 
-                    Text="[수업 추가] 버튼을 눌러 새 수업을 등록하세요" 
-                    FontSize="14"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </StackPanel>
-
-            <!-- 수업 목록 -->
-            <Grid x:Name="CourseListContainer" Visibility="Collapsed">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <!-- 상태 표시줄 -->
-                <Border 
-                    Grid.Row="0"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="16,12"
-                    Margin="0,0,0,12">
-                    <Grid>
-                        <TextBlock 
-                            x:Name="TxtCourseCount"
-                            Text="총 0개 수업"
-                            FontSize="14"
-                            FontWeight="SemiBold"/>
+                        <Button
+                            x:Name="BtnAdd"
+                            Content="수업 추가"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Click="OnAddClick">
+                            <Button.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="N" Modifiers="Control"/>
+                            </Button.KeyboardAccelerators>
+                        </Button>
                     </Grid>
-                </Border>
 
-                <!-- 수업 리스트 -->
-                <ListView 
-                    Grid.Row="1"
-                    x:Name="CourseListView"
-                    SelectionMode="None">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:Course"
-                                     xmlns:models="using:NewSchool.Models">
+                    <Grid Grid.Row="1">
+                        <StackPanel
+                            x:Name="LoadingState"
+                            Visibility="Collapsed"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12">
+                            <ProgressRing IsActive="True" Width="48" Height="48"/>
+                            <TextBlock Text="수업 목록을 불러오는 중..." FontSize="14"/>
+                        </StackPanel>
+
+                        <StackPanel
+                            x:Name="EmptyState"
+                            Visibility="Collapsed"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12">
+                            <FontIcon
+                                Glyph="&#xE8F1;"
+                                FontSize="64"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock
+                                Text="등록된 수업이 없습니다"
+                                FontSize="16"
+                                FontWeight="SemiBold"/>
+                            <TextBlock
+                                Text="[수업 추가] 버튼을 눌러 새 수업을 등록하세요"
+                                FontSize="14"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+
+                        <Grid x:Name="CourseListContainer" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
                             <Border
+                                Grid.Row="0"
                                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
-                                Margin="0,0,0,8">
-                                <Grid 
-                                    Padding="16"
-                                    ColumnSpacing="16">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- 수업 정보 -->
-                                    <StackPanel Grid.Column="0" Spacing="8">
-                                        <TextBlock 
-                                            Text="{x:Bind Subject}" 
-                                            FontSize="16" 
-                                            FontWeight="SemiBold"/>
-                                        
-                                        <StackPanel Orientation="Horizontal" Spacing="16">
-                                            <TextBlock FontSize="13">
-                                                <Run Text="학년:"/>
-                                                <Run Text="{x:Bind Grade}" FontWeight="SemiBold"/>
-                                                <Run Text="학년"/>
-                                            </TextBlock>
-                                            
-                                            <TextBlock FontSize="13">
-                                                <Run Text="시수:"/>
-                                                <Run Text="{x:Bind Unit}" FontWeight="SemiBold"/>
-                                                <Run Text="시간"/>
-                                            </TextBlock>
-                                            
-                                            <TextBlock 
-                                                Text="{x:Bind Type}" 
-                                                FontSize="13"
-                                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                        </StackPanel>
-
-                                        <!-- 강의실 정보 (새로 추가) -->
-                                        <Border 
-                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                            CornerRadius="4"
-                                            Padding="8,4"
-                                            HorizontalAlignment="Left">
-                                            <TextBlock FontSize="12">
-                                                <Run Text="📍" FontSize="14"/>
-                                                <Run Text="{x:Bind RoomListDisplay}" FontWeight="SemiBold"/>
-                                            </TextBlock>
-                                        </Border>
-
-                                        <!-- 비고 -->
-                                        <TextBlock 
-                                            Text="{x:Bind Remark}"
-                                            FontSize="12"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            TextWrapping="Wrap"
-                                            Visibility="{x:Bind Remark, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
-
-                                    <!-- 버튼 -->
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                        <Button 
-                                            Content="수강 학생 관리"
-                                            Click="OnEnrollClick"
-                                            Tag="{x:Bind}"/>
-
-                                        <Button
-                                            Content="시간표 배치"
-                                            Click="OnScheduleClick"
-                                            Tag="{x:Bind}"/>
-
-                                        <Button
-                                            Content="단원 관리"
-                                            Click="OnSectionsClick"
-                                            Tag="{x:Bind}"/>
-
-                                        <Button 
-                                            Content="수정"
-                                            Style="{StaticResource AccentButtonStyle}"
-                                            Click="OnEditClick"
-                                            Tag="{x:Bind}"/>
-
-                                        <Button Click="OnDeleteClick" Tag="{x:Bind}">
-                                            <FontIcon Glyph="&#xE74D;" FontSize="14"/>
-                                        </Button>
-                                    </StackPanel>
+                                Padding="16,12"
+                                Margin="0,0,0,12">
+                                <Grid>
+                                    <TextBlock
+                                        x:Name="TxtCourseCount"
+                                        Text="총 0개 수업"
+                                        FontSize="14"
+                                        FontWeight="SemiBold"/>
+                                    <TextBlock
+                                        Text="카드를 누르면 다른 탭이 그 수업을 대상으로 바뀝니다"
+                                        FontSize="12"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                 </Grid>
                             </Border>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-            </Grid>
-        </Grid>
+
+                            <ListView
+                                Grid.Row="1"
+                                x:Name="CourseListView"
+                                SelectionMode="Single"
+                                SelectionChanged="OnCourseListSelectionChanged">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:Course">
+                                        <Border
+                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Margin="0,0,0,8">
+                                            <Grid
+                                                Padding="16"
+                                                ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- 수업 정보 -->
+                                                <StackPanel Grid.Column="0" Spacing="8">
+                                                    <TextBlock
+                                                        Text="{x:Bind Subject}"
+                                                        FontSize="16"
+                                                        FontWeight="SemiBold"/>
+
+                                                    <StackPanel Orientation="Horizontal" Spacing="16">
+                                                        <TextBlock FontSize="13">
+                                                            <Run Text="학년:"/>
+                                                            <Run Text="{x:Bind Grade}" FontWeight="SemiBold"/>
+                                                            <Run Text="학년"/>
+                                                        </TextBlock>
+
+                                                        <TextBlock FontSize="13">
+                                                            <Run Text="시수:"/>
+                                                            <Run Text="{x:Bind Unit}" FontWeight="SemiBold"/>
+                                                            <Run Text="시간"/>
+                                                        </TextBlock>
+
+                                                        <TextBlock
+                                                            Text="{x:Bind TypeDisplay}"
+                                                            FontSize="13"
+                                                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                    </StackPanel>
+
+                                                    <!-- 강의실 정보 -->
+                                                    <Border
+                                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                        CornerRadius="4"
+                                                        Padding="8,4"
+                                                        HorizontalAlignment="Left">
+                                                        <TextBlock FontSize="12">
+                                                            <Run Text="📍" FontSize="14"/>
+                                                            <Run Text="{x:Bind RoomListDisplay}" FontWeight="SemiBold"/>
+                                                        </TextBlock>
+                                                    </Border>
+
+                                                    <!-- 비고 -->
+                                                    <TextBlock
+                                                        Text="{x:Bind Remark}"
+                                                        FontSize="12"
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        TextWrapping="Wrap"
+                                                        Visibility="{x:Bind Remark, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                </StackPanel>
+
+                                                <!-- 버튼 -->
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                    <Button
+                                                        Content="수강 학생 관리"
+                                                        Click="OnEnrollClick"
+                                                        Tag="{x:Bind}"/>
+
+                                                    <Button
+                                                        Content="수정"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        Click="OnEditClick"
+                                                        Tag="{x:Bind}"/>
+
+                                                    <Button Click="OnDeleteClick" Tag="{x:Bind}">
+                                                        <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </PivotItem>
+
+            <!-- ============ 2. 단원 관리 ============ -->
+            <PivotItem>
+                <PivotItem.Header>
+                    <TextBlock Text="단원 관리" Style="{StaticResource TabHeaderTextStyle}"/>
+                </PivotItem.Header>
+
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <controls:CourseScopeBar Grid.Row="0" x:Name="ScopeSections"
+                                             ShowGrade="False"
+                                             HorizontalAlignment="Left"/>
+                    <controls:CourseSectionView Grid.Row="1" x:Name="SectionView"/>
+                </Grid>
+            </PivotItem>
+
+            <!-- ============ 3. 수업 시수 ============ -->
+            <PivotItem>
+                <PivotItem.Header>
+                    <TextBlock Text="수업 시수" Style="{StaticResource TabHeaderTextStyle}"/>
+                </PivotItem.Header>
+
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <controls:CourseScopeBar Grid.Row="0" x:Name="ScopeHours"
+                                             ShowGrade="False"
+                                             HorizontalAlignment="Left"/>
+                    <controls:CourseHoursView Grid.Row="1" x:Name="HoursView"/>
+                </Grid>
+            </PivotItem>
+
+            <!-- ============ 4. 진도 관리 ============ -->
+            <PivotItem>
+                <PivotItem.Header>
+                    <TextBlock Text="진도 관리" Style="{StaticResource TabHeaderTextStyle}"/>
+                </PivotItem.Header>
+
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <controls:CourseScopeBar Grid.Row="0" x:Name="ScopeProgress"
+                                             ShowGrade="False"
+                                             HorizontalAlignment="Left"/>
+                    <controls:ProgressMatrixView Grid.Row="1" x:Name="ProgressView"/>
+                </Grid>
+            </PivotItem>
+
+            <!-- ============ 5. 수업 시간표 입력 (기초) ============ -->
+            <PivotItem>
+                <PivotItem.Header>
+                    <TextBlock Text="수업 시간표 입력" Style="{StaticResource TabHeaderTextStyle}"/>
+                </PivotItem.Header>
+
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <controls:CourseScopeBar Grid.Row="0" x:Name="ScopeTimetable"
+                                             ShowGrade="False"
+                                             HorizontalAlignment="Left"/>
+                    <controls:CourseTimetableBoard Grid.Row="1" x:Name="TimetableBoard"/>
+                </Grid>
+            </PivotItem>
+
+            <!-- ============ 6. 주별 시간표 확인 및 변경 ============ -->
+            <PivotItem>
+                <PivotItem.Header>
+                    <TextBlock Text="주별 시간표 확인 및 변경" Style="{StaticResource TabHeaderTextStyle}"/>
+                </PivotItem.Header>
+
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <controls:CourseScopeBar Grid.Row="0" x:Name="ScopeWeekly"
+                                             ShowGrade="False"
+                                             HorizontalAlignment="Left"/>
+                    <controls:WeeklyTimetableView Grid.Row="1" x:Name="WeeklyView"/>
+                </Grid>
+            </PivotItem>
+        </Pivot>
     </Grid>
 </Page>

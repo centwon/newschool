@@ -14,8 +14,8 @@ namespace NewSchool.Tests;
 /// 검사 대상은 <b>같은 화면 안에 위험한 조합이 있는 경우</b>다:
 /// XAML 이 <c>Tag</c> 를 문자열 리터럴로 쓰는데 코드비하인드가 <c>(int)</c> 로 언박싱하는 것.
 ///
-/// int 로 넣고 싶으면 XAML 에서 <c>&lt;x:Int32&gt;1&lt;/x:Int32&gt;</c> 를 쓰면 되고
-/// (TeacherTimetablePage 가 그렇게 한다), 아니면 코드에서
+/// int 로 넣고 싶으면 XAML 에서 <c>&lt;ComboBoxItem.Tag&gt;&lt;x:Int32&gt;1&lt;/x:Int32&gt;&lt;/ComboBoxItem.Tag&gt;</c>
+/// 처럼 쓰면 되고, 아니면 코드에서
 /// <c>int.Parse(item.Tag.ToString())</c> 로 읽으면 된다.
 /// </summary>
 public class ComboBoxTagTests

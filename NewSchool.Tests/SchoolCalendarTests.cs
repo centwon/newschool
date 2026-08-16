@@ -46,6 +46,57 @@ public class SchoolCalendarTests
         Assert.False(SchoolCalendar.IsNonTeachingDay(schedule));
     }
 
+    [Fact]
+    public void 한_학년만_표시된_행사는_그_학년만_빠진다()
+    {
+        var trip = new SchoolSchedule { EVENT_NM = "현장체험학습", ONE_GRADE_EVENT_YN = true };
+
+        Assert.True(SchoolCalendar.IsGradeOnlyEvent(trip, 1));
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(trip, 2));
+    }
+
+    [Fact]
+    public void 여러_학년이_표시된_행사는_학년_전용이_아니다()
+    {
+        // 전교 행사에 가깝다 — 학년 전용으로 보면 남의 학년 시수까지 깎인다
+        var assembly = new SchoolSchedule
+        {
+            EVENT_NM = "학교 설명회",
+            ONE_GRADE_EVENT_YN = true,
+            TW_GRADE_EVENT_YN = true
+        };
+
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(assembly, 1));
+    }
+
+    [Fact]
+    public void 행사명이_없으면_학년_전용_판정을_하지_않는다()
+    {
+        var blank = new SchoolSchedule { EVENT_NM = "", ONE_GRADE_EVENT_YN = true };
+
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(blank, 1));
+    }
+
+    [Fact]
+    public void 주말은_수업일이_아니다()
+    {
+        Assert.False(SchoolCalendar.IsTeachingDayFor(new DateTime(2026, 3, 7), [], 1));
+        Assert.True(SchoolCalendar.IsTeachingDayFor(new DateTime(2026, 3, 6), [], 1));
+    }
+
+    [Fact]
+    public void 삭제된_학사일정은_수업일_판정에_끼어들지_않는다()
+    {
+        var deleted = new SchoolSchedule
+        {
+            AA_YMD = new DateTime(2026, 3, 4),
+            SBTR_DD_SC_NM = "휴업일",
+            IsDeleted = true
+        };
+
+        Assert.True(SchoolCalendar.IsTeachingDayFor(new DateTime(2026, 3, 4), [deleted], 1));
+    }
+
     [Theory]
     [InlineData(2026, 3, 2, 1)]   // 월
     [InlineData(2026, 3, 6, 5)]   // 금

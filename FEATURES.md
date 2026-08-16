@@ -34,11 +34,9 @@
 
 | Tag | Page | 기능 |
 |-----|------|------|
-| `LessonHome` | `LessonHomePage.xaml` | 수업 홈 대시보드 |
-| `AnnualLessonPlan` | `AnnualLessonPlanPage.xaml` | 연간 수업 계획 (단원 관리, 시수 계획, 자동 배치) |
-| `ProgressMatrix` | `ProgressMatrixPage.xaml` | 진도 관리 매트릭스 |
+| `LessonHome` | `LessonHomePage.xaml` | 수업 홈 대시보드 (내 시간표 — 주 이동·그 주 변경 반영) |
+| `CourseManagement` | `CourseManagementPage.xaml` | 수업 관리 6탭 (수업 개설 · 단원 · 시수 · 진도 · 수업시간표 · 주별 시간표) |
 | `LessonActivity` | `LessonActivityPage.xaml` | 수업 누가 기록 |
-| `Timetable_Teacher` | `TeacherTimetablePage.xaml` | 수업 시간표 |
 
 ---
 
@@ -149,7 +147,7 @@
 | `TimetableControl.xaml` | 시간표 컨트롤 |
 | `ClassDiaryBox.xaml` | 학급일지 박스 |
 | `ClassDiaryListWin.xaml` | 학급일지 목록 |
-| `LessonLogList.xaml` | 수업 기록 목록 |
+| `LessonLogList.xaml` | 수업 일지 목록 |
 | `LogListViewer.xaml` | 기록 목록 뷰어 |
 | `YearSemesterPicker.xaml` | 학년도/학기 선택기 |
 | `ClassPicker.xaml` | 학년/반 선택기 (확정 시 학생 목록 이벤트 전달) |
@@ -172,12 +170,13 @@
 | `StudentPrintOptionsDialog.xaml` | 학생 정보 출력 옵션 |
 | `CourseEditDialog.xaml` | 수업(교과) 편집 |
 | `CourseEnrollmentDialog.xaml` | 수강 등록 |
-| `CourseScheduleDialog.xaml` | 수업 일정 |
 | `CourseSectionDialog.xaml` | 수업 단원 |
 | `ClassTimetableEditDialog.xaml` | 학급 시간표 편집 |
+| `LessonChangeDialog.xaml` | 앞으로 걸린 수업 변경 목록 (읽기·되돌리기) |
+| `SubstituteInputDialog.xaml` | 보결 입력 (남의 수업 과목명 직접 적기) |
 | `ClubEditDialog.xaml` | 동아리 편집 |
 | `ClubEnrollmentDialog.xaml` | 동아리 등록 |
-| `LessonLogEditDialog.xaml` | 수업 기록 편집 |
+| `LessonLogEditDialog.xaml` | 수업 일지 편집 |
 | `MaterialEditDialog.xaml` | 자료 편집 |
 
 ---
@@ -200,18 +199,20 @@
 |------|------|
 | `CourseService.cs` | 수업(교과) 관리 |
 | `LessonService.cs` | 수업 |
-| `LessonLogService.cs` | 수업 기록 |
+| `LessonLogService.cs` | 수업 일지 |
 | `EnrollmentService.cs` | 수강 등록 |
 | `TimetableService.cs` | 시간표 |
 
-### 진도/계획 관련
+### 진도/시수 관련
 | 파일 | 기능 |
 |------|------|
-| `ProgressSyncService.cs` | 진도 동기화 |
-| `WeeklyHoursCalculator.cs` | 주간 시수 계산 |
-| `WeeklyHoursHelper.cs` | 주간 시수 헬퍼 |
-| `SchedulingEngine.cs` | 일정 엔진 |
-| `ScheduleShiftService.cs` | 일정 이동 |
+| `WeeklyHoursCalculator.cs` | 주차별 수업 가능 시수 계산 (배치 + 학사일정) |
+| `Helpers/SchoolCalendar.cs` | 휴업일·학년 행사·요일 규약 판정 |
+| `Controls/CourseHoursView.xaml` | 시수 관리 탭 |
+| `Controls/ProgressMatrixView.xaml` | 진도 관리 탭 |
+| `Controls/CourseTimetableBoard.xaml` | 수업시간표 배치판 |
+| `TimetableChangeMerger.cs` | 날짜별 시간표 변경을 평소 시간표에 얹기 (오늘 화면) |
+| `Controls/WeeklyTimetableView.xaml` | 주별 시간표 탭 (날짜 × 교시, 3주치) |
 
 ### 기타
 | 파일 | 기능 |
@@ -250,12 +251,9 @@
 - `LessonProgress.cs` - 수업 진도
 
 ### 계획/일정
-- `Schedule.cs` - 일정
 - `SchoolSchedule.cs` - 학사일정
 - `ClassTimetable.cs` - 학급 시간표
-- `SubjectYearPlan.cs` - 교과 연간계획
-- `WeeklyLessonHours.cs` - 주간 수업시수
-- `WeeklyUnitPlan.cs` - 주간 단원계획
+- `CourseWeeklyHours.cs` - 주차별 시수 조정(손으로 고친 주차만 저장)
 
 ### 조직
 - `School.cs` - 학교
@@ -394,8 +392,11 @@
 | 학생부(교과세특) | `Pages/CourseSpecPage.xaml`, `Controls/CoursePicker.xaml` |
 | 자리 배정 | `Pages/PageSeats.xaml`, `Services/SeatService.cs`, `Services/SeatsPrintService.cs`, `Dialogs/SeatOptionsDialog.xaml` |
 | 시간표 | `Controls/TimetableControl.xaml`, `Services/TimetableService.cs` |
-| 수업 관리 | `Pages/CourseManagementPage.xaml`, `Services/CourseService.cs` |
-| 진도 관리 | `Pages/ProgressMatrixPage.xaml`, `Services/ProgressSyncService.cs` |
+| 수업 관리(5탭) | `Pages/CourseManagementPage.xaml`, `Controls/CourseScopeBar.xaml`, `Services/CourseService.cs` |
+| 단원 관리 | `Controls/CourseSectionView.xaml`, `Repositories/CourseSectionRepository.cs` |
+| 시수 관리 | `Controls/CourseHoursView.xaml`, `Services/WeeklyHoursCalculator.cs` |
+| 진도 관리 | `Controls/ProgressMatrixView.xaml`, `Repositories/LessonProgressRepository.cs` |
+| 수업시간표 배치 | `Controls/CourseTimetableBoard.xaml`, `Repositories/LessonRepository.cs` |
 | 동아리 | `Pages/ClubHomePage.xaml`, `Services/ClubService.cs` |
 | 게시판 | `Board/Pages/PostListPage.xaml`, `Board/Services/BoardService.cs` |
 | 달력/일정 | `Scheduler/Kcalendar.xaml`, `Scheduler/SchedulerService.cs` |

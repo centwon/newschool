@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -7,47 +7,49 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using NewSchool.Controls;
 using NewSchool.Models;
 using NewSchool.Repositories;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 
-namespace NewSchool.Pages;
+namespace NewSchool.Controls;
 
 /// <summary>
 /// 단원(소단원) 관리 — 특정 교과의 단원 목록 CRUD · CSV 가져오기/내보내기.
 ///
-/// 예전에는 연간 수업 계획 페이지의 첫 번째 탭이었다. 연간 계획·진도 관리를 걷어내면서
-/// 단원을 만들 UI 가 통째로 사라지는 문제가 있어(수업일지가 단원을 참조한다),
-/// 이 부분만 떼어내 수업 관리에서 교과별로 들어오는 독립 페이지로 만들었다.
+/// 원래는 연간 수업 계획 페이지의 첫 탭이었고, 그것을 걷어내면서 독립 페이지로 옮겼다가
+/// 지금은 수업 관리의 탭 하나로 들어왔다(수업일지가 단원을 참조하므로 단원을 만들 UI 는 필요하다).
+/// 그래서 페이지가 아니라 컨트롤이다 — 대상 교과는 <see cref="LoadAsync"/> 로 받는다.
 /// </summary>
-public sealed partial class CourseSectionPage : Page
+public sealed partial class CourseSectionView : UserControl
 {
     private Course? _selectedCourse;
     private readonly ObservableCollection<CourseSection> _courseSections = [];
     private List<CourseSection>? _pendingImportSections;
 
-    public CourseSectionPage()
+    public CourseSectionView()
     {
         this.InitializeComponent();
+        SectionListView.ItemsSource = _courseSections;
+        UpdateSectionUI();
     }
 
-    protected override async void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    /// <summary>
+    /// 대상 교과를 바꾼다. null 이면 목록을 비우고 안내를 띄운다.
+    /// </summary>
+    public async Task LoadAsync(Course? course)
     {
-        base.OnNavigatedTo(e);
+        _selectedCourse = course;
+        SectionErrorInfoBar.IsOpen = false;
 
-        _selectedCourse = e.Parameter as Course;
-        if (_selectedCourse == null)
+        if (course == null)
         {
-            await MessageBox.ShowAsync("교과 정보를 받지 못했습니다.", "오류");
-            GoBack();
+            _courseSections.Clear();
+            UpdateSectionUI();
             return;
         }
 
-        TxtCourseInfo.Text = $"{_selectedCourse.Grade}학년 · {_selectedCourse.Subject}";
-        SectionListView.ItemsSource = _courseSections;
-        await LoadCourseSectionsAsync(_selectedCourse.No);
+        await LoadCourseSectionsAsync(course.No);
     }
 
     private async Task LoadCourseSectionsAsync(int courseNo)
@@ -65,19 +67,11 @@ public sealed partial class CourseSectionPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseSectionPage] 단원 로드 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionView] 단원 로드 실패: {ex.Message}");
             _courseSections.Clear();
             UpdateSectionUI();
             ShowSectionError($"단원을 불러오지 못했습니다: {ex.Message}");
         }
-    }
-
-    private void OnBackClick(object sender, RoutedEventArgs e) => GoBack();
-
-    private void GoBack()
-    {
-        if (Frame.CanGoBack) Frame.GoBack();
-        else Frame.Navigate(typeof(CourseManagementPage));
     }
 
     #region CSV Import/Export
@@ -123,7 +117,7 @@ public sealed partial class CourseSectionPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseSectionPage] CSV 가져오기 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionView] CSV 가져오기 실패: {ex.Message}");
             ShowSectionError($"CSV 파일 가져오기 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
@@ -161,11 +155,11 @@ public sealed partial class CourseSectionPage : Page
             }
 
             UpdateSectionUI();
-            Debug.WriteLine($"[CourseSectionPage] CSV 가져오기 완료: {sections.Count}개");
+            Debug.WriteLine($"[CourseSectionView] CSV 가져오기 완료: {sections.Count}개");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseSectionPage] CSV 가져오기 저장 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionView] CSV 가져오기 저장 실패: {ex.Message}");
             ShowSectionError($"CSV 가져오기 저장 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
@@ -197,11 +191,11 @@ public sealed partial class CourseSectionPage : Page
             var csv = GenerateCsv();
             await FileIO.WriteTextAsync(file, csv, Windows.Storage.Streams.UnicodeEncoding.Utf8);
 
-            Debug.WriteLine($"[CourseSectionPage] CSV 내보내기 완료: {file.Path}");
+            Debug.WriteLine($"[CourseSectionView] CSV 내보내기 완료: {file.Path}");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseSectionPage] CSV 내보내기 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionView] CSV 내보내기 실패: {ex.Message}");
             ShowSectionError($"CSV 파일 내보내기 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
@@ -224,23 +218,22 @@ public sealed partial class CourseSectionPage : Page
             var template = GenerateCsvTemplate();
             await FileIO.WriteTextAsync(file, template, Windows.Storage.Streams.UnicodeEncoding.Utf8);
 
-            Debug.WriteLine($"[CourseSectionPage] 템플릿 다운로드 완료: {file.Path}");
+            Debug.WriteLine($"[CourseSectionView] 템플릿 다운로드 완료: {file.Path}");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseSectionPage] 템플릿 다운로드 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionView] 템플릿 다운로드 실패: {ex.Message}");
             ShowSectionError($"템플릿 다운로드 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
 
-    private List<CourseSection> ParseCsv(string content)
+    private static List<CourseSection> ParseCsv(string content)
     {
         var sections = new List<CourseSection>();
 
         // RFC 4180 기준 파싱 — GenerateCsv 가 만드는 따옴표 이스케이프("")와
         // 따옴표 안 줄바꿈(여러 줄 메모)을 그대로 되읽을 수 있어야 왕복이 깨지지 않는다.
-        // (기존: '\n' 단순 분리 + 이스케이프 미처리 → 줄바꿈 포함 필드에서 행이 깨짐)
-        var records = ParseCsvRecords(content);
+        var records = Services.CsvExportService.ParseRecords(content);
 
         for (int i = 1; i < records.Count; i++)  // 0번은 헤더
         {
@@ -250,10 +243,8 @@ public sealed partial class CourseSectionPage : Page
 
             try
             {
-                // 예상차시 파싱 디버깅
                 var hoursField = fields.Length > 8 ? fields[8].Trim() : "";
                 var hoursParsed = int.TryParse(hoursField, out var hours);
-                Debug.WriteLine($"[CSV] 라인 {i}: 예상차시 필드='{hoursField}', 파싱성공={hoursParsed}, 값={hours}");
 
                 var section = new CourseSection
                 {
@@ -278,19 +269,12 @@ public sealed partial class CourseSectionPage : Page
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[CourseSectionPage] CSV 라인 파싱 실패 (라인 {i + 1}): {ex.Message}");
+                Debug.WriteLine($"[CourseSectionView] CSV 라인 파싱 실패 (라인 {i + 1}): {ex.Message}");
             }
         }
 
         return sections;
     }
-
-    /// <summary>
-    /// CSV 전체를 레코드 단위로 파싱 (RFC 4180). 공용 파서(CsvExportService)로 위임 —
-    /// 따옴표 필드 안의 쉼표·줄바꿈, "" 이스케이프를 처리해 GenerateCsv 출력과 왕복이 일치한다.
-    /// </summary>
-    private static List<string[]> ParseCsvRecords(string content)
-        => Services.CsvExportService.ParseRecords(content);
 
     private string GenerateCsv()
     {
@@ -316,7 +300,7 @@ public sealed partial class CourseSectionPage : Page
         return sb.ToString();
     }
 
-    private string GenerateCsvTemplate()
+    private static string GenerateCsvTemplate()
     {
         var sb = new StringBuilder();
         sb.Append('\uFEFF');
@@ -327,7 +311,7 @@ public sealed partial class CourseSectionPage : Page
         return sb.ToString();
     }
 
-    private string EscapeCsv(string field)
+    private static string EscapeCsv(string field)
     {
         if (string.IsNullOrEmpty(field)) return "";
         if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
@@ -341,9 +325,6 @@ public sealed partial class CourseSectionPage : Page
 
     #region Section Dialog
 
-    /// <summary>
-    /// 소단원 추가 버튼 클릭 - CourseSectionDialog 표시
-    /// </summary>
     private async void OnAddSectionClick(object sender, RoutedEventArgs e)
     {
         if (_selectedCourse == null)
@@ -362,20 +343,14 @@ public sealed partial class CourseSectionPage : Page
 
         if (result == ContentDialogResult.Primary)
         {
-            // 다이얼로그에서 저장됨 - 데이터 다시 로드
             await LoadCourseSectionsAsync(_selectedCourse.No);
-            Debug.WriteLine("[CourseSectionPage] 단원 추가 완료 - 데이터 새로고침");
         }
     }
 
-    /// <summary>
-    /// 리스트 아이템 클릭 - 해당 단원 편집
-    /// </summary>
     private async void OnSectionItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not CourseSection section || _selectedCourse == null) return;
 
-        // 해당 단원 편집
         var dialog = new Dialogs.CourseSectionDialog(_selectedCourse, section)
         {
             XamlRoot = this.XamlRoot
@@ -385,37 +360,32 @@ public sealed partial class CourseSectionPage : Page
 
         if (result == ContentDialogResult.Primary)
         {
-            // 다이얼로그에서 저장됨 - 데이터 다시 로드
             await LoadCourseSectionsAsync(_selectedCourse.No);
-            Debug.WriteLine("[CourseSectionPage] 단원 편집 완료 - 데이터 새로고침");
         }
     }
 
     private async void OnDeleteSectionClick(object sender, RoutedEventArgs e)
     {
-        if (sender is Button button && button.Tag is CourseSection section)
-        {
-            // 삭제 확인
-            if (await MessageBox.ShowConfirmAsync(
+        if (sender is not Button button || button.Tag is not CourseSection section) return;
+
+        if (!await MessageBox.ShowConfirmAsync(
                 $"\"{section.SectionName}\" 단원을 삭제하시겠습니까?",
                 "삭제 확인", "삭제", "취소"))
-            {
-                try
-                {
-                    // DB에서 개별 삭제 (연관 데이터 보존)
-                    using var repo = new CourseSectionRepository(SchoolDatabase.DbPath);
-                    await repo.DeleteAsync(section.No);
+            return;
 
-                    _courseSections.Remove(section);
-                    UpdateSectionUI();
-                    Debug.WriteLine($"[CourseSectionPage] 소단원 삭제: {section.FullPath}");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[CourseSectionPage] 소단원 삭제 실패: {ex.Message}");
-                    ShowSectionError($"삭제 중 오류가 발생했습니다.\n{ex.Message}");
-                }
-            }
+        try
+        {
+            // DB에서 개별 삭제 (연관 데이터 보존)
+            using var repo = new CourseSectionRepository(SchoolDatabase.DbPath);
+            await repo.DeleteAsync(section.No);
+
+            _courseSections.Remove(section);
+            UpdateSectionUI();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CourseSectionView] 소단원 삭제 실패: {ex.Message}");
+            ShowSectionError($"삭제 중 오류가 발생했습니다.\n{ex.Message}");
         }
     }
 
@@ -447,12 +417,10 @@ public sealed partial class CourseSectionPage : Page
             _courseSections.Clear();
             UpdateSectionUI();
             ClearAllFlyout.Hide();
-
-            Debug.WriteLine("[CourseSectionPage] 전체 삭제 완료");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseSectionPage] 전체 삭제 실패: {ex.Message}");
+            Debug.WriteLine($"[CourseSectionView] 전체 삭제 실패: {ex.Message}");
             ShowSectionError($"전체 삭제 중 오류가 발생했습니다.\n{ex.Message}");
             ClearAllFlyout.Hide();
         }
@@ -464,11 +432,27 @@ public sealed partial class CourseSectionPage : Page
 
     private void UpdateSectionUI()
     {
+        bool hasCourse = _selectedCourse != null;
         bool hasSections = _courseSections.Count > 0;
+
+        BtnAddSection.IsEnabled = hasCourse;
+        BtnImportCsv.IsEnabled = hasCourse;
+        BtnClearAll.IsEnabled = hasCourse;
 
         SectionEmptyState.Visibility = hasSections ? Visibility.Collapsed : Visibility.Visible;
         SectionListView.Visibility = hasSections ? Visibility.Visible : Visibility.Collapsed;
         SectionListHeader.Visibility = hasSections ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!hasCourse)
+        {
+            TxtSectionEmpty.Text = "수업을 먼저 선택하세요";
+            TxtSectionEmptyHint.Text = "위쪽 필터의 [수업] 에서 단원을 관리할 수업을 고르세요";
+        }
+        else
+        {
+            TxtSectionEmpty.Text = "등록된 단원이 없습니다";
+            TxtSectionEmptyHint.Text = "CSV 파일을 가져오거나 소단원을 추가하세요";
+        }
 
         if (hasSections)
         {
@@ -485,54 +469,40 @@ public sealed partial class CourseSectionPage : Page
         }
     }
 
-    // SaveSectionsAsync 제거됨 (v2 리팩토링)
-    // 기존: BulkCreateAsync로 전체 삭제+재생성 → 연관 데이터 소실 문제
-    // 변경: 개별 작업별로 적절한 Repository 메서드 직접 호출
-    //   - 삭제: repo.DeleteAsync(no)
-    //   - 전체 삭제: repo.DeleteByCourseAsync(courseNo)
-    //   - CSV 가져오기: repo.BulkCreateAsync(courseNo, sections)
-
     private void ShowSectionError(string message)
     {
         SectionErrorInfoBar.Message = message;
         SectionErrorInfoBar.IsOpen = true;
     }
 
-
-
     /// <summary>
     /// 단원 드래그 완료 - SortOrder 업데이트
     /// </summary>
-        private async void OnSectionDragCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    private async void OnSectionDragCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        if (_selectedCourse == null) return;
+
+        try
         {
-            if (_selectedCourse == null) return;
-
-            try
+            // SortOrder 값 갱신 (ObservableCollection은 이미 드래그 순서로 정렬됨)
+            for (int i = 0; i < _courseSections.Count; i++)
             {
-                Debug.WriteLine($"[CourseSectionPage] 드래그 완료: {_courseSections.Count}개 단원 정렬");
-
-                // SortOrder 값 갱신 (ObservableCollection은 이미 드래그 순서로 정렬됨)
-                for (int i = 0; i < _courseSections.Count; i++)
-                {
-                    _courseSections[i].SortOrder = i + 1;
-                    Debug.WriteLine($"  [{i}] No={_courseSections[i].No}, SortOrder={i + 1}, Name={_courseSections[i].SectionName}");
-                }
-
-                // 트랜잭션 일괄 업데이트
-                using var repo = new CourseSectionRepository(SchoolDatabase.DbPath);
-                await repo.BulkUpdateSortOrderAsync(_courseSections.ToList());
-
-                // DB에서 재로드하여 순서와 연번을 확실하게 반영
-                await LoadCourseSectionsAsync(_selectedCourse.No);
-
-                Debug.WriteLine($"[CourseSectionPage] SortOrder 일괄 업데이트 + 재로드 완료");
+                _courseSections[i].SortOrder = i + 1;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[CourseSectionPage] 단원 순서 변경 실패: {ex.Message}");
-                ShowSectionError($"순서 변경 중 오류가 발생했습니다.\n{ex.Message}");
-            }
+
+            // 트랜잭션 일괄 업데이트
+            using var repo = new CourseSectionRepository(SchoolDatabase.DbPath);
+            await repo.BulkUpdateSortOrderAsync(_courseSections.ToList());
+
+            // DB에서 재로드하여 순서와 연번을 확실하게 반영
+            await LoadCourseSectionsAsync(_selectedCourse.No);
         }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CourseSectionView] 단원 순서 변경 실패: {ex.Message}");
+            ShowSectionError($"순서 변경 중 오류가 발생했습니다.\n{ex.Message}");
+        }
+    }
 
     /// <summary>
     /// 컨테이너 내용 변경 시 - 연번 업데이트 (1번부터 시작)
@@ -542,17 +512,12 @@ public sealed partial class CourseSectionPage : Page
         if (args.InRecycleQueue)
             return;
 
-        // ItemIndex를 사용하여 1부터 시작하는 연번 표시
-        int displayIndex = args.ItemIndex + 1;
-
-        // 첫 번째 TextBlock(연번)을 찾아서 업데이트
-        if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
+        // Grid 의 첫 번째 자식 = 연번 TextBlock
+        if (args.ItemContainer?.ContentTemplateRoot is Grid grid
+            && grid.Children.Count > 0
+            && grid.Children[0] is TextBlock indexText)
         {
-            // Grid의 첫 번째 자식 = 연번 TextBlock
-            if (grid.Children.Count > 0 && grid.Children[0] is TextBlock indexText)
-            {
-                indexText.Text = displayIndex.ToString();
-            }
+            indexText.Text = (args.ItemIndex + 1).ToString();
         }
     }
 

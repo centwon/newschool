@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="NewSchool.Controls.CourseTimetableBoard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:NewSchool.Models"
+    mc:Ignorable="d">
+
+    <!--
+        배치판 칸은 코드에서 만든다(요일별 교시 수가 설정에 따라 달라진다).
+        색을 코드에서 직접 넣으면 테마를 바꿔도 그대로 남으므로, ThemeResource 를 쓰는
+        스타일을 여기 두고 코드는 스타일만 갈아 끼운다.
+    -->
+    <UserControl.Resources>
+        <Style x:Key="BoardHeaderCellStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Margin" Value="1"/>
+        </Style>
+
+        <Style x:Key="BoardEmptyCellStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource ControlAltFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
+        <Style x:Key="BoardFilledCellStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource AccentFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
+        <!-- 그 요일에 없는 교시 (예: 월요일 7교시) -->
+        <Style x:Key="BoardBlankCellStyle" TargetType="Border">
+            <Setter Property="Margin" Value="2"/>
+        </Style>
+
+
+        <Style x:Key="BoardCellSubjectStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+
+        <Style x:Key="BoardCellRoomStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+
+        <Style x:Key="BoardHeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid ColumnSpacing="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- 왼쪽: 수업 · 강의실 팔레트 -->
+        <Grid Grid.Column="0" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0"
+                       Text="수업"
+                       FontSize="13"
+                       FontWeight="SemiBold"/>
+
+            <Border Grid.Row="1"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <Grid>
+                    <TextBlock x:Name="TxtCourseEmpty"
+                               Text="개설된 수업이 없습니다"
+                               FontSize="12"
+                               Margin="12"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                    <ListView x:Name="CourseListView"
+                              Visibility="Collapsed"
+                              SelectionMode="Single"
+                              CanDragItems="True"
+                              DragItemsStarting="OnCourseDragStarting"
+                              SelectionChanged="OnCourseSelectionChanged">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:Course">
+                                <Grid Padding="0,6" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="20"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 단축키 번호 (코드에서 채움) -->
+                                    <TextBlock Grid.Column="0"
+                                               Text=""
+                                               FontSize="11"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{x:Bind Subject}"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock FontSize="11"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                            <Run Text="{x:Bind Grade}"/><Run Text="학년 · "/><Run Text="{x:Bind TypeDisplay}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <!-- 배치/주당 시수 (코드에서 채움) -->
+                                    <Border Grid.Column="2"
+                                            CornerRadius="10"
+                                            Padding="8,2"
+                                            VerticalAlignment="Center"
+                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                        <TextBlock Text=""
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+
+            <TextBlock Grid.Row="2"
+                       Text="강의실"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,4,0,0"/>
+
+            <Border Grid.Row="3"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    MinHeight="60">
+                <Grid>
+                    <TextBlock x:Name="TxtRoomEmpty"
+                               Text="수업을 고르면 그 수업의 강의실이 나옵니다"
+                               FontSize="12"
+                               Margin="12"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                    <ListView x:Name="RoomListView"
+                              Visibility="Collapsed"
+                              MaxHeight="180"
+                              SelectionMode="Single"
+                              CanDragItems="True"
+                              DragItemsStarting="OnRoomDragStarting"
+                              SelectionChanged="OnRoomSelectionChanged">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <StackPanel Orientation="Horizontal" Spacing="6" Padding="0,2">
+                                    <FontIcon Glyph="&#xE707;" FontSize="12"/>
+                                    <TextBlock Text="{x:Bind}" FontSize="13"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 오른쪽: 주간 배치판 -->
+        <Grid Grid.Column="1" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 도구 모음 -->
+            <Grid Grid.Row="0">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="기초 시간표"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <TextBlock FontSize="11"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               MaxWidth="560"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                               Text="매주 반복되는 평소 시간표입니다. 수업을 칸으로 끌어다 놓으세요. 방향키 이동 · Enter 배치 · Delete 삭제 · R 강의실 변경 — 특정 날짜만 바꾸려면 [주별 시간표 확인 및 변경] 탭에서."/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button Click="OnRefreshClick" ToolTipService.ToolTip="다시 읽기">
+                        <FontIcon Glyph="&#xE72C;" FontSize="14"/>
+                    </Button>
+                    <Button x:Name="BtnClearBoard">
+                        <Button.Flyout>
+                            <Flyout x:Name="ClearBoardFlyout">
+                                <StackPanel Spacing="12" Width="280">
+                                    <TextBlock x:Name="TxtClearBoardConfirm" TextWrapping="Wrap"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                        <Button Content="취소" Click="OnClearBoardCancelClick"/>
+                                        <Button Content="비우기"
+                                                Style="{StaticResource AccentButtonStyle}"
+                                                Click="OnClearBoardConfirmClick"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                            <TextBlock Text="배치 비우기"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- 배치판 -->
+            <Border Grid.Row="1"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <Grid x:Name="BoardGrid"
+                          Margin="8"
+                          IsTabStop="True"
+                          UseSystemFocusVisuals="False"
+                          KeyDown="OnBoardKeyDown"
+                          GotFocus="OnBoardGotFocus"
+                          LostFocus="OnBoardLostFocus"/>
+                </ScrollViewer>
+            </Border>
+
+            <!-- 상태 -->
+            <StackPanel Grid.Row="2" Spacing="4">
+                <TextBlock x:Name="TxtBoardStatus"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <InfoBar x:Name="BoardInfoBar"
+                         IsOpen="False"
+                         Severity="Warning"
+                         IsClosable="True"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

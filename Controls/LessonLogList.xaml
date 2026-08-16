@@ -36,7 +36,7 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal">
                 <FontIcon Glyph="&#xE70F;" FontSize="14" 
                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Text="수업 기록" 
+                <TextBlock Text="수업 일지" 
                            FontWeight="SemiBold"
                            FontSize="13"
                            Margin="8,0,0,0"
@@ -147,7 +147,7 @@
         <!-- 빈 목록 메시지 -->
         <TextBlock x:Name="TxtEmpty"
                    Grid.Row="1"
-                   Text="수업 기록이 없습니다."
+                   Text="수업 일지가 없습니다."
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
                    FontSize="13"

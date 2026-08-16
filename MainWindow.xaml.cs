@@ -275,10 +275,6 @@ public sealed partial class MainWindow : Window
                     // 학생부 기록 (교과세특, 과목/강의실 필터)
                     WorkFrame.Navigate(typeof(CourseSpecPage));
                     break;
-                case "Timetable_Teacher":
-                    // 교사 시간표
-                    WorkFrame.Navigate(typeof(TeacherTimetablePage));
-                    break;
 
                 case "Timetable_ClassManagement":
                     // 학급 시간표 관리 (신규)

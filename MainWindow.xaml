@@ -139,13 +139,6 @@
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem
-                            Tag="Timetable_Teacher"
-                            Content="수업 시간표">
-                            <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE8D3;"/>
-                            </NavigationViewItem.Icon>
-                        </NavigationViewItem>
-                        <NavigationViewItem
                             Tag="LessonJournal"
                             Content="수업 일지">
                             <NavigationViewItem.Icon>

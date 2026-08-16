@@ -29,7 +29,17 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
     private DispatcherQueueTimer? _periodTimer;   // 현재 교시 배지 1분 주기 갱신
     private bool _headerInitialized;
-    private DateTime _headerDate;                 // 헤더에 표시된 날짜 (자정 롤오버 감지용)
+
+    /// <summary>
+    /// 보고 있는 날짜. 이 날짜를 따르는 것은 <b>내 수업 · 우리 반 · 급식 · 그날 행사</b> 넷뿐이다 —
+    /// 학사일정 목록·할 일·메모는 원래 "앞으로"를 보는 카드라 오늘 기준으로 둔다.
+    /// </summary>
+    private DateTime _viewDate = DateTime.Today;
+
+    /// <summary>마지막으로 확인한 "오늘" (자정 롤오버 감지용)</summary>
+    private DateTime _knownToday = DateTime.Today;
+
+    private bool IsViewingToday => _viewDate == DateTime.Today;
     private readonly bool _isHomeroom = Settings.HomeGrade.Value > 0 && Settings.HomeRoom.Value > 0;
 
     // 현재 교시 행 강조를 위해 로드된 슬롯 참조 유지 (1분 주기로 재계산)
@@ -125,7 +135,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
                 SafeLoadAsync("오늘 행사",  LoadTodayEventAsync, failed),
                 SafeLoadAsync("학사일정",  () => ScheduleList.LoadSchedulesAsync(DateTime.Today, 28, true), failed),
                 SafeLoadAsync("할 일/일정", () => AgendaList.LoadPendingAndFutureAsync(), failed),
-                SafeLoadAsync("급식",      () => MealBox.LoadMealsAsync(DateTime.Today), failed)
+                SafeLoadAsync("급식",      () => MealBox.LoadMealsAsync(_viewDate), failed)
             );
         }
         catch (Exception ex)
@@ -141,12 +151,56 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         }
     }
 
-    /// <summary>날짜 헤더(날짜·요일) 갱신 + 표시 날짜 기억</summary>
+    /// <summary>
+    /// 날짜 헤더 갱신. 오늘이 아니면 [오늘] 버튼과 안내를 띄우고 현재 교시 배지를 감춘다 —
+    /// 다른 날짜에서 "3교시"는 참이 아니다.
+    /// </summary>
     private void UpdateDateHeader()
     {
-        _headerDate = DateTime.Today;
-        TxtTodayDate.Text = _headerDate.ToString("yyyy년 M월 d일");
-        TxtTodayDow.Text = GetKoreanDayOfWeek(_headerDate.DayOfWeek);
+        TxtTodayDate.Text = _viewDate.ToString("yyyy년 M월 d일");
+        TxtTodayDow.Text = GetKoreanDayOfWeek(_viewDate.DayOfWeek);
+
+        bool today = IsViewingToday;
+
+        BtnBackToToday.Visibility = today ? Visibility.Collapsed : Visibility.Visible;
+        TxtOtherDayNotice.Visibility = today ? Visibility.Collapsed : Visibility.Visible;
+        CurrentPeriodBadge.Visibility = today ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async void OnPreviousDayClick(object sender, RoutedEventArgs e)
+        => await MoveToAsync(_viewDate.AddDays(-1));
+
+    private async void OnNextDayClick(object sender, RoutedEventArgs e)
+        => await MoveToAsync(_viewDate.AddDays(1));
+
+    private async void OnBackToTodayClick(object sender, RoutedEventArgs e)
+        => await MoveToAsync(DateTime.Today);
+
+    /// <summary>
+    /// 날짜를 옮기고 그 날짜를 따르는 카드만 다시 읽는다.
+    /// 학사일정 목록·할 일·메모는 건드리지 않는다 — 오늘 기준으로 두는 카드다.
+    /// </summary>
+    private async Task MoveToAsync(DateTime date)
+    {
+        if (_viewDate == date.Date) return;
+
+        _viewDate = date.Date;
+        UpdateDateHeader();
+        UpdateCurrentPeriod();
+
+        var failed = new List<string>();
+
+        await Task.WhenAll(
+            SafeLoadAsync("시간표", LoadTimetableSlotsAsync, failed),
+            SafeLoadAsync("행사", LoadTodayEventAsync, failed),
+            SafeLoadAsync("급식", () => MealBox.LoadMealsAsync(_viewDate), failed));
+
+        if (failed.Count > 0 && App.MainWindow is MainWindow main)
+        {
+            main.ShowGlobalWarning(
+                "일부 정보를 불러오지 못했습니다",
+                $"{string.Join(", ", failed)} — 다시 시도해주세요.");
+        }
     }
 
     private static async Task SafeLoadAsync(string name, Func<Task> load, List<string> failed)
@@ -175,11 +229,30 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     private void UpdateCurrentPeriod()
     {
         // 앱을 켜둔 채 자정을 넘기면 날짜 헤더·시간표·급식이 어제 것으로 남으므로
-        // 1분 주기 타이머에서 날짜 변경을 감지해 전체를 다시 로드한다
-        if (_headerInitialized && _headerDate != DateTime.Today)
+        // 1분 주기 타이머에서 날짜 변경을 감지해 전체를 다시 로드한다.
+        // 다른 날짜를 보고 있는 중이라면 끌고 가지 않는다 — 보던 화면이 멋대로 바뀐다.
+        if (_headerInitialized && _knownToday != DateTime.Today)
         {
-            UpdateDateHeader();
-            _ = LoadTodayDataAsync();
+            bool wasViewingToday = _viewDate == _knownToday;
+            _knownToday = DateTime.Today;
+
+            if (wasViewingToday)
+            {
+                _viewDate = DateTime.Today;
+                UpdateDateHeader();
+                _ = LoadTodayDataAsync();
+            }
+            else
+            {
+                UpdateDateHeader();
+            }
+        }
+
+        // 현재 교시는 오늘에만 참이다.
+        if (!IsViewingToday)
+        {
+            HighlightCurrentPeriod(0);
+            return;
         }
 
         var period = Functions.GetPeriodNow();
@@ -219,7 +292,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     {
         using var svc = new SchoolScheduleService(SchoolDatabase.DbPath);
         var (success, _, list) = await svc.GetSchedulesByDataRangeAsync(
-            Settings.SchoolCode.Value, DateTime.Today, DateTime.Today.AddDays(1));
+            Settings.SchoolCode.Value, _viewDate, _viewDate.AddDays(1));
 
         if (!success || list == null) return;
 
@@ -244,12 +317,12 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
     #region 오늘 시간표 (내 수업 / 우리 반)
 
-    /// <summary>오늘이 학사일정상 휴업일/공휴일이면 그 사유명(예: "휴업일"), 아니면 null.</summary>
-    private static async Task<string?> GetTodayHolidayNameAsync()
+    /// <summary>그날이 학사일정상 휴업일/공휴일이면 그 사유명(예: "휴업일"), 아니면 null.</summary>
+    private static async Task<string?> GetHolidayNameAsync(DateTime date)
     {
         using var svc = new SchoolScheduleService(SchoolDatabase.DbPath);
         var (success, _, list) = await svc.GetSchedulesByDataRangeAsync(
-            Settings.SchoolCode.Value, DateTime.Today, DateTime.Today.AddDays(1));
+            Settings.SchoolCode.Value, date, date.AddDays(1));
         if (!success || list == null) return null;
         return list.FirstOrDefault(s => s.IsHoliday)?.SBTR_DD_SC_NM;
     }
@@ -257,11 +330,11 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     private async Task LoadTimetableSlotsAsync()
     {
         // .NET DayOfWeek: 0=일 … 6=토 / 시간표 DayOfWeek: 1=월 … 5=금
-        int netDow = (int)DateTime.Today.DayOfWeek;
+        int netDow = (int)_viewDate.DayOfWeek;
         int dow = (netDow >= 1 && netDow <= 5) ? netDow : 0;
 
         // 학사일정상 휴업일/공휴일이면 수업·학급 시간표를 표시하지 않는다(빈 상태에 사유 표시).
-        string? holidayName = await GetTodayHolidayNameAsync();
+        string? holidayName = await GetHolidayNameAsync(_viewDate);
         if (holidayName != null) dow = 0;
         TxtNoTeacherSlots.Text = holidayName ?? "수업 없음";
         TxtNoClassSlots.Text   = holidayName ?? "시간표 없음";
@@ -278,6 +351,13 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
                 .OrderBy(x => x.Period)
                 .ToList();
         }
+
+        // 그날만 걸리는 변경(휴강·교체·보강·대강)을 얹는다.
+        // 휴업일이라 정기 수업을 안 그리는 날에도 보강은 있을 수 있으므로 dow 와 무관하게 읽는다.
+        teacherSlots = await ApplyLessonChangesAsync(teacherSlots, _viewDate);
+        if (teacherSlots.Count > 0)
+            TxtNoTeacherSlots.Text = holidayName ?? "수업 없음";
+
         _teacherSlots = teacherSlots;
         TeacherSlotsList.ItemsSource = teacherSlots;
         bool hasTeacher = teacherSlots.Count > 0;
@@ -306,6 +386,40 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         // 로드는 첫 타이머 틱 이후 완료되므로, 새 슬롯에 현재 교시 강조를 즉시 반영
         HighlightCurrentPeriod(Functions.GetPeriodNow().Index);
     }
+
+    /// <summary>
+    /// 그날만 걸리는 시간표 변경을 정기 슬롯 위에 얹는다.
+    /// 병합 규칙은 <see cref="TimetableChangeMerger"/> 에 있다(DB 없이 검증할 수 있게 떼어 뒀다).
+    /// </summary>
+    private static async Task<List<TimetableItemViewModel>> ApplyLessonChangesAsync(
+        List<TimetableItemViewModel> slots, DateTime date)
+    {
+        try
+        {
+            using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
+            var changes = await repo.GetByDateAsync(Settings.User.Value, date);
+
+            return TimetableChangeMerger.Apply(
+                slots, changes, Helpers.SchoolCalendar.ToLessonDayOfWeek(date));
+        }
+        catch (Exception ex)
+        {
+            // 변경을 못 읽었다고 오늘 시간표까지 비우지는 않는다 — 평소 시간표는 그대로 쓸모가 있다.
+            Debug.WriteLine($"[TodayPage] 시간표 변경 조회 실패: {ex.Message}");
+            return slots;
+        }
+    }
+
+    /// <summary>변경 배지 표시 여부 → Visibility (DataTemplate x:Bind용 순수 함수)</summary>
+    public static Visibility ShowIfChanged(bool hasChange)
+        => hasChange ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>휴강이면 취소선 (DataTemplate x:Bind용 순수 함수)</summary>
+    public static Windows.UI.Text.TextDecorations StrikeIfCancelled(bool isCancelled)
+        => isCancelled ? Windows.UI.Text.TextDecorations.Strikethrough : Windows.UI.Text.TextDecorations.None;
+
+    /// <summary>휴강은 흐리게 (DataTemplate x:Bind용 순수 함수)</summary>
+    public static double DimIfCancelled(bool isCancelled) => isCancelled ? 0.5 : 1.0;
 
     #endregion
 

@@ -441,7 +441,24 @@
       "Bash(grep -vE \"^\\\\> *;|^\\\\> *$\")",
       "Bash(grep \"\\\\.iss$\")",
       "Bash(grep -i \"^nul$\")",
-      "Bash(grep -rnE \"^\\\\s*//\\\\s*\\(무시|ignore\\)\" --include=*.cs .)"
+      "Bash(grep -rnE \"^\\\\s*//\\\\s*\\(무시|ignore\\)\" --include=*.cs .)",
+      "Bash(awk '{a+=$1; d+=$2} END {printf \"추가 %d줄, 삭제 %d줄, 순증 %d줄\\\\n\", a, d, a-d}')",
+      "Bash(dotnet --list-runtimes)",
+      "Bash(cd \"$HOME/.nuget/packages\" && echo \"=== ILCompiler / runtime 패키지 \\(AOT 산출물 크기 좌우\\) ===\" && ls -d runtime.win-x64.microsoft.dotnet.ilcompiler/* microsoft.dotnet.ilcompiler/* 2>/dev/null | tail -8 && echo && echo \"=== 최근 복원된 패키지 \\(7/29 이후\\) ===\" && find . -maxdepth 2 -name \"*.nupkg.metadata\" -newermt \"2026-07-29\" 2>/dev/null | sed 's|^\\\\./||; s|/[^/]*$||' | sort | head -20)",
+      "Bash(awk '{print $6, $8}')",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(git log *)",
+      "Bash(cd \"C:/Users/centw/source/repos/Centwons/NewSchool\" && git status --short && echo \"\\(트리 상태 위 — 비어야 안전\\)\" && echo && echo \"=== 6edcdcb 가 건드린 파일 ===\" && git show --stat --format=\"\" 6edcdcb && echo \"=== 원본 메시지 저장 ===\" && git log -1 --format=%B 6edcdcb > /tmp/msg_fix.txt && head -3 /tmp/msg_fix.txt)",
+      "Bash(git restore *)",
+      "Bash(git diff *)",
+      "Bash(awk '/^## 미출시/{f=1;next} /^## v/{f=0} f' CHANGELOG.md)",
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)",
+      "Bash(git rebase *)",
+      "WebFetch(domain:developers.google.com)",
+      "WebFetch(domain:support.google.com)",
+      "WebFetch(domain:newschool.centwon.com)",
+      "Bash(gh api *)"
     ]
   }
 }

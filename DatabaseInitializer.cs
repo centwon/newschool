@@ -611,7 +611,10 @@ namespace NewSchool.Database
         {
             var schemas = new (string Name, string Sql)[]
             {
-                ("CourseSection",     Repositories.CourseSectionRepository.SchemaSql),
+                ("CourseSection",      Repositories.CourseSectionRepository.SchemaSql),
+                ("LessonProgress",     Repositories.LessonProgressRepository.SchemaSql),
+                ("CourseWeeklyHours",  Repositories.CourseWeeklyHoursRepository.SchemaSql),
+                ("LessonChange",       Repositories.LessonChangeRepository.SchemaSql),
             };
 
             foreach (var (name, sql) in schemas)

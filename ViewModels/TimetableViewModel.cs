@@ -18,6 +18,8 @@ namespace NewSchool.ViewModels
         private int _period;    // 1~7교시
         private bool _isEmpty = true;
         private bool _isCurrentPeriod;
+        private LessonChangeKind _changeKind = LessonChangeKind.None;
+        private string _changeMemo = string.Empty;
 
         /// <summary>
         /// Lesson.No (FK)
@@ -43,7 +45,11 @@ namespace NewSchool.ViewModels
         public string SubjectName
         {
             get => _subjectName;
-            set => SetProperty(ref _subjectName, value);
+            set
+            {
+                if (SetProperty(ref _subjectName, value))
+                    OnPropertyChanged(nameof(SubjectWithPrefix));
+            }
         }
 
         /// <summary>
@@ -97,6 +103,57 @@ namespace NewSchool.ViewModels
             get => _isCurrentPeriod;
             set => SetProperty(ref _isCurrentPeriod, value);
         }
+
+        /// <summary>
+        /// 이 교시가 평소와 어떻게 다른가 (오늘 화면 전용 — 주간 시간표에서는 항상 None).
+        /// </summary>
+        public LessonChangeKind ChangeKind
+        {
+            get => _changeKind;
+            set
+            {
+                if (SetProperty(ref _changeKind, value))
+                {
+                    OnPropertyChanged(nameof(HasChange));
+                    OnPropertyChanged(nameof(IsCancelled));
+                    OnPropertyChanged(nameof(ChangeLabel));
+                    OnPropertyChanged(nameof(ChangePrefix));
+                    OnPropertyChanged(nameof(SubjectWithPrefix));
+                    OnPropertyChanged(nameof(ChangeTooltip));
+                }
+            }
+        }
+
+        /// <summary>변경 사유 — 배지 툴팁에 쓴다</summary>
+        public string ChangeMemo
+        {
+            get => _changeMemo;
+            set
+            {
+                if (SetProperty(ref _changeMemo, value))
+                    OnPropertyChanged(nameof(ChangeTooltip));
+            }
+        }
+
+        /// <summary>배지 툴팁 — 사유가 없으면 구분만 보여 준다(빈 툴팁 상자가 뜨지 않게)</summary>
+        public string ChangeTooltip => string.IsNullOrWhiteSpace(ChangeMemo)
+            ? ChangeLabel
+            : $"{ChangeLabel} · {ChangeMemo}";
+
+        /// <summary>평소와 다른 교시인가</summary>
+        public bool HasChange => ChangeKind != LessonChangeKind.None;
+
+        /// <summary>휴강인가</summary>
+        public bool IsCancelled => ChangeKind == LessonChangeKind.Cancelled;
+
+        /// <summary>배지 글자 (휴강 · 교체 · 보강 · 대강)</summary>
+        public string ChangeLabel => LessonChangeLabels.Name(ChangeKind);
+
+        /// <summary>과목명 앞에 붙는 표식 (예: "(교)")</summary>
+        public string ChangePrefix => LessonChangeLabels.Prefix(ChangeKind);
+
+        /// <summary>표식이 붙은 과목명 (예: "(교)영어")</summary>
+        public string SubjectWithPrefix => LessonChangeLabels.WithPrefix(ChangeKind, SubjectName);
 
         /// <summary>
         /// 표시용 텍스트 (과목명 + 교실)

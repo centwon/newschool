@@ -20,25 +20,58 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- ═══ 상단: 오늘 날짜 · 오늘 학사일정 · 현재 교시 ═══ -->
+        <!-- ═══ 상단: 날짜 이동 · 그날 학사일정 · 현재 교시 ═══ -->
         <Border Grid.Row="0" Style="{StaticResource DashboardCard}" Padding="14,10">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <!--
+                    날짜를 옮기면 <b>내 수업 · 우리 반 · 급식 · 그날 행사</b>만 따라온다.
+                    학사일정 목록·할 일·메모는 원래 "앞으로"를 보는 카드라 그대로 둔다 —
+                    그래서 오늘이 아닐 때는 무엇이 그 날짜인지 안내를 함께 띄운다.
+                    달력 선택기는 두지 않는다: 며칠 뒤를 한눈에 보는 일은
+                    [주별 시간표 확인 및 변경] 탭이 3주치로 이미 답한다.
+                -->
+                <Button Click="OnPreviousDayClick" Padding="6,2"
+                        ToolTipService.ToolTip="하루 앞으로">
+                    <FontIcon Glyph="&#xE76B;" FontSize="11"/>
+                </Button>
+
                 <TextBlock x:Name="TxtTodayDate"
                            FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <TextBlock x:Name="TxtTodayDow"
                            FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"
                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+
+                <Button Click="OnNextDayClick" Padding="6,2"
+                        ToolTipService.ToolTip="하루 뒤로">
+                    <FontIcon Glyph="&#xE76C;" FontSize="11"/>
+                </Button>
+
+                <Button x:Name="BtnBackToToday"
+                        Content="오늘"
+                        Click="OnBackToTodayClick"
+                        Visibility="Collapsed"/>
+
                 <TextBlock x:Name="TxtTodayEvent"
                            FontSize="13" VerticalAlignment="Center"
                            MaxWidth="360" TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Visibility="Collapsed"/>
-                <Border Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+
+                <Border x:Name="CurrentPeriodBadge"
+                        Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
                         CornerRadius="10" Padding="10,2" VerticalAlignment="Center">
                     <TextBlock x:Name="TxtCurrentPeriod"
                                FontSize="12" FontWeight="SemiBold"
                                Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
                 </Border>
+
+                <!-- 오늘이 아닐 때: 어느 카드가 이 날짜인지 알린다 -->
+                <TextBlock x:Name="TxtOtherDayNotice"
+                           FontSize="12" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="420"
+                           Visibility="Collapsed"
+                           Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                           Text="오늘이 아닙니다 — 내 수업·우리 반·급식·행사만 이 날짜입니다."/>
             </StackPanel>
         </Border>
 
@@ -115,10 +148,24 @@
                                                                Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
                                                 </Border>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind SubjectName}" FontSize="12"
-                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{x:Bind SubjectWithPrefix, Mode=OneWay}" FontSize="12"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Opacity="{x:Bind local:TodayPage.DimIfCancelled(IsCancelled), Mode=OneWay}"
+                                                               TextDecorations="{x:Bind local:TodayPage.StrikeIfCancelled(IsCancelled), Mode=OneWay}"/>
                                                     <TextBlock Text="{x:Bind Room}" FontSize="12"
+                                                               Opacity="{x:Bind local:TodayPage.DimIfCancelled(IsCancelled), Mode=OneWay}"
                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                                                    <!-- 변경 배지: 휴강 · 교체 · 보강 · 대강 -->
+                                                    <Border CornerRadius="7" Padding="5,1"
+                                                            VerticalAlignment="Center"
+                                                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                                                            ToolTipService.ToolTip="{x:Bind ChangeTooltip, Mode=OneWay}"
+                                                            Visibility="{x:Bind local:TodayPage.ShowIfChanged(HasChange), Mode=OneWay}">
+                                                        <TextBlock Text="{x:Bind ChangeLabel, Mode=OneWay}"
+                                                                   FontSize="9" FontWeight="SemiBold"
+                                                                   Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                                                    </Border>
                                                 </StackPanel>
                                             </Grid>
                                             <!-- '지금' 배지 (오버레이, 우측) -->

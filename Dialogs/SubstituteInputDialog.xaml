@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="NewSchool.Dialogs.SubstituteInputDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="대강 입력"
+    PrimaryButtonText="넣기"
+    CloseButtonText="취소"
+    DefaultButton="Primary">
+
+    <StackPanel Width="360" Spacing="12">
+        <TextBlock x:Name="TxtSlot"
+                   FontSize="13"
+                   FontWeight="SemiBold"/>
+
+        <TextBlock FontSize="12"
+                   TextWrapping="Wrap"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="남의 수업에 대신 들어가는 경우(대강)입니다. 그 수업은 내가 개설한 것이 아니라 목록에 없으므로 과목명을 직접 적습니다. 표에는 (대)과목명 으로 나타납니다."/>
+
+        <TextBox x:Name="TxtSubject"
+                 Header="과목명"
+                 PlaceholderText="예: 과학"/>
+
+        <TextBox x:Name="TxtRoom"
+                 Header="강의실 · 학급"
+                 PlaceholderText="예: 2-1"/>
+
+        <TextBox x:Name="TxtMemo"
+                 Header="메모 (선택)"
+                 PlaceholderText="예: 김OO 선생님 출장"/>
+
+        <InfoBar x:Name="ErrorBar"
+                 IsOpen="False"
+                 Severity="Warning"
+                 IsClosable="True"/>
+    </StackPanel>
+</ContentDialog>
