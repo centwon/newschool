@@ -10,7 +10,6 @@
 
     <UserControl.Resources>
         <converters:BoolToVacationColorConverter x:Key="VacationColorConverter"/>
-        <converters:BoolToTodayBackgroundConverter x:Key="TodayBackgroundConverter"/>
     </UserControl.Resources>
 
     <Border Style="{StaticResource DashboardCard}" MinHeight="80">

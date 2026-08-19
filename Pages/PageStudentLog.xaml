@@ -29,9 +29,13 @@
 
             <!-- 필터 패널 -->
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <!-- 학년도/학기/학년/반 필터 -->
+                <!-- 학년도/학년/반 필터.
+                     학기 콤보는 두지 않는다 — 누가기록은 학년도 단위로 모아 보는 화면이라
+                     학기로 거르면 앞 학기 기록이 통째로 사라져 보인다(명부가 학년 단위인 것과 같은 이유).
+                     새 기록을 쓸 때 쓰는 학기는 Settings.WorkSemester 를 따른다. -->
                 <controls:YearSemesterPicker
                     x:Name="YearSemPicker"
+                    ShowSemester="False"
                     YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
                 <controls:ClassPicker
                     x:Name="ClassFilter"

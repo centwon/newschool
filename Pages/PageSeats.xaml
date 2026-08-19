@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="NewSchool.Pages.PageSeats"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -92,7 +92,7 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center">
                         <NumberBox x:Name="NBoxJul"
-                                   Value="5" Minimum="2" Maximum="8"
+                                   Value="5" Minimum="4" Maximum="8"
                                    SpinButtonPlacementMode="Compact"
                                    Width="110" Height="32"
                                    SmallChange="1" LargeChange="1"

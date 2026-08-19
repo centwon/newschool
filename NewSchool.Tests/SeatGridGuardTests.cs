@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using NewSchool.Models;
 using NewSchool.Services;
@@ -41,6 +41,34 @@ public class SeatGridGuardTests
         Assert.False(string.IsNullOrWhiteSpace(html));
     }
 
+    /// <summary>
+    /// 줄 수 하한(2)이 렌더 루프까지 실제로 반영되는지 — 30명·jul=0 이면 열 2개·15행이어야 한다.
+    /// 예전에는 보정값을 totalCols 계산에만 쓰고 루프는 원본을 써서 칸이 하나도 안 그려졌다.
+    /// 하한이 1 이면 30행이 되어 좌석표 PDF 가 레이아웃 예외로 터진다(17행부터).
+    /// </summary>
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 1)]
+    [InlineData(1, 0)]
+    public void 줄이_하한_아래여도_열두개_격자로_그려진다(int jul, int jjak)
+    {
+        var svc = new SeatsPrintService();
+        var cells = new System.Collections.Generic.List<SeatsPrintService.SeatCellData>();
+        for (int i = 0; i < 30; i++)
+            cells.Add(new SeatsPrintService.SeatCellData { Row = i / 2, Col = i % 2 });
+
+        var html = svc.BuildSeatsHtml(
+            cells, grade: 1, classRoom: 1, jul: jul, jjak: jjak,
+            message: "", showPhoto: false);
+
+        // 좌석 표의 행 수 = 30명 / 열 2개 = 15행 (30행이 아니다)
+        int seatRows = System.Text.RegularExpressions.Regex.Matches(
+            html[html.IndexOf("<table class=\"seats\">", StringComparison.Ordinal)..], "<tr>").Count;
+        Assert.Equal(15, seatRows);
+
+        // 칸이 실제로 그려졌는지 (루프가 원본 jul 을 쓰면 0개가 된다)
+        Assert.Contains("<td", html, StringComparison.Ordinal);
+    }
     [Fact]
     public void 정상값은_종전대로_동작한다()
     {

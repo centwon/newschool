@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -482,7 +482,7 @@ public sealed partial class ProgressMatrixView : UserControl
             XamlRoot = this.XamlRoot
         };
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary || !picker.Date.HasValue)
+        if (await MessageBox.ShowDialogAsync(dialog) != ContentDialogResult.Primary || !picker.Date.HasValue)
             return;
 
         var date = picker.Date.Value.DateTime.Date;
@@ -588,7 +588,7 @@ public sealed partial class ProgressMatrixView : UserControl
             XamlRoot = this.XamlRoot
         };
 
-        return await dialog.ShowAsync() == ContentDialogResult.Primary
+        return await MessageBox.ShowDialogAsync(dialog) == ContentDialogResult.Primary
             ? box.Text?.Trim() ?? string.Empty
             : null;
     }
@@ -638,7 +638,7 @@ public sealed partial class ProgressMatrixView : UserControl
                 XamlRoot = this.XamlRoot
             };
 
-            await dialog.ShowAsync();
+            await MessageBox.ShowDialogAsync(dialog);
         }
         catch (Exception ex)
         {

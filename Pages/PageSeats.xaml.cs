@@ -161,6 +161,7 @@ public sealed partial class PageSeats : Page, IDisposable
             // (NumberBox 는 복원된 값을 그대로 표시하고 있어 둘이 어긋났다).
             _jul = 5;
             _jjak = 1;
+            ApplyJulMinimum();
             UpdateDotPattern();
 
             // 콤보박스 데이터 초기화
@@ -246,7 +247,42 @@ public sealed partial class PageSeats : Page, IDisposable
     private void ChkJJak_Click(object sender, RoutedEventArgs e)
     {
         _jjak = ChkJJak.IsChecked == true ? 2 : 1;
+        // 짝을 바꾸면 열 수가 배로 늘거나 줄어 격자가 어차피 다시 짜인다.
+        // 사용자가 직접 건드린 시점이므로 하한도 여기서 확정한다.
+        ApplyJulMinimum();
         UpdateDotPattern();
+    }
+
+    /// <summary>
+    /// 짝 설정별 줄 수 하한. 짝 없음 4줄, 짝 있음 3줄.
+    ///
+    /// <para>행 수는 설정값이 아니라 <c>ceil(학생수 / (줄 × 짝))</c> 으로 나온다. 줄이 너무 적으면
+    /// 행이 길게 늘어나 좌석표 PDF 에서 셀 높이가 사진(20pt)+이름(20pt) 아래로 내려가고,
+    /// QuestPDF 가 레이아웃 예외로 터진다(계산상 17행부터). 이 하한이면 짝 없음 4줄에서도
+    /// 65명까지 안전하다.</para>
+    /// </summary>
+    private static int MinJulFor(int jjak) => jjak == 2 ? 3 : 4;
+
+    /// <summary>
+    /// 줄 수 하한을 현재 짝 설정에 맞춘다.
+    ///
+    /// <para><paramref name="grandfather"/> 가 참이면 지금 값이 하한보다 작아도 끌어올리지 않는다.
+    /// 저장된 배치를 불러올 때 쓴다 — 끌어올리면 격자 행 수가 줄고, 복원 루프가
+    /// <c>Row/Col</c> 로 카드를 찾지 못한 배정을 <b>말없이 버려서</b> 뒷줄 학생들의 자리가 사라진다.
+    /// 하한 미만으로 저장된 배치도 인쇄상 안전하므로(30명·2줄 = 15행) 그대로 연다.
+    /// 사용자가 줄이나 짝을 직접 건드리면 그때부터 하한이 적용된다.</para>
+    /// </summary>
+    private void ApplyJulMinimum(bool grandfather = false)
+    {
+        int min = MinJulFor(_jjak);
+        if (grandfather && _jul > 0 && _jul < min) min = _jul;
+
+        NBoxJul.Minimum = min;
+        if (_jul < min)
+        {
+            _jul = min;
+            NBoxJul.Value = min;
+        }
     }
 
     /// <summary>
@@ -916,7 +952,10 @@ public sealed partial class PageSeats : Page, IDisposable
         //   · InitSeats 가 _jjak <= 0 가드에 걸려 좌석을 아예 그리지 않는다.
         // Jul 은 NumberBox(2~8)가 대입 시 잘라주지만, 필드도 같은 값으로 맞춰 둔다.
         _jjak = saved.Jjak == 2 ? 2 : 1;
-        _jul = Math.Clamp(saved.Jul, (int)NBoxJul.Minimum, (int)NBoxJul.Maximum);
+        // 저장 하한 2 로만 자른다. 새 하한(짝없음 4·짝있음 3)은 여기서 적용하지 않는다 —
+        // 자세한 이유는 ApplyJulMinimum 의 grandfather 설명 참고.
+        _jul = Math.Clamp(saved.Jul, 2, (int)NBoxJul.Maximum);
+        ApplyJulMinimum(grandfather: true);
         NBoxJul.Value = _jul;
         ChkJJak.IsChecked = _jjak == 2;
         IsViewPhoto = saved.ShowPhoto;
@@ -1109,7 +1148,7 @@ public sealed partial class PageSeats : Page, IDisposable
         {
             XamlRoot = this.XamlRoot
         };
-        var result = await dialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(dialog);
         if (result != ContentDialogResult.Primary) return;
 
         _options = dialog.Result;
@@ -1196,7 +1235,7 @@ public sealed partial class PageSeats : Page, IDisposable
         }
 
         var dialog = new Dialogs.SeatPrintOptionsDialog { XamlRoot = this.XamlRoot };
-        var result = await dialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(dialog);
         if (result != ContentDialogResult.Primary) return;
 
         try

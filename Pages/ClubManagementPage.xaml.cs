@@ -128,7 +128,7 @@ public sealed partial class ClubManagementPage : Page
         var dialog = new ClubEditDialog(schoolCode, teacherId, year);
         dialog.XamlRoot = this.XamlRoot;
 
-        var result = await dialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(dialog);
         if (result == ContentDialogResult.Primary)
         {
             LoadClubsAsync();
@@ -147,7 +147,7 @@ public sealed partial class ClubManagementPage : Page
         var dialog = new ClubEditDialog(club);
         dialog.XamlRoot = this.XamlRoot;
 
-        var result = await dialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(dialog);
         if (result == ContentDialogResult.Primary)
         {
             LoadClubsAsync();
@@ -168,7 +168,7 @@ public sealed partial class ClubManagementPage : Page
             XamlRoot = this.XamlRoot
         };
 
-        await dialog.ShowAsync();
+        await MessageBox.ShowDialogAsync(dialog);
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -392,6 +392,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     private async void Dialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
         var deferral = args.GetDeferral();
+        HideError();   // 이전 시도의 안내가 남아 있지 않도록
         try
         {
             if (_isTaskMode)
@@ -445,6 +446,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     private async void Dialog_SecondaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
         var deferral = args.GetDeferral();
+        HideError();   // 이전 시도의 안내가 남아 있지 않도록
         try
         {
             if (!_isNew)
@@ -464,9 +466,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
                 if (!deleted)
                 {
                     args.Cancel = true;
-                    await MessageBox.ShowAsync(
-                        "삭제되지 않았습니다. 이미 지워진 항목일 수 있습니다.\n창을 닫았다가 다시 열어보세요.",
-                        "삭제 실패");
+                    ShowError("삭제되지 않았습니다. 이미 지워진 항목일 수 있습니다. 창을 닫았다가 다시 열어보세요.");
                 }
             }
         }
@@ -485,6 +485,21 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     /// <summary>입력 검증 실패로 저장을 중단할 때 쓰는 신호 — 안내는 이미 띄운 상태다.</summary>
     private sealed class ValidationAbort : Exception;
 
+    /// <summary>
+    /// 안내를 대화상자 안 InfoBar 로 띄운다.
+    ///
+    /// <para>MessageBox 를 쓰지 않는 이유: WinUI 는 ContentDialog 를 한 번에 하나만 허용한다.
+    /// 이 대화상자가 열려 있는 동안 MessageBox(= 또 다른 ContentDialog)를 부르면 표시가 막히고,
+    /// 게이트의 재시도 루프가 250ms 간격으로 헛돌며 로그만 쌓인다 — 화면에는 아무것도 안 뜬다.</para>
+    /// </summary>
+    private void ShowError(string message)
+    {
+        ErrorInfoBar.Message = message;
+        ErrorInfoBar.IsOpen = true;
+    }
+
+    private void HideError() => ErrorInfoBar.IsOpen = false;
+
     private async Task SaveTaskAsync()
     {
         // 제목에서 직접 가져오기
@@ -496,7 +511,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
         if (string.IsNullOrWhiteSpace(_taskEvent.Title))
         {
-            await MessageBox.ShowAsync("제목을 입력해주세요.");
+            ShowError("제목을 입력해주세요.");
             throw new ValidationAbort();
         }
 
@@ -548,7 +563,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
         if (string.IsNullOrWhiteSpace(_event.Title))
         {
-            await MessageBox.ShowAsync("제목을 입력해주세요.");
+            ShowError("제목을 입력해주세요.");
             throw new ValidationAbort();
         }
 

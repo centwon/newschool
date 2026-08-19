@@ -602,7 +602,7 @@ public sealed partial class ClubActivityPage : Page
             MaxHeight = 600
         };
 
-        await dialog.ShowAsync();
+        await MessageBox.ShowDialogAsync(dialog);
     }
 
     #endregion

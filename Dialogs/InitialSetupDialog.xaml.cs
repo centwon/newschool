@@ -62,7 +62,7 @@ public sealed partial class InitialSetupDialog : ContentDialog, INotifyPropertyC
                 XamlRoot = this.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
 
             if (result == ContentDialogResult.Primary && dialog.SelectedSchool != null)
             {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -389,7 +389,7 @@ public sealed partial class CourseManagementPage : Page
             XamlRoot = this.XamlRoot
         };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await MessageBox.ShowDialogAsync(dialog) == ContentDialogResult.Primary)
             await LoadCoursesAsync();
     }
 
@@ -399,7 +399,7 @@ public sealed partial class CourseManagementPage : Page
 
         var dialog = new CourseEditDialog(course) { XamlRoot = this.XamlRoot };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await MessageBox.ShowDialogAsync(dialog) == ContentDialogResult.Primary)
             await LoadCoursesAsync();
     }
 
@@ -408,7 +408,7 @@ public sealed partial class CourseManagementPage : Page
         if ((sender as Button)?.Tag is not Course course) return;
 
         var dialog = new CourseEnrollmentDialog(course) { XamlRoot = this.XamlRoot };
-        await dialog.ShowAsync();
+        await MessageBox.ShowDialogAsync(dialog);
     }
 
     private async void OnDeleteClick(object sender, RoutedEventArgs e)

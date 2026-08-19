@@ -111,7 +111,7 @@ public sealed partial class SettingsPage : Page
                 XamlRoot = this.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
 
             if (result == ContentDialogResult.Primary && dialog.SelectedSchool != null)
             {

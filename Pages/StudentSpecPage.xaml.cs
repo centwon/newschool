@@ -235,7 +235,7 @@ public sealed partial class StudentSpecPage : Page, IDisposable
         }
 
         var filterDialog = new Dialogs.SpecExportFilterDialog { XamlRoot = this.XamlRoot };
-        var result = await filterDialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(filterDialog);
         if (result != ContentDialogResult.Primary) return;
 
         var filterType = filterDialog.SelectedType;

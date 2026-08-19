@@ -551,7 +551,7 @@ public sealed partial class StudentSpecBatchDialog : Window
                 XamlRoot = this.Content.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
             if (result == ContentDialogResult.Primary)
             {
                 // 반드시 await — 예전에는 async void 핸들러를 그냥 호출해 저장이 진행 중인 채로
@@ -729,7 +729,7 @@ public sealed partial class StudentSpecBatchDialog : Window
                 XamlRoot = this.Content.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
             if (result == ContentDialogResult.None) return;
 
             var draft = await GenerateDraftAsync(_currentStudent.StudentID);

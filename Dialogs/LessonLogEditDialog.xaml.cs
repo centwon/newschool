@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -111,7 +111,8 @@ public sealed partial class LessonLogEditDialog : ContentDialog
                 ? currentPeriod - 1 : 0;
         }
 
-        BtnDelete.Visibility = _isEdit ? Visibility.Visible : Visibility.Collapsed;
+        // 새로 쓰는 중이면 지울 것이 없다 — ContentDialog 는 텍스트가 비면 그 버튼을 감춘다.
+        SecondaryButtonText = _isEdit ? "삭제" : string.Empty;
     }
 
     /// <summary>
@@ -236,6 +237,11 @@ public sealed partial class LessonLogEditDialog : ContentDialog
         {
             HideError();
 
+            // 저장하러 왔다면 삭제 예고는 취소된 것으로 본다
+            // (검증에 걸려 창이 남았을 때 예고가 살아 있으면 다음 '삭제' 한 번에 지워진다).
+            _deleteArmed = false;
+            DeleteConfirmInfoBar.IsOpen = false;
+
             if (!DatePicker.Date.HasValue)
             {
                 ShowError("날짜를 선택해주세요.");
@@ -356,20 +362,36 @@ public sealed partial class LessonLogEditDialog : ContentDialog
         }
     }
 
+    /// <summary>삭제를 한 번 눌러 예고한 상태인가. 두 번째 누름에서 실제로 지운다.</summary>
+    private bool _deleteArmed;
+
     /// <summary>
-    /// 삭제 버튼 클릭
+    /// '삭제' 버튼 — 첫 번째 누름은 경고만 띄우고, 한 번 더 누르면 지운다.
+    ///
+    /// <para>예전에는 본문 안의 별도 버튼에서 <c>MessageBox.ShowConfirmAsync</c> 를 불렀다. 그런데
+    /// 이 대화상자가 열려 있는 동안에는 또 다른 ContentDialog 를 띄울 수 없어(WinUI 제약) 확인 창이
+    /// <b>영영 뜨지 않았고</b>, 게이트의 재시도 루프가 250ms 간격으로 헛돌며 로그만 쌓였다.
+    /// 지금은 확인을 대화상자 안에서 받고, 버튼도 저장·취소와 같은 줄(<c>SecondaryButton</c>)로 옮겼다
+    /// — 형제인 <c>UnifiedItemDialog</c> 와 같은 배치다.</para>
     /// </summary>
-    private async void BtnDelete_Click(object sender, RoutedEventArgs e)
+    private async void OnSecondaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
+        args.Cancel = true;   // 지우든 말든 이 버튼으로는 창을 닫지 않는다
         if (_lessonLog == null) return;
 
-        var confirmed = await MessageBox.ShowConfirmAsync(
-            "이 수업 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
-            "수업 기록 삭제", "삭제", "취소");
-        if (!confirmed) return;
+        if (!_deleteArmed)
+        {
+            HideError();
+            _deleteArmed = true;
+            DeleteConfirmInfoBar.IsOpen = true;
+            return;
+        }
 
+        var deferral = args.GetDeferral();
         try
         {
+            DeleteConfirmInfoBar.IsOpen = false;
+
             using var service = new LessonLogService();
             int deleteResult = await service.DeleteAsync(_lessonLog.No);
 
@@ -385,7 +407,16 @@ public sealed partial class LessonLogEditDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            ShowError($"삭제 중 오류가 발생했습니다.\n{ex.Message}");
+            ShowError("삭제 중 오류가 발생했습니다." + Environment.NewLine + ex.Message);
+        }
+        finally
+        {
+            _deleteArmed = false;
+            deferral.Complete();
         }
     }
+
+    /// <summary>경고를 닫으면 예고도 푼다 — 나중에 무심코 누른 '삭제' 가 바로 지우지 않도록.</summary>
+    private void DeleteConfirmInfoBar_Closed(InfoBar sender, InfoBarClosedEventArgs args)
+        => _deleteArmed = false;
 }

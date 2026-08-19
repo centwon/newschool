@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -439,7 +439,7 @@ public sealed partial class DayCell : UserControl
             {
                 XamlRoot = this.XamlRoot
             };
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
 
             if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
             {
@@ -464,7 +464,7 @@ public sealed partial class DayCell : UserControl
             {
                 XamlRoot = this.XamlRoot
             };
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
 
             if (result == ContentDialogResult.Primary || result == ContentDialogResult.Secondary)
             {
@@ -763,7 +763,7 @@ public sealed partial class DayCell : UserControl
             {
                 XamlRoot = this.XamlRoot
             };
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
 
             if (result == ContentDialogResult.Primary || result == ContentDialogResult.Secondary)
             {

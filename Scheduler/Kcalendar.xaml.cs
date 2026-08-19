@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -431,7 +431,7 @@ public sealed partial class Kcalendar : Page
                 XamlRoot = this.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
 
             if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
             {
@@ -508,7 +508,7 @@ public sealed partial class Kcalendar : Page
         {
             XamlRoot = this.XamlRoot
         };
-        await dialog.ShowAsync();
+        await MessageBox.ShowDialogAsync(dialog);
 
         // 다이얼로그 닫힌 후 달력 새로고침
         await RefreshCalendarAsync();

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -156,7 +156,7 @@ public sealed partial class LessonHomePage : Page
             };
         }
 
-        _ = await dialog.ShowAsync();
+        _ = await MessageBox.ShowDialogAsync(dialog);
 
         var editDialog = (LessonLogEditDialog)dialog;
         if (editDialog.IsDeleted || editDialog.ResultLog != null)
@@ -339,7 +339,7 @@ public sealed partial class LessonHomePage : Page
         {
             XamlRoot = XamlRoot
         };
-        _ = await dialog.ShowAsync();
+        _ = await MessageBox.ShowDialogAsync(dialog);
 
         if (dialog.IsDeleted || dialog.ResultLog != null)
         {
@@ -365,7 +365,7 @@ public sealed partial class LessonHomePage : Page
         {
             XamlRoot = XamlRoot
         };
-        _ = await dialog.ShowAsync();
+        _ = await MessageBox.ShowDialogAsync(dialog);
 
         if (dialog.ResultLog != null)
         {

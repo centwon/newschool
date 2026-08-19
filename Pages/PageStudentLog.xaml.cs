@@ -382,7 +382,7 @@ public sealed partial class PageStudentLog : Page, IDisposable
         {
             XamlRoot = this.XamlRoot
         };
-        var dialogResult = await filterDialog.ShowAsync();
+        var dialogResult = await MessageBox.ShowDialogAsync(filterDialog);
         if (dialogResult != ContentDialogResult.Primary) return;
 
         var filterCategory = filterDialog.SelectedCategory;
@@ -600,9 +600,10 @@ public sealed partial class PageStudentLog : Page, IDisposable
 
         try
         {
-            // semester=0 이면 리포지토리가 학년도 전체를 조회하므로 그대로 전달 (이중 쿼리 불필요)
+            // 이 화면은 학년도 전체를 보여준다 — 학기 필터를 두지 않으므로 0(전체)으로 조회한다.
+            //   (_semester 는 새 기록을 만들 때 쓸 학기라 여기서는 쓰지 않는다.)
             using var service = new StudentLogService();
-            var logs = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year, _semester);
+            var logs = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year, semester: 0);
 
             // 카테고리 필터 적용
             if (_category != LogCategory.전체)
@@ -825,7 +826,7 @@ public sealed partial class PageStudentLog : Page, IDisposable
             MaxHeight = 600
         };
 
-        await dialog.ShowAsync();
+        await MessageBox.ShowDialogAsync(dialog);
     }
 
     #endregion

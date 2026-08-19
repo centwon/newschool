@@ -134,7 +134,12 @@ public class SeatsPrintService
         var (cells, jul, jjak, _, _) = loaded.Value;
 
         // 호출부가 DB 값을 그대로 넘길 수 있어 여기서도 보정한다(0 이면 나눗셈이 깨진다)
-        int totalCols = SafeGrid(jul) * SafeGrid(jjak);
+        // 보정값을 변수에 되돌려 담는다 — 예전에는 totalCols 계산에만 쓰고 정작 아래 렌더 루프는
+        // 원본을 그대로 써서, jul=0 인 배치가 "행은 있는데 칸이 하나도 없는" 표로 나왔다.
+        jul = SafeJul(jul);
+        jjak = SafeJjak(jjak);
+
+        int totalCols = jul * jjak;
         int totalRows = cells.Count > 0
             ? (int)Math.Ceiling((double)cells.Count / totalCols)
             : 1;
@@ -248,18 +253,25 @@ public class SeatsPrintService
             });
         }
 
-        return (cells, SafeGrid(arrangement.Jul), SafeGrid(arrangement.Jjak),
+        return (cells, SafeJul(arrangement.Jul), SafeJjak(arrangement.Jjak),
                 arrangement.Message, arrangement.ShowPhoto);
     }
 
     /// <summary>
-    /// 줄 수·짝 수를 최소 1 로 보정한다.
+    /// 줄 수를 편집 화면과 같은 범위(2~8)로 보정한다.
     ///
-    /// 세 출력 경로(PDF·HTML·Excel)가 모두 <c>jul * jjak</c> 으로 나누는데, 이 값들은
+    /// <para>세 출력 경로(PDF·HTML·Excel)가 모두 <c>jul * jjak</c> 으로 나누는데, 이 값들은
     /// DB 에서 그대로 온다. 26차에 확인했듯 구데이터나 초기화 실패로 0 이 들어 있을 수 있고,
-    /// 그러면 0 으로 나뉘어 좌석표가 깨지거나 QuestPDF 안쪽에서 이유를 알 수 없는 오류로 터졌다.
+    /// 그러면 0 으로 나뉘어 좌석표가 깨지거나 QuestPDF 안쪽에서 이유를 알 수 없는 오류로 터졌다.</para>
+    ///
+    /// <para>하한을 1 이 아니라 <b>2</b> 로 둔다. 1 이면 열이 하나뿐인 격자가 되어 30명이 30행이 되고,
+    /// 셀 높이가 사진(20pt)+이름(20pt) 아래로 내려가 QuestPDF 레이아웃 예외로 터진다(17행부터).
+    /// 편집 화면(<c>PageSeats</c>)도 저장값을 2~8 로 자르므로 이제 화면과 출력물이 같은 격자를 본다.</para>
     /// </summary>
-    private static int SafeGrid(int value) => Math.Max(1, value);
+    private static int SafeJul(int value) => Math.Clamp(value, 2, 8);
+
+    /// <summary>짝 수를 편집 화면과 같이 1 또는 2 로 보정한다.</summary>
+    private static int SafeJjak(int value) => value == 2 ? 2 : 1;
 
     #endregion
 
@@ -286,7 +298,12 @@ public class SeatsPrintService
 
         // 그리드 크기
         // 호출부가 DB 값을 그대로 넘길 수 있어 여기서도 보정한다(0 이면 나눗셈이 깨진다)
-        int totalCols = SafeGrid(jul) * SafeGrid(jjak);
+        // 보정값을 변수에 되돌려 담는다 — 예전에는 totalCols 계산에만 쓰고 정작 아래 렌더 루프는
+        // 원본을 그대로 써서, jul=0 인 배치가 "행은 있는데 칸이 하나도 없는" 표로 나왔다.
+        jul = SafeJul(jul);
+        jjak = SafeJjak(jjak);
+
+        int totalCols = jul * jjak;
         int totalRows = cards.Count > 0
             ? (int)Math.Ceiling((double)cards.Count / totalCols)
             : 1;
@@ -614,7 +631,12 @@ public class SeatsPrintService
         bool includeRoster = false)
     {
         // 호출부가 DB 값을 그대로 넘길 수 있어 여기서도 보정한다(0 이면 나눗셈이 깨진다)
-        int totalCols = SafeGrid(jul) * SafeGrid(jjak);
+        // 보정값을 변수에 되돌려 담는다 — 예전에는 totalCols 계산에만 쓰고 정작 아래 렌더 루프는
+        // 원본을 그대로 써서, jul=0 인 배치가 "행은 있는데 칸이 하나도 없는" 표로 나왔다.
+        jul = SafeJul(jul);
+        jjak = SafeJjak(jjak);
+
+        int totalCols = jul * jjak;
         int totalRows = cells.Count > 0
             ? (int)Math.Ceiling((double)cells.Count / totalCols)
             : 1;

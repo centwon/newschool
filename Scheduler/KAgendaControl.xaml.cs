@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -12,6 +12,7 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 using Windows.UI.Text;
+using NewSchool.Controls;
 
 namespace NewSchool.Scheduler;
 
@@ -372,7 +373,7 @@ public sealed partial class KAgendaControl : UserControl
         try
         {
             var dialog = new UnifiedItemDialog(DateTime.Today) { XamlRoot = XamlRoot };
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
 
             if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
             {
@@ -409,7 +410,7 @@ public sealed partial class KAgendaControl : UserControl
         try
         {
             var dialog = new UnifiedItemDialog(item.SourceEvent) { XamlRoot = XamlRoot };
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
 
             if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
             {

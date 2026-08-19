@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Board.Models;
 using NewSchool.Board.Services;
 using NewSchool.Board.ViewModels;
+using NewSchool.Controls;
 
 namespace NewSchool.Board.Pages;
 
@@ -184,9 +185,9 @@ public sealed partial class PostListPage : Page
     {
         if (_parameter == null) return;
 
-        // ViewModel에 카테고리/Subject 설정
-        ViewModel.SelectedCategory = _parameter.Category;
-        ViewModel.SelectedSubject = _parameter.Subject;
+        // ViewModel에 카테고리/Subject 설정 — 호출부가 곧바로 LoadPostsAsync 를 부르므로
+        // setter 의 자동 새로고침은 억제한다(진입 한 번에 조회 3회 → 1회).
+        ViewModel.SetScopeWithoutReload(_parameter.Category, _parameter.Subject);
 
         // ViewMode 처리
         _currentViewMode = DetermineViewMode();
@@ -489,7 +490,7 @@ public sealed partial class PostListPage : Page
         if (_parameter.UseLessonJournalTemplate)
         {
             var dialog = new NewSchool.Dialogs.LessonJournalDialog { XamlRoot = this.XamlRoot };
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            if (await MessageBox.ShowDialogAsync(dialog) != ContentDialogResult.Primary) return;
 
             seedTitle = dialog.GeneratedTitle;
             seedFirstLine = dialog.GeneratedFirstLine;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -40,6 +40,9 @@ public sealed partial class WeeklyTimetableView : UserControl
     private readonly List<Course> _courses = [];
     private readonly List<Lesson> _lessons = [];
     private List<SchoolSchedule> _schedules = [];
+
+    /// <summary>학교의 학년 수 (0 = 모름 → 학사일정 판정이 종전 기준으로 돈다)</summary>
+    private int _gradeCount;
 
     /// <summary>(날짜, 교시) → 변경</summary>
     private readonly Dictionary<(DateTime Date, int Period), LessonChange> _changes = [];
@@ -117,6 +120,9 @@ public sealed partial class WeeklyTimetableView : UserControl
         {
             using var repo = new SchoolScheduleRepository(SchoolDatabase.DbPath);
             _schedules = await repo.GetBySchoolYearAsync(schoolCode, _year);
+
+            // 학년 수를 알아야 "1·2학년만 수련회" 같은 날을 그 학년의 휴강 사유로 잡는다.
+            _gradeCount = await SchoolProfile.GetGradeCountAsync();
         }
         catch (Exception ex)
         {
@@ -188,7 +194,7 @@ public sealed partial class WeeklyTimetableView : UserControl
     private async void OnChangeListClick(object sender, RoutedEventArgs e)
     {
         var dialog = new Dialogs.LessonChangeDialog(_year, _semester) { XamlRoot = this.XamlRoot };
-        await dialog.ShowAsync();
+        await MessageBox.ShowDialogAsync(dialog);
 
         // 창에서 되돌린 변경이 표에도 반영돼야 한다.
         await RunAsync(ReloadAsync, "변경 목록 반영");
@@ -382,7 +388,7 @@ public sealed partial class WeeklyTimetableView : UserControl
             if (SchoolCalendar.IsNonTeachingDay(schedule))
                 return string.IsNullOrWhiteSpace(schedule.EVENT_NM) ? schedule.SBTR_DD_SC_NM : schedule.EVENT_NM;
 
-            if (SchoolCalendar.IsGradeOnlyEvent(schedule, _selectedCourse?.Grade ?? 0))
+            if (SchoolCalendar.IsGradeOnlyEvent(schedule, _selectedCourse?.Grade ?? 0, _gradeCount))
                 return schedule.EVENT_NM;
         }
 
@@ -742,7 +748,7 @@ public sealed partial class WeeklyTimetableView : UserControl
             XamlRoot = this.XamlRoot
         };
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await MessageBox.ShowDialogAsync(dialog) != ContentDialogResult.Primary) return;
 
         await RunAsync(
             () => SetSlotAsync(date, period, null, dialog.Subject, dialog.Room, dialog.Memo),

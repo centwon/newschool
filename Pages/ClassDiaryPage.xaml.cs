@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -326,7 +326,7 @@ public sealed partial class ClassDiaryPage : Page
             MaxHeight = 600
         };
 
-        await dialog.ShowAsync();
+        await MessageBox.ShowDialogAsync(dialog);
     }
 
     /// <summary>

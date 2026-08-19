@@ -249,7 +249,7 @@ public sealed partial class PageStudentInfo : Page, IDisposable
                 XamlRoot = this.XamlRoot
             };
 
-            var result = await optionsDialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(optionsDialog);
             if (result != ContentDialogResult.Primary)
                 return; // 취소됨
 
@@ -734,7 +734,7 @@ public sealed partial class PageStudentInfo : Page, IDisposable
             };
             dialog.SetPreviewData(importData);
 
-            var result = await dialog.ShowAsync();
+            var result = await MessageBox.ShowDialogAsync(dialog);
             if (result != ContentDialogResult.Primary)
                 return;
 

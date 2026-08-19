@@ -192,7 +192,7 @@ public sealed partial class ClassTimetableManagementPage : Page
         var dialog = new ClassTimetableEditDialog(schoolCode, year, semester, grade, classNo, _timetables);
         dialog.XamlRoot = this.XamlRoot;
 
-        var result = await dialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(dialog);
         if (result == ContentDialogResult.Primary)
         {
             await LoadTimetableAsync();

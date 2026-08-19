@@ -21,6 +21,14 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel MinWidth="600" Spacing="8">
 
+            <!-- 안내 — 대화상자 '안'에서 알린다.
+                 ContentDialog 가 열려 있는 동안 또 다른 ContentDialog(MessageBox)를 띄우면
+                 WinUI 가 막아서, 예전에는 "제목을 입력해주세요" 가 영영 뜨지 않았다. -->
+            <InfoBar x:Name="ErrorInfoBar"
+                     Severity="Error"
+                     IsOpen="False"
+                     IsClosable="True"/>
+
             <!-- 유형 선택: 할 일 / 일정 (RadioButton 탭 스타일) -->
             <Border Background="#F3F3F3" CornerRadius="8" Padding="4">
                 <StackPanel Orientation="Horizontal" Spacing="4">

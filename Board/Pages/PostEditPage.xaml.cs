@@ -336,7 +336,7 @@ public sealed partial class PostEditPage : Page
                 break;
         }
 
-        var result = await dialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(dialog);
         if (result == ContentDialogResult.Primary && !string.IsNullOrEmpty(dialog.GeneratedHtml))
         {
             // 에디터 캐럿 위치에 HTML 테이블 삽입 (네이티브 InsertHtml — JS escape 불필요)

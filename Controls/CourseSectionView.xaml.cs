@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -339,7 +339,7 @@ public sealed partial class CourseSectionView : UserControl
             XamlRoot = this.XamlRoot
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(dialog);
 
         if (result == ContentDialogResult.Primary)
         {
@@ -356,7 +356,7 @@ public sealed partial class CourseSectionView : UserControl
             XamlRoot = this.XamlRoot
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await MessageBox.ShowDialogAsync(dialog);
 
         if (result == ContentDialogResult.Primary)
         {
