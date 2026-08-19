@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -94,9 +94,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapTimetable(reader);
+                    return MapTimetable(reader, cache);
                 }
 
                 return null;
@@ -134,9 +136,11 @@ namespace NewSchool.Repositories
 
                 var timetables = new List<ClassTimetable>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    timetables.Add(MapTimetable(reader));
+                    timetables.Add(MapTimetable(reader, cache));
                 }
 
                 return timetables;
@@ -172,9 +176,11 @@ namespace NewSchool.Repositories
 
                 var timetables = new List<ClassTimetable>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    timetables.Add(MapTimetable(reader));
+                    timetables.Add(MapTimetable(reader, cache));
                 }
 
                 return timetables;
@@ -357,21 +363,21 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@Room", timetable.Room ?? string.Empty);
         }
 
-        private ClassTimetable MapTimetable(SqliteDataReader reader)
+        private ClassTimetable MapTimetable(SqliteDataReader reader, ReaderColumnCache cache)
         {
             return new ClassTimetable
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                SchoolCode = reader.GetString(reader.GetOrdinal("SchoolCode")),
-                Year = reader.GetInt32(reader.GetOrdinal("Year")),
-                Semester = reader.GetInt32(reader.GetOrdinal("Semester")),
-                Grade = reader.GetInt32(reader.GetOrdinal("Grade")),
-                Class = reader.GetInt32(reader.GetOrdinal("Class")),
-                DayOfWeek = reader.GetInt32(reader.GetOrdinal("DayOfWeek")),
-                Period = reader.GetInt32(reader.GetOrdinal("Period")),
-                SubjectName = reader.GetString(reader.GetOrdinal("SubjectName")),
-                TeacherName = reader.GetString(reader.GetOrdinal("TeacherName")),
-                Room = reader.GetString(reader.GetOrdinal("Room"))
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                SchoolCode = reader.GetString(cache.GetOrdinal("SchoolCode")),
+                Year = reader.GetInt32(cache.GetOrdinal("Year")),
+                Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
+                Grade = reader.GetInt32(cache.GetOrdinal("Grade")),
+                Class = reader.GetInt32(cache.GetOrdinal("Class")),
+                DayOfWeek = reader.GetInt32(cache.GetOrdinal("DayOfWeek")),
+                Period = reader.GetInt32(cache.GetOrdinal("Period")),
+                SubjectName = reader.GetString(cache.GetOrdinal("SubjectName")),
+                TeacherName = reader.GetString(cache.GetOrdinal("TeacherName")),
+                Room = reader.GetString(cache.GetOrdinal("Room"))
             };
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -76,9 +76,11 @@ public class CourseWeeklyHoursRepository : BaseRepository
 
             var map = new Dictionary<(string, int), CourseWeeklyHours>();
             using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
             while (await reader.ReadAsync())
             {
-                var row = Map(reader);
+                var row = Map(reader, cache);
                 map[(row.Room, row.Week)] = row;
             }
 
@@ -165,16 +167,16 @@ public class CourseWeeklyHoursRepository : BaseRepository
         }
     }
 
-    private static CourseWeeklyHours Map(SqliteDataReader reader)
+    private static CourseWeeklyHours Map(SqliteDataReader reader, ReaderColumnCache cache)
     {
         return new CourseWeeklyHours
         {
-            No = reader.GetInt32(reader.GetOrdinal("No")),
-            CourseNo = reader.GetInt32(reader.GetOrdinal("CourseNo")),
-            Room = reader.GetString(reader.GetOrdinal("Room")),
-            Week = reader.GetInt32(reader.GetOrdinal("Week")),
-            WeekStart = DateTimeHelper.FromDateString(reader.GetString(reader.GetOrdinal("WeekStartDate"))),
-            PlannedHours = reader.GetInt32(reader.GetOrdinal("PlannedHours"))
+            No = reader.GetInt32(cache.GetOrdinal("No")),
+            CourseNo = reader.GetInt32(cache.GetOrdinal("CourseNo")),
+            Room = reader.GetString(cache.GetOrdinal("Room")),
+            Week = reader.GetInt32(cache.GetOrdinal("Week")),
+            WeekStart = DateTimeHelper.FromDateString(reader.GetString(cache.GetOrdinal("WeekStartDate"))),
+            PlannedHours = reader.GetInt32(cache.GetOrdinal("PlannedHours"))
         };
     }
 }

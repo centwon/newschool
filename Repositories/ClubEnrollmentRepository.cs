@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -93,9 +93,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapEnrollment(reader);
+                    return MapEnrollment(reader, cache);
                 }
 
                 return null;
@@ -124,9 +126,11 @@ namespace NewSchool.Repositories
 
                 var enrollments = new List<ClubEnrollment>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    enrollments.Add(MapEnrollment(reader));
+                    enrollments.Add(MapEnrollment(reader, cache));
                 }
 
                 return enrollments;
@@ -155,9 +159,11 @@ namespace NewSchool.Repositories
 
                 var enrollments = new List<ClubEnrollment>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    enrollments.Add(MapEnrollment(reader));
+                    enrollments.Add(MapEnrollment(reader, cache));
                 }
 
                 return enrollments;
@@ -192,9 +198,11 @@ namespace NewSchool.Repositories
 
                 var enrollments = new List<ClubEnrollment>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    enrollments.Add(MapEnrollment(reader));
+                    enrollments.Add(MapEnrollment(reader, cache));
                 }
 
                 return enrollments;
@@ -371,19 +379,19 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@UpdatedAt", enrollment.UpdatedAt);
         }
 
-        private ClubEnrollment MapEnrollment(SqliteDataReader reader)
+        private ClubEnrollment MapEnrollment(SqliteDataReader reader, ReaderColumnCache cache)
         {
             return new ClubEnrollment
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                StudentID = reader.GetString(reader.GetOrdinal("StudentID")),
-                ClubNo = reader.GetInt32(reader.GetOrdinal("ClubNo")),
-                Status = reader.GetString(reader.GetOrdinal("Status")),
-                Remark = reader.IsDBNull(reader.GetOrdinal("Remark")) 
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                StudentID = reader.GetString(cache.GetOrdinal("StudentID")),
+                ClubNo = reader.GetInt32(cache.GetOrdinal("ClubNo")),
+                Status = reader.GetString(cache.GetOrdinal("Status")),
+                Remark = reader.IsDBNull(cache.GetOrdinal("Remark")) 
                     ? string.Empty 
-                    : reader.GetString(reader.GetOrdinal("Remark")),
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt")))
+                    : reader.GetString(cache.GetOrdinal("Remark")),
+                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
+                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt")))
             };
         }
 

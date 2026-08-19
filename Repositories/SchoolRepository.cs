@@ -72,9 +72,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapSchool(reader);
+                    return MapSchool(reader, cache);
                 }
 
                 LogWarning($"학교를 찾을 수 없음: No={no}");
@@ -100,9 +102,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapSchool(reader);
+                    return MapSchool(reader, cache);
                 }
 
                 LogWarning($"학교를 찾을 수 없음: SchoolCode={schoolCode}");
@@ -131,10 +135,12 @@ namespace NewSchool.Repositories
             {
                 using var cmd = CreateCommand(query);
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
 
                 while (await reader.ReadAsync())
                 {
-                    schools.Add(MapSchool(reader));
+                    schools.Add(MapSchool(reader, cache));
                 }
 
                 LogInfo($"활성 학교 목록 조회 완료: {schools.Count}개");
@@ -167,9 +173,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@ATPT_OFCDC_SC_CODE", atptCode);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    schools.Add(MapSchool(reader));
+                    schools.Add(MapSchool(reader, cache));
                 }
 
                 LogInfo($"시도교육청별 학교 조회 완료: Code={atptCode}, Count={schools.Count}");
@@ -202,9 +210,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@SchoolType", schoolType);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    schools.Add(MapSchool(reader));
+                    schools.Add(MapSchool(reader, cache));
                 }
 
                 LogInfo($"학교 종류별 조회 완료: Type={schoolType}, Count={schools.Count}");
@@ -236,9 +246,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    schools.Add(MapSchool(reader));
+                    schools.Add(MapSchool(reader, cache));
                 }
 
                 LogInfo($"학교 검색 완료: '{keyword}' - {schools.Count}개");
@@ -433,33 +445,33 @@ namespace NewSchool.Repositories
         /// <summary>
         /// SqliteDataReader를 School로 매핑
         /// </summary>
-        private School MapSchool(SqliteDataReader reader)
+        private School MapSchool(SqliteDataReader reader, ReaderColumnCache cache)
         {
             return new School
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                SchoolCode = reader.GetString(reader.GetOrdinal("SchoolCode")),
-                ATPT_OFCDC_SC_CODE = GetStringOrEmpty(reader, "ATPT_OFCDC_SC_CODE"),
-                ATPT_OFCDC_SC_NAME = GetStringOrEmpty(reader, "ATPT_OFCDC_SC_NAME"),
-                SchoolName = reader.GetString(reader.GetOrdinal("SchoolName")),
-                SchoolType = GetStringOrEmpty(reader, "SchoolType"),
-                FoundationDate = GetStringOrEmpty(reader, "FoundationDate"),
-                Address = GetStringOrEmpty(reader, "Address"),
-                Phone = GetStringOrEmpty(reader, "Phone"),
-                Fax = GetStringOrEmpty(reader, "Fax"),
-                Website = GetStringOrEmpty(reader, "Website"),
-                PrincipalName = GetStringOrEmpty(reader, "PrincipalName"),
-                Memo = GetStringOrEmpty(reader, "Memo"),
-                IsActive = reader.GetInt32(reader.GetOrdinal("IsActive")) == 1,
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt"))),
-                IsDeleted = reader.GetInt32(reader.GetOrdinal("IsDeleted")) == 1
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                SchoolCode = reader.GetString(cache.GetOrdinal("SchoolCode")),
+                ATPT_OFCDC_SC_CODE = GetStringOrEmpty(reader, cache, "ATPT_OFCDC_SC_CODE"),
+                ATPT_OFCDC_SC_NAME = GetStringOrEmpty(reader, cache, "ATPT_OFCDC_SC_NAME"),
+                SchoolName = reader.GetString(cache.GetOrdinal("SchoolName")),
+                SchoolType = GetStringOrEmpty(reader, cache, "SchoolType"),
+                FoundationDate = GetStringOrEmpty(reader, cache, "FoundationDate"),
+                Address = GetStringOrEmpty(reader, cache, "Address"),
+                Phone = GetStringOrEmpty(reader, cache, "Phone"),
+                Fax = GetStringOrEmpty(reader, cache, "Fax"),
+                Website = GetStringOrEmpty(reader, cache, "Website"),
+                PrincipalName = GetStringOrEmpty(reader, cache, "PrincipalName"),
+                Memo = GetStringOrEmpty(reader, cache, "Memo"),
+                IsActive = reader.GetInt32(cache.GetOrdinal("IsActive")) == 1,
+                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
+                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt"))),
+                IsDeleted = reader.GetInt32(cache.GetOrdinal("IsDeleted")) == 1
             };
         }
 
-        private string GetStringOrEmpty(SqliteDataReader reader, string columnName)
+        private string GetStringOrEmpty(SqliteDataReader reader, ReaderColumnCache cache, string columnName)
         {
-            int ordinal = reader.GetOrdinal(columnName);
+            int ordinal = cache.GetOrdinal(columnName);
             return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
         }
 

@@ -63,10 +63,13 @@ namespace NewSchool.Services
                 // 3. 각 Course의 Lesson(정기수업) 조회 및 배치
                 using var lessonRepo = new LessonRepository(_dbPath);
 
+                // N+1 해소: 과목마다 한 번씩 조회하던 것을 IN 절 한 방으로 바꿨다
+                //   (과목 12개면 쿼리 12회 → 1회). 필터 조건은 종전과 같다.
+                var lessonsByCourse = await lessonRepo.GetByCoursesAsync(courses.Select(c => c.No));
+
                 foreach (var course in courses)
                 {
-                    // 해당 Course의 정기 수업 조회
-                    var lessons = await lessonRepo.GetByCourseAsync(course.No);
+                    if (!lessonsByCourse.TryGetValue(course.No, out var lessons)) continue;
                     var recurringLessons = lessons.Where(l => l.IsRecurring).ToList();
 
                     foreach (var lesson in recurringLessons)

@@ -82,8 +82,24 @@ public sealed partial class LogListViewer : UserControl
         }
     }
 
-    private void ApplyContentFontSize()
+    /// <summary>
+    /// 글자 크기를 각 행 ViewModel 로 내려보낸다.
+    ///
+    /// <para><paramref name="added"/> 가 주어지면 그 행들만 손댄다. 예전에는 컬렉션이 바뀔 때마다
+    /// 목록 전체를 다시 돌았는데, 행을 하나씩 <c>Add</c> 로 채우는 화면에서는 N 번째 추가마다
+    /// N 개를 훑어 O(N²) 이 됐다(기록 200건이면 대입 2만 번).</para>
+    /// </summary>
+    private void ApplyContentFontSize(System.Collections.IList? added = null)
     {
+        if (added != null)
+        {
+            foreach (var item in added)
+            {
+                if (item is StudentLogViewModel vm) vm.ContentFontSize = _contentFontSize;
+            }
+            return;
+        }
+
         foreach (var item in Logs)
             item.ContentFontSize = _contentFontSize;
     }
@@ -123,7 +139,8 @@ public sealed partial class LogListViewer : UserControl
         LogItemsRepeater.ItemsSource = Logs;
 
         // 나중에 추가되는 행에도 현재 글자 크기가 적용되도록
-        Logs.CollectionChanged += (_, _) => ApplyContentFontSize();
+        // 추가된 행만 손댄다 — Reset(전체 교체)이면 e.NewItems 가 없으므로 전체를 다시 훑는다.
+        Logs.CollectionChanged += (_, e) => ApplyContentFontSize(e.NewItems);
 
         // 초기 모드 적용
         ApplyStudentInfoMode();

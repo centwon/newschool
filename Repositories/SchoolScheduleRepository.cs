@@ -165,9 +165,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapSchedule(reader);
+                    return MapSchedule(reader, cache);
                 }
 
                 LogWarning($"학사일정을 찾을 수 없음: No={no}");
@@ -201,9 +203,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@EndDate", endDate.ToString("yyyyMMdd"));
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    schedules.Add(MapSchedule(reader));
+                    schedules.Add(MapSchedule(reader, cache));
                 }
 
                 LogInfo($"학사일정 조회 완료: {schedules.Count}개 ({startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd})");
@@ -235,9 +239,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Year", schoolyear);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    schedules.Add(MapSchedule(reader));
+                    schedules.Add(MapSchedule(reader, cache));
                 }
 
                 LogInfo($"학사일정 조회 완료: {schedules.Count}개 (학교 {schoolCode}, 학년도 {schoolyear})");
@@ -468,33 +474,33 @@ namespace NewSchool.Repositories
         /// <summary>
         /// SqliteDataReader를 SchoolSchedule로 매핑
         /// </summary>
-        private SchoolSchedule MapSchedule(SqliteDataReader reader)
+        private SchoolSchedule MapSchedule(SqliteDataReader reader, ReaderColumnCache cache)
         {
-            var dateString = reader.GetString(reader.GetOrdinal("AA_YMD"));
+            var dateString = reader.GetString(cache.GetOrdinal("AA_YMD"));
 
             return new SchoolSchedule
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                ATPT_OFCDC_SC_CODE = reader.GetString(reader.GetOrdinal("ATPT_OFCDC_SC_CODE")),
-                ATPT_OFCDC_SC_NM = reader.GetString(reader.GetOrdinal("ATPT_OFCDC_SC_NM")),
-                SD_SCHUL_CODE = reader.GetString(reader.GetOrdinal("SD_SCHUL_CODE")),
-                SCHUL_NM = reader.GetString(reader.GetOrdinal("SCHUL_NM")),
-                AY = reader.GetInt32(reader.GetOrdinal("AY")),
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                ATPT_OFCDC_SC_CODE = reader.GetString(cache.GetOrdinal("ATPT_OFCDC_SC_CODE")),
+                ATPT_OFCDC_SC_NM = reader.GetString(cache.GetOrdinal("ATPT_OFCDC_SC_NM")),
+                SD_SCHUL_CODE = reader.GetString(cache.GetOrdinal("SD_SCHUL_CODE")),
+                SCHUL_NM = reader.GetString(cache.GetOrdinal("SCHUL_NM")),
+                AY = reader.GetInt32(cache.GetOrdinal("AY")),
                 AA_YMD = DateTime.ParseExact(dateString, "yyyyMMdd",
                     System.Globalization.CultureInfo.InvariantCulture),
-                EVENT_NM = reader.GetString(reader.GetOrdinal("EVENT_NM")),
-                EVENT_CNTNT = reader.GetString(reader.GetOrdinal("EVENT_CNTNT")),
-                ONE_GRADE_EVENT_YN = reader.GetInt32(reader.GetOrdinal("ONE_GRADE_EVENT_YN")) == 1,
-                TW_GRADE_EVENT_YN = reader.GetInt32(reader.GetOrdinal("TW_GRADE_EVENT_YN")) == 1,
-                THREE_GRADE_EVENT_YN = reader.GetInt32(reader.GetOrdinal("THREE_GRADE_EVENT_YN")) == 1,
-                FR_GRADE_EVENT_YN = reader.GetInt32(reader.GetOrdinal("FR_GRADE_EVENT_YN")) == 1,
-                FIV_GRADE_EVENT_YN = reader.GetInt32(reader.GetOrdinal("FIV_GRADE_EVENT_YN")) == 1,
-                SIX_GRADE_EVENT_YN = reader.GetInt32(reader.GetOrdinal("SIX_GRADE_EVENT_YN")) == 1,
-                SBTR_DD_SC_NM = reader.GetString(reader.GetOrdinal("SBTR_DD_SC_NM")),
-                IsManual = reader.GetInt32(reader.GetOrdinal("IsManual")) == 1,
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt"))),
-                IsDeleted = reader.GetInt32(reader.GetOrdinal("IsDeleted")) == 1
+                EVENT_NM = reader.GetString(cache.GetOrdinal("EVENT_NM")),
+                EVENT_CNTNT = reader.GetString(cache.GetOrdinal("EVENT_CNTNT")),
+                ONE_GRADE_EVENT_YN = reader.GetInt32(cache.GetOrdinal("ONE_GRADE_EVENT_YN")) == 1,
+                TW_GRADE_EVENT_YN = reader.GetInt32(cache.GetOrdinal("TW_GRADE_EVENT_YN")) == 1,
+                THREE_GRADE_EVENT_YN = reader.GetInt32(cache.GetOrdinal("THREE_GRADE_EVENT_YN")) == 1,
+                FR_GRADE_EVENT_YN = reader.GetInt32(cache.GetOrdinal("FR_GRADE_EVENT_YN")) == 1,
+                FIV_GRADE_EVENT_YN = reader.GetInt32(cache.GetOrdinal("FIV_GRADE_EVENT_YN")) == 1,
+                SIX_GRADE_EVENT_YN = reader.GetInt32(cache.GetOrdinal("SIX_GRADE_EVENT_YN")) == 1,
+                SBTR_DD_SC_NM = reader.GetString(cache.GetOrdinal("SBTR_DD_SC_NM")),
+                IsManual = reader.GetInt32(cache.GetOrdinal("IsManual")) == 1,
+                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
+                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt"))),
+                IsDeleted = reader.GetInt32(cache.GetOrdinal("IsDeleted")) == 1
             };
         }
 

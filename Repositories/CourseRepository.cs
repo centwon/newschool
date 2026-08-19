@@ -71,9 +71,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapCourse(reader);
+                    return MapCourse(reader, cache);
                 }
 
                 return null;
@@ -99,6 +101,8 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@TeacherID", teacherId);
                 var years = new List<int>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
                     years.Add(reader.GetInt32(0));
@@ -134,9 +138,11 @@ namespace NewSchool.Repositories
 
                 var courses = new List<Course>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    courses.Add(MapCourse(reader));
+                    courses.Add(MapCourse(reader, cache));
                 }
 
                 return courses;
@@ -169,9 +175,11 @@ namespace NewSchool.Repositories
 
                 var courses = new List<Course>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    courses.Add(MapCourse(reader));
+                    courses.Add(MapCourse(reader, cache));
                 }
 
                 return courses;
@@ -207,9 +215,11 @@ namespace NewSchool.Repositories
 
                 var courses = new List<Course>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    courses.Add(MapCourse(reader));
+                    courses.Add(MapCourse(reader, cache));
                 }
 
                 return courses;
@@ -242,9 +252,11 @@ namespace NewSchool.Repositories
 
                 var courses = new List<Course>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    courses.Add(MapCourse(reader));
+                    courses.Add(MapCourse(reader, cache));
                 }
 
                 return courses;
@@ -353,21 +365,21 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@Remark", course.Remark ?? string.Empty);
         }
 
-        private Course MapCourse(SqliteDataReader reader)
+        private Course MapCourse(SqliteDataReader reader, ReaderColumnCache cache)
         {
             return new Course
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                SchoolCode = reader.GetString(reader.GetOrdinal("SchoolCode")),
-                TeacherID = reader.GetString(reader.GetOrdinal("TeacherID")),
-                Year = reader.GetInt32(reader.GetOrdinal("Year")),
-                Semester = reader.GetInt32(reader.GetOrdinal("Semester")),
-                Grade = reader.GetInt32(reader.GetOrdinal("Grade")),
-                Subject = reader.GetString(reader.GetOrdinal("Subject")),
-                Unit = reader.GetInt32(reader.GetOrdinal("Unit")),
-                Type = reader.GetString(reader.GetOrdinal("Type")),
-                Rooms = reader.IsDBNull(reader.GetOrdinal("Rooms")) ? string.Empty : reader.GetString(reader.GetOrdinal("Rooms")),
-                Remark = reader.GetString(reader.GetOrdinal("Remark"))
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                SchoolCode = reader.GetString(cache.GetOrdinal("SchoolCode")),
+                TeacherID = reader.GetString(cache.GetOrdinal("TeacherID")),
+                Year = reader.GetInt32(cache.GetOrdinal("Year")),
+                Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
+                Grade = reader.GetInt32(cache.GetOrdinal("Grade")),
+                Subject = reader.GetString(cache.GetOrdinal("Subject")),
+                Unit = reader.GetInt32(cache.GetOrdinal("Unit")),
+                Type = reader.GetString(cache.GetOrdinal("Type")),
+                Rooms = reader.IsDBNull(cache.GetOrdinal("Rooms")) ? string.Empty : reader.GetString(cache.GetOrdinal("Rooms")),
+                Remark = reader.GetString(cache.GetOrdinal("Remark"))
             };
         }
 

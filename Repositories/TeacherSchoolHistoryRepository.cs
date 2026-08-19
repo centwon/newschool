@@ -66,9 +66,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapHistory(reader);
+                    return MapHistory(reader, cache);
                 }
 
                 LogWarning($"교사 근무이력을 찾을 수 없음: No={no}");
@@ -99,9 +101,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@TeacherID", teacherId);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    histories.Add(MapHistory(reader));
+                    histories.Add(MapHistory(reader, cache));
                 }
 
                 LogInfo($"교사 근무이력 조회 완료: TeacherID={teacherId}, Count={histories.Count}");
@@ -130,9 +134,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@TeacherID", teacherId);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapHistory(reader);
+                    return MapHistory(reader, cache);
                 }
 
                 LogWarning($"현재 근무이력을 찾을 수 없음: TeacherID={teacherId}");
@@ -163,9 +169,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    histories.Add(MapHistory(reader));
+                    histories.Add(MapHistory(reader, cache));
                 }
 
                 LogInfo($"학교별 현재 근무이력 조회 완료: SchoolCode={schoolCode}, Count={histories.Count}");
@@ -196,9 +204,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    histories.Add(MapHistory(reader));
+                    histories.Add(MapHistory(reader, cache));
                 }
 
                 LogInfo($"학교별 전체 근무이력 조회 완료: SchoolCode={schoolCode}, Count={histories.Count}");
@@ -376,27 +386,27 @@ namespace NewSchool.Repositories
         /// <summary>
         /// SqliteDataReader를 TeacherSchoolHistory로 매핑
         /// </summary>
-        private TeacherSchoolHistory MapHistory(SqliteDataReader reader)
+        private TeacherSchoolHistory MapHistory(SqliteDataReader reader, ReaderColumnCache cache)
         {
             return new TeacherSchoolHistory
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                TeacherID = reader.GetString(reader.GetOrdinal("TeacherID")),
-                SchoolCode = reader.GetString(reader.GetOrdinal("SchoolCode")),
-                StartDate = reader.GetString(reader.GetOrdinal("StartDate")),
-                EndDate = GetStringOrEmpty(reader, "EndDate"),
-                IsCurrent = reader.GetInt32(reader.GetOrdinal("IsCurrent")) == 1,
-                Position = GetStringOrEmpty(reader, "Position"),
-                Role = GetStringOrEmpty(reader, "Role"),
-                Memo = GetStringOrEmpty(reader, "Memo"),
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt")))
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                TeacherID = reader.GetString(cache.GetOrdinal("TeacherID")),
+                SchoolCode = reader.GetString(cache.GetOrdinal("SchoolCode")),
+                StartDate = reader.GetString(cache.GetOrdinal("StartDate")),
+                EndDate = GetStringOrEmpty(reader, cache, "EndDate"),
+                IsCurrent = reader.GetInt32(cache.GetOrdinal("IsCurrent")) == 1,
+                Position = GetStringOrEmpty(reader, cache, "Position"),
+                Role = GetStringOrEmpty(reader, cache, "Role"),
+                Memo = GetStringOrEmpty(reader, cache, "Memo"),
+                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
+                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt")))
             };
         }
 
-        private string GetStringOrEmpty(SqliteDataReader reader, string columnName)
+        private string GetStringOrEmpty(SqliteDataReader reader, ReaderColumnCache cache, string columnName)
         {
-            int ordinal = reader.GetOrdinal(columnName);
+            int ordinal = cache.GetOrdinal(columnName);
             return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
         }
 

@@ -69,9 +69,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapDiary(reader);
+                    return MapDiary(reader, cache);
                 }
 
                 LogWarning($"학급 일지를 찾을 수 없음: No={no}");
@@ -107,9 +109,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Date", date.ToString("yyyy-MM-dd"));
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapDiary(reader);
+                    return MapDiary(reader, cache);
                 }
 
                 LogDebug($"학급 일지 없음: {date:yyyy-MM-dd}, {grade}학년 {classNum}반");
@@ -146,9 +150,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Class", classNum);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    diaries.Add(MapDiary(reader));
+                    diaries.Add(MapDiary(reader, cache));
                 }
 
                 LogInfo($"학급 일지 조회: {grade}학년 {classNum}반 - {diaries.Count}건");
@@ -189,9 +195,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@YearMonth", $"{year:D4}-{month:D2}");
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    diaries.Add(MapDiary(reader));
+                    diaries.Add(MapDiary(reader, cache));
                 }
 
                 LogInfo($"월별 일지 조회: {year}년 {month}월 {grade}학년 {classNum}반 - {diaries.Count}건");
@@ -235,9 +243,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@EndDate", endDate.ToString("yyyy-MM-dd"));
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    diaries.Add(MapDiary(reader));
+                    diaries.Add(MapDiary(reader, cache));
                 }
 
                 LogInfo($"기간별 일지 조회: {startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd} - {diaries.Count}건");
@@ -275,9 +285,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Class", classNum);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapDiary(reader);
+                    return MapDiary(reader, cache);
                 }
 
                 LogDebug($"최근 일지 없음: {grade}학년 {classNum}반");
@@ -318,9 +330,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    diaries.Add(MapDiary(reader));
+                    diaries.Add(MapDiary(reader, cache));
                 }
 
                 LogInfo($"일지 검색: '{keyword}' - {diaries.Count}건");
@@ -523,34 +537,34 @@ namespace NewSchool.Repositories
         /// <summary>
         /// SqliteDataReader를 ClassDiary로 매핑
         /// </summary>
-        private ClassDiary MapDiary(SqliteDataReader reader)
+        private ClassDiary MapDiary(SqliteDataReader reader, ReaderColumnCache cache)
         {
             return new ClassDiary
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                SchoolCode = reader.GetString(reader.GetOrdinal("SchoolCode")),
-                TeacherID = reader.IsDBNull(reader.GetOrdinal("TeacherID")) ? string.Empty : reader.GetString(reader.GetOrdinal("TeacherID")),
-                Year = reader.GetInt32(reader.GetOrdinal("Year")),
-                Semester = reader.GetInt32(reader.GetOrdinal("Semester")),
-                Date = DateTime.Parse(reader.GetString(reader.GetOrdinal("Date"))),
-                Grade = reader.GetInt32(reader.GetOrdinal("Grade")),
-                Class = reader.GetInt32(reader.GetOrdinal("Class")),
-                Absent = reader.GetString(reader.GetOrdinal("Absent")),
-                Late = reader.GetString(reader.GetOrdinal("Late")),
-                LeaveEarly = reader.GetString(reader.GetOrdinal("LeaveEarly")),
-                Memo = reader.GetString(reader.GetOrdinal("Memo")),
-                Notice = reader.GetString(reader.GetOrdinal("Notice")),
-                Life = reader.GetString(reader.GetOrdinal("Life")),
-                CreatedAt = GetDateTimeSafe(reader, "CreatedAt"),
-                UpdatedAt = GetDateTimeSafe(reader, "UpdatedAt")
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                SchoolCode = reader.GetString(cache.GetOrdinal("SchoolCode")),
+                TeacherID = reader.IsDBNull(cache.GetOrdinal("TeacherID")) ? string.Empty : reader.GetString(cache.GetOrdinal("TeacherID")),
+                Year = reader.GetInt32(cache.GetOrdinal("Year")),
+                Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
+                Date = DateTime.Parse(reader.GetString(cache.GetOrdinal("Date"))),
+                Grade = reader.GetInt32(cache.GetOrdinal("Grade")),
+                Class = reader.GetInt32(cache.GetOrdinal("Class")),
+                Absent = reader.GetString(cache.GetOrdinal("Absent")),
+                Late = reader.GetString(cache.GetOrdinal("Late")),
+                LeaveEarly = reader.GetString(cache.GetOrdinal("LeaveEarly")),
+                Memo = reader.GetString(cache.GetOrdinal("Memo")),
+                Notice = reader.GetString(cache.GetOrdinal("Notice")),
+                Life = reader.GetString(cache.GetOrdinal("Life")),
+                CreatedAt = GetDateTimeSafe(reader, cache, "CreatedAt"),
+                UpdatedAt = GetDateTimeSafe(reader, cache, "UpdatedAt")
             };
         }
 
-        private static DateTime GetDateTimeSafe(SqliteDataReader reader, string column)
+        private static DateTime GetDateTimeSafe(SqliteDataReader reader, ReaderColumnCache cache, string column)
         {
             try
             {
-                var ordinal = reader.GetOrdinal(column);
+                var ordinal = cache.GetOrdinal(column);
                 if (reader.IsDBNull(ordinal)) return DateTime.Now;
                 var str = reader.GetString(ordinal);
                 return DateTime.TryParse(str, out var dt) ? dt : DateTime.Now;

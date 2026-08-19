@@ -501,7 +501,10 @@ namespace NewSchool.Board
             {
                 DataSource = dbPath,
                 Mode = SqliteOpenMode.ReadWriteCreate,
-                Cache = SqliteCacheMode.Shared,
+                // Cache=Shared 를 쓰지 않는다(기본값 Private). WAL 위에 공유 캐시를 얹으면
+                // 같은 프로세스의 연결들 사이에 테이블 락이 생겨 WAL 이 주는 읽기/쓰기 동시성이
+                // 깎이고, 그 락은 SQLITE_BUSY 가 아니라 SQLITE_LOCKED 로 즉시 실패해
+                // 아래 busy_timeout 도 듣지 않는다.
                 Pooling = true
             }.ToString();
         }

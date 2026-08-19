@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -87,9 +87,11 @@ public class LessonChangeRepository : BaseRepository
 
             var map = new Dictionary<int, LessonChange>();
             using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
             while (await reader.ReadAsync())
             {
-                var change = Map(reader);
+                var change = Map(reader, cache);
                 map[change.Period] = change;
             }
 
@@ -125,8 +127,10 @@ public class LessonChangeRepository : BaseRepository
 
             var list = new List<LessonChange>();
             using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
             while (await reader.ReadAsync())
-                list.Add(Map(reader));
+                list.Add(Map(reader, cache));
 
             return list;
         }
@@ -225,29 +229,29 @@ public class LessonChangeRepository : BaseRepository
 
     #endregion
 
-    private static LessonChange Map(SqliteDataReader reader)
+    private static LessonChange Map(SqliteDataReader reader, ReaderColumnCache cache)
     {
-        int courseOrdinal = reader.GetOrdinal("CourseNo");
+        int courseOrdinal = cache.GetOrdinal("CourseNo");
 
         return new LessonChange
         {
-            No = reader.GetInt32(reader.GetOrdinal("No")),
-            TeacherID = reader.GetString(reader.GetOrdinal("TeacherID")),
-            Year = reader.GetInt32(reader.GetOrdinal("Year")),
-            Semester = reader.GetInt32(reader.GetOrdinal("Semester")),
-            Date = DateTimeHelper.FromDateString(reader.GetString(reader.GetOrdinal("Date"))),
-            Period = reader.GetInt32(reader.GetOrdinal("Period")),
+            No = reader.GetInt32(cache.GetOrdinal("No")),
+            TeacherID = reader.GetString(cache.GetOrdinal("TeacherID")),
+            Year = reader.GetInt32(cache.GetOrdinal("Year")),
+            Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
+            Date = DateTimeHelper.FromDateString(reader.GetString(cache.GetOrdinal("Date"))),
+            Period = reader.GetInt32(cache.GetOrdinal("Period")),
             CourseNo = reader.IsDBNull(courseOrdinal) ? null : reader.GetInt32(courseOrdinal),
-            SubjectText = Text(reader, "SubjectText"),
-            Room = Text(reader, "Room"),
-            Memo = Text(reader, "Memo"),
-            CourseSubject = Text(reader, "CourseSubject")
+            SubjectText = Text(reader, cache, "SubjectText"),
+            Room = Text(reader, cache, "Room"),
+            Memo = Text(reader, cache, "Memo"),
+            CourseSubject = Text(reader, cache, "CourseSubject")
         };
     }
 
-    private static string Text(SqliteDataReader reader, string column)
+    private static string Text(SqliteDataReader reader, ReaderColumnCache cache, string column)
     {
-        int ordinal = reader.GetOrdinal(column);
+        int ordinal = cache.GetOrdinal(column);
         return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
     }
 }

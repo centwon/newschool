@@ -69,9 +69,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapTeacher(reader);
+                    return MapTeacher(reader, cache);
                 }
 
                 LogWarning($"교사를 찾을 수 없음: No={no}");
@@ -80,6 +82,44 @@ namespace NewSchool.Repositories
             catch (Exception ex)
             {
                 LogError($"교사 조회 실패: No={no}", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 여러 교사를 한 번에 조회한다 (TeacherID → Teacher).
+        /// <see cref="GetByTeacherIdAsync"/> 를 루프로 돌면 교사 수만큼 쿼리가 나간다.
+        /// 필터 조건(<c>IsDeleted = 0</c>)은 같다.
+        /// </summary>
+        public async Task<Dictionary<string, Teacher>> GetByTeacherIdsAsync(IEnumerable<string> teacherIds)
+        {
+            var ids = teacherIds?.Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList()
+                      ?? new List<string>();
+            var result = new Dictionary<string, Teacher>(StringComparer.Ordinal);
+            if (ids.Count == 0) return result;
+
+            var placeholders = string.Join(",", ids.Select((_, i) => $"@t{i}"));
+            string query = $"SELECT * FROM Teacher WHERE TeacherID IN ({placeholders}) AND IsDeleted = 0";
+
+            try
+            {
+                using var cmd = CreateCommand(query);
+                for (int i = 0; i < ids.Count; i++)
+                    cmd.Parameters.AddWithValue($"@t{i}", ids[i]);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+                while (await reader.ReadAsync())
+                {
+                    var teacher = MapTeacher(reader, cache);
+                    if (!string.IsNullOrEmpty(teacher.TeacherID)) result[teacher.TeacherID] = teacher;
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                LogError($"교사 일괄 조회 실패: {ids.Count}건", ex);
                 throw;
             }
         }
@@ -97,9 +137,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@TeacherID", teacherId);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapTeacher(reader);
+                    return MapTeacher(reader, cache);
                 }
 
                 LogWarning($"교사를 찾을 수 없음: TeacherID={teacherId}");
@@ -125,9 +167,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@LoginID", loginId);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapTeacher(reader);
+                    return MapTeacher(reader, cache);
                 }
 
                 LogWarning($"교사를 찾을 수 없음: LoginID={loginId}");
@@ -156,10 +200,12 @@ namespace NewSchool.Repositories
             {
                 using var cmd = CreateCommand(query);
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
 
                 while (await reader.ReadAsync())
                 {
-                    teachers.Add(MapTeacher(reader));
+                    teachers.Add(MapTeacher(reader, cache));
                 }
 
                 LogInfo($"활성 교사 목록 조회 완료: {teachers.Count}명");
@@ -190,9 +236,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Status", status);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    teachers.Add(MapTeacher(reader));
+                    teachers.Add(MapTeacher(reader, cache));
                 }
 
                 LogInfo($"상태별 교사 조회 완료: Status={status}, Count={teachers.Count}");
@@ -225,9 +273,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Subject", $"%{subject}%");
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    teachers.Add(MapTeacher(reader));
+                    teachers.Add(MapTeacher(reader, cache));
                 }
 
                 LogInfo($"과목별 교사 조회 완료: Subject={subject}, Count={teachers.Count}");
@@ -259,9 +309,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    teachers.Add(MapTeacher(reader));
+                    teachers.Add(MapTeacher(reader, cache));
                 }
 
                 LogInfo($"교사 검색 완료: '{keyword}' - {teachers.Count}명");
@@ -299,9 +351,11 @@ namespace NewSchool.Repositories
                 }
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    teachers.Add(MapTeacher(reader));
+                    teachers.Add(MapTeacher(reader, cache));
                 }
 
                 LogInfo($"교사 일괄 조회 완료: {teachers.Count}명");
@@ -466,35 +520,35 @@ namespace NewSchool.Repositories
         /// <summary>
         /// SqliteDataReader를 Teacher로 매핑
         /// </summary>
-        private Teacher MapTeacher(SqliteDataReader reader)
+        private Teacher MapTeacher(SqliteDataReader reader, ReaderColumnCache cache)
         {
             return new Teacher
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                TeacherID = reader.GetString(reader.GetOrdinal("TeacherID")),
-                LoginID = reader.GetString(reader.GetOrdinal("LoginID")),
-                Name = reader.GetString(reader.GetOrdinal("Name")),
-                Status = reader.GetString(reader.GetOrdinal("Status")),
-                Position = GetStringOrEmpty(reader, "Position"),
-                Subject = GetStringOrEmpty(reader, "Subject"),
-                Phone = GetStringOrEmpty(reader, "Phone"),
-                Email = GetStringOrEmpty(reader, "Email"),
-                BirthDate = GetStringOrEmpty(reader, "BirthDate"),
-                HireDate = GetStringOrEmpty(reader, "HireDate"),
-                Photo = GetStringOrEmpty(reader, "Photo"),
-                Memo = GetStringOrEmpty(reader, "Memo"),
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt"))),
-                LastLoginAt = reader.IsDBNull(reader.GetOrdinal("LastLoginAt"))
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                TeacherID = reader.GetString(cache.GetOrdinal("TeacherID")),
+                LoginID = reader.GetString(cache.GetOrdinal("LoginID")),
+                Name = reader.GetString(cache.GetOrdinal("Name")),
+                Status = reader.GetString(cache.GetOrdinal("Status")),
+                Position = GetStringOrEmpty(reader, cache, "Position"),
+                Subject = GetStringOrEmpty(reader, cache, "Subject"),
+                Phone = GetStringOrEmpty(reader, cache, "Phone"),
+                Email = GetStringOrEmpty(reader, cache, "Email"),
+                BirthDate = GetStringOrEmpty(reader, cache, "BirthDate"),
+                HireDate = GetStringOrEmpty(reader, cache, "HireDate"),
+                Photo = GetStringOrEmpty(reader, cache, "Photo"),
+                Memo = GetStringOrEmpty(reader, cache, "Memo"),
+                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
+                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt"))),
+                LastLoginAt = reader.IsDBNull(cache.GetOrdinal("LastLoginAt"))
                     ? null
-                    : DateTime.Parse(reader.GetString(reader.GetOrdinal("LastLoginAt"))),
-                IsDeleted = reader.GetInt32(reader.GetOrdinal("IsDeleted")) == 1
+                    : DateTime.Parse(reader.GetString(cache.GetOrdinal("LastLoginAt"))),
+                IsDeleted = reader.GetInt32(cache.GetOrdinal("IsDeleted")) == 1
             };
         }
 
-        private string GetStringOrEmpty(SqliteDataReader reader, string columnName)
+        private string GetStringOrEmpty(SqliteDataReader reader, ReaderColumnCache cache, string columnName)
         {
-            int ordinal = reader.GetOrdinal(columnName);
+            int ordinal = cache.GetOrdinal(columnName);
             return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
         }
 

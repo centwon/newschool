@@ -76,9 +76,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapStudentDetail(reader);
+                    return MapStudentDetail(reader, cache);
                 }
 
                 LogWarning($"학생 상세정보를 찾을 수 없음: StudentID={studentId}");
@@ -104,9 +106,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapStudentDetail(reader);
+                    return MapStudentDetail(reader, cache);
                 }
 
                 LogWarning($"학생 상세정보를 찾을 수 없음: No={no}");
@@ -140,9 +144,11 @@ namespace NewSchool.Repositories
 
                 var results = new List<StudentDetail>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    results.Add(MapStudentDetail(reader));
+                    results.Add(MapStudentDetail(reader, cache));
                 }
 
                 return results;
@@ -314,38 +320,38 @@ namespace NewSchool.Repositories
         /// <summary>
         /// SqliteDataReader를 StudentDetail로 매핑
         /// </summary>
-        private StudentDetail MapStudentDetail(SqliteDataReader reader)
+        private StudentDetail MapStudentDetail(SqliteDataReader reader, ReaderColumnCache cache)
         {
             return new StudentDetail
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                StudentID = reader.GetString(reader.GetOrdinal("StudentID")),
-                FatherName = GetStringOrEmpty(reader, "FatherName"),
-                FatherPhone = GetStringOrEmpty(reader, "FatherPhone"),
-                FatherJob = GetStringOrEmpty(reader, "FatherJob"),
-                MotherName = GetStringOrEmpty(reader, "MotherName"),
-                MotherPhone = GetStringOrEmpty(reader, "MotherPhone"),
-                MotherJob = GetStringOrEmpty(reader, "MotherJob"),
-                GuardianName = GetStringOrEmpty(reader, "GuardianName"),
-                GuardianPhone = GetStringOrEmpty(reader, "GuardianPhone"),
-                GuardianRelation = GetStringOrEmpty(reader, "GuardianRelation"),
-                FamilyInfo = GetStringOrEmpty(reader, "FamilyInfo"),
-                Friends = GetStringOrEmpty(reader, "Friends"),
-                Interests = GetStringOrEmpty(reader, "Interests"),
-                Talents = GetStringOrEmpty(reader, "Talents"),
-                CareerGoal = GetStringOrEmpty(reader, "CareerGoal"),
-                HealthInfo = GetStringOrEmpty(reader, "HealthInfo"),
-                Allergies = GetStringOrEmpty(reader, "Allergies"),
-                SpecialNeeds = GetStringOrEmpty(reader, "SpecialNeeds"),
-                Memo = GetStringOrEmpty(reader, "Memo"),
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt")))
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                StudentID = reader.GetString(cache.GetOrdinal("StudentID")),
+                FatherName = GetStringOrEmpty(reader, cache, "FatherName"),
+                FatherPhone = GetStringOrEmpty(reader, cache, "FatherPhone"),
+                FatherJob = GetStringOrEmpty(reader, cache, "FatherJob"),
+                MotherName = GetStringOrEmpty(reader, cache, "MotherName"),
+                MotherPhone = GetStringOrEmpty(reader, cache, "MotherPhone"),
+                MotherJob = GetStringOrEmpty(reader, cache, "MotherJob"),
+                GuardianName = GetStringOrEmpty(reader, cache, "GuardianName"),
+                GuardianPhone = GetStringOrEmpty(reader, cache, "GuardianPhone"),
+                GuardianRelation = GetStringOrEmpty(reader, cache, "GuardianRelation"),
+                FamilyInfo = GetStringOrEmpty(reader, cache, "FamilyInfo"),
+                Friends = GetStringOrEmpty(reader, cache, "Friends"),
+                Interests = GetStringOrEmpty(reader, cache, "Interests"),
+                Talents = GetStringOrEmpty(reader, cache, "Talents"),
+                CareerGoal = GetStringOrEmpty(reader, cache, "CareerGoal"),
+                HealthInfo = GetStringOrEmpty(reader, cache, "HealthInfo"),
+                Allergies = GetStringOrEmpty(reader, cache, "Allergies"),
+                SpecialNeeds = GetStringOrEmpty(reader, cache, "SpecialNeeds"),
+                Memo = GetStringOrEmpty(reader, cache, "Memo"),
+                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
+                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt")))
             };
         }
 
-        private string GetStringOrEmpty(SqliteDataReader reader, string columnName)
+        private string GetStringOrEmpty(SqliteDataReader reader, ReaderColumnCache cache, string columnName)
         {
-            int ordinal = reader.GetOrdinal(columnName);
+            int ordinal = cache.GetOrdinal(columnName);
             return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
         }
 

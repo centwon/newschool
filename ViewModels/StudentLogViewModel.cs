@@ -17,13 +17,9 @@ namespace NewSchool.ViewModels
     /// StudentLog + Student 정보 조합
     /// LogListViewer 컨트롤에서 사용
     /// </summary>
-    public sealed class StudentLogViewModel : INotifyPropertyChanged, IDisposable
+    public sealed class StudentLogViewModel : INotifyPropertyChanged
     {
         #region Fields
-
-        private readonly StudentLogService _logService;
-        private readonly EnrollmentService _enrollmentService;
-        private readonly StudentService _studentService;
 
         private bool _isSelected;
         private double _contentFontSize = DefaultContentFontSize;
@@ -41,9 +37,6 @@ namespace NewSchool.ViewModels
         /// </summary>
         public StudentLogViewModel(string studentId)
         {
-            _logService = new StudentLogService();
-            _enrollmentService = new EnrollmentService();
-            _studentService = new StudentService(SchoolDatabase.DbPath);
             _studentlog = new StudentLog() { StudentID = studentId };
         }
 
@@ -52,9 +45,6 @@ namespace NewSchool.ViewModels
         /// </summary>
         public StudentLogViewModel(StudentLog log)
         {
-            _logService = new StudentLogService();
-            _enrollmentService = new EnrollmentService();
-            _studentService = new StudentService(SchoolDatabase.DbPath);
             _studentlog = log ?? new StudentLog();
         }
 
@@ -139,15 +129,25 @@ namespace NewSchool.ViewModels
         }
 
         /// <summary>
-        /// 비동기 초기화
+        /// 비동기 초기화.
+        ///
+        /// <para>서비스는 이 메서드 안에서만 열고 바로 닫는다. 예전에는 생성자가
+        /// <c>StudentLogService</c>·<c>EnrollmentService</c>·<c>StudentService</c> 를 필드로 들고 있었는데,
+        /// 이 ViewModel 은 기록 <b>한 줄마다</b> 만들어지므로(<c>logs.Select(l => new StudentLogViewModel(l))</c>)
+        /// 목록을 한 번 여는 것만으로 SQLite 연결이 기록 수 × 3 개 열렸다. 게다가
+        /// <c>_logService</c> 는 어디서도 쓰이지 않았다. 목록 경로는 <see cref="CreateManyAsync"/> 가
+        /// 배치 조회로 처리하므로 대부분의 인스턴스는 연결을 하나도 열지 않는다.</para>
         /// </summary>
         public async Task InitializeAsync()
         {
             IsLoading = true;
             try
             {
-                _enrollment = await _enrollmentService.GetCurrentEnrollmentAsync(_studentlog.StudentID);
-                _student = await _studentService.GetBasicInfoAsync(_studentlog.StudentID);
+                using var enrollmentService = new EnrollmentService();
+                using var studentService = new StudentService(SchoolDatabase.DbPath);
+
+                _enrollment = await enrollmentService.GetCurrentEnrollmentAsync(_studentlog.StudentID);
+                _student = await studentService.GetBasicInfoAsync(_studentlog.StudentID);
 
                 // 학생 정보 로드 완료 알림
                 OnPropertyChanged(nameof(Grade));
@@ -747,17 +747,6 @@ namespace NewSchool.ViewModels
             OnPropertyChanged(nameof(SkillDeveloped));
             OnPropertyChanged(nameof(StrengthShown));
             OnPropertyChanged(nameof(ResultOrOutcome));
-        }
-
-        #endregion
-
-        #region IDisposable
-
-        public void Dispose()
-        {
-            _logService?.Dispose();
-            _enrollmentService?.Dispose();
-            _studentService?.Dispose();
         }
 
         #endregion

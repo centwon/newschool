@@ -80,6 +80,8 @@ namespace NewSchool.Repositories
                     cmd.Parameters.AddWithValue("@SchoolCode", schoolcode);
                 }
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
                     years.Add(reader.GetInt32(0));
@@ -130,6 +132,8 @@ namespace NewSchool.Repositories
                     cmd.Parameters.AddWithValue("@Year", year.Value);
                 }
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
                     grades.Add(reader.GetInt32(0));
@@ -192,9 +196,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@StudentID", studentId);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapEnrollment(reader);
+                    return MapEnrollment(reader, cache);
                 }
 
                 LogWarning($"현재 학적을 찾을 수 없음: StudentID={studentId}");
@@ -233,9 +239,11 @@ namespace NewSchool.Repositories
                 var seen = new HashSet<string>();
                 var results = new List<Enrollment>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    var enrollment = MapEnrollment(reader);
+                    var enrollment = MapEnrollment(reader, cache);
                     if (seen.Add(enrollment.StudentID))
                         results.Add(enrollment);
                 }
@@ -524,6 +532,8 @@ namespace NewSchool.Repositories
                     cmd.Parameters.AddWithValue("@Grade", grade);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
                     classList.Add(reader.GetInt32(0));
@@ -566,6 +576,8 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@Semester", semester);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
                     int grade = reader.GetInt32(0);
@@ -897,43 +909,9 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@IsDeleted", enrollment.IsDeleted ? 1 : 0);
         }
 
-        /// <summary>
-        /// SqliteDataReader를 Enrollment로 매핑 (호환성 오버로드)
-        /// </summary>
-        private Enrollment MapEnrollment(SqliteDataReader reader)
-        {
-            return new Enrollment
-            {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                StudentID = reader.GetString(reader.GetOrdinal("StudentID")),
-                Name = reader.IsDBNull(reader.GetOrdinal("Name")) ? string.Empty : reader.GetString(reader.GetOrdinal("Name")),
-                Sex = reader.IsDBNull(reader.GetOrdinal("Sex")) ? string.Empty : reader.GetString(reader.GetOrdinal("Sex")),
-                Photo = reader.IsDBNull(reader.GetOrdinal("Photo")) ? string.Empty : reader.GetString(reader.GetOrdinal("Photo")),
-                SchoolCode = reader.GetString(reader.GetOrdinal("SchoolCode")),
-                Year = reader.GetInt32(reader.GetOrdinal("Year")),
-                Semester = reader.GetInt32(reader.GetOrdinal("Semester")),
-                Grade = reader.GetInt32(reader.GetOrdinal("Grade")),
-                Class = reader.GetInt32(reader.GetOrdinal("Class")),
-                Number = reader.GetInt32(reader.GetOrdinal("Number")),
-                Status = reader.GetString(reader.GetOrdinal("Status")),
-                TeacherID = reader.IsDBNull(reader.GetOrdinal("TeacherID")) ? string.Empty : reader.GetString(reader.GetOrdinal("TeacherID")),
-                AdmissionDate = reader.IsDBNull(reader.GetOrdinal("AdmissionDate")) ? string.Empty : reader.GetString(reader.GetOrdinal("AdmissionDate")),
-                GraduationDate = reader.IsDBNull(reader.GetOrdinal("GraduationDate")) ? string.Empty : reader.GetString(reader.GetOrdinal("GraduationDate")),
-                TransferOutDate = reader.IsDBNull(reader.GetOrdinal("TransferOutDate")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferOutDate")),
-                TransferOutSchool = reader.IsDBNull(reader.GetOrdinal("TransferOutSchool")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferOutSchool")),
-                TransferInDate = reader.IsDBNull(reader.GetOrdinal("TransferInDate")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferInDate")),
-                TransferInSchool = reader.IsDBNull(reader.GetOrdinal("TransferInSchool")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransferInSchool")),
-                Memo = reader.IsDBNull(reader.GetOrdinal("Memo")) ? string.Empty : reader.GetString(reader.GetOrdinal("Memo")),
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt"))),
-                IsDeleted = reader.GetInt32(reader.GetOrdinal("IsDeleted")) == 1
-            };
-        }
+        // 미사용 오버로드 제거 (2026-08-19): MapEnrollment(reader) —
+        //   호출부가 모두 ReaderColumnCache 를 넘기게 되어 남을 이유가 없어졌다.
 
-        /// <summary>
-        /// SqliteDataReader를 Enrollment로 매핑
-        /// ⚡ ReaderColumnCache로 GetOrdinal 반복 호출 제거 (40% 성능 향상)
-        /// </summary>
         private Enrollment MapEnrollment(SqliteDataReader reader, ReaderColumnCache cache)
         {
             var noIdx = cache.GetOrdinal("No");

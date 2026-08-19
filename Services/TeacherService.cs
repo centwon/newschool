@@ -308,10 +308,14 @@ namespace NewSchool.Services
                 var histories = await historyRepo.GetCurrentBySchoolCodeAsync(schoolCode);
                 var teachers = new List<TeacherWithHistory>();
 
+                // N+1 해소: 재직 이력마다 교사를 한 명씩 읽던 것을 IN 절 한 방으로 바꿨다
+                //   (교사 40명이면 쿼리 40회 → 1회).
+                var teachersById = await teacherRepo.GetByTeacherIdsAsync(
+                    histories.Select(h => h.TeacherID));
+
                 foreach (var history in histories)
                 {
-                    var teacher = await teacherRepo.GetByTeacherIdAsync(history.TeacherID);
-                    if (teacher != null)
+                    if (teachersById.TryGetValue(history.TeacherID ?? string.Empty, out var teacher))
                     {
                         teachers.Add(new TeacherWithHistory
                         {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -151,7 +151,9 @@ public class LessonProgressRepository : BaseRepository
             cmd.Parameters.AddWithValue("@Room", room);
 
             using var reader = await cmd.ExecuteReaderAsync();
-            return await reader.ReadAsync() ? Map(reader) : null;
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+            return await reader.ReadAsync() ? Map(reader, cache) : null;
         }
         catch (Exception ex)
         {
@@ -204,8 +206,10 @@ public class LessonProgressRepository : BaseRepository
 
             var list = new List<LessonProgress>();
             using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
             while (await reader.ReadAsync())
-                list.Add(Map(reader));
+                list.Add(Map(reader, cache));
 
             return list;
         }
@@ -245,6 +249,8 @@ public class LessonProgressRepository : BaseRepository
             {
                 cmd.Parameters.Add("@CourseNo", SqliteType.Integer).Value = courseNo;
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                     completedByRoom[reader.GetString(0)] = reader.GetInt32(1);
             }
@@ -341,27 +347,27 @@ public class LessonProgressRepository : BaseRepository
 
     #region Helper
 
-    private static LessonProgress Map(SqliteDataReader reader)
+    private static LessonProgress Map(SqliteDataReader reader, ReaderColumnCache cache)
     {
         return new LessonProgress
         {
-            No = reader.GetInt32(reader.GetOrdinal("No")),
-            CourseSectionId = reader.GetInt32(reader.GetOrdinal("CourseSectionId")),
-            Room = reader.GetString(reader.GetOrdinal("Room")),
-            IsCompleted = reader.GetInt32(reader.GetOrdinal("IsCompleted")) == 1,
-            CompletedDate = ReadDate(reader, "CompletedDate"),
-            ProgressType = (ProgressType)reader.GetInt32(reader.GetOrdinal("ProgressType")),
-            Memo = reader.IsDBNull(reader.GetOrdinal("Memo"))
+            No = reader.GetInt32(cache.GetOrdinal("No")),
+            CourseSectionId = reader.GetInt32(cache.GetOrdinal("CourseSectionId")),
+            Room = reader.GetString(cache.GetOrdinal("Room")),
+            IsCompleted = reader.GetInt32(cache.GetOrdinal("IsCompleted")) == 1,
+            CompletedDate = ReadDate(reader, cache, "CompletedDate"),
+            ProgressType = (ProgressType)reader.GetInt32(cache.GetOrdinal("ProgressType")),
+            Memo = reader.IsDBNull(cache.GetOrdinal("Memo"))
                 ? null
-                : reader.GetString(reader.GetOrdinal("Memo")),
-            CreatedAt = ReadDate(reader, "CreatedAt") ?? DateTime.Now,
-            UpdatedAt = ReadDate(reader, "UpdatedAt")
+                : reader.GetString(cache.GetOrdinal("Memo")),
+            CreatedAt = ReadDate(reader, cache, "CreatedAt") ?? DateTime.Now,
+            UpdatedAt = ReadDate(reader, cache, "UpdatedAt")
         };
     }
 
-    private static DateTime? ReadDate(SqliteDataReader reader, string column)
+    private static DateTime? ReadDate(SqliteDataReader reader, ReaderColumnCache cache, string column)
     {
-        int ordinal = reader.GetOrdinal(column);
+        int ordinal = cache.GetOrdinal(column);
         if (reader.IsDBNull(ordinal)) return null;
 
         return DateTime.TryParse(reader.GetString(ordinal), out var value) ? value : null;

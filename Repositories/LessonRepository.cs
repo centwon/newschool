@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
@@ -177,9 +178,11 @@ public class LessonRepository : BaseRepository
             cmd.Parameters.AddWithValue("@No", no);
 
             using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
             if (await reader.ReadAsync())
             {
-                return MapLesson(reader);
+                return MapLesson(reader, cache);
             }
             return null;
         }
@@ -210,6 +213,47 @@ public class LessonRepository : BaseRepository
         catch (Exception ex)
         {
             LogError($"Course별 수업 조회 실패: Course={courseNo}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 여러 Course 의 수업을 한 번에 조회한다 (Course 번호 → 수업 목록).
+    ///
+    /// <para><see cref="GetByCourseAsync"/> 를 루프로 돌면 과목 수만큼 쿼리가 나간다.
+    /// 필터 조건은 <see cref="GetByCourseAsync"/> 와 똑같이 두었다 — 교사 시간표 화면이
+    /// 취소된 수업까지 보고 판단하고 있어서, 여기서 <c>IsCancelled</c> 를 걸러내면
+    /// 화면 동작이 조용히 달라진다.</para>
+    /// </summary>
+    public async Task<Dictionary<int, List<Lesson>>> GetByCoursesAsync(IEnumerable<int> courseNos)
+    {
+        var ids = courseNos?.Distinct().ToList() ?? new List<int>();
+        var result = new Dictionary<int, List<Lesson>>();
+        if (ids.Count == 0) return result;
+
+        var placeholders = string.Join(",", ids.Select((_, i) => $"@c{i}"));
+        string query = $@"
+            SELECT * FROM Lesson
+            WHERE Course IN ({placeholders})
+            ORDER BY DayOfWeek, Period";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            for (int i = 0; i < ids.Count; i++)
+                cmd.Parameters.AddWithValue($"@c{i}", ids[i]);
+
+            foreach (var lesson in await ExecuteQueryAsync(cmd))
+            {
+                if (!result.TryGetValue(lesson.Course, out var list))
+                    result[lesson.Course] = list = new List<Lesson>();
+                list.Add(lesson);
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            LogError($"Course 일괄 수업 조회 실패: {ids.Count}건", ex);
             throw;
         }
     }
@@ -338,9 +382,11 @@ public class LessonRepository : BaseRepository
             cmd.Parameters.AddWithValue("@Period", period);
 
             using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
             if (await reader.ReadAsync())
             {
-                return MapLesson(reader);
+                return MapLesson(reader, cache);
             }
             return null;
         }
@@ -524,32 +570,34 @@ public class LessonRepository : BaseRepository
     {
         var lessons = new List<Lesson>();
         using var reader = await cmd.ExecuteReaderAsync();
+        var cache = new ReaderColumnCache();
+        cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
         while (await reader.ReadAsync())
         {
-            lessons.Add(MapLesson(reader));
+            lessons.Add(MapLesson(reader, cache));
         }
         return lessons;
     }
 
-    private Lesson MapLesson(SqliteDataReader reader)
+    private Lesson MapLesson(SqliteDataReader reader, ReaderColumnCache cache)
     {
         return new Lesson
         {
-            No = reader.GetInt32(reader.GetOrdinal("No")),
-            Course = reader.GetInt32(reader.GetOrdinal("Course")),
-            Teacher = reader.GetString(reader.GetOrdinal("Teacher")),
-            Year = reader.GetInt32(reader.GetOrdinal("Year")),
-            Semester = reader.GetInt32(reader.GetOrdinal("Semester")),
-            Date = reader.IsDBNull(reader.GetOrdinal("Date")) ? string.Empty : reader.GetString(reader.GetOrdinal("Date")),
-            DayOfWeek = reader.IsDBNull(reader.GetOrdinal("DayOfWeek")) ? 0 : reader.GetInt32(reader.GetOrdinal("DayOfWeek")),
-            Period = reader.GetInt32(reader.GetOrdinal("Period")),
-            Grade = reader.IsDBNull(reader.GetOrdinal("Grade")) ? 0 : reader.GetInt32(reader.GetOrdinal("Grade")),
-            Class = reader.IsDBNull(reader.GetOrdinal("Class")) ? 0 : reader.GetInt32(reader.GetOrdinal("Class")),
-            Room = reader.IsDBNull(reader.GetOrdinal("Room")) ? string.Empty : reader.GetString(reader.GetOrdinal("Room")),
-            Topic = reader.IsDBNull(reader.GetOrdinal("Topic")) ? string.Empty : reader.GetString(reader.GetOrdinal("Topic")),
-            IsRecurring = reader.GetInt32(reader.GetOrdinal("IsRecurring")) == 1,
-            IsCompleted = reader.GetInt32(reader.GetOrdinal("IsCompleted")) == 1,
-            IsCancelled = reader.GetInt32(reader.GetOrdinal("IsCancelled")) == 1
+            No = reader.GetInt32(cache.GetOrdinal("No")),
+            Course = reader.GetInt32(cache.GetOrdinal("Course")),
+            Teacher = reader.GetString(cache.GetOrdinal("Teacher")),
+            Year = reader.GetInt32(cache.GetOrdinal("Year")),
+            Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
+            Date = reader.IsDBNull(cache.GetOrdinal("Date")) ? string.Empty : reader.GetString(cache.GetOrdinal("Date")),
+            DayOfWeek = reader.IsDBNull(cache.GetOrdinal("DayOfWeek")) ? 0 : reader.GetInt32(cache.GetOrdinal("DayOfWeek")),
+            Period = reader.GetInt32(cache.GetOrdinal("Period")),
+            Grade = reader.IsDBNull(cache.GetOrdinal("Grade")) ? 0 : reader.GetInt32(cache.GetOrdinal("Grade")),
+            Class = reader.IsDBNull(cache.GetOrdinal("Class")) ? 0 : reader.GetInt32(cache.GetOrdinal("Class")),
+            Room = reader.IsDBNull(cache.GetOrdinal("Room")) ? string.Empty : reader.GetString(cache.GetOrdinal("Room")),
+            Topic = reader.IsDBNull(cache.GetOrdinal("Topic")) ? string.Empty : reader.GetString(cache.GetOrdinal("Topic")),
+            IsRecurring = reader.GetInt32(cache.GetOrdinal("IsRecurring")) == 1,
+            IsCompleted = reader.GetInt32(cache.GetOrdinal("IsCompleted")) == 1,
+            IsCancelled = reader.GetInt32(cache.GetOrdinal("IsCancelled")) == 1
         };
     }
 

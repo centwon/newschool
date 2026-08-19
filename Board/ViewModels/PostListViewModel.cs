@@ -41,6 +41,11 @@ public class PostListViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>외부에서 카테고리·주제를 한 번에 설정하고 확정적으로 한 번만 새로고침할 때,
+    /// 두 setter 의 자동 새로고침과 중복 로드되지 않도록 억제하는 플래그.
+    /// <see cref="SetSubjectAndRefreshAsync"/>·<see cref="SetScopeWithoutReload"/> 참고.</summary>
+    private bool _suppressAutoReload;
+
     public string SelectedCategory
     {
         get;
@@ -50,18 +55,17 @@ public class PostListViewModel : INotifyPropertyChanged
             {
                 field = value;
                 OnPropertyChanged();
-                _ = LoadPostsAsync().ContinueWith(t =>
+                if (!_suppressAutoReload)
                 {
-                    if (t.IsFaulted)
-                        System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
-                }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
+                    _ = LoadPostsAsync().ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
+                    }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
+                }
             }
         }
     } = "";
-
-    /// <summary>외부에서 카테고리+주제를 한 번에 설정하고 확정적으로 새로고침할 때, 이 setter의 자동 새로고침과
-    /// 중복 로드되지 않도록 억제하기 위한 플래그. <see cref="SetSubjectAndRefreshAsync"/> 참고.</summary>
-    private bool _suppressAutoReload;
 
     public string SelectedSubject
     {
@@ -83,6 +87,26 @@ public class PostListViewModel : INotifyPropertyChanged
             }
         }
     } = "";
+
+    /// <summary>
+    /// 카테고리·주제를 조회 없이 한꺼번에 설정한다. 호출한 쪽이 곧바로 목록을 로드하는 경우에만 쓴다.
+    ///
+    /// <para>두 값을 그냥 대입하면 setter 가 각각 자동 새로고침을 걸어, 화면 진입 한 번에
+    /// 같은 목록 조회가 세 번(카테고리 → 주제 → 호출부의 명시적 로드) 돌았다.</para>
+    /// </summary>
+    public void SetScopeWithoutReload(string category, string subject)
+    {
+        _suppressAutoReload = true;
+        try
+        {
+            SelectedCategory = category;
+            SelectedSubject = subject;
+        }
+        finally
+        {
+            _suppressAutoReload = false;
+        }
+    }
 
     /// <summary>
     /// 주제를 설정하고 정확히 한 번만 새로고침한다 (외부 호출용 — 이중 로드 방지).
