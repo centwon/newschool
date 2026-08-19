@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using NewSchool.Repositories;
 using NewSchool.Tests.Infrastructure;
 using Xunit;
@@ -32,6 +32,30 @@ public class StudentSpecialRepositoryTests : IClassFixture<SqliteTestFixture>
 
         Assert.True(await repo.DeleteAsync(no));
         Assert.Null(await repo.GetByIdAsync(no));
+    }
+
+    [Fact]
+    public async Task TeacherID가_비어있어도_저장된다()
+    {
+        // 회귀 방지: 미지정 TeacherID 를 "" 로 넣던 탓에 Teacher(TeacherID) FK 위반으로
+        //   저장이 통째로 실패했다(연결마다 foreign_keys=ON). 미지정은 NULL 로 넣는다.
+        using var repo = new StudentSpecialRepository(_db.DbPath);
+        var id = await _db.NewStudentInDbAsync("담당없음");
+
+        var special = TestData.NewSpecial(id, title: "담당 교사 미지정");
+        special.TeacherID = string.Empty;
+
+        int no = await repo.CreateAsync(special);
+        Assert.True(no > 0);
+
+        var loaded = await repo.GetByIdAsync(no);
+        Assert.NotNull(loaded);
+        Assert.Equal(string.Empty, loaded!.TeacherID);   // NULL → "" 로 왕복
+
+        // 수정 경로도 같은 계약이어야 한다
+        loaded.Content = "수정";
+        Assert.True(await repo.UpdateAsync(loaded));
+        Assert.Equal(string.Empty, (await repo.GetByIdAsync(no))!.TeacherID);
     }
 
     [Fact]

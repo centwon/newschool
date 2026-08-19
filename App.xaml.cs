@@ -100,6 +100,21 @@ public partial class App : Application
         // 0. 최초 실행 여부 확인 (Settings.db가 없으면 최초 실행)
         bool isFirstRun = !File.Exists(Path.Combine(Settings.UserDataPath, "Settings.db"));
 
+        // 0-1. Settings.db 무결성 점검 — 바로 아래 Settings.Initialize() 보다 먼저 봐야 한다.
+        //   이 파일이 깨져 있으면 Initialize() 가 예외로 죽어 손상 안내 자체가 뜨지 못한다.
+        //   Settings.db 경로는 실행 위치로만 정해지므로(설정값을 읽지 않는다) 초기화 전에도 알 수 있다.
+        var corruptSettings = Helpers.DbIntegrity.FindCorrupt(new[]
+        {
+            Path.Combine(Settings.UserDataPath, "Settings.db"),
+        });
+        if (corruptSettings.Count > 0)
+        {
+            Debug.WriteLine($"[App] 설정 DB 손상 감지: {string.Join(", ", corruptSettings)}");
+            FileLogger.Instance.Critical($"[App] 설정 DB 손상 감지: {string.Join(", ", corruptSettings)}");
+            await HandleCorruptDatabasesAsync(corruptSettings);
+            return;
+        }
+
         // 1. Settings 초기화
         Settings.Initialize();
         Debug.WriteLine("[App] Settings 초기화 완료");
@@ -116,16 +131,10 @@ public partial class App : Application
         FileLogger.Instance.SetMinimumLevel(logLevel);
         Debug.WriteLine($"[App] 로그 레벨: {logLevel}");
 
-        // 2. DB 초기화 (독립적인 3개 DB를 병렬 초기화)
-        await Task.WhenAll(
-            NewSchool.Board.Board.InitAsync(),
-            NewSchool.Scheduler.Scheduler.InitAsync(),
-            NewSchool.SchoolDatabase.InitAsync()
-        );
-        Debug.WriteLine("[App] 데이터베이스 초기화 완료 (Board, Scheduler, School)");
-
-        // 2-1. DB 무결성 점검 — 손상 감지 시 조용한 크래시 대신 복원/종료 안내 후 조기 반환.
-        //   자동 백업(3-1)보다 먼저 실행해 손상된 DB 가 백업으로 덮이는 것을 막는다.
+        // 2. 나머지 DB 무결성 점검 — 초기화(2-1)보다 먼저 해야 한다.
+        //   손상된 DB 에 CREATE TABLE 을 걸면 InitAsync 가 그대로 예외를 던져,
+        //   복구 안내를 띄우기도 전에 앱이 조용히 죽는다. 자동 백업(3-1)보다도 앞이라
+        //   손상된 파일이 백업으로 덮이지도 않는다.
         var corrupt = Helpers.DbIntegrity.FindCorrupt(new[]
         {
             SchoolDatabase.DbPath,
@@ -139,6 +148,14 @@ public partial class App : Application
             await HandleCorruptDatabasesAsync(corrupt);
             return; // 복원(재시작) 또는 종료 — 정상 시작 흐름 진입 안 함
         }
+
+        // 2-1. DB 초기화 (독립적인 3개 DB를 병렬 초기화)
+        await Task.WhenAll(
+            NewSchool.Board.Board.InitAsync(),
+            NewSchool.Scheduler.Scheduler.InitAsync(),
+            NewSchool.SchoolDatabase.InitAsync()
+        );
+        Debug.WriteLine("[App] 데이터베이스 초기화 완료 (Board, Scheduler, School)");
 
         // 3-1. 자동 백업 (필요 시) — 백그라운드로 밀어 시작 시간 단축
         //   File.Copy 동기 작업으로 1~3초 블로킹될 수 있어 fire-and-forget 으로 처리.

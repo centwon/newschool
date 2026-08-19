@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using NewSchool.Helpers;
@@ -97,12 +97,14 @@ public static class WeeklyHoursCalculator
     /// <param name="schedules">학년도 학사일정</param>
     /// <param name="semesterStart">학기 시작일</param>
     /// <param name="semesterEnd">학기 종료일</param>
+    /// <param name="gradeCount">학교의 학년 수(<see cref="SchoolCalendar.GradeCountFor"/>). 0 이면 모름.</param>
     public static List<WeeklyHoursWeek> Calculate(
         Course course,
         IReadOnlyCollection<Lesson> lessons,
         IReadOnlyCollection<SchoolSchedule> schedules,
         DateTime semesterStart,
-        DateTime semesterEnd)
+        DateTime semesterEnd,
+        int gradeCount = 0)
     {
         ArgumentNullException.ThrowIfNull(course);
 
@@ -137,7 +139,7 @@ public static class WeeklyHoursCalculator
 
                 CollectEvents(date, schedules, events);
 
-                if (!SchoolCalendar.IsTeachingDayFor(date, schedules, course.Grade))
+                if (!SchoolCalendar.IsTeachingDayFor(date, schedules, course.Grade, gradeCount))
                     continue;
 
                 teachingDays++;

@@ -61,6 +61,33 @@ public class CourseRepositoryTests : IClassFixture<SqliteTestFixture>
     }
 
     [Fact]
+    public async Task Section_수정_왕복()
+    {
+        // 회귀 방지: UPDATE 문 마지막 필드 뒤에 후행 쉼표가 있어 SQL 문법 오류로
+        //   단원 수정이 100% 실패했다(예외가 그대로 올라와 다이얼로그가 저장 실패로 끝남).
+        using var courseRepo = new CourseRepository(_db.DbPath);
+        int courseNo = await courseRepo.CreateAsync(TestData.NewCourse(subject: "단원수정과목"));
+
+        using var sectionRepo = new CourseSectionRepository(_db.DbPath);
+        int no = await sectionRepo.CreateAsync(
+            TestData.NewSection(courseNo, unitNo: 1, sectionNo: 1, sectionName: "원래 절", hours: 2));
+        Assert.True(no > 0);
+
+        var section = await sectionRepo.GetByIdAsync(no);
+        Assert.NotNull(section);
+        section!.SectionName = "고친 절";
+        section.EstimatedHours = 5;
+        section.SortOrder = 3;
+
+        Assert.True(await sectionRepo.UpdateAsync(section));
+
+        var updated = await sectionRepo.GetByIdAsync(no);
+        Assert.Equal("고친 절", updated!.SectionName);
+        Assert.Equal(5, updated.EstimatedHours);
+        Assert.Equal(3, updated.SortOrder);
+    }
+
+    [Fact]
     public async Task Section_일괄생성_조회_시수합계()
     {
         using var courseRepo = new CourseRepository(_db.DbPath);

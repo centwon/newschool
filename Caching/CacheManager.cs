@@ -462,8 +462,11 @@ namespace NewSchool.Board.Caching
         public static string Categories() => "board:categories";
         public static string Subjects(string category) => $"board:subjects:{category}";
         public static string Post(int no) => $"board:post:{no}";
-        public static string Posts(int page, int pageSize, string category, string subject, string search)
-            => $"board:posts:{page}:{pageSize}:{category}:{subject}:{search}";
+        // searchTitle·searchContent 는 같은 검색어라도 결과가 달라지므로 반드시 키에 들어가야 한다.
+        // 빠져 있던 동안 "제목에서 홍길동" 과 "본문에서 홍길동" 이 같은 캐시를 공유했다.
+        public static string Posts(int page, int pageSize, string category, string subject,
+                                   string search, bool searchTitle, bool searchContent)
+            => $"board:posts:{page}:{pageSize}:{category}:{subject}:{search}:{(searchTitle ? 1 : 0)}{(searchContent ? 1 : 0)}";
         public static string Comments(int postNo) => $"board:comments:{postNo}";
         public static string PostFiles(int postNo) => $"board:files:{postNo}";
     }

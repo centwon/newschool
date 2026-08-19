@@ -502,7 +502,12 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@Title", special.Title ?? string.Empty);
             cmd.Parameters.AddWithValue("@Content", special.Content ?? string.Empty);
             cmd.Parameters.AddWithValue("@Date", special.Date ?? string.Empty);
-            cmd.Parameters.AddWithValue("@TeacherID", special.TeacherID ?? string.Empty);
+            // 빈 문자열은 NULL 이 아니다 — StudentSpecial.TeacherID 는 Teacher(TeacherID) FK 이고
+            // BaseRepository 가 연결마다 foreign_keys=ON 을 켜므로, "" 로 넣으면 "" 인 교사 행을
+            // 찾다가 FK 위반으로 저장이 통째로 실패한다. 미지정은 NULL 로 넣는다
+            // (스키마도 TeacherID TEXT NULL + ON DELETE SET NULL 이고, 매퍼가 NULL→"" 로 되돌린다).
+            cmd.Parameters.AddWithValue("@TeacherID",
+                string.IsNullOrWhiteSpace(special.TeacherID) ? DBNull.Value : special.TeacherID);
             cmd.Parameters.AddWithValue("@CourseNo", special.CourseNo > 0 ? special.CourseNo : DBNull.Value);
             cmd.Parameters.AddWithValue("@SubjectName", string.IsNullOrEmpty(special.SubjectName) ? DBNull.Value : special.SubjectName);
             cmd.Parameters.AddWithValue("@IsActive", special.IsFinalized ? 0 : 1);

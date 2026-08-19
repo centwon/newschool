@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -265,17 +265,17 @@ public class UnifiedExportService
 
         using var logService = new StudentLogService();
 
-        // N+1 해소: 학급 전체 학생의 누가기록을 단일 쿼리 2회(1학기/2학기)로 일괄 조회
+        // 학년도 전체를 쿼리 한 번으로 가져온다(semester=0 = 전체).
+        //   예전에는 1학기·2학기를 따로 불러 합쳤는데, 그러면 학기가 0 으로 저장된 기록
+        //   (학년 단위·방학 중 기록)이 어느 쪽에도 안 걸려 내보내기에서 조용히 빠졌다.
+        //   화면(누가기록 페이지)도 학년도 전체를 보여주므로 기준을 맞춘다. 쿼리도 2회 → 1회.
         var studentIds = enrollments.Select(e => e.StudentID).ToList();
-        var sem1Map = await logService.GetStudentLogsBatchAsync(studentIds, year, 1);
-        var sem2Map = await logService.GetStudentLogsBatchAsync(studentIds, year, 2);
+        var logsByStudent = await logService.GetStudentLogsBatchAsync(studentIds, year, semester: 0);
 
         foreach (var enrollment in enrollments.OrderBy(e => e.Number))
         {
-            sem1Map.TryGetValue(enrollment.StudentID, out var logs1);
-            sem2Map.TryGetValue(enrollment.StudentID, out var logs2);
-            var logs = (logs1 ?? Enumerable.Empty<StudentLog>())
-                       .Concat(logs2 ?? Enumerable.Empty<StudentLog>())
+            logsByStudent.TryGetValue(enrollment.StudentID, out var studentLogs);
+            var logs = (studentLogs ?? Enumerable.Empty<StudentLog>())
                        .OrderByDescending(l => l.Date)
                        .ToList();
 

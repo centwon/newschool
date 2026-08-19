@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -25,6 +25,12 @@ public sealed class GoogleSyncService : IDisposable
     private PeriodicTimer? _periodicTimer;
     private CancellationTokenSource? _periodicCts;
     private bool _disposed;
+
+    // 학사일정 중복 판정용. 예전에는 Pull 되는 이벤트 하나마다 SchoolScheduleService 를 새로
+    // 만들어(= SQLite 연결을 새로 열어) 하루치를 조회했다. 서비스는 한 번만 열고, 날짜별 결과는
+    // 기억해 둔다 — 같은 날짜에 여러 이벤트가 걸려도 조회는 한 번이다.
+    private Services.SchoolScheduleService? _scheduleService;
+    private readonly Dictionary<DateTime, HashSet<string>> _scheduleTitlesByDate = new();
 
     /// <summary>
     /// 전체 동기화(SyncAllAsync) 완료 시 발생. 백그라운드(시작 시·주기적) 동기화 실패를
@@ -225,7 +231,7 @@ public sealed class GoogleSyncService : IDisposable
         } while (!string.IsNullOrEmpty(pageToken));
     }
 
-    private static async Task ProcessPulledEventAsync(
+    private async Task ProcessPulledEventAsync(
         SchedulerService service, GoogleEvent gEvent, int calendarId, SyncResult result)
     {
         if (string.IsNullOrEmpty(gEvent.Id)) return;
@@ -273,25 +279,48 @@ public sealed class GoogleSyncService : IDisposable
         }
     }
 
-    /// <summary>Google 종일 이벤트가 school.db 의 학사일정(같은 제목+날짜)과 겹치는지 확인</summary>
-    private static async Task<bool> IsSchoolScheduleDuplicateAsync(GoogleEvent gEvent)
+    /// <summary>
+    /// Google 종일 이벤트가 school.db 의 학사일정(같은 제목+날짜)과 겹치는지 확인.
+    /// 서비스와 날짜별 조회 결과를 동기화 한 번 동안 재사용한다.
+    /// </summary>
+    private async Task<bool> IsSchoolScheduleDuplicateAsync(GoogleEvent gEvent)
     {
         var dateStr = gEvent.Start?.Date;
         if (string.IsNullOrEmpty(dateStr) || string.IsNullOrEmpty(gEvent.Summary)) return false;
         if (!DateTime.TryParse(dateStr, out var date)) return false;
 
+        var titles = await GetScheduleTitlesAsync(date.Date);
+        return titles.Contains(gEvent.Summary);
+    }
+
+    /// <summary>해당 날짜의 학사일정 제목들. 한 번 읽은 날짜는 캐시에서 돌려준다.</summary>
+    private async Task<HashSet<string>> GetScheduleTitlesAsync(DateTime date)
+    {
+        if (_scheduleTitlesByDate.TryGetValue(date, out var cached)) return cached;
+
+        var titles = new HashSet<string>(StringComparer.Ordinal);
         try
         {
-            using var scheduleService = new NewSchool.Services.SchoolScheduleService(Settings.SchoolDB.Value);
-            // GetByDateRangeAsync는 [start, end) 반개구간이므로 해당 하루만 조회하려면 end=date+1일
-            var result = await scheduleService.GetSchedulesByDataRangeAsync(Settings.SchoolCode, date, date.AddDays(1));
-            return result.Success && result.Schedules.Any(s => s.EVENT_NM == gEvent.Summary);
+            _scheduleService ??= new Services.SchoolScheduleService(Settings.SchoolDB.Value);
+            // GetSchedulesByDataRangeAsync 는 [start, end) 반개구간이라 하루만 보려면 end=date+1일
+            var result = await _scheduleService.GetSchedulesByDataRangeAsync(
+                Settings.SchoolCode, date, date.AddDays(1));
+            if (result.Success)
+            {
+                foreach (var schedule in result.Schedules)
+                {
+                    if (!string.IsNullOrEmpty(schedule.EVENT_NM)) titles.Add(schedule.EVENT_NM);
+                }
+            }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[GoogleSync] 학사일정 중복 확인 실패: {ex.Message}");
-            return false;
+            // 빈 집합을 캐시한다 — 같은 동기화에서 같은 날짜로 계속 실패 조회하지 않도록
         }
+
+        _scheduleTitlesByDate[date] = titles;
+        return titles;
     }
 
     #endregion
@@ -386,9 +415,21 @@ public sealed class GoogleSyncService : IDisposable
         if (isAllday)
         {
             start = DateTime.Parse(ge.Start!.Date!, null, System.Globalization.DateTimeStyles.RoundtripKind);
-            // Google Calendar의 종일 이벤트 End는 exclusive(배타적)이므로
-            // inclusive(포함)로 변환: 1일 빼기
-            end = DateTime.Parse(ge.End!.Date!, null, System.Globalization.DateTimeStyles.RoundtripKind).AddDays(-1);
+
+            // Google Calendar 의 종일 이벤트 End 는 exclusive(배타적)이므로 inclusive 로 1일 뺀다.
+            // End 는 규격상 늘 오지만 외부 응답이라 단정하지 않는다 — 예전에는 null 허용 무시(!)로
+            // 받아 값이 비면 NullReference 가 나고 그 캘린더의 Pull 전체가 멈췄다.
+            // 없으면 하루짜리 일정으로 본다.
+            if (DateTime.TryParse(ge.End?.Date, null,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var exclusiveEnd))
+            {
+                end = exclusiveEnd.AddDays(-1);
+                if (end < start) end = start;
+            }
+            else
+            {
+                end = start;
+            }
         }
         else
         {
@@ -813,6 +854,7 @@ public sealed class GoogleSyncService : IDisposable
         {
             StopPeriodicSync();
             _syncLock.Dispose();
+            _scheduleService?.Dispose();
             _disposed = true;
         }
     }

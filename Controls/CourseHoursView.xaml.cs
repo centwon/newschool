@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using NewSchool.Helpers;
 using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Services;
@@ -38,6 +39,9 @@ public sealed partial class CourseHoursView : UserControl
 
     /// <summary>학사일정을 읽어 둔 학년도 (0 = 아직 안 읽음)</summary>
     private int _schedulesYear;
+
+    /// <summary>학교의 학년 수 (0 = 모름 → 학사일정 판정이 종전 기준으로 돈다)</summary>
+    private int _gradeCount;
 
     /// <summary>학사일정에서 유추한 학기 기간</summary>
     private SemesterRange _range;
@@ -156,8 +160,12 @@ public sealed partial class CourseHoursView : UserControl
                 _adjustments = await hoursRepo.GetByCourseAsync(_selectedCourse.No);
             }
 
+            // 학년 수를 알아야 "1·2학년만 수련회" 같은 날을 그 학년 수업일에서 뺄 수 있다.
+            _gradeCount = await SchoolProfile.GetGradeCountAsync();
+
             _rooms = WeeklyHoursCalculator.ResolveRooms(_selectedCourse, _lessons);
-            _weeks = WeeklyHoursCalculator.Calculate(_selectedCourse, _lessons, _schedules, start, end);
+            _weeks = WeeklyHoursCalculator.Calculate(
+                _selectedCourse, _lessons, _schedules, start, end, _gradeCount);
         }
         catch (Exception ex)
         {

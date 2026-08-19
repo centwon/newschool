@@ -139,8 +139,9 @@ public sealed partial class AddStudentsPage : Page
             SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
             ViewMode = PickerViewMode.List
         };
+        // .xls(BIFF)는 넣지 않는다 — MiniExcel 은 xlsx/csv 만 읽어서
+        // 구버전 .xls 를 고르면 "Excel 파일 읽기 오류" 로만 끝난다.
         picker.FileTypeFilter.Add(".xlsx");
-        picker.FileTypeFilter.Add(".xls");
 
         // WinUI3에서 필요한 초기화
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
@@ -882,7 +883,8 @@ public sealed partial class AddStudentsPage : Page
     private async Task<int> GetGradeInputAsync(string message)
     {
         // UI 작업이므로 반드시 UI 스레드에서 실행되어야 함
-        var inputBox = new TextBox { PlaceholderText = "1~3" };
+        // 초등학교는 6학년까지다 — 1~3 으로 막아 두어 4~6학년 명단을 엑셀로 등록할 수 없었다.
+        var inputBox = new TextBox { PlaceholderText = "1~6" };
         var stackPanel = new StackPanel();
         stackPanel.Children.Add(new TextBlock
         {
@@ -901,9 +903,9 @@ public sealed partial class AddStudentsPage : Page
             XamlRoot = this.XamlRoot
         };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await MessageBox.ShowDialogAsync(dialog) == ContentDialogResult.Primary)
         {
-            if (int.TryParse(inputBox.Text, out int grade) && grade >= 1 && grade <= 3)
+            if (int.TryParse(inputBox.Text, out int grade) && grade >= 1 && grade <= 6)
                 return grade;
         }
 
@@ -935,7 +937,7 @@ public sealed partial class AddStudentsPage : Page
             XamlRoot = this.XamlRoot
         };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await MessageBox.ShowDialogAsync(dialog) == ContentDialogResult.Primary)
         {
             if (int.TryParse(inputBox.Text, out int cls) && cls >= 1)
                 return cls;

@@ -92,7 +92,8 @@ namespace NewSchool.Board.Services
             string searchText = "",
             Models.PostSortOrder sortOrder = Models.PostSortOrder.NewestFirst)
         {
-            string key = CacheKeys.Posts(pageNumber, pageSize, category, subject, searchText) + $":{sortOrder}";
+            string key = CacheKeys.Posts(pageNumber, pageSize, category, subject,
+                                         searchText, searchTitle, searchContent) + $":{sortOrder}";
 
             return await _cache.GetOrCreateAsync(
                 key,

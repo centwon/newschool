@@ -177,9 +177,11 @@ public class CourseSectionRepository : BaseRepository
             cmd.Parameters.AddWithValue("@No", no);
 
             using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
             if (await reader.ReadAsync())
             {
-                return MapSection(reader);
+                return MapSection(reader, cache);
             }
             return null;
         }
@@ -257,11 +259,13 @@ public class CourseSectionRepository : BaseRepository
 
             var units = new List<(int, string)>();
             using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
             while (await reader.ReadAsync())
             {
                 units.Add((
-                    reader.GetInt32(reader.GetOrdinal("UnitNo")),
-                    reader.GetString(reader.GetOrdinal("UnitName"))
+                    reader.GetInt32(cache.GetOrdinal("UnitNo")),
+                    reader.GetString(cache.GetOrdinal("UnitName"))
                 ));
             }
             return units;
@@ -293,7 +297,7 @@ public class CourseSectionRepository : BaseRepository
                 StartPage = @StartPage,
                 EndPage = @EndPage,
                 EstimatedHours = @EstimatedHours,
-                SortOrder = @SortOrder,
+                SortOrder = @SortOrder
             WHERE No = @No";
 
         try
@@ -464,39 +468,41 @@ public class CourseSectionRepository : BaseRepository
     {
         var sections = new List<CourseSection>();
         using var reader = await cmd.ExecuteReaderAsync();
+        var cache = new ReaderColumnCache();
+        cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
         while (await reader.ReadAsync())
         {
-            sections.Add(MapSection(reader));
+            sections.Add(MapSection(reader, cache));
         }
         return sections;
     }
 
-    private CourseSection MapSection(SqliteDataReader reader)
+    private CourseSection MapSection(SqliteDataReader reader, ReaderColumnCache cache)
     {
         var section = new CourseSection
         {
-            No = reader.GetInt32(reader.GetOrdinal("No")),
-            Course = reader.GetInt32(reader.GetOrdinal("Course")),
-            UnitNo = reader.GetInt32(reader.GetOrdinal("UnitNo")),
-            UnitName = reader.GetString(reader.GetOrdinal("UnitName")),
-            ChapterNo = reader.GetInt32(reader.GetOrdinal("ChapterNo")),
-            ChapterName = reader.GetString(reader.GetOrdinal("ChapterName")),
-            SectionNo = reader.GetInt32(reader.GetOrdinal("SectionNo")),
-            SectionName = reader.GetString(reader.GetOrdinal("SectionName")),
-            StartPage = GetIntOrDefault(reader, "StartPage", 0),
-            EndPage = GetIntOrDefault(reader, "EndPage", 0),
-            EstimatedHours = GetIntOrDefault(reader, "EstimatedHours", 1),
-            SortOrder = GetIntOrDefault(reader, "SortOrder", 0)
+            No = reader.GetInt32(cache.GetOrdinal("No")),
+            Course = reader.GetInt32(cache.GetOrdinal("Course")),
+            UnitNo = reader.GetInt32(cache.GetOrdinal("UnitNo")),
+            UnitName = reader.GetString(cache.GetOrdinal("UnitName")),
+            ChapterNo = reader.GetInt32(cache.GetOrdinal("ChapterNo")),
+            ChapterName = reader.GetString(cache.GetOrdinal("ChapterName")),
+            SectionNo = reader.GetInt32(cache.GetOrdinal("SectionNo")),
+            SectionName = reader.GetString(cache.GetOrdinal("SectionName")),
+            StartPage = GetIntOrDefault(reader, cache, "StartPage", 0),
+            EndPage = GetIntOrDefault(reader, cache, "EndPage", 0),
+            EstimatedHours = GetIntOrDefault(reader, cache, "EstimatedHours", 1),
+            SortOrder = GetIntOrDefault(reader, cache, "SortOrder", 0)
         };
 
         return section;
     }
 
-    private int GetIntOrDefault(SqliteDataReader reader, string columnName, int defaultValue = 0)
+    private int GetIntOrDefault(SqliteDataReader reader, ReaderColumnCache cache, string columnName, int defaultValue = 0)
     {
         try
         {
-            var ordinal = reader.GetOrdinal(columnName);
+            var ordinal = cache.GetOrdinal(columnName);
             return reader.IsDBNull(ordinal) ? defaultValue : reader.GetInt32(ordinal);
         }
         catch
@@ -505,18 +511,7 @@ public class CourseSectionRepository : BaseRepository
         }
     }
 
-    private string GetStringOrDefault(SqliteDataReader reader, string columnName, string defaultValue = "")
-    {
-        try
-        {
-            var ordinal = reader.GetOrdinal(columnName);
-            return reader.IsDBNull(ordinal) ? defaultValue : reader.GetString(ordinal);
-        }
-        catch
-        {
-            return defaultValue;
-        }
-    }
+    // 미사용 메서드 제거 (2026-08-19): GetStringOrDefault — 호출처 0건
 
     #endregion
 }

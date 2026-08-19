@@ -25,8 +25,9 @@ namespace NewSchool.Helpers
                 SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
                 ViewMode = PickerViewMode.List
             };
+            // .xls(BIFF)는 넣지 않는다 — MiniExcel 은 xlsx/csv 만 읽어서
+            // 구버전 .xls 를 고르면 "Excel 파일 읽기 오류" 로만 끝난다.
             picker.FileTypeFilter.Add(".xlsx");
-            picker.FileTypeFilter.Add(".xls");
 
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
             WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);

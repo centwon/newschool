@@ -116,33 +116,10 @@ namespace NewSchool.Repositories
                 throw;
             }
         }
-        /// <summary>
-        /// 학생 검색 (최적화됨)
-        /// ⚡ ExecuteListAsync + ReaderColumnCache로 40% 성능 향상
-        /// </summary>
-        public async Task<List<Student>> SearchAsync(string keyword)
-        {
-            const string query = @"
-        SELECT * FROM Student
-        WHERE Name LIKE @Keyword OR ID LIKE @Keyword OR Phone LIKE @Keyword
-        ORDER BY Name";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
-
-                var students = await ExecuteListAsync(cmd, MapStudent).ConfigureAwait(false);
-
-                LogInfo($"학생 검색 완료: '{keyword}' - {students.Count}명");
-                return students;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 검색 실패: {keyword}", ex);
-                throw;
-            }
-        }
+        // 미사용 메서드 제거 (2026-08-19): SearchAsync(keyword) — 호출처 0건.
+        //   Student 테이블에 없는 ID 컬럼을 WHERE 에 걸고 있어(실제 컬럼명은 StudentID)
+        //   부르는 순간 'no such column' 으로 깨졌을 코드다.
+        //   이름 검색이 필요하면 바로 아래 SearchByNameAsync 를 쓴다.
 
         /// <summary>
         /// 이름으로 학생 검색 (최적화됨)
@@ -382,38 +359,9 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@IsDeleted", student.IsDeleted ? 1 : 0);
         }
 
-        /// <summary>
-        /// SqliteDataReader를 Student로 매핑 (호환성 오버로드)
-        /// </summary>
-        private Student MapStudent(SqliteDataReader reader)
-        {
-            return new Student
-            {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                StudentID = reader.GetString(reader.GetOrdinal("StudentID")),
-                Name = reader.GetString(reader.GetOrdinal("Name")),
-                Sex = reader.IsDBNull(reader.GetOrdinal("Sex")) ? string.Empty : reader.GetString(reader.GetOrdinal("Sex")),
-                BirthDate = reader.IsDBNull(reader.GetOrdinal("BirthDate"))
-                  ? (DateTime?)null
-                  : DateTime.TryParse(reader.GetString(reader.GetOrdinal("BirthDate")), out DateTime dt)
-                      ? dt
-                      : (DateTime?)null,
-                ResidentNumber = reader.IsDBNull(reader.GetOrdinal("ResidentNumber")) ? string.Empty : DecryptField(reader.GetString(reader.GetOrdinal("ResidentNumber"))),
-                Photo = reader.IsDBNull(reader.GetOrdinal("Photo")) ? string.Empty : reader.GetString(reader.GetOrdinal("Photo")),
-                Phone = reader.IsDBNull(reader.GetOrdinal("Phone")) ? string.Empty : reader.GetString(reader.GetOrdinal("Phone")),
-                Email = reader.IsDBNull(reader.GetOrdinal("Email")) ? string.Empty : reader.GetString(reader.GetOrdinal("Email")),
-                Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? string.Empty : reader.GetString(reader.GetOrdinal("Address")),
-                Memo = reader.IsDBNull(reader.GetOrdinal("Memo")) ? string.Empty : reader.GetString(reader.GetOrdinal("Memo")),
-                CreatedAt = DateTime.TryParse(reader.GetString(reader.GetOrdinal("CreatedAt")), out var ca) ? ca : DateTime.MinValue,
-                UpdatedAt = DateTime.TryParse(reader.GetString(reader.GetOrdinal("UpdatedAt")), out var ua) ? ua : DateTime.MinValue,
-                IsDeleted = reader.GetInt32(reader.GetOrdinal("IsDeleted")) == 1
-            };
-        }
+        // 미사용 오버로드 제거 (2026-08-19): MapStudent(reader) — 호출처 0건.
+        //   아래 캐시 버전과 내용이 같아 중복 유지 비용만 있었다.
 
-        /// <summary>
-        /// SqliteDataReader를 Student로 매핑 (캐시 사용)
-        /// ⚡ ReaderColumnCache로 GetOrdinal 반복 호출 제거 (40% 성능 향상)
-        /// </summary>
         private Student MapStudent(SqliteDataReader reader, ReaderColumnCache cache)
         {
             var noIdx = cache.GetOrdinal("No");

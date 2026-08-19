@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
@@ -265,6 +265,7 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
         if (_editor == null) return;
         string dir = Path.Combine(Path.GetTempPath(), "NewSchool", "Print");
         Directory.CreateDirectory(dir);
+        CleanupOldPrintFiles(dir);
         string path = Path.Combine(dir, $"print_{Guid.NewGuid():N}.pdf");
         using (var fs = File.Create(path))
         {
@@ -272,6 +273,34 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
         }
         var file = await StorageFile.GetFileFromPathAsync(path);
         await Launcher.LaunchFileAsync(file);
+    }
+
+    /// <summary>
+    /// 인쇄용 임시 PDF 정리. 이 폴더의 파일은 뷰어로 넘긴 뒤 아무도 지우지 않아 계속 쌓였다
+    /// (현재 배포 구성에서는 인쇄가 <b>항상</b> 이 경로를 타므로 인쇄할 때마다 한 개씩 늘었다).
+    /// 방금 연 파일을 뷰어가 아직 잡고 있을 수 있으니 하루 지난 것만 지운다.
+    /// </summary>
+    private static void CleanupOldPrintFiles(string dir)
+    {
+        try
+        {
+            var cutoff = DateTime.Now.AddDays(-1);
+            foreach (var old in Directory.EnumerateFiles(dir, "print_*.pdf"))
+            {
+                try
+                {
+                    if (File.GetLastWriteTime(old) < cutoff) File.Delete(old);
+                }
+                catch
+                {
+                    // 뷰어가 잡고 있는 파일 등 — 다음 인쇄 때 다시 시도한다
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[RichTextEditor] 임시 인쇄 파일 정리 실패: {ex.Message}");
+        }
     }
 
     #endregion

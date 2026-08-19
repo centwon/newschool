@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using NewSchool.Models;
 using NewSchool.Repositories;
@@ -37,6 +37,32 @@ public class StudentLogRepositoryTests : IClassFixture<SqliteTestFixture>
 
         Assert.True(await repo.DeleteAsync(no));
         Assert.Null(await repo.GetByIdAsync(no));
+    }
+
+    [Fact]
+    public async Task 동아리정보가_저장되고_왕복한다()
+    {
+        // 회귀 방지: ClubNo/ClubName 은 파라미터로만 채워지고 INSERT/UPDATE 문에는 빠져 있었다.
+        //   SQLite 가 안 쓰이는 파라미터를 조용히 무시해 오류 없이 동아리 정보만 사라졌다.
+        using var repo = new StudentLogRepository(_db.DbPath);
+        var id = await _db.NewStudentInDbAsync("동아리학생");
+
+        var log = TestData.NewStudentLog(id, category: LogCategory.동아리활동);
+        log.ClubNo = 7;
+        log.ClubName = "천체관측반";
+
+        int no = await repo.CreateAsync(log);
+        var created = await repo.GetByIdAsync(no);
+        Assert.Equal(7, created!.ClubNo);
+        Assert.Equal("천체관측반", created.ClubName);
+
+        created.ClubNo = 9;
+        created.ClubName = "방송반";
+        Assert.True(await repo.UpdateAsync(created));
+
+        var updated = await repo.GetByIdAsync(no);
+        Assert.Equal(9, updated!.ClubNo);
+        Assert.Equal("방송반", updated.ClubName);
     }
 
     [Fact]

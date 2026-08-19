@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NewSchool.Helpers;
 using NewSchool.Models;
 using Xunit;
@@ -69,6 +69,118 @@ public class SchoolCalendarTests
         Assert.False(SchoolCalendar.IsGradeOnlyEvent(assembly, 1));
     }
 
+    [Theory]
+    [InlineData("초등학교", 6)]
+    [InlineData("중학교", 3)]
+    [InlineData("고등학교", 3)]
+    [InlineData("특수학교", 0)]   // 유·초·중·고 과정이 섞여 단정할 수 없다
+    [InlineData("각종학교", 0)]
+    [InlineData("", 0)]
+    [InlineData(null, 0)]
+    public void 학교급에서_학년수를_얻는다(string? schoolType, int expected)
+    {
+        Assert.Equal(expected, SchoolCalendar.GradeCountFor(schoolType));
+    }
+
+    [Fact]
+    public void 학년수를_알면_두_학년_수련회도_그_학년들만_빠진다()
+    {
+        // 3학년제 중학교에서 1·2학년만 수련회를 간다. 3학년은 정상 수업.
+        //   예전에는 "표시된 학년이 하나뿐" 일 때만 걸러서 1·2학년 모두 정상 수업일로 셌고,
+        //   그만큼 시수가 부풀려졌다.
+        var trip = new SchoolSchedule
+        {
+            EVENT_NM = "수련회",
+            ONE_GRADE_EVENT_YN = true,
+            TW_GRADE_EVENT_YN = true
+        };
+
+        Assert.True(SchoolCalendar.IsGradeOnlyEvent(trip, 1, gradeCount: 3));
+        Assert.True(SchoolCalendar.IsGradeOnlyEvent(trip, 2, gradeCount: 3));
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(trip, 3, gradeCount: 3));
+    }
+
+    [Fact]
+    public void 학년수를_알면_전교_행사는_학년_전용이_아니다()
+    {
+        // 3학년제에서 세 학년이 모두 표시 = 전교 행사. 휴업 판정에 맡긴다.
+        //   감사 문서가 제안한 marked < flags.Length 는 flags 가 항상 6칸이라 여기서 오판했다.
+        var festival = new SchoolSchedule
+        {
+            EVENT_NM = "체육대회",
+            ONE_GRADE_EVENT_YN = true,
+            TW_GRADE_EVENT_YN = true,
+            THREE_GRADE_EVENT_YN = true
+        };
+
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(festival, 1, gradeCount: 3));
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(festival, 2, gradeCount: 3));
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(festival, 3, gradeCount: 3));
+    }
+
+    [Fact]
+    public void 초등학교는_여섯_학년_기준으로_판정한다()
+    {
+        var trip = new SchoolSchedule
+        {
+            EVENT_NM = "현장체험학습",
+            ONE_GRADE_EVENT_YN = true,
+            TW_GRADE_EVENT_YN = true,
+            THREE_GRADE_EVENT_YN = true
+        };
+        // 6학년제에서 세 학년만 가는 날 → 그 학년들만 빠진다
+        Assert.True(SchoolCalendar.IsGradeOnlyEvent(trip, 1, gradeCount: 6));
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(trip, 4, gradeCount: 6));
+
+        var allGrades = new SchoolSchedule
+        {
+            EVENT_NM = "학예회",
+            ONE_GRADE_EVENT_YN = true,
+            TW_GRADE_EVENT_YN = true,
+            THREE_GRADE_EVENT_YN = true,
+            FR_GRADE_EVENT_YN = true,
+            FIV_GRADE_EVENT_YN = true,
+            SIX_GRADE_EVENT_YN = true
+        };
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(allGrades, 1, gradeCount: 6));
+    }
+
+    [Fact]
+    public void 학년수를_모르면_종전_기준을_그대로_쓴다()
+    {
+        // gradeCount 0 = 모름. 학년 수 없이 "전부는 아님" 을 적용하면 3학년제 전교 행사를
+        //   학년 전용으로 오판하므로, 표시 학년이 하나뿐일 때만 거르던 종전 규칙으로 물러난다.
+        var two = new SchoolSchedule
+        {
+            EVENT_NM = "수련회",
+            ONE_GRADE_EVENT_YN = true,
+            TW_GRADE_EVENT_YN = true
+        };
+        Assert.False(SchoolCalendar.IsGradeOnlyEvent(two, 1));
+
+        var one = new SchoolSchedule { EVENT_NM = "수련회", ONE_GRADE_EVENT_YN = true };
+        Assert.True(SchoolCalendar.IsGradeOnlyEvent(one, 1));
+    }
+
+    [Fact]
+    public void 두_학년_수련회는_그_학년의_수업일에서_빠진다()
+    {
+        var trip = new SchoolSchedule
+        {
+            EVENT_NM = "수련회",
+            AA_YMD = new DateTime(2026, 5, 13),   // 수요일
+            ONE_GRADE_EVENT_YN = true,
+            TW_GRADE_EVENT_YN = true
+        };
+        var date = new DateTime(2026, 5, 13);
+
+        Assert.False(SchoolCalendar.IsTeachingDayFor(date, [trip], 1, gradeCount: 3));
+        Assert.False(SchoolCalendar.IsTeachingDayFor(date, [trip], 2, gradeCount: 3));
+        Assert.True(SchoolCalendar.IsTeachingDayFor(date, [trip], 3, gradeCount: 3));
+
+        // 학년 수를 모르면 종전대로 셋 다 수업일
+        Assert.True(SchoolCalendar.IsTeachingDayFor(date, [trip], 1));
+    }
     [Fact]
     public void 행사명이_없으면_학년_전용_판정을_하지_않는다()
     {

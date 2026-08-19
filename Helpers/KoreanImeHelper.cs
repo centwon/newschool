@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -37,14 +37,60 @@ namespace NewSchool.Helpers
             public IntPtr dwExtraInfo;
         }
 
-        [StructLayout(LayoutKind.Explicit)]
+        /// <summary>
+        /// Win32 <c>MOUSEINPUT</c>. 공용체에서 가장 큰 멤버라 <c>INPUT</c> 전체 크기를 결정한다.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int    dx;
+            public int    dy;
+            public uint   mouseData;
+            public uint   dwFlags;
+            public uint   time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HARDWAREINPUT
+        {
+            public uint   uMsg;
+            public ushort wParamL;
+            public ushort wParamH;
+        }
+
+        /// <summary>
+        /// Win32 <c>INPUT</c>.
+        ///
+        /// <para>예전에는 <c>LayoutKind.Explicit</c> 에 <c>KEYBDINPUT</c> 하나만 얹어 두었다.
+        /// 그러면 x64 에서 크기가 <b>32바이트</b>로 잡히는데 Win32 가 요구하는 값은
+        /// 가장 큰 멤버(<c>MOUSEINPUT</c>) 기준 <b>40바이트</b>다. 크기가 어긋나면
+        /// <c>SendInput</c> 이 <c>ERROR_INVALID_PARAMETER(87)</c> 로 0 을 돌려주고 키를 하나도
+        /// 보내지 못한다. 폴백(<c>VK_HANGUL</c>)도 같은 구조체를 쓰므로 한글 자동 전환이
+        /// 통째로 죽어 있었다.</para>
+        ///
+        /// <para>크기를 40 으로 못 박지 않고 공용체를 제대로 선언한다 — 이 앱은
+        /// win-x86·win-x64·win-arm64 를 모두 게시하고 32비트의 <c>INPUT</c> 은 28바이트라
+        /// 상수로 박으면 x86 에서 같은 증상이 재현된다. 바깥을 <c>Sequential</c> 로 두면
+        /// 런타임이 플랫폼별 패딩을 알아서 넣는다.</para>
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
         private struct INPUT
         {
-            [FieldOffset(0)] public uint type;
-            // KEYBDINPUT 가 가장 큼 + padding 을 위해 union 패딩 확보
-            [FieldOffset(8)] public KEYBDINPUT ki;
-            // MOUSEINPUT / HARDWAREINPUT 가 더 크므로 실제 구조체 크기는 Marshal.SizeOf 로 계산
+            public uint       type;
+            public InputUnion U;
         }
+
+        // mi·hi 는 읽지 않는다. 공용체의 크기를 Win32 와 맞추기 위해 존재한다.
+#pragma warning disable CS0649
+        [StructLayout(LayoutKind.Explicit)]
+        private struct InputUnion
+        {
+            [FieldOffset(0)] public MOUSEINPUT    mi;
+            [FieldOffset(0)] public KEYBDINPUT    ki;
+            [FieldOffset(0)] public HARDWAREINPUT hi;
+        }
+#pragma warning restore CS0649
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, [In] INPUT[] pInputs, int cbSize);
@@ -173,9 +219,9 @@ namespace NewSchool.Helpers
         {
             var inputs = new INPUT[2];
             inputs[0].type = INPUT_KEYBOARD;
-            inputs[0].ki = new KEYBDINPUT { wVk = vk, wScan = 0, dwFlags = 0, time = 0, dwExtraInfo = IntPtr.Zero };
+            inputs[0].U.ki = new KEYBDINPUT { wVk = vk, wScan = 0, dwFlags = 0, time = 0, dwExtraInfo = IntPtr.Zero };
             inputs[1].type = INPUT_KEYBOARD;
-            inputs[1].ki = new KEYBDINPUT { wVk = vk, wScan = 0, dwFlags = KEYEVENTF_KEYUP, time = 0, dwExtraInfo = IntPtr.Zero };
+            inputs[1].U.ki = new KEYBDINPUT { wVk = vk, wScan = 0, dwFlags = KEYEVENTF_KEYUP, time = 0, dwExtraInfo = IntPtr.Zero };
             return SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
         }
 

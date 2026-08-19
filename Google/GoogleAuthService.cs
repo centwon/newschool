@@ -60,9 +60,17 @@ public sealed class GoogleAuthService : IDisposable
     public static bool HasCredentials =>
         ClientId != "YOUR_CLIENT_ID_HERE" && !string.IsNullOrEmpty(ClientId);
 
-    /// <summary>인증 완료 여부</summary>
+    /// <summary>
+    /// 인증 완료 여부.
+    ///
+    /// <para>저장값이 아니라 <b>복호화 결과</b>를 본다. 토큰은 DPAPI 로 현재 PC·사용자에 묶여
+    /// 암호화되므로, 포터블로 다른 PC 에서 실행하면 문자열은 남아 있어도 복호화가 실패해
+    /// 빈 값이 된다. 저장값만 검사하면 UI 는 "연결됨" 으로 보이는데 모든 동기화는 조용히
+    /// 실패한다 — 실제로 토큰을 쓰는 <see cref="GetValidAccessTokenAsync"/> 등이 전부
+    /// <c>Decrypt</c> 를 거치므로 여기서도 같은 기준을 쓴다.</para>
+    /// </summary>
     public bool IsAuthenticated =>
-        HasCredentials && !string.IsNullOrEmpty(Settings.GoogleRefreshToken.Value);
+        HasCredentials && !string.IsNullOrEmpty(Decrypt(Settings.GoogleRefreshToken.Value));
 
     /// <summary>
     /// 마지막 인증 시도가 실패한 이유(사용자에게 보여줄 문구). 성공했거나 시도 전이면 null.

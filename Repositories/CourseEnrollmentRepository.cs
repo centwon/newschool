@@ -120,9 +120,11 @@ namespace NewSchool.Repositories
                 cmd.Parameters.AddWithValue("@No", no);
 
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 if (await reader.ReadAsync())
                 {
-                    return MapEnrollment(reader);
+                    return MapEnrollment(reader, cache);
                 }
 
                 return null;
@@ -151,9 +153,11 @@ namespace NewSchool.Repositories
 
                 var enrollments = new List<CourseEnrollment>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    enrollments.Add(MapEnrollment(reader));
+                    enrollments.Add(MapEnrollment(reader, cache));
                 }
 
                 return enrollments;
@@ -182,9 +186,11 @@ namespace NewSchool.Repositories
 
                 var enrollments = new List<CourseEnrollment>();
                 using var reader = await cmd.ExecuteReaderAsync();
+                var cache = new ReaderColumnCache();
+                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
                 while (await reader.ReadAsync())
                 {
-                    enrollments.Add(MapEnrollment(reader));
+                    enrollments.Add(MapEnrollment(reader, cache));
                 }
 
                 return enrollments;
@@ -196,43 +202,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 학생의 특정 학년도/학기 수강 과목 조회
-        /// Course와 JOIN하여 조회
-        /// </summary>
-        public async Task<List<CourseEnrollment>> GetByStudentAndPeriodAsync(
-            string studentId, int year, int semester)
-        {
-            const string query = @"
-                SELECT ce.* FROM CourseEnrollment ce
-                INNER JOIN Course c ON ce.CourseNo = c.No
-                WHERE ce.StudentID = @StudentID
-                  AND c.Year = @Year
-                  AND c.Semester = @Semester
-                ORDER BY c.Grade, c.Class, c.Subject";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-
-                var enrollments = new List<CourseEnrollment>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader));
-                }
-
-                return enrollments;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 수강 과목 조회 실패: StudentID={studentId}, Year={year}, Semester={semester}", ex);
-                throw;
-            }
-        }
+        // 미사용 메서드 제거 (2026-08-19): GetByStudentAndPeriodAsync — 호출처 0건.
+        //   ORDER BY 에 Course 테이블에 없는 c.Class 를 걸고 있어 부르는 순간 깨졌을 코드다.
 
         /// <summary>
         /// 중복 수강 신청 확인
@@ -401,23 +372,23 @@ namespace NewSchool.Repositories
             cmd.Parameters.AddWithValue("@UpdatedAt", enrollment.UpdatedAt);
         }
 
-        private CourseEnrollment MapEnrollment(SqliteDataReader reader)
+        private CourseEnrollment MapEnrollment(SqliteDataReader reader, ReaderColumnCache cache)
         {
             var enrollment = new CourseEnrollment
             {
-                No = reader.GetInt32(reader.GetOrdinal("No")),
-                StudentID = reader.GetString(reader.GetOrdinal("StudentID")),
-                CourseNo = reader.GetInt32(reader.GetOrdinal("CourseNo")),
-                Status = reader.GetString(reader.GetOrdinal("Status")),
-                Remark = reader.GetString(reader.GetOrdinal("Remark")),
-                CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt")))
+                No = reader.GetInt32(cache.GetOrdinal("No")),
+                StudentID = reader.GetString(cache.GetOrdinal("StudentID")),
+                CourseNo = reader.GetInt32(cache.GetOrdinal("CourseNo")),
+                Status = reader.GetString(cache.GetOrdinal("Status")),
+                Remark = reader.GetString(cache.GetOrdinal("Remark")),
+                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
+                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt")))
             };
 
             // Room 컬럼 (기존 DB 호환)
             try
             {
-                var roomOrdinal = reader.GetOrdinal("Room");
+                var roomOrdinal = cache.GetOrdinal("Room");
                 enrollment.Room = reader.IsDBNull(roomOrdinal) ? string.Empty : reader.GetString(roomOrdinal);
             }
             catch { enrollment.Room = string.Empty; }

@@ -26,12 +26,12 @@ namespace NewSchool.Repositories
             const string query = @"
                 INSERT INTO StudentLog (
                     StudentID, TeacherID, Year, Semester, Date,
-                    Category, CourseNo, SubjectName, Log, Tag, IsImportant,
+                    Category, CourseNo, SubjectName, ClubNo, ClubName, Log, Tag, IsImportant,
                     ActivityName, Topic, Description, Role, 
                     SkillDeveloped, StrengthShown, ResultOrOutcome
                 ) VALUES (
                     @StudentID, @TeacherID, @Year, @Semester, @Date,
-                    @Category, @CourseNo, @SubjectName, @Log, @Tag, @IsImportant,
+                    @Category, @CourseNo, @SubjectName, @ClubNo, @ClubName, @Log, @Tag, @IsImportant,
                     @ActivityName, @Topic, @Description, @Role,
                     @SkillDeveloped, @StrengthShown, @ResultOrOutcome
                 );
@@ -568,6 +568,8 @@ namespace NewSchool.Repositories
                     Category = @Category,
                     CourseNo = @CourseNo,
                     SubjectName = @SubjectName,
+                    ClubNo = @ClubNo,
+                    ClubName = @ClubName,
                     Log = @Log,
                     Tag = @Tag,
                     IsImportant = @IsImportant,
@@ -654,6 +656,8 @@ namespace NewSchool.Repositories
             // ⭐ CourseNo가 0이면 NULL로 저장 (외래키 제약 회피)
             cmd.Parameters.Add("@CourseNo", SqliteType.Integer).Value = log.CourseNo == 0 ? (object)DBNull.Value : log.CourseNo;
             cmd.Parameters.AddWithValue("@SubjectName", string.IsNullOrEmpty(log.SubjectName) ? DBNull.Value : log.SubjectName);
+            // ⚠ 이 두 파라미터는 오랫동안 여기서 채워지기만 하고 INSERT/UPDATE 문에는 빠져 있었다.
+            //   SQLite 는 쓰이지 않는 파라미터를 조용히 무시하므로 오류 없이 동아리 정보만 사라졌다.
             cmd.Parameters.Add("@ClubNo", SqliteType.Integer).Value = log.ClubNo == 0 ? (object)DBNull.Value : log.ClubNo;
             cmd.Parameters.AddWithValue("@ClubName", string.IsNullOrEmpty(log.ClubName) ? DBNull.Value : log.ClubName);
             cmd.Parameters.AddWithValue("@Log", string.IsNullOrEmpty(log.Log) ? DBNull.Value : log.Log);

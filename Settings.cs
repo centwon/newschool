@@ -692,7 +692,11 @@ public static class Settings
     /// <summary>
     /// 복원 대상 DB의 연결 풀과 잔여 WAL 파일 정리 — 복원 파일이 이전 -wal/-shm 과 섞여 오염되는 것 방지
     /// </summary>
-    private static void PrepareForRestore(string dbPath)
+    /// <summary>
+    /// DB 파일을 덮어쓰기 전 준비 — 풀에 남은 연결을 끊고 잔여 WAL/SHM 을 지운다.
+    /// (같은 파일의 <c>SettingsDb.Restore</c> 도 쓴다.)
+    /// </summary>
+    internal static void PrepareForRestore(string dbPath)
     {
         SqliteConnection.ClearAllPools();
         foreach (var suffix in new[] { "-wal", "-shm" })
@@ -899,7 +903,9 @@ internal static class SettingsDb
         var dataDir = Settings.UserDataPath;
         Directory.CreateDirectory(dataDir);
         DbPath = Path.Combine(dataDir, "Settings.db");
-        ConnectionString = $"Data Source={DbPath};Cache=Shared";
+        // Cache=Shared 를 떼어 다른 DB 연결들과 기준을 맞췄다 — 공유 캐시는 WAL 위에서
+        // 테이블 락을 만들 뿐 이 앱에 이득이 없다(인메모리 DB 를 쓰지 않는다).
+        ConnectionString = $"Data Source={DbPath}";
     }
 
     public static void Initialize()
@@ -1019,6 +1025,10 @@ internal static class SettingsDb
             {
                 if (File.Exists(backupPath))
                 {
+                    // 이 연결 문자열은 Pooling 기본값(켜짐) + Cache=Shared 다. 풀에 남은 연결이
+                    // 파일을 쥔 채로 덮어쓰면 복사가 막히거나, 성공해도 옛 -wal/-shm 이 남아
+                    // 새 파일과 짝이 안 맞는 상태가 된다. 폴더 복원 경로와 같은 준비를 거친다.
+                    Settings.PrepareForRestore(DbPath);
                     File.Copy(backupPath, DbPath, true);
                     _isInitialized = false;
                     Initialize();
