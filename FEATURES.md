@@ -1,4 +1,4 @@
-# NewSchool 프로젝트 기능 리스트
+﻿# NewSchool 프로젝트 기능 리스트
 
 ## 1. 메인 네비게이션 구조 (MainWindow.xaml)
 
@@ -465,7 +465,9 @@
 
 | 과제 | 요약 | 상세 |
 |------|------|------|
-| ~~**테스트 확충**~~ ✅ 완료 | 테스트 25개 → 211개(0~4단계, 2026-07-12) → **433개**(2026-08-16 기준, 이후 회귀 테스트 누적). 리포지토리 CRUD·경계 → 서비스 로직·회귀 → 헬퍼·파서 → VM 변환. 잠재 버그 2건도 작성 중 발견·수정. 잔여(Settings 파서·Excel 헤더 탐지 등)는 ROI 낮아 보류 | [TEST_PLAN.md](TEST_PLAN.md) |
+| ~~**테스트 확충**~~ ✅ 완료 | 테스트 25개 → 211개(0~4단계, 2026-07-12) → **438개**(2026-08-16 기준, 이후 회귀 테스트 누적). 리포지토리 CRUD·경계 → 서비스 로직·회귀 → 헬퍼·파서 → VM 변환. 잠재 버그 2건도 작성 중 발견·수정. 잔여(Settings 파서·Excel 헤더 탐지 등)는 ROI 낮아 보류 | [TEST_PLAN.md](TEST_PLAN.md) |
+| **배포 방식 재평가** (게시 전 결정) | 런타임 번들(현행) vs 자체 포함. 실측 — 번들: 설치 폴더 **9개·44MB** / 설치 파일 **114MB**(런타임 설치기 108MB 포함), 자체 포함: 설치 폴더 **100개·107MB**(winmd·Search·Widgets·workloads 추가 필터 시 94개·96MB) / 설치 파일 약 **55MB**. 요는 "설치 폴더가 비대해지냐 설치 파일이 비대해지냐". 자체 포함은 SDK 버전 결합이 사라지는 대신 OneDrive 포터블 폴더가 9개→94개가 된다. `lib\` 격리로 루트를 1개로 줄이는 안은 `.pri` 가 exe 옆에 있어야 해 위험 | `NewSchool.csproj:259`, `Installer/NewSchoolSetup.iss` |
+| 게시 필터의 접두어 오탐 (자체 포함 전환 시) | `.mui` 필터가 `StartsWith('ko')`·`StartsWith('en')` 이라 `kok-IN`(콘칸어)·`en-GB` 가 함께 통과(86→4개까지는 정상 동작). AI 필터도 `StartsWith('Microsoft.Windows.AI')` 라 `Microsoft.Windows.**Internal.**AI.*` 를 놓친다. 프레임워크 의존에서는 `.mui` 가 게시본에 오지 않아 잠자는 코드 | `NewSchool.csproj:375` |
 | qpdf.dll 게시 제외 검토 | QuestPDF 부속 네이티브(4.2MB). PDF 병합/PDF-A 미사용이면 게시에서 제외 가능성 — 런타임 로드 여부 확인 필요 | — |
 | 학생 관리 상태 편집 | 학생 목록에서 재학/전학/휴학 상태를 콤보로 변경(현재 읽기 전용) | `Pages/StudentManagementPage.xaml` |
 | 진급 처리 UI | `EnrollmentService.PromoteStudentsAsync`(같은 StudentID 로 다음 학년도 학적 생성 — 다년 이력 연속성 확보)의 노출. 반/번호 재배정 미리보기·확정 화면 필요. 졸업 마감(GraduateAsync)은 불필요 판단으로 제거함(2026-07-15) | `Services/EnrollmentService.cs` |

@@ -1,4 +1,4 @@
-# NewSchool
+﻿# NewSchool
 
 WinUI 3 (Windows App SDK 2.4) · .NET 10 · SQLite 기반 교사용 학급 관리 프로그램.
 
@@ -80,11 +80,24 @@ Native AOT 게시본은 아키텍처별로 별도 빌드해야 하며, 지원 �
 dotnet publish -c Release -p:Platform=x64
 ```
 
-`Properties/PublishProfiles/win-x64.pubxml` 이 자동 적용되어 자체 포함(self-contained) Native AOT 게시본을
+`Properties/PublishProfiles/win-x64.pubxml` 이 자동 적용되어 Native AOT 게시본을
 `bin\Release\net10.0-windows10.0.26100.0\win-x64\publish\` 에 생성합니다. x86/arm64는 `-p:Platform=x86` 또는
 `-p:Platform=arm64` 로 교체.
 
+**.NET 런타임만 자체 포함**이고 Windows App SDK 런타임은 별도입니다(`WindowsAppSDKSelfContained=false`).
+그래서 게시 폴더는 9개 파일 44MB 로 단출하고, 대신 설치 프로그램이 런타임을 함께 설치합니다.
+
 이후 Inno Setup 으로 `Installer/NewSchoolSetup.iss` 컴파일.
+
+> **릴리스 체크리스트 — Windows App SDK 버전을 올렸다면**
+> 앱은 프레임워크 의존(`WindowsAppSDKSelfContained=false`)이라 설치 프로그램이 런타임을
+> 함께 깔아 줍니다. SDK 를 올릴 때 아래 둘을 **반드시 같이** 갱신하세요.
+>
+> 1. `Installer/prerequisites/WindowsAppRuntimeInstall-x64.exe` — 같은 버전으로 교체
+> 2. `Installer/NewSchoolSetup.iss` 의 `RequiredRuntimeVersion`
+>
+> 개발 PC 에는 최신 런타임이 이미 있어 **이 불일치는 로컬 테스트로 드러나지 않습니다.**
+> 실제로 2.2 → 2.4 상향 때 프리레퀴지싯이 2.3 에 멈춰 있었고, 1.0.0 게시 직전에야 잡혔습니다.
 
 > Release/게시에서만 나는 `CS1061` 류의 이상한 컴파일 오류는 대개 `obj\x64\Release` 에 남은
 > 옛 XAML 생성 파일(`*.g.cs`) 탓입니다. 그 폴더를 지우고 다시 빌드하면 해소됩니다.
