@@ -480,28 +480,17 @@ namespace NewSchool.ViewModels
         /// </summary>
         public async Task LoadDiaryAsync(int grade, int classNumber, DateTime date)
         {
-            var diary = await _diaryService.GetDiaryAsync(
-                Settings.SchoolCode.Value, 
-                Settings.WorkYear,  // 작업 학년도로 통일
-                grade, 
-                classNumber, 
-                date);
-            
-            if (diary == null)
-            {
-                diary = new ClassDiary
-                {
-                    Year = Settings.WorkYear,  // 작업 학년도로 통일
-                    Semester = Settings.WorkSemester,  // 작업 학기도 사용
-                    Date = date.Date,
-                    Grade = grade,
-                    Class = classNumber,
-                    TeacherID = Settings.User,
-                    SchoolCode = Settings.SchoolCode
-                };
-            }
+            // 조회 + 없으면 빈 일지 만들기는 서비스가 한다 — 예전에는 같은 로직을 여기에
+            // 복사해 두어, 서비스의 GetOrCreateDiaryAsync 는 아무도 부르지 않는 채로 남아 있었다.
+            Diary = await _diaryService.GetOrCreateDiaryAsync(
+                Settings.SchoolCode.Value,
+                Settings.WorkYear,      // 작업 학년도로 통일
+                Settings.WorkSemester,  // 작업 학기도 사용
+                grade,
+                classNumber,
+                date,
+                Settings.User);
 
-            Diary = diary;
             await LoadStudentLogsAsync();
         }
 

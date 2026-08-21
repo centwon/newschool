@@ -72,22 +72,23 @@ namespace NewSchool.Services
         }
 
         /// <summary>
-        /// 학급 일지 조회 (없으면 빈 일지 생성)
+        /// 학급 일지 조회. 없으면 <b>저장하지 않은</b> 빈 일지를 만들어 돌려준다.
+        ///
+        /// <para>화면이 "조회하고 null 이면 새로 만들기" 를 각자 짜지 않도록 여기에 둔다 —
+        /// 실제로 ClassDiaryViewModel 이 같은 로직을 따로 들고 있었다.</para>
+        ///
+        /// <para>날짜는 일 단위로 자른다. 일지는 하루에 하나이므로 시각이 섞여 들어오면
+        /// 조회한 날과 만들어 준 일지의 날짜가 어긋난다.</para>
         /// </summary>
         public async Task<ClassDiary> GetOrCreateDiaryAsync(
             string schoolCode, int year, int semester, 
             int grade, int classNum, DateTime date, string teacherId)
         {
-            var diary = await _diaryRepo.GetByDateAsync(
-                schoolCode, year, grade, classNum, date);
+            var day = date.Date;
+            var diary = await GetDiaryAsync(schoolCode, year, grade, classNum, day);
 
-            if (diary == null)
-            {
-                // 빈 일지 생성 (DB에 저장하지 않음)
-                diary = new ClassDiary(schoolCode, year, semester, grade, classNum, date, teacherId);
-            }
-
-            return diary;
+            // 빈 일지 생성 (DB에 저장하지 않음)
+            return diary ?? new ClassDiary(schoolCode, year, semester, grade, classNum, day, teacherId);
         }
 
         /// <summary>
@@ -101,17 +102,6 @@ namespace NewSchool.Services
         }
 
         /// <summary>
-        /// 월별 일지 목록 조회
-        /// </summary>
-        public async Task<List<ClassDiary>> GetMonthDiariesAsync(
-            string schoolCode, int year, int semester, 
-            int grade, int classNum, int month)
-        {
-            return await _diaryRepo.GetByMonthAsync(
-                schoolCode, year, semester, grade, classNum, month);
-        }
-
-        /// <summary>
         /// 기간별 일지 목록 조회
         /// </summary>
         public async Task<List<ClassDiary>> GetDateRangeDiariesAsync(
@@ -122,35 +112,11 @@ namespace NewSchool.Services
                 schoolCode, year, semester, grade, classNum, startDate, endDate);
         }
 
-        /// <summary>
-        /// 학급 전체 일지 조회
-        /// </summary>
-        public async Task<List<ClassDiary>> GetClassDiariesAsync(
-            string schoolCode, int year, int semester, int grade, int classNum)
-        {
-            return await _diaryRepo.GetByClassAsync(
-                schoolCode, year, grade, classNum);
-        }
-
-        #endregion
-
-        #region 메모 & 알림장
-
-        /// <summary>
-        /// 메모 업데이트
-        /// </summary>
-        public async Task<bool> UpdateMemoAsync(
-            string schoolCode, int year, int semester, 
-            int grade, int classNum, DateTime date, string memo)
-        {
-            var diary = await GetOrCreateDiaryAsync(
-                schoolCode, year, semester, grade, classNum, date, string.Empty);
-
-            diary.Memo = memo;
-
-            var result = await CreateOrUpdateAsync(diary);
-            return result.No > 0;
-        }
+        // 미사용 메서드 제거 (2026-08-19): GetMonthDiariesAsync·GetClassDiariesAsync·UpdateMemoAsync —
+        //   셋 다 호출처 0건. 월별 조회는 기간 조회(GetDateRangeDiariesAsync)가 상위 호환이고,
+        //   메모만 고치는 경로는 화면이 일지를 통째로 저장하는 방식이라 쓸 데가 없었다.
+        //   GetClassDiariesAsync 는 semester 를 받아 놓고 리포지토리에 넘기지 않아,
+        //   불렸다면 학기로 걸렀다고 믿는 쪽에서 학년도 전체를 받았을 것이다.
 
         #endregion
 

@@ -126,91 +126,10 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 특정 학급의 모든 일지 조회
-        /// </summary>
-        public async Task<List<ClassDiary>> GetByClassAsync(string schoolCode, int year,  int grade, int classNum)
-        {
-            const string query = @"
-                SELECT * FROM ClassDiary 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Grade = @Grade 
-                  AND Class = @Class
-                ORDER BY Date DESC";
-
-            var diaries = new List<ClassDiary>();
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    diaries.Add(MapDiary(reader, cache));
-                }
-
-                LogInfo($"학급 일지 조회: {grade}학년 {classNum}반 - {diaries.Count}건");
-                return diaries;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학급 일지 조회 실패: {grade}학년 {classNum}반", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 특정 월의 학급 일지 조회
-        /// </summary>
-        public async Task<List<ClassDiary>> GetByMonthAsync(string schoolCode, int year, int semester, int grade, int classNum, int month)
-        {
-            const string query = @"
-                SELECT * FROM ClassDiary 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester 
-                  AND Grade = @Grade 
-                  AND Class = @Class
-                  AND strftime('%Y-%m', Date) = @YearMonth
-                ORDER BY Date";
-
-            var diaries = new List<ClassDiary>();
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-                cmd.Parameters.AddWithValue("@YearMonth", $"{year:D4}-{month:D2}");
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    diaries.Add(MapDiary(reader, cache));
-                }
-
-                LogInfo($"월별 일지 조회: {year}년 {month}월 {grade}학년 {classNum}반 - {diaries.Count}건");
-                return diaries;
-            }
-            catch (Exception ex)
-            {
-                LogError($"월별 일지 조회 실패: {year}년 {month}월", ex);
-                throw;
-            }
-        }
+        // 미사용 메서드 제거 (2026-08-19): GetByClassAsync, GetByMonthAsync — 호출처 0건.
+        //   ClassDiaryService 의 GetClassDiariesAsync·GetMonthDiariesAsync 를 통해서만 닿을 수 있었는데
+        //   그 둘도 어느 화면에서도 부르지 않아 함께 지웠다. 기간 조회(GetByDateRangeAsync)가 상위
+        //   호환이라 월별은 그것으로 낼 수 있다.
 
         /// <summary>
         /// 기간별 학급 일지 조회
