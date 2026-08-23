@@ -51,6 +51,9 @@ public static class MessageBox
     /// </summary>
     public static async Task<ContentDialogResult> ShowDialogAsync(ContentDialog dialog)
     {
+        // 직접 만든 대화상자가 XamlRoot 를 빠뜨렸으면 지금 앞에 있는 창으로 채운다.
+        dialog.XamlRoot ??= ResolveXamlRoot();
+
         await _dialogGate.WaitAsync();
         try
         {
@@ -81,6 +84,37 @@ public static class MessageBox
         }
     }
 
+    /// <summary>
+    /// 지금 사용자가 보고 있는 창. <see cref="TrackWindow"/> 로 등록된 창들 중
+    /// 마지막으로 활성화된 것이며, 그 창이 닫히면 null 로 돌아간다.
+    /// </summary>
+    private static Window? _activeWindow;
+
+    /// <summary>
+    /// 이 창에서 부른 대화상자가 <b>이 창 위에</b> 뜨도록 등록한다. 창을 만들 때 한 번 부른다.
+    ///
+    /// ContentDialog 는 XamlRoot 가 가리키는 창의 시각 트리 안에 그려진다. 그래서 등록하지
+    /// 않으면 보조 창(수업 일지·메모·누가기록 …)의 안내가 <b>메인 창</b> 위에 떠서 앞에 있는
+    /// 보조 창 뒤에 가리고, 사용자에게는 저장을 눌러도 아무 반응이 없는 것처럼 보인다.
+    /// 초기 설정 창은 그때 메인 창이 아직 없어 아예 표시조차 되지 않았다.
+    /// </summary>
+    public static void TrackWindow(Window window)
+    {
+        if (window == null) return;
+
+        window.Activated += (s, e) =>
+        {
+            if (e.WindowActivationState != WindowActivationState.Deactivated)
+                _activeWindow = s as Window;
+        };
+
+        window.Closed += (s, _) =>
+        {
+            // 닫힌 창의 XamlRoot 로는 대화상자를 띄울 수 없다 — 메인 창으로 되돌린다.
+            if (ReferenceEquals(_activeWindow, s)) _activeWindow = null;
+        };
+    }
+
     // XamlRoot 설정 (앱 시작 시 한 번 설정)
     public static void Initialize(XamlRoot xamlRoot)
     {
@@ -96,50 +130,14 @@ public static class MessageBox
         }
     }
 
-    // XamlRoot 자동 탐지 및 설정 (수정된 버전)
-    private static bool TryAutoInitialize()
-    {
-        try
-        {
-            // App.MainWindow에서 XamlRoot 찾기 시도
-            if (App.MainWindow?.Content?.XamlRoot != null)
-            {
-                _xamlRoot = App.MainWindow.Content.XamlRoot;
-                return true;
-            }
-
-            // App.GetCurrentWindow()에서 찾기 시도 (App에 이 메서드가 있다면)
-            try
-            {
-                var currentWindow = App.GetCurrentWindow();
-                if (currentWindow?.Content?.XamlRoot != null)
-                {
-                    _xamlRoot = currentWindow.Content.XamlRoot;
-                    return true;
-                }
-            }
-            catch
-            {
-                // App.GetCurrentWindow가 없을 수 있음
-            }
-
-            // Application의 모든 창 검색
-            foreach (var window in WindowHelper.GetActiveWindows())
-            {
-                if (window?.Content?.XamlRoot != null)
-                {
-                    _xamlRoot = window.Content.XamlRoot;
-                    return true;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"XamlRoot 자동 탐지 실패: {ex.Message}");
-        }
-
-        return false;
-    }
+    /// <summary>
+    /// 대화상자를 띄울 XamlRoot 를 <b>부를 때마다</b> 새로 정한다.
+    /// 한 번 정해 캐시해 두면 그 창이 닫힌 뒤에도 계속 그것을 써서 표시가 통째로 실패한다.
+    /// </summary>
+    private static XamlRoot? ResolveXamlRoot()
+        => _activeWindow?.Content?.XamlRoot
+           ?? App.MainWindow?.Content?.XamlRoot
+           ?? _xamlRoot;
 
     // 기본 메시지박스 (WPF와 동일한 사용법)
     public static async Task<MessageBoxResult> ShowAsync(string message)
@@ -169,22 +167,20 @@ public static class MessageBox
     // 기본 버튼 설정이 있는 메시지박스
     public static async Task<MessageBoxResult> ShowAsync(string message, string title, MessageBoxButton button, MessageBoxDefaultButton defaultButton)
     {
-        // XamlRoot가 없으면 자동 탐지 시도
-        if (_xamlRoot == null)
+        // 지금 앞에 있는 창을 매번 새로 찾는다 — 창마다 XamlRoot 가 다르고, 창은 닫힌다.
+        var xamlRoot = ResolveXamlRoot();
+        if (xamlRoot == null)
         {
-            if (!TryAutoInitialize())
-            {
-                // 마지막 수단: ContentDialog without XamlRoot (일부 시나리오에서 작동)
-                System.Diagnostics.Debug.WriteLine("MessageBox 경고: XamlRoot를 찾을 수 없어 기본 설정으로 표시합니다.");
-                return await ShowFallbackAsync(message, title, button);
-            }
+            // 마지막 수단: 띄울 창이 없다(창이 아직 없거나 모두 닫힌 중).
+            System.Diagnostics.Debug.WriteLine("MessageBox 경고: XamlRoot를 찾을 수 없어 기본 설정으로 표시합니다.");
+            return await ShowFallbackAsync(message, title, button);
         }
 
         var dialog = new ContentDialog()
         {
             Title = title,
             Content = message,
-            XamlRoot = _xamlRoot
+            XamlRoot = xamlRoot
         };
 
         // 버튼 타입에 따라 설정
@@ -213,7 +209,8 @@ public static class MessageBox
     public static async Task<bool> ShowConfirmAsync(string message, string title,
         string confirmText = "확인", string cancelText = "취소")
     {
-        if (_xamlRoot == null && !TryAutoInitialize())
+        var xamlRoot = ResolveXamlRoot();
+        if (xamlRoot == null)
         {
             System.Diagnostics.Debug.WriteLine("MessageBox 경고: XamlRoot를 찾을 수 없어 기본 설정으로 표시합니다.");
             return false;
@@ -226,7 +223,7 @@ public static class MessageBox
             PrimaryButtonText = confirmText,
             CloseButtonText = cancelText,
             DefaultButton = ContentDialogButton.Close,
-            XamlRoot = _xamlRoot
+            XamlRoot = xamlRoot
         };
 
         var result = await ShowDialogAsync(dialog);
@@ -348,31 +345,4 @@ public static class MessageBox
 
     // 초기화 상태 확인
     public static bool IsInitialized => _xamlRoot != null;
-}
-
-// Window 헬퍼 클래스 (수정된 버전)
-internal static class WindowHelper
-{
-    public static System.Collections.Generic.IEnumerable<Window> GetActiveWindows()
-    {
-        var windows = new System.Collections.Generic.List<Window>();
-
-        try
-        {
-            // App.MainWindow 추가
-            if (App.MainWindow != null)
-            {
-                windows.Add(App.MainWindow);
-            }
-
-            // 추가적인 창들이 있다면 여기에 추가
-            // 예: 다이얼로그, 팝업 창들
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"활성 창 목록 가져오기 실패: {ex.Message}");
-        }
-
-        return windows;
-    }
 }

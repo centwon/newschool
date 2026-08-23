@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
@@ -23,26 +24,51 @@ internal static class PostAttachments
     public static async Task<bool> ApplyAsync(
         BoardService service, PostFileListBox list, int postNo, string category)
     {
+        // 글은 이미 저장됐고 첨부만 어긋난 상태다. 조용히 넘기면 화면에는 첨부가 있는데
+        // 실제로는 없는(또는 지운 줄 알았는데 남은) 글이 된다 — 무엇이 어긋났는지 알린다.
+        var failed = new List<string>();
+
         foreach (var fileToDelete in list.FilesToDelete)
         {
-            await service.DeletePostFileAsync(fileToDelete.No, category);
-            Debug.WriteLine($"[PostAttachments] 파일 삭제: {fileToDelete.FileName}");
+            if (await service.DeletePostFileAsync(fileToDelete.No, category))
+                Debug.WriteLine($"[PostAttachments] 파일 삭제: {fileToDelete.FileName}");
+            else
+                failed.Add($"{fileToDelete.FileName} (삭제)");
         }
+
+        int attached = 0;
 
         foreach (var fileBox in list.FileBoxes)
         {
             // OrgFilePath 가 있으면 새로 추가된 파일이다(기존 첨부는 비어 있다).
-            if (string.IsNullOrEmpty(fileBox.OrgFilePath) || fileBox.PostFile == null) continue;
-
-            var savedFile = await SaveFileAsync(fileBox.OrgFilePath, postNo, category);
-            if (savedFile != null)
+            if (string.IsNullOrEmpty(fileBox.OrgFilePath) || fileBox.PostFile == null)
             {
-                await service.AddPostFileAsync(savedFile);
+                attached++;   // 이미 붙어 있던 첨부
+                continue;
+            }
+
+            // 복사 실패는 SaveFileAsync 가 이미 알렸다 — 여기서는 집계에서만 빼면 된다.
+            var savedFile = await SaveFileAsync(fileBox.OrgFilePath, postNo, category);
+            if (savedFile == null) continue;
+
+            if (await service.AddPostFileAsync(savedFile) > 0)
+            {
+                attached++;
                 Debug.WriteLine($"[PostAttachments] 파일 저장: {savedFile.FileName}");
+            }
+            else
+            {
+                failed.Add($"{savedFile.FileName} (등록)");
             }
         }
 
-        return list.FileCount > 0;
+        if (failed.Count > 0)
+        {
+            await NewSchool.Controls.MessageBox.ShowErrorAsync(
+                $"첨부파일 {failed.Count}건을 반영하지 못했습니다.\n{string.Join("\n", failed)}");
+        }
+
+        return attached > 0;
     }
 
     /// <summary>

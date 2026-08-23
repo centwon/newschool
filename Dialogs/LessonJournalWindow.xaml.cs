@@ -82,13 +82,19 @@ public sealed partial class LessonJournalWindow : Window
         Title = title;
         SetWindowSize(980, 760);
 
+        // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
+        NewSchool.Controls.MessageBox.TrackWindow(this);
+
         FileList.Category = LessonJournalComposer.Category;
 
         TxtTitle.TextChanged += OnTitleEdited;
         DpDate.DateChanged += (_, _) => OnHeaderChanged();
         CmbPeriod.SelectionChanged += (_, _) => OnHeaderChanged();
-        CmbRoom.SelectionChanged += (_, _) => OnHeaderChanged();
         CmbSection.SelectionChanged += (_, _) => OnSectionChanged();
+
+        // 강의실은 목록에서 고르기도 하고 직접 적기도 한다(IsEditable). SelectionChanged 만 듣던
+        // 때는 목록에 없는 강의실을 타이핑하면 제목이 옛 강의실 그대로 저장됐다.
+        CmbRoom.RegisterPropertyChangedCallback(ComboBox.TextProperty, (_, _) => OnHeaderChanged());
 
         Closed += OnWindowClosed;
     }
@@ -182,8 +188,7 @@ public sealed partial class LessonJournalWindow : Window
 
         // 강의실은 교과를 고를 때 그 교과의 첫 강의실로 채워진다. 시간표 칸이 알려 준
         // 강의실이 있으면 그쪽이 맞으므로 뒤에서 다시 적는다.
-        if (!string.IsNullOrWhiteSpace(_seed?.Room))
-            CmbRoom.Text = _seed.Room;
+        SetRoom(_seed?.Room);
     }
 
     private async Task LoadExistingAsync()
@@ -245,7 +250,7 @@ public sealed partial class LessonJournalWindow : Window
         await SelectCourseAsync(course);
 
         if (course != null)
-            CmbRoom.Text = tail[course.Subject.Length..].Trim();
+            SetRoom(tail[course.Subject.Length..].Trim());
     }
 
     /// <summary>교과를 고르고 그 교과의 강의실·단원을 채운다.</summary>
@@ -344,7 +349,38 @@ public sealed partial class LessonJournalWindow : Window
         DpDate.Date?.DateTime,
         CmbPeriod.SelectedItem is ComboBoxItem { Tag: int period } ? period : 0,
         (CmbCourse.SelectedItem as Course)?.Subject,
-        (CmbRoom.SelectedItem as string) ?? CmbRoom.Text);
+        RoomText);
+
+    /// <summary>
+    /// 강의실 칸에 <b>보이는</b> 값. 편집 가능한 ComboBox 라 고른 항목과 적어 넣은 글이 갈릴 수 있는데,
+    /// 제목에는 사용자가 보고 있는 쪽이 들어가야 한다.
+    /// </summary>
+    private string RoomText =>
+        string.IsNullOrWhiteSpace(CmbRoom.Text)
+            ? (CmbRoom.SelectedItem as string ?? string.Empty)
+            : CmbRoom.Text;
+
+    /// <summary>
+    /// 강의실을 채운다. 담당 교과의 강의실 목록에 있으면 그 항목을 고르고,
+    /// 없으면 고른 항목을 비운 뒤 직접 적은 값으로 둔다 — 둘이 어긋나면 제목이 화면과 달라진다.
+    /// </summary>
+    private void SetRoom(string? room)
+    {
+        if (string.IsNullOrWhiteSpace(room)) return;
+
+        var match = (CmbRoom.ItemsSource as List<string>)?
+            .FirstOrDefault(r => string.Equals(r, room, StringComparison.Ordinal));
+
+        if (match != null)
+        {
+            CmbRoom.SelectedItem = match;
+        }
+        else
+        {
+            CmbRoom.SelectedItem = null;
+            CmbRoom.Text = room;
+        }
+    }
 
     private CourseSection? SelectedSection =>
         CmbSection.SelectedItem is ComboBoxItem { Tag: int no }

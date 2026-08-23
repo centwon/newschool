@@ -40,6 +40,9 @@ public sealed partial class LessonHomePage : Page
     // 오늘의 수업
     private readonly ObservableCollection<TodayLessonItem> _todayLessons = [];
 
+    /// <summary>오늘 수업이 없을 때의 안내(XAML 기본값과 같아야 한다)</summary>
+    private const string NoLessonsMessage = "오늘은 수업이 없습니다.";
+
     #endregion
 
     #region Constructor
@@ -113,6 +116,10 @@ public sealed partial class LessonHomePage : Page
             int total = _todayLessons.Count;
             int completed = _todayLessons.Count(i => i.IsCompleted);
             TxtTodaySummary.Text = total > 0 ? $"{total}시간 중 {completed}건 기록" : "";
+
+            // 지난번 실패로 갈아 끼운 문구를 되돌린다 — 아니면 정말 수업이 없는 날에도
+            // "수업 정보를 불러올 수 없습니다" 가 계속 남는다.
+            TxtNoLessons.Text = NoLessonsMessage;
             TxtNoLessons.Visibility = total == 0 ? Visibility.Visible : Visibility.Collapsed;
 
             Debug.WriteLine($"[LessonHomePage] 오늘의 수업: {total}건, 기록 완료: {completed}건");

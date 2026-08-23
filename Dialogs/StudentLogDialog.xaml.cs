@@ -240,6 +240,9 @@ public sealed partial class StudentLogDialog : Window
 
     private void InitializeCommon()
     {
+        // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
+        Controls.MessageBox.TrackWindow(this);
+
         // 메인 창이 '항상 위에'면 이 창도 같은 topmost 레벨로 올려 뒤로 숨지 않게 함
         if (Settings.TopMost.Value)
             MainWindow.SetAlwaysOnTop(this, true);

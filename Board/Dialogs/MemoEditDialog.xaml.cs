@@ -34,6 +34,9 @@ public sealed partial class MemoEditDialog : Window
         Title = "메모 편집";
         SetWindowSize(900, 700);
 
+        // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
+        NewSchool.Controls.MessageBox.TrackWindow(this);
+
         Closed += OnWindowClosed;
     }
 

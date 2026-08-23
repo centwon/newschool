@@ -229,6 +229,7 @@ public partial class App : Application
             await tcs.Task;
         }
         MessageBox.Initialize(root.XamlRoot!); // Loaded 이후 XamlRoot 보장
+        MessageBox.TrackWindow(host);          // 이 창이 닫히면 XamlRoot 도 함께 놓는다
 
         bool restore = await MessageBox.ShowConfirmAsync(
             $"데이터 파일이 손상되었습니다: {string.Join(", ", corruptFiles)}\n\n" +

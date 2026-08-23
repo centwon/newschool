@@ -53,7 +53,10 @@ public sealed partial class ClassDiaryListWin : Window, IDisposable
     public ClassDiaryListWin(int year, int semester, int grade, int classNumber)
     {
         this.InitializeComponent();
-        
+
+        // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
+        MessageBox.TrackWindow(this);
+
         _diaryService = new ClassDiaryService(SchoolDatabase.DbPath);
         _year = year;
         _semester = semester;

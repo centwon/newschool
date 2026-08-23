@@ -22,6 +22,9 @@ public sealed partial class LessonJournalList : UserControl
     /// <summary>목록에 담을 최근 글 수</summary>
     private const int PageSize = 20;
 
+    /// <summary>글이 없을 때의 안내(XAML 기본값과 같아야 한다)</summary>
+    private const string EmptyMessage = "수업 일지가 없습니다.";
+
     private readonly List<Post> _posts = [];
 
     /// <summary>글을 골랐다. 인자는 <c>Post.No</c>.</summary>
@@ -59,6 +62,10 @@ public sealed partial class LessonJournalList : UserControl
             LvJournals.ItemsSource = _posts;
 
             TxtCount.Text = page.TotalCount > 0 ? $"{page.TotalCount}건" : string.Empty;
+
+            // 지난번 실패로 갈아 끼운 문구를 되돌린다 — 아니면 정상적으로 0건인 상태가
+            // 계속 "불러올 수 없습니다" 로 보인다.
+            TxtEmpty.Text = EmptyMessage;
             TxtEmpty.Visibility = _posts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
         catch (Exception ex)

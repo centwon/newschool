@@ -38,6 +38,10 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
     {
         this.InitializeComponent();
 
+        // 이 창이 뜰 때 메인 창은 아직 없다 — 등록하지 않으면 학교 검색 실패·설정 저장 실패
+        // 안내가 띄울 창을 못 찾아 Debug 출력으로만 사라진다(첫 실행 사용자는 아무것도 못 본다).
+        Controls.MessageBox.TrackWindow(this);
+
         // 현재 연도로 기본값 설정
         WorkYearNumberBox.Value = DateTime.Now.Year;
 

@@ -76,6 +76,24 @@ public class LessonJournalTitleTests
         Assert.Equal("영어", head!.Value.Tail);
     }
 
+    /// <summary>
+    /// 강의실은 목록에서 고르지 않고 직접 적을 수도 있어 공백이 든다("과학실 2").
+    /// 제목에 그대로 실리고, 되읽을 때도 꼬리에서 통째로 살아나야 한다 —
+    /// 창은 과목명 길이만큼만 잘라내고 나머지를 강의실로 되돌린다.
+    /// </summary>
+    [Fact]
+    public void 공백이_든_강의실도_왕복한다()
+    {
+        const string subject = "생활과 윤리";
+
+        var title = LessonJournalTitle.Build(Aug21, 3, subject, "과학실 2");
+        Assert.Equal("8/21 3교시 생활과 윤리 과학실 2", title);
+
+        var head = LessonJournalTitle.Head(title);
+        Assert.NotNull(head);
+        Assert.Equal("과학실 2", head!.Value.Tail[subject.Length..].Trim());
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(null)]

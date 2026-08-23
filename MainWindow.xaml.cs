@@ -30,6 +30,9 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
+        // 보조 창이 닫힌 뒤 대화상자가 돌아올 자리. 등록해 두면 활성 창을 따라간다.
+        Controls.MessageBox.TrackWindow(this);
+
         this.Title = $"{Settings.SchoolName} - {DateTime.Now:yyyy년 M월 d일 dddd}";
 
         // ✅ 창 크기 복원 (Settings에서 로드)
@@ -288,8 +291,8 @@ public sealed partial class MainWindow : Window
 
                 case "LessonJournal":
                     // 수업 일지 — 수업 카테고리 안의 전용 게시판.
-                    // 새 글을 쓰면 날짜·교시·교과·강의실·단원 다이얼로그가 먼저 뜨고,
-                    // 그 결과가 제목과 본문 첫 줄의 기본값으로 들어간다.
+                    // UseLessonJournalTemplate 을 켜면 새 글 버튼이 게시판 편집기로 넘어가지 않고
+                    // 전용 창(LessonJournalWindow)을 연다 — 머리 정보·본문·첨부를 한 번에 받는다.
                     WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
                     {
                         Category = "수업",
