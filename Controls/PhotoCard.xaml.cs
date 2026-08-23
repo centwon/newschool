@@ -42,6 +42,15 @@ namespace NewSchool.Controls
             get => _studentData;
             set
             {
+                // 미사용 좌석에는 학생을 앉히지 않는다.
+                //
+                // ⚠ 이 가드가 없으면 조용히 깨진다. 아래 OnStudentChanged 는 IsUnUsed 일 때
+                // 이벤트를 발생시키지 않는데, 그 이벤트가 바로 "같은 학생이 다른 자리에 있으면
+                // 지우는" 중복 제거를 돌린다. 그래서 미사용 자리에 학생을 놓으면 원래 자리와
+                // 미사용 자리에 **같은 학생이 둘** 남고, 저장하면 그대로 DB 에 들어간다.
+                // 다음에 불러올 때도 미사용을 먼저 세우고 학생을 넣는 순서라 계속 되살아났다.
+                if (value != null && _isUnUsed) return;
+
                 _studentData = value;
                 SetStudent(value);
                 OnStudentChanged();

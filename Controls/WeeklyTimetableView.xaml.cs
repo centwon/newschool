@@ -621,6 +621,38 @@ public sealed partial class WeeklyTimetableView : UserControl
     private async Task SetSlotAsync(
         DateTime date, int period, Course? course, string subjectText, string room, string? memo = null)
     {
+        var plan = PlanSlot(date, period, course, subjectText, room, memo);
+
+        using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
+        if (!await ApplyPlanAsync(repo, plan))
+        {
+            ShowWarning(plan.Change != null
+                ? "변경을 저장하지 못했습니다."
+                : "변경을 되돌리지 못했습니다.");
+            return;
+        }
+
+        RememberPlan(plan);
+
+        _cursor = (plan.Date, plan.Period);
+        RefreshSlot(plan.Date, plan.Period);
+        await RefreshFutureCountAsync();
+        BuildTable();
+    }
+
+    /// <summary>
+    /// 한 칸에 무엇을 쓸지 정한 결과. DB 를 건드리기 <b>전에</b> 계산해 둔다 —
+    /// 맞바꾸기는 두 칸의 계획을 먼저 세운 뒤 한 트랜잭션으로 함께 적용한다.
+    /// </summary>
+    /// <param name="Change">쓸 내용. null 이면 "평소대로" 라서 기존 변경 행을 지운다.</param>
+    /// <param name="DeleteNo">지울 변경 행 번호(0 이면 지울 것이 없다).</param>
+    private readonly record struct SlotPlan(
+        DateTime Date, int Period, LessonChange? Change, int DeleteNo);
+
+    /// <summary>그 칸의 최종 내용을 정한다(DB 는 건드리지 않는다).</summary>
+    private SlotPlan PlanSlot(
+        DateTime date, int period, Course? course, string subjectText, string room, string? memo)
+    {
         int day = SchoolCalendar.ToLessonDayOfWeek(date);
         var lesson = _lessons.FirstOrDefault(l => l.DayOfWeek == day && l.Period == period);
 
@@ -629,13 +661,12 @@ public sealed partial class WeeklyTimetableView : UserControl
             ? lesson == null
             : course != null && lesson != null && lesson.Course == course.No && lesson.Room == room;
 
-        if (sameAsUsual)
-        {
-            await RevertSlotAsync(date, period);
-            return;
-        }
-
         _changes.TryGetValue((date.Date, period), out var existing);
+
+        // 결과가 평소와 같아지면 변경 행을 지운다 — 남겨 두면 나중에 기초 시간표를 고쳤을 때
+        // 옛 내용이 그 날에만 고정으로 버틴다.
+        if (sameAsUsual)
+            return new SlotPlan(date.Date, period, null, existing?.No ?? 0);
 
         var change = new LessonChange
         {
@@ -647,23 +678,26 @@ public sealed partial class WeeklyTimetableView : UserControl
             CourseNo = course?.No,
             SubjectText = course == null ? subjectText : string.Empty,
             Room = cancelling ? string.Empty : room,
-            Memo = memo ?? existing?.Memo ?? string.Empty
+            Memo = memo ?? existing?.Memo ?? string.Empty,
+            CourseSubject = course?.Subject ?? string.Empty
         };
 
-        using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
-        if (!await repo.UpsertAsync(change))
-        {
-            ShowWarning("변경을 저장하지 못했습니다.");
-            return;
-        }
+        return new SlotPlan(date.Date, period, change, 0);
+    }
 
-        change.CourseSubject = course?.Subject ?? string.Empty;
-        _changes[(date.Date, period)] = change;
+    /// <summary>계획 한 건을 DB 에 적용한다. 지울 것도 쓸 것도 없으면 성공으로 본다.</summary>
+    private static async Task<bool> ApplyPlanAsync(LessonChangeRepository repo, SlotPlan plan)
+    {
+        if (plan.Change != null) return await repo.UpsertAsync(plan.Change);
+        if (plan.DeleteNo > 0) return await repo.DeleteAsync(plan.DeleteNo);
+        return true;
+    }
 
-        _cursor = (date.Date, period);
-        RefreshSlot(date, period);
-        await RefreshFutureCountAsync();
-        BuildTable();
+    /// <summary>DB 반영이 끝난 계획을 화면 쪽 _changes 에도 반영한다.</summary>
+    private void RememberPlan(SlotPlan plan)
+    {
+        if (plan.Change != null) _changes[(plan.Date, plan.Period)] = plan.Change;
+        else _changes.Remove((plan.Date, plan.Period));
     }
 
     /// <summary>그 칸의 변경을 지워 평소대로 되돌린다.</summary>
@@ -672,7 +706,14 @@ public sealed partial class WeeklyTimetableView : UserControl
         if (!_changes.TryGetValue((date.Date, period), out var change)) return;
 
         using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
-        await repo.DeleteAsync(change.No);
+        // ⚠ 결과를 봐야 한다. 예전에는 삭제 결과를 버리고 화면의 _changes 에서만 지웠다 —
+        // 지우지 못했는데도 칸은 평소 수업으로 돌아가 보이고, 다시 열면 변경이 되살아났다.
+        // 바로 위 SetSlotAsync 는 UpsertAsync 결과를 확인한다. 같은 기준을 맞춘다.
+        if (!await repo.DeleteAsync(change.No))
+        {
+            ShowWarning("변경을 되돌리지 못했습니다.");
+            return;
+        }
 
         _changes.Remove((date.Date, period));
 
@@ -809,32 +850,62 @@ public sealed partial class WeeklyTimetableView : UserControl
         await RunAsync(() => SwapAsync(from.Value, to), "맞바꾸기");
     }
 
-    /// <summary>두 칸을 맞바꾼다 — 그 날들의 변경 두 줄로 표현된다.</summary>
+    /// <summary>
+    /// 두 칸을 맞바꾼다 — 그 날들의 변경 두 줄로 표현된다.
+    ///
+    /// <para>⚠ 두 줄은 <b>한 트랜잭션</b>으로 함께 들어가야 한다. 예전에는 <c>SetSlotAsync</c> 를
+    /// 두 번 불러 각자 연결·각자 저장이었고, 두 번째가 실패하면 첫 칸만 바뀐 채로 남아
+    /// <b>같은 수업이 두 칸에</b> 보였다(원래 자리는 그대로, 옮긴 자리에도 하나).</para>
+    ///
+    /// <para>계획(<see cref="SlotPlan"/>)은 둘 다 DB 를 건드리기 전에 세운다 — 먼저 쓴 내용이
+    /// 두 번째 계획의 "평소와 같은가" 판정을 흔들지 않도록.</para>
+    /// </summary>
     private async Task SwapAsync((DateTime Date, int Period) a, (DateTime Date, int Period) b)
     {
         var slotA = Resolve(a.Date, a.Period);
         var slotB = Resolve(b.Date, b.Period);
 
-        await PutAsync(b, slotA);
-        await PutAsync(a, slotB);
+        var planB = PlanFor(b, slotA);
+        var planA = PlanFor(a, slotB);
 
-        _cursor = b;
-        BuildTable();
-
-        async Task PutAsync((DateTime Date, int Period) target, SlotView content)
+        using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
+        repo.BeginTransaction();
+        try
         {
-            if (!content.Movable)
+            if (!await ApplyPlanAsync(repo, planB) || !await ApplyPlanAsync(repo, planA))
             {
-                await SetSlotAsync(target.Date, target.Period, null, string.Empty, string.Empty);
+                repo.Rollback();
+                ShowWarning("맞바꾸지 못했습니다. 시간표는 그대로 둡니다.");
                 return;
             }
 
+            repo.Commit();
+        }
+        catch
+        {
+            repo.Rollback();
+            throw;
+        }
+
+        RememberPlan(planB);
+        RememberPlan(planA);
+
+        _cursor = b;
+        await RefreshFutureCountAsync();
+        BuildTable();
+
+        SlotPlan PlanFor((DateTime Date, int Period) target, SlotView content)
+        {
+            if (!content.Movable)
+                return PlanSlot(target.Date, target.Period, null, string.Empty, string.Empty, null);
+
             var course = FindCourse(content.CourseNo);
-            await SetSlotAsync(
+            return PlanSlot(
                 target.Date, target.Period,
                 course,
                 course == null ? content.Subject : string.Empty,
-                content.Room);
+                content.Room,
+                null);
         }
     }
 

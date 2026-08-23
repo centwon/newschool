@@ -250,20 +250,29 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         if (result != ContentDialogResult.Primary)
             return;
 
-        bool success = await SCard.ViewModel.ResetAllInfoAsync();
-        
-        if (success)
-        {
-            await SCard.ViewModel.SaveAsync();
-            await MessageBox.ShowAsync("초기화되었습니다.", "초기화");
-            
-            // 학생 목록 새로고침
-            await LoadStudentListAsync();
-        }
-        else
+        // ResetAllInfoAsync 는 화면(과 사진 파일)만 비운다 — DB 에 실제로 쓰는 것은 SaveAsync 다.
+        // ⚠ 예전에는 그 결과를 버리고 무조건 "초기화되었습니다" 를 띄웠다. 저장이 0행이거나
+        // 예외로 실패하면 화면은 빈 카드인데 DB 는 예전 값 그대로였고, 바로 뒤의 목록 새로고침이
+        // 옛 이름을 다시 불러와 둘이 어긋났다(사진 파일은 이미 지워진 뒤다).
+        if (!await SCard.ViewModel.ResetAllInfoAsync())
         {
             await MessageBox.ShowAsync("초기화에 실패했습니다.", "오류");
+            return;
         }
+
+        if (!await SCard.ViewModel.SaveAsync())
+        {
+            await MessageBox.ShowAsync(
+                "화면은 비웠지만 저장하지 못했습니다. 저장 버튼으로 다시 시도하거나,\n" +
+                "다른 학생을 선택했다가 돌아오면 예전 값이 그대로 보입니다.",
+                "저장 실패");
+            return;
+        }
+
+        await MessageBox.ShowAsync("초기화되었습니다.", "초기화");
+
+        // 학생 목록 새로고침
+        await LoadStudentListAsync();
     }
 
     private async void BtnPrint_Click(object sender, RoutedEventArgs e)
@@ -979,6 +988,28 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         var roster = await enrollmentService.GetClassRosterAsync(
             Settings.SchoolCode.Value, _currentYear, _currentGrade, _currentClass);
 
+        // ⚠ 번호는 학급 안에서 유일하다는 보장이 없다 — 학적의 UNIQUE 는
+        // (StudentID, SchoolCode, Year, Semester) 라서 같은 반에 같은 번호가 둘 들어갈 수 있다
+        // (전입생 번호를 잘못 넣은 경우 등). 예전에는 그대로 ToDictionary 에 넣어
+        // "같은 키를 가진 항목이 이미 추가되었습니다" 라는 엉뚱한 오류로 일괄 입력이 통째로 죽었다.
+        // 번호가 겹치면 어느 학생에게 써야 할지 정할 수 없으므로, 덮어쓰기 전에 멈추고 알린다.
+        var duplicateNumbers = roster
+            .GroupBy(r => r.Number)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .OrderBy(n => n)
+            .ToList();
+
+        if (duplicateNumbers.Count > 0)
+        {
+            await MessageBox.ShowAsync(
+                $"학급에 번호가 겹치는 학생이 있습니다: {string.Join(", ", duplicateNumbers)}번\n" +
+                "번호로 학생을 찾기 때문에 누구의 정보인지 정할 수 없습니다.\n" +
+                "학생 관리에서 번호를 먼저 정리한 뒤 다시 시도해 주세요.",
+                "번호 중복");
+            return null;
+        }
+
         var numberToEnrollment = roster.ToDictionary(r => r.Number, r => r);
 
         // 5. 기존 데이터 일괄 로드 (N+1 쿼리 방지)
@@ -1109,15 +1140,40 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         {
             case "Sex": student.Sex = value; break;
             case "BirthDate":
-                if (DateTime.TryParseExact(value, new[] { "yyyy-MM-dd", "yyyy.MM.dd", "yyyy/MM/dd" },
-                    CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-                    student.BirthDate = dt;
+                // ⚠ 엑셀에서 날짜 칸으로 입력하면 읽을 때 DateTime 이 되고, ToString() 이
+                // 현재 문화권 서식("2010-05-03 오전 12:00:00")으로 나온다. 예전에는 날짜만 있는
+                // 세 가지 서식으로만 맞춰 보고, 어긋나면 **아무 말 없이 넘겼다** — 미리보기에는
+                // "생년월일 변경" 으로 세어 두고 저장은 "완료" 라고 알리면서 값만 빠졌다.
+                // 일반 파싱까지 받아 주고, 그래도 못 읽으면 이 학생을 실패로 세어 이름을 보여 준다.
+                if (!TryParseBirthDate(value, out var dt))
+                    throw new InvalidOperationException($"생년월일을 읽을 수 없습니다: \"{value}\"");
+                student.BirthDate = dt;
                 break;
             case "Phone": student.Phone = value; break;
             case "Email": student.Email = value; break;
             case "Address": student.Address = value; break;
             case "Memo": student.Memo = value; break;
         }
+    }
+
+    /// <summary>
+    /// 엑셀에서 온 생년월일 문자열을 읽는다.
+    ///
+    /// 양식을 그대로 받아 적으면 "yyyy-MM-dd" 로 오지만, 사용자가 엑셀에서 날짜 칸으로
+    /// 고쳐 넣으면 셀이 DateTime 이 되어 현재 문화권 서식(시각까지 붙는다)으로 읽힌다.
+    /// 둘 다 받는다.
+    /// </summary>
+    private static bool TryParseBirthDate(string value, out DateTime result)
+    {
+        if (DateTime.TryParseExact(value, new[] { "yyyy-MM-dd", "yyyy.MM.dd", "yyyy/MM/dd" },
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out result))
+            return true;
+
+        // 날짜 칸으로 입력된 경우(시각이 붙거나 현재 문화권 서식)
+        if (DateTime.TryParse(value, CultureInfo.CurrentCulture, DateTimeStyles.None, out result))
+            return true;
+
+        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
     }
 
     /// <summary>

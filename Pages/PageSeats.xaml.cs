@@ -450,6 +450,16 @@ public sealed partial class PageSeats : Page, IDisposable
     {
         if (sender is not PhotoCard card) return;
 
+        // 미사용 좌석은 배치 대상이 아니다 — 선택은 유지해 다른 자리를 바로 누를 수 있게 한다
+        if (card.IsUnUsed && _selectedStudentFromList != null)
+        {
+            SelectedStudentInfoBar.Severity = InfoBarSeverity.Warning;
+            SelectedStudentInfoBar.Title = "미사용 좌석";
+            SelectedStudentInfoBar.Message = "미사용으로 표시된 자리에는 배치할 수 없습니다. 다른 자리를 누르세요.";
+            SelectedStudentInfoBar.IsOpen = true;
+            return;
+        }
+
         // 학생이 선택되어 있으면 배치
         if (_selectedStudentFromList != null)
         {
@@ -505,7 +515,17 @@ public sealed partial class PageSeats : Page, IDisposable
     {
         var targetCard = (PhotoCard)sender;
         Debug.WriteLine($"[PageSeats] 드롭 이벤트 발생 - 타겟 카드: {targetCard.Row},{targetCard.Col}");
-        
+
+        // 미사용 좌석에 떨어뜨리면 아무 일도 일어나지 않아야 한다(끌던 학생은 제자리에 남는다)
+        if (targetCard.IsUnUsed)
+        {
+            SelectedStudentInfoBar.Severity = InfoBarSeverity.Warning;
+            SelectedStudentInfoBar.Title = "미사용 좌석";
+            SelectedStudentInfoBar.Message = "미사용으로 표시된 자리에는 배치할 수 없습니다.";
+            SelectedStudentInfoBar.IsOpen = true;
+            return;
+        }
+
         // 1. ListStudent에서 드래그된 경우 (Enrollment)
         if (e.DataView.Properties.TryGetValue("Enrollment", out object enrollmentObj) &&
             enrollmentObj is Enrollment enrollment)

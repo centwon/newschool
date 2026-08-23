@@ -435,8 +435,10 @@ public sealed partial class RosterTableDialog : ContentDialog
 
         var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
         using var enrollService = new EnrollmentService();
-        // 학기를 지정하지 않으면 1·2학기 학적이 모두 반환돼, 양 학기 재적 학생에서
-        // StudentID 중복으로 ToDictionary 가 예외를 던진다 — 현재 학기로 한정해 학생당 1행만.
+        // 학년도만 넘긴다. 학생당 1행은 서비스가 보장한다 — GetEnrollmentsAsync 는
+        // DedupeByYear 로 (학생, 학년도)마다 최신 학기 한 줄만 남긴다.
+        // (예전 주석은 "학기로 한정하지 않으면 ToDictionary 가 예외" 라고 적혀 있었는데,
+        //  그 시절 이야기이고 지금 코드에는 학기 인자 자체가 넘어가지 않는다.)
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
             Settings.SchoolCode, Settings.WorkYear.Value);
 
@@ -479,8 +481,7 @@ public sealed partial class RosterTableDialog : ContentDialog
 
         var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
         using var enrollService = new EnrollmentService();
-        // 학기 미지정 시 1·2학기 학적이 모두 반환돼 StudentID 중복으로 ToDictionary 가 예외를 던짐 —
-        // 현재 학기로 한정 + GroupBy 로 학생당 1행 보장
+        // 학생당 1행은 서비스(DedupeByYear)가 보장한다 — 아래 GroupBy 는 그 위의 안전망이다.
         var allEnrollments = await enrollService.GetEnrollmentsAsync(
             Settings.SchoolCode, Settings.WorkYear.Value);
 
