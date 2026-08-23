@@ -247,9 +247,30 @@ public sealed partial class KAgendaControl : UserControl
     // 공개 로드 메서드
     // ─────────────────────────────────────────────
 
+    /// <summary>
+    /// 마지막으로 부른 로드 방법. 항목을 추가·수정·삭제한 뒤 DB 에서 다시 읽어 오는 데 쓴다
+    /// (<see cref="ReloadAsync"/>). 화면마다 로드 방법과 범위가 달라서 기억해 둔다.
+    /// </summary>
+    private Func<Task>? _reload;
+
+    /// <summary>
+    /// 목록을 DB 에서 다시 읽는다.
+    ///
+    /// 대화상자가 만든 결과를 목록에 손으로 끼워 넣는 방식은 <b>1건 대 N건</b>에서 어긋났다.
+    /// 반복 할 일은 한 번에 여러 건이 저장되는데 대화상자는 대표 1건만 돌려주고, "이후 반복
+    /// 항목 모두 삭제"는 여러 건을 지우는데 화면에서는 누른 1건만 사라졌다(남은 줄을 다시
+    /// 누르면 이미 없는 행을 편집하게 된다). 저장·삭제 뒤에는 그냥 다시 읽는다.
+    /// </summary>
+    private async Task ReloadAsync()
+    {
+        if (_reload != null) await _reload();
+        else ApplyFilter();
+    }
+
     /// <summary>오늘 기준 미완료 + 미래 60일 로드 (TodayPage용)</summary>
     public async Task LoadPendingAndFutureAsync()
     {
+        _reload = () => LoadPendingAndFutureAsync();
         try
         {
             await EnsureFiltersAsync();
@@ -288,6 +309,7 @@ public sealed partial class KAgendaControl : UserControl
     /// <summary>날짜 범위 지정 로드</summary>
     public async Task LoadByDateRangeAsync(DateTime start, int days = 30, bool showCompleted = true)
     {
+        _reload = () => LoadByDateRangeAsync(start, days, showCompleted);
         try
         {
             await EnsureFiltersAsync();
@@ -444,28 +466,9 @@ public sealed partial class KAgendaControl : UserControl
             var dialog = new UnifiedItemDialog(DateTime.Today) { XamlRoot = XamlRoot };
             var result = await MessageBox.ShowDialogAsync(dialog);
 
+            // 반복 할 일은 대화상자가 여러 건을 저장하고 대표 1건만 돌려준다 — 다시 읽는다
             if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
-            {
-                var ev  = dialog.ResultEvent;
-                var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
-                string name  = string.IsNullOrEmpty(cal?.Title) ? "기타" : cal.Title;
-                string color = string.IsNullOrEmpty(cal?.Color) ? "#9E9E9E" : cal.Color;
-
-                if (ev.ItemType == "task")
-                {
-                    _allItems.Add(AgendaItem.FromTask(ev, name, color));
-                }
-                else
-                {
-                    int days = (ev.End.Date - ev.Start.Date).Days;
-                    if (days <= 0) days = 0;
-                    for (int d = 0; d <= days; d++)
-                        _allItems.Add(AgendaItem.FromEvent(ev, name, color,
-                            displayDate: ev.Start.Date.AddDays(d)));
-                }
-
-                ApplyFilter();
-            }
+                await ReloadAsync();
         }
         catch (Exception ex)
         {
@@ -481,35 +484,12 @@ public sealed partial class KAgendaControl : UserControl
             var dialog = new UnifiedItemDialog(item.SourceEvent) { XamlRoot = XamlRoot };
             var result = await MessageBox.ShowDialogAsync(dialog);
 
-            if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
+            // 삭제(Secondary)는 "이후 반복 항목 모두"를 지울 수 있어 지운 건수가 1건이 아니다.
+            // 수정도 날짜가 바뀌면 표시 위치가 달라지므로, 둘 다 DB 에서 다시 읽는다.
+            if ((result == ContentDialogResult.Primary && dialog.ResultEvent != null)
+                || result == ContentDialogResult.Secondary)
             {
-                var ev  = dialog.ResultEvent;
-                var cal = _calendars.FirstOrDefault(c => c.No == ev.CalendarId);
-                string name  = string.IsNullOrEmpty(cal?.Title) ? "기타" : cal.Title;
-                string color = string.IsNullOrEmpty(cal?.Color) ? "#9E9E9E" : cal.Color;
-
-                // 같은 SourceEvent를 참조하는 항목 모두 제거 (다일 일정 복제본 포함)
-                _allItems.RemoveAll(a => a.SourceEvent == item.SourceEvent);
-
-                if (ev.ItemType == "task")
-                {
-                    _allItems.Add(AgendaItem.FromTask(ev, name, color));
-                }
-                else
-                {
-                    int days = (ev.End.Date - ev.Start.Date).Days;
-                    if (days <= 0) days = 0;
-                    for (int d = 0; d <= days; d++)
-                        _allItems.Add(AgendaItem.FromEvent(ev, name, color,
-                            displayDate: ev.Start.Date.AddDays(d)));
-                }
-                ApplyFilter();
-            }
-            else if (result == ContentDialogResult.Secondary)
-            {
-                // 삭제: 같은 SourceEvent를 참조하는 항목 모두 제거
-                _allItems.RemoveAll(a => a.SourceEvent == item.SourceEvent);
-                ApplyFilter();
+                await ReloadAsync();
             }
         }
         catch (Exception ex)
