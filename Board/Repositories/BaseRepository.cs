@@ -209,39 +209,9 @@ namespace NewSchool.Board.Repositories
             return cmd;
         }
 
-        /// <summary>
-        /// 비동기 NonQuery 실행
-        /// </summary>
-        protected async Task<int> ExecuteNonQueryAsync(string query)
-        {
-            try
-            {
-                using var cmd = CreateCommand(query);
-                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                LogError($"ExecuteNonQuery 실패: {query}", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 비동기 Scalar 실행
-        /// </summary>
-        protected async Task<object?> ExecuteScalarAsync(string query)
-        {
-            try
-            {
-                using var cmd = CreateCommand(query);
-                return await cmd.ExecuteScalarAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                LogError($"ExecuteScalar 실패: {query}", ex);
-                throw;
-            }
-        }
+        // 매개변수 없는 문자열 질의용 헬퍼(ExecuteNonQueryAsync·ExecuteScalarAsync)는
+        // Board 의 DB 검증·최적화 헬퍼만 쓰던 것이라, 그 둘이 사라지면서 함께 지웠다(39차).
+        // 리포지토리들은 전부 CreateCommand 로 매개변수를 붙여 쓴다.
 
         #endregion
 

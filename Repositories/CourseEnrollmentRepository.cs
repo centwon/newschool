@@ -205,30 +205,8 @@ namespace NewSchool.Repositories
         // 미사용 메서드 제거 (2026-08-19): GetByStudentAndPeriodAsync — 호출처 0건.
         //   ORDER BY 에 Course 테이블에 없는 c.Class 를 걸고 있어 부르는 순간 깨졌을 코드다.
 
-        /// <summary>
-        /// 중복 수강 신청 확인
-        /// </summary>
-        public async Task<bool> ExistsAsync(string studentId, int courseNo)
-        {
-            const string query = @"
-                SELECT EXISTS(SELECT 1 FROM CourseEnrollment
-                WHERE StudentID = @StudentID AND CourseNo = @CourseNo)";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@CourseNo", courseNo);
-
-                var result = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-                return result == 1;
-            }
-            catch (Exception ex)
-            {
-                LogError($"중복 수강 확인 실패: StudentID={studentId}, CourseNo={courseNo}", ex);
-                throw;
-            }
-        }
+        // 중복 수강 확인(ExistsAsync)은 호출부가 없어 지웠다(39차) —
+        // 수강 배정 화면은 현재 명단을 통째로 받아 화면에서 비교한다.
 
         #endregion
 

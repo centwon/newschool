@@ -24,11 +24,8 @@ internal partial class CourseService : IDisposable
     {
         return await _courseRepository.GetDistinctCourseYearsAsync(teacher);
     }
-    public async Task<List<Course>> GetAllCourseAsync(string schoolCode, int year, int semester)
-    {
-        return await _courseRepository.GetByTeacherAsync(schoolCode, year, semester);
-
-    }
+    // GetAllCourseAsync 는 호출부가 없어 지웠다(39차). 이름과 달리 교사 기준 조회였고,
+    // 화면들은 GetByTeacherAsync·GetMyCoursesAsync 를 직접 쓴다.
     public async Task<List<CourseEnrollment>> GetCourseEnrollmentsAsync(string schoolCode, int year, int semester, int courseCode)
     {
         return await _courseEnrollmentRepository.GetByCourseAsync(courseCode);

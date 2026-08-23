@@ -24,7 +24,6 @@ namespace NewSchool.Controls
         #region Fields
 
         private StudentLog? _currentLog;
-        private bool _isEditMode = false;
         private string _generatedText = string.Empty;
 
         #endregion
@@ -39,15 +38,8 @@ namespace NewSchool.Controls
 
         #endregion
 
-        #region Properties
-
-        /// <summary>현재 편집 중인 StudentLog</summary>
-        public StudentLog? CurrentLog => _currentLog;
-
-        /// <summary>편집 모드 여부</summary>
-        public bool IsEditMode => _isEditMode;
-
-        #endregion
+        // 내부 상태를 밖으로 열던 CurrentLog·IsEditMode 는 쓰는 곳이 없어 지웠다(39차) —
+        // 편집 결과는 저장 이벤트로만 나간다.
 
         #region Constructor
 
@@ -80,7 +72,6 @@ namespace NewSchool.Controls
         public void LoadLog(StudentLog log)
         {
             _currentLog = log;
-            _isEditMode = true;
 
             // UI에 데이터 바인딩
             NumYear.Value = log.Year;
@@ -137,7 +128,6 @@ namespace NewSchool.Controls
                 Date = DateTime.Now,
                 Category = LogCategory.전체
             };
-            _isEditMode = false;
 
             // UI 초기화
             ClearFields();

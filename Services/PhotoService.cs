@@ -321,39 +321,12 @@ namespace NewSchool.Services
 
         #region 헬퍼 메서드
 
-        /// <summary>
-        /// 사진 디렉토리 존재 여부 확인 및 생성
-        /// </summary>
-        public void EnsurePhotoDirectory(int year)
-        {
-            string photoDir = Path.Combine(_baseDirectory, "Photos", year.ToString());
-            Directory.CreateDirectory(photoDir);
-        }
+        // 디렉토리 보장(EnsurePhotoDirectory)과 존재 확인(PhotoExists)은 호출부가 없어
+        // 지웠다(39차). 저장 경로는 SavePhotoAsync 가 그때그때 만들고, 로드 실패는
+        // LoadPhotoAsync 가 null 로 알린다.
 
-        /// <summary>
-        /// 사진 파일 경로 가져오기
-        /// </summary>
-        public string GetPhotoFullPath(string? relativePath)
-        {
-            if (string.IsNullOrEmpty(relativePath))
-                return string.Empty;
-
-            return Path.IsPathRooted(relativePath)
-                ? relativePath
-                : Path.Combine(_baseDirectory, relativePath);
-        }
-
-        /// <summary>
-        /// 사진 파일 존재 여부 확인
-        /// </summary>
-        public bool PhotoExists(string? photoPath)
-        {
-            if (string.IsNullOrEmpty(photoPath))
-                return false;
-
-            string fullPath = GetPhotoFullPath(photoPath);
-            return File.Exists(fullPath);
-        }
+        // 상대 경로를 절대 경로로 바꾸던 GetPhotoFullPath 는 이를 쓰던 PhotoExists 와 함께
+        // 지웠다(39차). 화면이 쓰는 경로 변환은 정적 ResolveFullPath 쪽이다.
 
         #endregion
     }

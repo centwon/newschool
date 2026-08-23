@@ -173,15 +173,8 @@ public sealed partial class YearSemesterPicker : UserControl
 
     // ── 공개 메서드 ──────────────────────────────────────
 
-    /// <summary>학년도를 외부에서 강제 지정</summary>
-    public void SetYear(int year)
-    {
-        if (!ShowYear) return;
-        _updating = true;
-        try { SelectByTag(CBoxYear, year); }
-        finally { _updating = false; }
-        RaiseChanged();
-    }
+    // 학년도를 강제 지정하던 SetYear 는 호출부가 없어 지웠다(39차) — 학년도는 이 컨트롤이
+    // Settings.WorkYear 로 스스로 고른다. 학기 쪽(SetSemester)만 밖에서 맞춰 준다.
 
     /// <summary>학기를 외부에서 강제 지정</summary>
     public void SetSemester(int semester)

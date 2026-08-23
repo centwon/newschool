@@ -100,40 +100,9 @@ public class KEventRepository : BaseRepository
         }
     }
 
-    /// <summary>캘린더별 이벤트 조회</summary>
-    public async Task<List<KEvent>> GetByCalendarIdAsync(int calendarId, DateTime startDate, int days = 30)
-    {
-        var list = new List<KEvent>();
-        try
-        {
-            var from = DateTime.SpecifyKind(startDate.Date, DateTimeKind.Unspecified);
-            var to   = DateTime.SpecifyKind(from.AddDays(days), DateTimeKind.Unspecified);
-
-            const string query = @"
-                SELECT * FROM KEvent
-                WHERE CalendarId = @CalendarId
-                  AND Status <> 'cancelled'
-                  AND ( (IsAllday = 0 AND Start < @ToUtc  AND End >= @FromUtc)
-                     OR (IsAllday = 1 AND Start < @ToDate AND End >= @FromDate) )
-                ORDER BY Start ASC";
-
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@CalendarId", calendarId);
-            cmd.Parameters.AddWithValue("@FromUtc",  DateTimeHelper.ToStandardString(from));
-            cmd.Parameters.AddWithValue("@ToUtc",    DateTimeHelper.ToStandardString(to));
-            cmd.Parameters.AddWithValue("@FromDate", from.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@ToDate",   to.ToString("yyyy-MM-dd"));
-
-            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
-
-            return list;
-        }
-        catch (Exception ex)
-        {
-            LogError($"KEvent CalendarId={calendarId} 조회 실패", ex);
-            throw;
-        }
-    }
+    // 캘린더별 조회 둘(GetByCalendarIdAsync·GetTasksByCalendarIdPendingAsync)은 이를 부르던
+    // SchedulerService 메서드가 사라지면서 함께 지웠다(39차). 화면들은 캘린더를 가리지 않고
+    // 날짜 범위로 읽은 뒤 필요하면 목록에서 거른다.
 
     public async Task<int> GetCountAsync()
     {
@@ -531,39 +500,6 @@ public class KEventRepository : BaseRepository
         catch (Exception ex)
         {
             LogError($"미완료+미래 Task 조회 실패", ex);
-            throw;
-        }
-        return list;
-    }
-
-    /// <summary>캘린더별 미완료+미래 할 일 조회</summary>
-    public async Task<List<KEvent>> GetTasksByCalendarIdPendingAsync(int calendarId, DateTime today)
-    {
-        var list = new List<KEvent>();
-        try
-        {
-            var todayUtc  = DateTimeHelper.ToStandardString(
-                DateTime.SpecifyKind(today.Date, DateTimeKind.Unspecified));
-            var todayDate = today.Date.ToString("yyyy-MM-dd");
-
-            const string query = @"
-                SELECT * FROM KEvent
-                WHERE ItemType = 'task' AND CalendarId = @CalendarId
-                  AND Status <> 'cancelled'
-                  AND ( ( ((IsAllday = 0 AND Start < @TodayUtc) OR (IsAllday = 1 AND Start < @TodayDate)) AND IsDone = 0 )
-                     OR ( (IsAllday = 0 AND Start >= @TodayUtc) OR (IsAllday = 1 AND Start >= @TodayDate) ) )
-                ORDER BY Start ASC, Title ASC";
-
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@CalendarId", calendarId);
-            cmd.Parameters.AddWithValue("@TodayUtc",  todayUtc);
-            cmd.Parameters.AddWithValue("@TodayDate", todayDate);
-
-            list = SortForDisplay(await ExecuteListAsync(cmd, Map));
-        }
-        catch (Exception ex)
-        {
-            LogError($"CalendarId={calendarId} Task 조회 실패", ex);
             throw;
         }
         return list;

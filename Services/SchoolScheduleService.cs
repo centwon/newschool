@@ -106,25 +106,8 @@ public sealed class SchoolScheduleService : IDisposable
     }
 
     /// <summary>
-    /// 학사일정 삭제
-    /// </summary>
-    public async Task<(bool Success, string Message)> DeleteScheduleAsync(int no)
-    {
-        try
-        {
-            bool success = await Repository.DeleteAsync(no);
-            return success
-                ? (true, "학사일정이 삭제되었습니다.")
-                : (false, "학사일정 삭제에 실패했습니다.");
-        }
-        catch (Exception ex)
-        {
-            Log.Error("SchoolScheduleService", "학사일정 삭제 실패", ex);
-            return (false, $"학사일정 삭제 중 오류가 발생했습니다: {ex.Message}");
-        }
-    }
-    /// <summary>
-    /// 학사일정 삭제
+    /// 학사일정 삭제(여러 건). 한 건짜리 DeleteScheduleAsync 는 호출부가 없어 지웠다(39차) —
+    /// 화면은 선택한 것들을 한꺼번에 지운다.
     /// </summary>
     public async Task<(bool Success, string Message, int Count)> DeleteBulkScheduleAsync(List<int> schedules)
     {
@@ -150,38 +133,9 @@ public sealed class SchoolScheduleService : IDisposable
             return (false, $"학사일정 삭제 중 오류가 발생했습니다: {ex.Message}",-1);
         }
     }
-    /// <summary>
-    /// 학사일정 조회 (ID)
-    /// </summary>
-    public async Task<SchoolSchedule?> GetScheduleAsync(int no)
-    {
-        try
-        {
-            return await Repository.GetByIdAsync(no);
-        }
-        catch (Exception ex)
-        {
-            Log.Error("SchoolScheduleService", "학사일정 조회 실패", ex);
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// 학년도로 학사일정 조회
-    /// </summary>
-    public async Task<List<SchoolSchedule>> GetSchedulesByYearAsync(string schoolCode, int year)
-    {
-        try
-        {
-            return await Repository.GetBySchoolYearAsync(schoolCode, year);
-        }
-        catch (Exception ex)
-        {
-            Log.Error("SchoolScheduleService", "학년도별 학사일정 조회 실패", ex);
-            return new List<SchoolSchedule>();
-        }
-    }
-
+    // ID 한 건 조회(GetScheduleAsync)와 학년도 조회(GetSchedulesByYearAsync)는 호출부가 없어
+    // 지웠다(39차). 화면은 기간(GetSchedulesByDataRangeAsync)이나 학년도 범위
+    // (GetSchedulesBySchoolYearAsync)로 묶어 읽는다.
 
     /// <summary>
     /// DB에서 학사일정 조회 (순수 조회 기능)
@@ -237,57 +191,9 @@ public sealed class SchoolScheduleService : IDisposable
             return (false, $"DB 조회 오류: {ex.Message}", new List<SchoolSchedule>());
         }
     }
-    /// <summary>
-    /// NEIS API에서 학사일정 다운로드 후 DB에 저장
-    /// </summary>
-    /// <param name="schoolCode">학교 코드</param>
-    /// <param name="provinceCode">시도 교육청 코드</param>
-    /// <param name="year">다운로드 년도</param>
-    /// <param name="startDate">시작 날짜 (선택)</param>
-    /// <param name="endDate">종료 날짜 (선택)</param>
-    /// <param name="xamlRoot">UI 다이얼로그용 XamlRoot (선택)</param>
-    /// <returns>성공 여부, 메시지, 저장된 데이터 개수</returns>
-    public async Task<(bool Success, string Message, int SavedCount)> DownloadSchedulesAsync(
-            string schoolCode,
-            string provinceCode,
-            int year,
-            DateTime? startDate = null,
-            DateTime? endDate = null
-            )
-    {
-        try
-        {
-            Debug.WriteLine($"[SchoolScheduleService] NEIS API 다운로드 시작: {schoolCode}, {year}년");
-
-            // NEIS API 호출
-            var downloadResult = await DownloadFromNeisAsync(
-                schoolCode, provinceCode, year, startDate, endDate);
-
-            if (!downloadResult.Success)
-            {
-                Debug.WriteLine($"[SchoolScheduleService] NEIS API 다운로드 실패: {downloadResult.Message}");
-                return (false, downloadResult.Message, 0);
-            }
-
-            // 다운로드한 데이터가 없는 경우
-            if (downloadResult.Schedules.Count == 0)
-            {
-                Debug.WriteLine("[SchoolScheduleService] 다운로드된 데이터가 없습니다");
-                return (true, "다운로드된 데이터가 없습니다", 0);
-            }
-
-            // DB에 저장
-            int savedCount = await Repository.CreateBulkAsync(downloadResult.Schedules);
-            Debug.WriteLine($"[SchoolScheduleService] DB 저장 완료: {savedCount}개");
-
-            return (true, $"NEIS에서 {savedCount}개 다운로드 및 저장 완료", savedCount);
-        }
-        catch (Exception ex)
-        {
-            Log.Error("SchoolScheduleService", "다운로드 오류", ex);
-            return (false, $"다운로드 오류: {ex.Message}", 0);
-        }
-    }
+    // 다운로드 후 곧바로 저장하는 DownloadSchedulesAsync 는 호출부가 없어 지웠다(39차).
+    // 화면은 DownloadFromNeisAsync 로 받아 사용자에게 보여 준 뒤, 고른 것만 CreateBulkScheduleAsync
+    // 로 저장한다(받은 즉시 전부 저장하지 않는다).
     #endregion
 
     #region NEIS API Integration

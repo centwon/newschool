@@ -126,28 +126,8 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
             : Visibility.Visible;
     }
 
-    /// <summary>
-    /// 급식 정보 직접 설정
-    /// </summary>
-    public void SetMeals(List<SchoolMeal> meals)
-    {
-        try
-        {
-            _meals.Clear();
-            if (meals != null)
-            {
-                foreach (var meal in meals)
-                {
-                    _meals.Add(meal);
-                }
-            }
-            Debug.WriteLine($"[SchoolMealBox] 급식 정보 설정 완료 - {meals?.Count ?? 0}개");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[SchoolMealBox] 급식 정보 설정 오류: {ex.Message}");
-        }
-    }
+    // 급식 정보를 밖에서 넣어 주던 SetMeals 는 호출부가 없어 지웠다(39차) —
+    // 이 컨트롤은 날짜가 정해지면 스스로 NEIS 에서 받아 온다.
 
     #region 날짜 선택 이벤트 핸들러
 

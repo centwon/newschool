@@ -12,7 +12,8 @@ public class SyncResult
     public int Created { get; set; }
     public int Updated { get; set; }
     public int Deleted { get; set; }
-    public int Conflicts { get; set; }
+    // Conflicts 는 세는 곳도 읽는 곳도 없어 지웠다(39차) —
+    // 충돌은 last-write-wins 로 조용히 해결되므로 따로 셀 것이 없다.
     public int Errors { get; set; }
     public List<string> ErrorMessages { get; set; } = new();
     public DateTime SyncedAt { get; set; } = DateTime.Now;

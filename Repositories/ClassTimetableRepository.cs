@@ -152,45 +152,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 학년별 시간표 조회
-        /// </summary>
-        public async Task<List<ClassTimetable>> GetByGradeAsync(
-            string schoolCode, int year, int semester, int grade)
-        {
-            const string query = @"
-                SELECT * FROM ClassTimetable 
-                WHERE SchoolCode = @SchoolCode
-                  AND Year = @Year
-                  AND Semester = @Semester
-                  AND Grade = @Grade
-                ORDER BY Class, DayOfWeek, Period";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-
-                var timetables = new List<ClassTimetable>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    timetables.Add(MapTimetable(reader, cache));
-                }
-
-                return timetables;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학년별 시간표 조회 실패: {grade}학년", ex);
-                throw;
-            }
-        }
+        // 학년 전체 시간표(GetByGradeAsync)는 호출부가 없어 지웠다(39차) —
+        // 시간표는 늘 한 학급 단위로 읽는다.
 
         #endregion
 

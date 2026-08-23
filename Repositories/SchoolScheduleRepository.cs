@@ -381,65 +381,8 @@ namespace NewSchool.Repositories
                 throw;
             }
         }
-        /// <summary>
-        /// 학년도별 학사일정 삭제 (Soft Delete)
-        /// </summary>
-        public async Task<int> DeleteByYearAsync(int year)
-        {
-            const string query = @"
-                UPDATE SchoolSchedule 
-                SET IsDeleted = 1, UpdatedAt = @UpdatedAt 
-                WHERE AY = @Year";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                LogInfo($"학사일정 삭제 완료: {rowsAffected}개 (학년도 {year})");
-                return rowsAffected;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학사일정 삭제 실패: 학년도 {year}", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 학사일정 영구 삭제 (Hard Delete)
-        /// </summary>
-        public async Task<bool> PermanentDeleteAsync(int no)
-        {
-            const string query = "DELETE FROM SchoolSchedule WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"학사일정 영구 삭제 완료: No={no}");
-                }
-                else
-                {
-                    LogWarning($"학사일정 영구 삭제 실패 (존재하지 않음): No={no}");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학사일정 영구 삭제 실패: No={no}", ex);
-                throw;
-            }
-        }
+        // 영구 삭제(PermanentDeleteAsync)와 학년도 단위 삭제(DeleteByYearAsync)는 호출부가 없어
+        // 지웠다(39차). 화면은 고른 것들을 DeleteBulkAsync 로 지운다.
 
         #endregion
 

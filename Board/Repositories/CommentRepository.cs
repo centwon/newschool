@@ -212,29 +212,9 @@ namespace NewSchool.Board.Repositories
             }
         }
 
-        /// <summary>
-        /// Comment 내용만 수정 (비동기)
-        /// </summary>
-        public async Task<bool> UpdateContentAsync(int no, string content)
-        {
-            const string query = "UPDATE Comment SET Content = @Content WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.Add("@No", SqliteType.Integer).Value = no;
-                cmd.Parameters.AddWithValue("@Content", content);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                LogDebug($"Comment 내용 수정: No={no}");
-                return rowsAffected > 0;
-            }
-            catch (Exception ex)
-            {
-                LogError($"Comment 내용 수정 실패: No={no}", ex);
-                throw;
-            }
-        }
+        // 내용만 고치는 UpdateContentAsync 와 글 단위 일괄 삭제 DeleteByPostAsync 는 호출부가
+        // 없어 지웠다(39차). 댓글 수정은 UpdateAsync 로 통째로 하고, 글을 지울 때는
+        // BoardService 가 답글까지 훑어 하나씩 지운다(첨부 파일도 함께 지워야 하기 때문).
 
         #endregion
 
@@ -269,29 +249,6 @@ namespace NewSchool.Board.Repositories
             catch (Exception ex)
             {
                 LogError($"Comment 삭제 실패: No={no}", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Post의 모든 Comment 삭제 (비동기)
-        /// </summary>
-        public async Task<int> DeleteByPostAsync(int postNo)
-        {
-            const string query = "DELETE FROM Comment WHERE Post = @Post";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.Add("@Post", SqliteType.Integer).Value = postNo;
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                LogInfo($"Comment 일괄 삭제 완료: Post={postNo}, Count={rowsAffected}");
-                return rowsAffected;
-            }
-            catch (Exception ex)
-            {
-                LogError($"Comment 일괄 삭제 실패: Post={postNo}", ex);
                 throw;
             }
         }

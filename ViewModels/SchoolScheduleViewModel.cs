@@ -159,10 +159,8 @@ namespace NewSchool.ViewModels
             }
         }
 
-        /// <summary>
-        /// 날짜 + 요일 (yyyy.MM.dd (월))
-        /// </summary>
-        public string DisplayDateWithDay => $"{DisplayDate} ({DisplayDayOfWeek})";
+        // DisplayDateWithDay 는 바인딩도 호출도 없어 지웠다(39차) —
+        // 화면은 날짜와 요일을 따로 놓는다.
 
         /// <summary>
         /// 대상 학년 텍스트 (1,2,3학년 또는 전체)
@@ -189,10 +187,8 @@ namespace NewSchool.ViewModels
         /// </summary>
         public string ManualIcon => Schedule.IsManual ? "✏️" : "";
 
-        /// <summary>
-        /// 수업공제일 선택 항목 (ComboBox용)
-        /// </summary>
-        public string[] SubtractionDayOptions => new[] { "해당없음", "휴업일", "공휴일" };
+        // SubtractionDayOptions(ComboBox 항목)는 어느 화면도 묶지 않아 지웠다(39차) —
+        // 학사일정 편집 화면이 항목을 XAML 에 직접 적어 둔다.
 
         // ==========================================
         // Schedule 속성 바로 접근 (간편성)

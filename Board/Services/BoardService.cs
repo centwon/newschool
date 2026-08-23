@@ -469,23 +469,8 @@ public partial class BoardService:IDisposable
         }
     }
 
-    /// <summary>
-    /// Post의 HasFile 플래그 업데이트
-    /// </summary>
-    public async Task<bool> UpdatePostHasFileAsync(int postNo, bool hasFile)
-    {
-        using var postRepo = new PostRepository(_dbPath);
-
-        try
-        {
-            return await postRepo.UpdateHasFileAsync(postNo, hasFile);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"HasFile 업데이트 실패: {ex.Message}");
-            throw;
-        }
-    }
+    // HasFile 플래그를 따로 세우는 UpdatePostHasFileAsync 는 호출부가 없어 지웠다(39차).
+    // 이 플래그는 첨부를 붙이고 떼는 경로(AddPostFileAsync·DeletePostFileAsync)가 알아서 맞춘다.
 
     /// <summary>
     /// 메모 목록 조회 (카테고리 필터 지원)

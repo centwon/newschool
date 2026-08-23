@@ -77,22 +77,6 @@ public static class DateTimeHelper
     }
 
     /// <summary>
-    /// DateTime을 날짜 문자열로 변환
-    /// </summary>
-    public static string ToDateString(DateTime dateTime)
-    {
-        return dateTime.ToString(DATE_ONLY_FORMAT, CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>
-    /// DateTime을 NEIS API용 형식으로 변환
-    /// </summary>
-    public static string ToNeisDateString(DateTime dateTime)
-    {
-        return dateTime.ToString(NEIS_DATE_FORMAT, CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>
     /// DateTimeOffset을 표준 문자열로 변환
     /// </summary>
     public static string ToStandardString(DateTimeOffset dateTimeOffset)
@@ -100,21 +84,8 @@ public static class DateTimeHelper
         return dateTimeOffset.UtcDateTime.ToString(STANDARD_FORMAT, CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// 현재 시간을 표준 문자열로 변환
-    /// </summary>
-    public static string NowToStandardString()
-    {
-        return ToStandardString(DateTime.Now);
-    }
-
-    /// <summary>
-    /// UTC 현재 시간을 표준 문자열로 변환
-    /// </summary>
-    public static string UtcNowToStandardString()
-    {
-        return DateTime.UtcNow.ToString(STANDARD_FORMAT, CultureInfo.InvariantCulture);
-    }
+    // 변환 넷(ToDateString·ToNeisDateString·NowToStandardString·UtcNowToStandardString)은
+    // 호출부가 없어 지웠다(39차). 화면·리포지토리는 필요한 자리에서 직접 서식을 지정한다.
     #endregion
 
     #region String → DateTime 변환 (로드용)
@@ -237,13 +208,8 @@ public static class DateTimeHelper
         return dateTime != DateTime.MinValue && dateTime != DateTime.MaxValue;
     }
 
-    /// <summary>
-    /// 두 날짜가 같은 날인지 확인
-    /// </summary>
-    public static bool IsSameDay(DateTime date1, DateTime date2)
-    {
-        return date1.Date == date2.Date;
-    }
+    // 같은 날 비교(IsSameDay)와 하루의 시작(ToStartOfDay)은 호출부가 없어 지웠다(39차) —
+    // 코드에서는 `.Date` 를 직접 비교한다.
 
     /// <summary>
     /// 오늘인지 확인
@@ -251,14 +217,6 @@ public static class DateTimeHelper
     public static bool IsToday(DateTime dateTime)
     {
         return dateTime.Date == DateTime.Today;
-    }
-
-    /// <summary>
-    /// 날짜를 하루의 시작 시간으로 설정 (00:00:00)
-    /// </summary>
-    public static DateTime ToStartOfDay(DateTime dateTime)
-    {
-        return dateTime.Date;
     }
 
     /// <summary>

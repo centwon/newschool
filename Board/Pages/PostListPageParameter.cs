@@ -34,8 +34,8 @@ public class PostListPageParameter
     /// <summary>Subject 필터 표시 여부</summary>
     public bool ShowSubjectFilter { get; set; } = false;
 
-    /// <summary>개인 영역 표시</summary>
-    public bool IsPrivate { get; set; } = false;
+    // IsPrivate 는 세팅하는 곳도 읽는 곳도 없어 지웠다(39차) —
+    // 개인/공용 구분은 게시판 카테고리로 한다.
 
     /// <summary>
     /// 새 글을 쓸 때 수업 일지 머리 정보(날짜·교시·교과·강의실·단원) 다이얼로그를 먼저 띄운다.

@@ -66,39 +66,8 @@ public class StudentLogService : IDisposable
         return await _repository.GetByStudentIdsAsync(studentIds, year, semester).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// 학생의 전체 누가기록 조회 (학년도/학기 무관)
-    /// </summary>
-    public async Task<List<StudentLog>> GetAllStudentLogsAsync(string studentId)
-    {
-        return await _repository.GetAllByStudentAsync(studentId).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 카테고리별 조회 (최적화됨)
-    /// </summary>
-    public async Task<List<StudentLog>> GetLogsByCategoryAsync(
-        string studentId,
-        int year,
-        LogCategory category)
-    {
-        return await _repository.GetByCategoryAsync(studentId, year, 0, category).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 기간별 조회 (최적화됨)
-    /// </summary>
-    public async Task<List<StudentLog>> GetLogsByDateRangeAsync(
-        string studentId,
-        DateTime startDate,
-        DateTime endDate)
-    {
-        return await _repository.GetByDateRangeAsync(
-            studentId,
-            startDate.ToString("yyyy-MM-dd"),
-            endDate.ToString("yyyy-MM-dd")
-        ).ConfigureAwait(false);
-    }
+    // 전체·카테고리별·기간별 조회 셋은 호출부가 없어 지웠다(39차).
+    // 화면은 학년도·학기로 좁힌 GetStudentLogsAsync 와 학급 단위 조회만 쓴다.
 
     /// <summary>
     /// 학년 반별 기록 조회 (최적화됨 - 단일 JOIN 쿼리)

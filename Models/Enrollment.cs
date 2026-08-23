@@ -275,53 +275,9 @@ namespace NewSchool.Models
             return $"{Grade}학년 {Class}반 {Number}번";
         }
 
-        /// <summary>
-        /// 명렬표용 전체 정보 문자열
-        /// 예: "1학년 1반 1번 홍길동 (남)"
-        /// </summary>
-        public string GetRosterInfo()
-        {
-            if (!string.IsNullOrEmpty(Name))
-                return $"{GetClassInfo()} {Name} ({Sex})";
-            
-            return GetClassInfo();
-        }
-
-        /// <summary>
-        /// 상태 확인 메서드들
-        /// </summary>
-        public bool IsCurrentlyEnrolled() => Status == EnrollmentStatus.Enrolled;
-        public bool IsOnLeave() => Status == EnrollmentStatus.OnLeave;
-        public bool IsGraduated() => Status == EnrollmentStatus.Graduated;
-        public bool IsTransferred() => Status.Contains(EnrollmentStatus.Transferred);
-
-        /// <summary>
-        /// 재학 기간 계산
-        /// </summary>
-        public int GetEnrollmentDuration()
-        {
-            if (string.IsNullOrEmpty(AdmissionDate))
-                return 0;
-
-            if (!DateTime.TryParse(AdmissionDate, out DateTime admission))
-                return 0;
-
-            DateTime endDate;
-            if (!string.IsNullOrEmpty(GraduationDate) && DateTime.TryParse(GraduationDate, out DateTime grad))
-            {
-                endDate = grad;
-            }
-            else if (!string.IsNullOrEmpty(TransferOutDate) && DateTime.TryParse(TransferOutDate, out DateTime transfer))
-            {
-                endDate = transfer;
-            }
-            else
-            {
-                endDate = DateTime.Today;
-            }
-
-            return (int)((endDate - admission).TotalDays / 365.25);
-        }
+        // 명렬표 문자열(GetRosterInfo), 상태 확인 넷(IsCurrentlyEnrolled·IsOnLeave·IsGraduated·
+        // IsTransferred), 재학 기간(GetEnrollmentDuration)은 호출부가 없어 지웠다(39차).
+        // 화면들은 GetClassInfo 와 Status 값을 직접 쓴다.
 
         #endregion
     }

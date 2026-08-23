@@ -177,23 +177,8 @@ namespace NewSchool.Models
             return SchoolName;
         }
 
-        /// <summary>
-        /// 학교 전체 표시명 (시도교육청 포함)
-        /// </summary>
-        public string GetFullName()
-        {
-            return $"{ATPT_OFCDC_SC_NAME} {SchoolName}";
-        }
-
-        /// <summary>
-        /// 학교 코드 검증 (7자리 숫자)
-        /// </summary>
-        public bool IsValidSchoolCode()
-        {
-            return !string.IsNullOrEmpty(SchoolCode)
-                && SchoolCode.Length == 7
-                && long.TryParse(SchoolCode, out _);
-        }
+        // 전체 표시명(GetFullName)과 학교 코드 검증(IsValidSchoolCode)은 호출부가 없어
+        // 지웠다(39차). 학교는 NEIS 검색으로 고르므로 코드가 이미 검증된 값으로 들어온다.
 
         #endregion
     }

@@ -283,15 +283,10 @@ public class PostListViewModel : INotifyPropertyChanged
 
     #endregion
 
-    #region Commands
-
-    public ICommand LoadCommand { get; }
-    public ICommand SearchCommand { get; }
-    public ICommand PreviousPageCommand { get; }
-    public ICommand NextPageCommand { get; }
-    public ICommand RefreshCommand { get; }
-
-    #endregion
+    // ICommand 다섯(Load·Search·PreviousPage·NextPage·Refresh)과 그 구현체 RelayCommand·
+    // RelayCommand<T> 는 지웠다(39차). 어느 XAML 도 Command 로 묶지 않았고 코드에서도 부르지
+    // 않아, 생성자에서 만들어 두기만 하고 끝나는 값이었다. 화면은 버튼 Click 핸들러에서
+    // 아래 메서드들(LoadPostsAsync·SearchPostsAsync·…)을 직접 부른다.
 
     public PostListViewModel()
     {
@@ -306,12 +301,6 @@ public class PostListViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(HasPosts));  // 추가
         };
-        // Command 초기화
-        LoadCommand = new RelayCommand(async () => await LoadPostsAsync());
-        SearchCommand = new RelayCommand(async () => await SearchPostsAsync());
-        PreviousPageCommand = new RelayCommand(async () => await PreviousPageAsync(), () => HasPreviousPage);
-        NextPageCommand = new RelayCommand(async () => await NextPageAsync(), () => HasNextPage);
-        RefreshCommand = new RelayCommand(async () => await RefreshAsync());
     }
 
 
@@ -495,74 +484,6 @@ public class PostListViewModel : INotifyPropertyChanged
 
     #endregion
 }
-#region RelayCommand Implementation
-
-/// <summary>
-/// ICommand 구현체 (Native AOT 호환)
-/// </summary>
-public class RelayCommand : ICommand
-{
-    private readonly Func<Task> _execute;
-    private readonly Func<bool>? _canExecute;
-
-    public event EventHandler? CanExecuteChanged;
-
-    public RelayCommand(Func<Task> execute, Func<bool>? canExecute = null)
-    {
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        _canExecute = canExecute;
-    }
-
-    public bool CanExecute(object? parameter)
-    {
-        return _canExecute?.Invoke() ?? true;
-    }
-
-    public async void Execute(object? parameter)
-    {
-        await _execute();
-    }
-
-    public void RaiseCanExecuteChanged()
-    {
-        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-    }
-}
-
-/// <summary>
-/// 제네릭 ICommand 구현체 (Native AOT 호환)
-/// </summary>
-public class RelayCommand<T> : ICommand
-{
-    private readonly Func<T?, Task> _execute;
-    private readonly Func<T?, bool>? _canExecute;
-
-    public event EventHandler? CanExecuteChanged;
-
-    public RelayCommand(Func<T?, Task> execute, Func<T?, bool>? canExecute = null)
-    {
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        _canExecute = canExecute;
-    }
-
-    public bool CanExecute(object? parameter)
-    {
-        return _canExecute?.Invoke((T?)parameter) ?? true;
-    }
-
-    public async void Execute(object? parameter)
-    {
-        await _execute((T?)parameter);
-    }
-
-    public void RaiseCanExecuteChanged()
-    {
-        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-    }
-}
-
-#endregion
-
 #region Post Wrapper for UI
 
 /// <summary>

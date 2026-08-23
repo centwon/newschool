@@ -4,8 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using NewSchool.Board.Repositories;
 using NewSchool.Board.Services;
 using NewSchool.Controls;
@@ -28,16 +26,6 @@ namespace NewSchool.Board
 
         // ✅ 전체 DB 경로
         private static string DbPath => Path.Combine(Settings.UserDataPath, Settings.Board_DB.Value);
-
-
-
-        #region Database Management
-
-
-
-        #endregion
-
-
 
         #region Initialization
 
@@ -112,126 +100,11 @@ namespace NewSchool.Board
 
         #endregion
 
-        #region Database Management
-
-
-
-
-        /// <summary>
-        /// 데이터베이스 검증 (비동기)
-        /// </summary>
-        public static async Task<bool> ValidateDatabaseAsync()
-        {
-            try
-            {
-                using var validator = new DatabaseValidator(DbPath);
-                return await validator.ValidateAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DB 검증 실패: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// 데이터베이스 최적화 (비동기)
-        /// </summary>
-        public static async Task<bool> OptimizeDatabaseAsync()
-        {
-            try
-            {
-                using var optimizer = new DatabaseOptimizer(DbPath);
-                return await optimizer.OptimizeAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DB 최적화 실패: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// 데이터베이스 백업 (비동기)
-        /// </summary>
-        public static async Task<bool> BackupDatabaseAsync(string backupPath)
-        {
-            try
-            {
-                await Task.Run(() => File.Copy(DbPath, backupPath, true));
-                Debug.WriteLine($"DB 백업 완료: {backupPath}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DB 백업 실패: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// 데이터베이스 복원 (비동기)
-        /// </summary>
-        public static async Task<bool> RestoreDatabaseAsync(string backupPath)
-        {
-            try
-            {
-                if (!File.Exists(backupPath))
-                {
-                    Debug.WriteLine("백업 파일이 존재하지 않습니다.");
-                    return false;
-                }
-
-                await Task.Run(() => File.Copy(backupPath, DbPath, true));
-                Debug.WriteLine($"DB 복원 완료: {backupPath}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DB 복원 실패: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// 데이터베이스 완전 초기화 (비동기)
-        /// </summary>
-        public static async Task<bool> ResetDatabaseAsync()
-        {
-            try
-            {
-                var confirmed = await MessageBox.ShowConfirmAsync(
-                    "모든 게시물, 댓글, 파일이 삭제됩니다.\n정말 초기화하시겠습니까?",
-                    "데이터베이스 초기화", "초기화", "취소");
-                if (!confirmed)
-                    return false;
-
-                // DB 파일 삭제
-                if (File.Exists(DbPath))
-                {
-                    File.Delete(DbPath);
-                }
-
-                // 파일 디렉토리 삭제
-                if (Directory.Exists(Data_Dir))
-                {
-                    Directory.Delete(Data_Dir, true);
-                }
-
-                // 재초기화
-                Settings.Board_Inited.Set(false);
-                await InitAsync();
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DB 초기화 실패: {ex.Message}");
-                return false;
-            }
-        }
-
-        #endregion
+        // DB 유지보수 묶음(ValidateDatabaseAsync·OptimizeDatabaseAsync·BackupDatabaseAsync·
+        // RestoreDatabaseAsync·ResetDatabaseAsync)은 호출부가 한 곳도 없어 지웠다(39차).
+        // 전용 헬퍼였던 DatabaseValidator·DatabaseOptimizer 도 함께 사라졌다.
+        // school.db 쪽 같은 메서드들은 2026-08-16 에 이미 제거했고, 사용자에게 보이는
+        // 백업·복원은 Settings 의 백업 ZIP(VACUUM INTO 스냅샷) 한 경로뿐이다.
 
         #region Utility Methods
 
@@ -258,8 +131,8 @@ namespace NewSchool.Board
                 ".lnk", ".url", ".pif", ".scf", ".reg", ".inf", ".msc", ".cpl", ".jar", ".gadget", ".application"
             };
 
-        /// <summary>차단 확장자 목록(읽기 전용 뷰).</summary>
-        public static IReadOnlyCollection<string> BlockedAttachmentExtensions => _blockedAttachmentExtensions;
+        // 읽기 전용 뷰 BlockedAttachmentExtensions 는 쓰는 곳이 없어 지웠다(39차) —
+        // 바깥에서는 IsBlockedAttachment 로 판정만 하면 된다.
 
         /// <summary>파일명의 확장자가 실행 유발 차단 목록에 있으면 true.</summary>
         public static bool IsBlockedAttachment(string fileName)
@@ -417,97 +290,7 @@ namespace NewSchool.Board
             Debug.WriteLine("[DatabaseInitializer] 인덱스 생성 완료");
         }
     }
-    /// <summary>
-    /// 데이터베이스 검증 헬퍼
-    /// </summary>
-    internal class DatabaseValidator : BaseRepository
-    {
-        public DatabaseValidator(string dbPath) : base(dbPath) { }
-
-        public async Task<bool> ValidateAsync()
-        {
-            try
-            {
-                // 무결성 검사
-                var integrityResult = await ExecuteScalarAsync("PRAGMA integrity_check");
-                if (integrityResult?.ToString() != "ok")
-                {
-                    LogError($"무결성 검사 실패: {integrityResult}");
-                    return false;
-                }
-
-                // 필수 테이블 확인
-                var tables = await GetTablesAsync();
-                if (!tables.Contains("Post") || !tables.Contains("Comment") || !tables.Contains("PostFile"))
-                {
-                    LogError("필수 테이블이 존재하지 않습니다.");
-                    return false;
-                }
-
-                LogInfo("데이터베이스 검증 완료");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LogError("데이터베이스 검증 실패", ex);
-                return false;
-            }
-        }
-
-        private async Task<List<string>> GetTablesAsync()
-        {
-            var tables = new List<string>();
-            using var cmd = CreateCommand("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                tables.Add(reader.GetString(0));
-            }
-
-            return tables;
-        }
-    }
-
-    /// <summary>
-    /// 데이터베이스 최적화 헬퍼
-    /// </summary>
-    internal class DatabaseOptimizer : BaseRepository
-    {
-        public DatabaseOptimizer(string dbPath) : base(dbPath) { }
-
-        public async Task<bool> OptimizeAsync()
-        {
-            try
-            {
-                await ExecuteNonQueryAsync("VACUUM");
-                await ExecuteNonQueryAsync("ANALYZE");
-
-                LogInfo("데이터베이스 최적화 완료");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LogError("데이터베이스 최적화 실패", ex);
-                return false;
-            }
-        }
-    }
-    public static class DatabaseHelper
-    {
-        public static string GetConnectionString(string dbPath)
-        {
-            return new SqliteConnectionStringBuilder
-            {
-                DataSource = dbPath,
-                Mode = SqliteOpenMode.ReadWriteCreate,
-                // Cache=Shared 를 쓰지 않는다(기본값 Private). WAL 위에 공유 캐시를 얹으면
-                // 같은 프로세스의 연결들 사이에 테이블 락이 생겨 WAL 이 주는 읽기/쓰기 동시성이
-                // 깎이고, 그 락은 SQLITE_BUSY 가 아니라 SQLITE_LOCKED 로 즉시 실패해
-                // 아래 busy_timeout 도 듣지 않는다.
-                Pooling = true
-            }.ToString();
-        }
-    }
+    // DatabaseHelper.GetConnectionString 은 호출부가 없어 지웠다(39차).
+    // 게시판 연결 문자열은 BaseRepository 가 자기 것을 만들어 쓴다.
     #endregion
 }

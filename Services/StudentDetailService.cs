@@ -123,34 +123,6 @@ namespace NewSchool.Services
             return await _detailRepo.GetByNoAsync(no);
         }
 
-        /// <summary>
-        /// 주 보호자 연락처 가져오기
-        /// 우선순위: 어머니 → 아버지 → 보호자
-        /// </summary>
-        public async Task<string?> GetPrimaryGuardianPhoneAsync(string studentId)
-        {
-            var detail = await _detailRepo.GetByStudentIdAsync(studentId);
-            return detail?.GetPrimaryContact();
-        }
-
-        /// <summary>
-        /// 주 보호자명 가져오기
-        /// </summary>
-        public async Task<string?> GetPrimaryGuardianNameAsync(string studentId)
-        {
-            var detail = await _detailRepo.GetByStudentIdAsync(studentId);
-            return detail?.GetPrimaryGuardianName();
-        }
-
-        /// <summary>
-        /// 특이사항 여부 확인
-        /// </summary>
-        public async Task<bool> HasSpecialConsiderationsAsync(string studentId)
-        {
-            var detail = await _detailRepo.GetByStudentIdAsync(studentId);
-            return detail?.HasSpecialConsiderations() ?? false;
-        }
-
         #endregion
 
         #region Update
@@ -176,112 +148,8 @@ namespace NewSchool.Services
             return await _detailRepo.UpdateAsync(detail);
         }
 
-        /// <summary>
-        /// 부모 정보 업데이트
-        /// </summary>
-        public async Task<bool> UpdateParentInfoAsync(
-            string studentId,
-            string? fatherName = null,
-            string? fatherPhone = null,
-            string? fatherJob = null,
-            string? motherName = null,
-            string? motherPhone = null,
-            string? motherJob = null)
-        {
-            var detail = await GetOrCreateDetailAsync(studentId);
-
-            // 변경된 항목만 업데이트
-            if (fatherName != null) detail.FatherName = fatherName;
-            if (fatherPhone != null) detail.FatherPhone = fatherPhone;
-            if (fatherJob != null) detail.FatherJob = fatherJob;
-            if (motherName != null) detail.MotherName = motherName;
-            if (motherPhone != null) detail.MotherPhone = motherPhone;
-            if (motherJob != null) detail.MotherJob = motherJob;
-
-            detail.UpdatedAt = DateTime.Now;
-            return await _detailRepo.UpdateAsync(detail);
-        }
-
-        /// <summary>
-        /// 보호자 정보 업데이트
-        /// </summary>
-        public async Task<bool> UpdateGuardianInfoAsync(
-            string studentId,
-            string? guardianName = null,
-            string? guardianPhone = null,
-            string? guardianRelation = null)
-        {
-            var detail = await GetOrCreateDetailAsync(studentId);
-
-            if (guardianName != null) detail.GuardianName = guardianName;
-            if (guardianPhone != null) detail.GuardianPhone = guardianPhone;
-            if (guardianRelation != null) detail.GuardianRelation = guardianRelation;
-
-            detail.UpdatedAt = DateTime.Now;
-            return await _detailRepo.UpdateAsync(detail);
-        }
-
-        /// <summary>
-        /// 가족 정보 업데이트
-        /// </summary>
-        public async Task<bool> UpdateFamilyInfoAsync(string studentId, string familyInfo)
-        {
-            var detail = await GetOrCreateDetailAsync(studentId);
-            detail.FamilyInfo = familyInfo;
-            detail.UpdatedAt = DateTime.Now;
-
-            return await _detailRepo.UpdateAsync(detail);
-        }
-
-        /// <summary>
-        /// 교우관계 업데이트
-        /// </summary>
-        public async Task<bool> UpdateFriendsAsync(string studentId, string friends)
-        {
-            var detail = await GetOrCreateDetailAsync(studentId);
-            detail.Friends = friends;
-            detail.UpdatedAt = DateTime.Now;
-
-            return await _detailRepo.UpdateAsync(detail);
-        }
-
-        /// <summary>
-        /// 진로 정보 업데이트
-        /// </summary>
-        public async Task<bool> UpdateCareerInfoAsync(
-            string studentId,
-            string? interests = null,
-            string? talents = null,
-            string? careerGoal = null)
-        {
-            var detail = await GetOrCreateDetailAsync(studentId);
-
-            if (interests != null) detail.Interests = interests;
-            if (talents != null) detail.Talents = talents;
-            if (careerGoal != null) detail.CareerGoal = careerGoal;
-
-            detail.UpdatedAt = DateTime.Now;
-            return await _detailRepo.UpdateAsync(detail);
-        }
-
-        /// <summary>
-        /// 건강 정보 업데이트
-        /// </summary>
-        public async Task<bool> UpdateHealthInfoAsync(
-            string studentId,
-            string? healthInfo = null,
-            string? allergies = null,
-            string? specialNeeds = null)
-        {
-            var detail = await GetOrCreateDetailAsync(studentId);
-
-            if (healthInfo != null) detail.HealthInfo = healthInfo;
-            if (allergies != null) detail.Allergies = allergies;
-            if (specialNeeds != null) detail.SpecialNeeds = specialNeeds;
-
-            detail.UpdatedAt = DateTime.Now;
-            return await _detailRepo.UpdateAsync(detail);
-        }
+        // 항목별 부분 업데이트(부모·보호자·가족·교우·진로·건강)는 호출부가 없어 지웠다(39차).
+        // 화면은 학생카드에서 한 번에 담아 UpdateAsync 로 통째로 저장한다.
 
         /// <summary>
         /// 메모 업데이트
@@ -318,54 +186,8 @@ namespace NewSchool.Services
             return await _detailRepo.DeleteByStudentIdAsync(studentId);
         }
 
-        /// <summary>
-        /// No로 삭제
-        /// </summary>
-        public async Task<bool> DeleteByNoAsync(int no)
-        {
-            if (no <= 0)
-            {
-                throw new ArgumentException("유효하지 않은 No입니다.", nameof(no));
-            }
-
-            return await _detailRepo.DeleteAsync(no);
-        }
-
-        #endregion
-
-        #region 통계 및 분석
-
-        /// <summary>
-        /// 상세정보 완성도 체크
-        /// </summary>
-        public async Task<DetailCompleteness> CheckCompletenessAsync(string studentId)
-        {
-            var detail = await _detailRepo.GetByStudentIdAsync(studentId);
-
-            if (detail == null)
-            {
-                return new DetailCompleteness
-                {
-                    StudentID = studentId,
-                    HasDetail = false
-                };
-            }
-
-            return new DetailCompleteness
-            {
-                StudentID = studentId,
-                HasDetail = true,
-                HasParentInfo = !string.IsNullOrWhiteSpace(detail.FatherName) ||
-                               !string.IsNullOrWhiteSpace(detail.MotherName),
-                HasGuardianPhone = !string.IsNullOrWhiteSpace(detail.GetPrimaryContact()),
-                HasFamilyInfo = !string.IsNullOrWhiteSpace(detail.FamilyInfo),
-                HasFriends = !string.IsNullOrWhiteSpace(detail.Friends),
-                HasCareerInfo = !string.IsNullOrWhiteSpace(detail.CareerGoal),
-                HasHealthInfo = !string.IsNullOrWhiteSpace(detail.HealthInfo) ||
-                               !string.IsNullOrWhiteSpace(detail.Allergies),
-                HasSpecialNeeds = !string.IsNullOrWhiteSpace(detail.SpecialNeeds)
-            };
-        }
+        // No 로 삭제(DeleteByNoAsync)와 완성도 체크(CheckCompletenessAsync + DetailCompleteness)는
+        // 호출부가 없어 지웠다(39차). 삭제는 학생 기준(DeleteByStudentIdAsync) 하나로 충분하다.
 
         #endregion
 
@@ -439,52 +261,4 @@ namespace NewSchool.Services
         #endregion
     }
 
-    #region ViewModel
-
-    /// <summary>
-    /// 상세정보 완성도 체크 결과
-    /// </summary>
-    public class DetailCompleteness
-    {
-        public string StudentID { get; set; } = string.Empty;
-        public bool HasDetail { get; set; }
-        public bool HasParentInfo { get; set; }
-        public bool HasGuardianPhone { get; set; }
-        public bool HasFamilyInfo { get; set; }
-        public bool HasFriends { get; set; }
-        public bool HasCareerInfo { get; set; }
-        public bool HasHealthInfo { get; set; }
-        public bool HasSpecialNeeds { get; set; }
-
-        /// <summary>
-        /// 완성도 퍼센트 (0~100)
-        /// </summary>
-        public int CompletenessPercentage
-        {
-            get
-            {
-                if (!HasDetail) return 0;
-
-                int total = 7;
-                int completed = 0;
-
-                if (HasParentInfo) completed++;
-                if (HasGuardianPhone) completed++;
-                if (HasFamilyInfo) completed++;
-                if (HasFriends) completed++;
-                if (HasCareerInfo) completed++;
-                if (HasHealthInfo) completed++;
-                if (HasSpecialNeeds) completed++;
-
-                return (int)((completed / (double)total) * 100);
-            }
-        }
-
-        public override string ToString()
-        {
-            return $"상세정보 완성도: {CompletenessPercentage}%";
-        }
-    }
-
-    #endregion
 }

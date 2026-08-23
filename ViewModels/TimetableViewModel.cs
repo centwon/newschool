@@ -155,23 +155,8 @@ namespace NewSchool.ViewModels
         /// <summary>표식이 붙은 과목명 (예: "(교)영어")</summary>
         public string SubjectWithPrefix => LessonChangeLabels.WithPrefix(ChangeKind, SubjectName);
 
-        /// <summary>
-        /// 표시용 텍스트 (과목명 + 교실)
-        /// </summary>
-        public string DisplayText => IsEmpty ? "" : $"{SubjectName}\n{Room}";
-
-        /// <summary>
-        /// 요일 헤더 (월, 화, 수, 목, 금)
-        /// </summary>
-        public string DayHeader => DayOfWeek switch
-        {
-            1 => "월",
-            2 => "화",
-            3 => "수",
-            4 => "목",
-            5 => "금",
-            _ => ""
-        };
+        // DisplayText·DayHeader 는 바인딩도 호출도 없어 지웠다(39차) —
+        // 시간표 칸은 SubjectWithPrefix 와 Room 을 따로 그린다.
     }
 
     /// <summary>

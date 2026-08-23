@@ -831,11 +831,6 @@ public static class Settings
     /// </summary>
     public static string BackupDirectory => Path.Combine(RootPath, "Backups");
 
-    /// <summary>
-    /// 디버그 출력
-    /// </summary>
-    public static void PrintAll() => SettingsDb.PrintAllSettings();
-
     #region Windows 자동 시작
 
     private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
@@ -1043,18 +1038,6 @@ internal static class SettingsDb
         }
     }
 
-    public static void PrintAllSettings()
-    {
-        lock (_lock)
-        {
-            System.Diagnostics.Debug.WriteLine("=== Settings ===");
-            foreach (var kvp in _cache)
-            {
-                System.Diagnostics.Debug.WriteLine($"{kvp.Key}: {kvp.Value}");
-            }
-            System.Diagnostics.Debug.WriteLine("================");
-        }
-    }
-
+    // 디버그 덤프(PrintAllSettings)와 그 래퍼 Settings.PrintAll 은 호출부가 없어 지웠다(39차).
 }
 

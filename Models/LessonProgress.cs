@@ -68,10 +68,7 @@ public class LessonProgress
 
     #region Computed Properties
 
-    /// <summary>
-    /// 완료일 표시
-    /// </summary>
-    public string CompletedDateDisplay => CompletedDate?.ToString("M/d") ?? "-";
+    // CompletedDateDisplay 는 바인딩도 호출도 없어 지웠다(39차).
 
     /// <summary>
     /// 진도 유형 표시

@@ -131,11 +131,8 @@ public class StudentListItemViewModel : INotifyPropertyChanged
     /// <summary>학급 정보 (예: 1학년 1반)</summary>
     public string ClassInfo => $"{Grade}학년 {Class}반";
 
-    /// <summary>번호와 이름 (예: 1번 홍길동)</summary>
-    public string NumberAndName => $"{Number}번 {Name}";
-
-    /// <summary>전체 정보 (예: 1학년 1반 1번 홍길동)</summary>
-    public string FullInfo => $"{Grade}학년 {Class}반 {Number}번 {Name}";
+    // NumberAndName·FullInfo 는 바인딩도 호출도 없어 지웠다(39차) —
+    // 목록은 번호와 이름을 각각 칸에 놓고, 합친 문자열이 필요한 곳은 ClassInfo 를 쓴다.
 
     #endregion
 

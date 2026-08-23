@@ -199,34 +199,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 학생의 전체 기록 조회 (학년도/학기 무관)
-        /// </summary>
-        public async Task<List<StudentLog>> GetAllByStudentAsync(string studentId)
-        {
-            const string query = @"
-                SELECT * FROM StudentLog
-                WHERE StudentID = @StudentID
-                ORDER BY Year DESC, Semester DESC, Date DESC, Category";
-
-            try
-            {
-                LogDebug($"학생 전체 기록 조회: StudentID={studentId}");
-
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-
-                var logs = await ExecuteListAsync(cmd, MapStudentLog).ConfigureAwait(false);
-
-                LogInfo($"학생 전체 기록 조회 완료: {logs.Count}건");
-                return logs;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 전체 기록 조회 실패: StudentID={studentId}", ex);
-                throw;
-            }
-        }
+        // 학년도를 가리지 않는 전체 조회(GetAllByStudentAsync)는 이를 부르던
+        // StudentLogService.GetAllStudentLogsAsync 와 함께 지웠다(39차).
 
         /// <summary>
         /// 카테고리별 기록 조회
@@ -406,36 +380,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 중요 기록만 조회
-        /// </summary>
-        public async Task<List<StudentLog>> GetImportantAsync(
-            string studentId, int year, int semester)
-        {
-            const string query = @"
-                SELECT * FROM StudentLog 
-                WHERE StudentID = @StudentID 
-                  AND Year = @Year 
-                  AND Semester = @Semester
-                  AND IsImportant = 1
-                ORDER BY Date DESC";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
-                cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                return await ReadAllLogsAsync(reader);
-            }
-            catch (Exception ex)
-            {
-                LogError($"중요 기록 조회 실패: StudentID={studentId}", ex);
-                throw;
-            }
-        }
+        // 중요 기록만(GetImportantAsync)·구조화 기록만(GetStructuredAsync) 조회는 호출부가 없어
+        // 지웠다(39차). 목록은 학기 전체를 받아 화면에서 별표·항목 유무로 거른다.
 
         /// <summary>
         /// 키워드로 기록 검색 (모든 필드 대상)
@@ -514,37 +460,6 @@ namespace NewSchool.Repositories
             catch (Exception ex)
             {
                 LogError($"날짜 범위 기록 조회 실패: StudentID={studentId}, Year={year}", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 구조화된 데이터가 있는 기록만 조회
-        /// </summary>
-        public async Task<List<StudentLog>> GetStructuredAsync(
-            string studentId, int year, int semester)
-        {
-            const string query = @"
-                SELECT * FROM StudentLog 
-                WHERE StudentID = @StudentID 
-                  AND Year = @Year 
-                  AND Semester = @Semester
-                  AND (ActivityName IS NOT NULL AND ActivityName != '')
-                ORDER BY Date DESC";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
-                cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                return await ReadAllLogsAsync(reader);
-            }
-            catch (Exception ex)
-            {
-                LogError($"구조화 기록 조회 실패: StudentID={studentId}", ex);
                 throw;
             }
         }

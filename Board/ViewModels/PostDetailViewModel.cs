@@ -164,23 +164,16 @@ public class PostDetailViewModel : INotifyPropertyChanged
 
     #endregion
 
-    #region Commands
-
-    public ICommand LoadPostCommand { get; }
-    public ICommand AddCommentCommand { get; }
-    public ICommand DeleteCommentCommand { get; }
-
-    #endregion
+    // ICommand 셋(LoadPost·AddComment·DeleteComment)은 지웠다(39차). 어느 XAML 도 Command 로
+    // 묶지 않았고, 화면은 버튼 Click 핸들러에서 아래 메서드를 직접 부른다.
+    // 구현체 RelayCommand·RelayCommand<T> 도 이 셋과 PostListViewModel 쪽 다섯이 유일한
+    // 사용처여서 함께 사라졌다.
 
     public PostDetailViewModel()
     {
         _service = Board.CreateCachedService();
         _comments = new OptimizedObservableCollection<Comment>();
         _files = new OptimizedObservableCollection<PostFile>();
-
-        LoadPostCommand = new RelayCommand<int>(async (postNo) => await LoadPostAsync(postNo));
-        AddCommentCommand = new RelayCommand(async () => await AddCommentAsync());
-        DeleteCommentCommand = new RelayCommand<Comment>(async (comment) => await DeleteCommentAsync(comment));
     }
 
     #region Methods

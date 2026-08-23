@@ -106,60 +106,8 @@ public class LessonRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 정기 시간표 일괄 생성 (CourseSchedule 데이터 기반)
-    /// 단일 트랜잭션 + 파라미터 재사용으로 배치 INSERT
-    /// </summary>
-    public async Task<int> CreateFromSchedulesAsync(
-        int courseNo, string teacherId, int year, int semester,
-        int grade, int classNum, List<(int DayOfWeek, int Period, string Room)> schedules)
-    {
-        if (schedules.Count == 0) return 0;
-
-        const string query = @"
-            INSERT INTO Lesson (
-                Course, Teacher, Year, Semester, Date, DayOfWeek, Period,
-                Grade, Class, Room, Topic, IsRecurring, IsCompleted, IsCancelled
-            ) VALUES (
-                @Course, @Teacher, @Year, @Semester, '', @DayOfWeek, @Period,
-                @Grade, @Class, @Room, '', 1, 0, 0
-            )";
-
-        int count = 0;
-        BeginTransaction();
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Course", courseNo);
-            cmd.Parameters.AddWithValue("@Teacher", teacherId);
-            cmd.Parameters.AddWithValue("@Year", year);
-            cmd.Parameters.AddWithValue("@Semester", semester);
-            cmd.Parameters.AddWithValue("@Grade", grade);
-            cmd.Parameters.AddWithValue("@Class", classNum);
-            cmd.Parameters.AddWithValue("@DayOfWeek", 0);
-            cmd.Parameters.AddWithValue("@Period", 0);
-            cmd.Parameters.AddWithValue("@Room", string.Empty);
-
-            foreach (var (dayOfWeek, period, room) in schedules)
-            {
-                cmd.Parameters["@DayOfWeek"].Value = dayOfWeek;
-                cmd.Parameters["@Period"].Value = period;
-                cmd.Parameters["@Room"].Value = room ?? string.Empty;
-
-                await cmd.ExecuteNonQueryAsync();
-                count++;
-            }
-
-            Commit();
-            LogInfo($"정기 시간표 일괄 생성: {count}개");
-            return count;
-        }
-        catch
-        {
-            Rollback();
-            throw;
-        }
-    }
+    // 정기 시간표 일괄 생성(CreateFromSchedulesAsync)은 이를 부르던
+    // LessonService.CreateScheduleFromCourseAsync 와 함께 지웠다(39차) — 둘 다 호출부가 없었다.
 
     #endregion
 
@@ -217,46 +165,9 @@ public class LessonRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 여러 Course 의 수업을 한 번에 조회한다 (Course 번호 → 수업 목록).
-    ///
-    /// <para><see cref="GetByCourseAsync"/> 를 루프로 돌면 과목 수만큼 쿼리가 나간다.
-    /// 필터 조건은 <see cref="GetByCourseAsync"/> 와 똑같이 두었다 — 교사 시간표 화면이
-    /// 취소된 수업까지 보고 판단하고 있어서, 여기서 <c>IsCancelled</c> 를 걸러내면
-    /// 화면 동작이 조용히 달라진다.</para>
-    /// </summary>
-    public async Task<Dictionary<int, List<Lesson>>> GetByCoursesAsync(IEnumerable<int> courseNos)
-    {
-        var ids = courseNos?.Distinct().ToList() ?? new List<int>();
-        var result = new Dictionary<int, List<Lesson>>();
-        if (ids.Count == 0) return result;
-
-        var placeholders = string.Join(",", ids.Select((_, i) => $"@c{i}"));
-        string query = $@"
-            SELECT * FROM Lesson
-            WHERE Course IN ({placeholders})
-            ORDER BY DayOfWeek, Period";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            for (int i = 0; i < ids.Count; i++)
-                cmd.Parameters.AddWithValue($"@c{i}", ids[i]);
-
-            foreach (var lesson in await ExecuteQueryAsync(cmd))
-            {
-                if (!result.TryGetValue(lesson.Course, out var list))
-                    result[lesson.Course] = list = new List<Lesson>();
-                list.Add(lesson);
-            }
-            return result;
-        }
-        catch (Exception ex)
-        {
-            LogError($"Course 일괄 수업 조회 실패: {ids.Count}건", ex);
-            throw;
-        }
-    }
+    // 여러 Course 를 IN 절로 묶어 읽던 GetByCoursesAsync 는 이를 쓰던
+    // TimetableService.GetTeacherTimetableAsync 와 함께 지웠다(39차).
+    // (N+1 을 없애려고 만든 것이었는데, 그 유일한 호출부가 사라졌다.)
 
     /// <summary>
     /// 교사 시간표 조회 (정기 수업만)
@@ -355,47 +266,8 @@ public class LessonRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 특정 시간대 수업 조회 (충돌 확인용)
-    /// </summary>
-    public async Task<Lesson?> GetBySlotAsync(
-        string teacherId, int year, int semester, int dayOfWeek, int period)
-    {
-        const string query = @"
-            SELECT * FROM Lesson 
-            WHERE Teacher = @Teacher
-              AND Year = @Year
-              AND Semester = @Semester
-              AND DayOfWeek = @DayOfWeek
-              AND Period = @Period
-              AND IsRecurring = 1
-              AND IsCancelled = 0
-            LIMIT 1";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Teacher", teacherId);
-            cmd.Parameters.AddWithValue("@Year", year);
-            cmd.Parameters.AddWithValue("@Semester", semester);
-            cmd.Parameters.AddWithValue("@DayOfWeek", dayOfWeek);
-            cmd.Parameters.AddWithValue("@Period", period);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            var cache = new ReaderColumnCache();
-            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-            if (await reader.ReadAsync())
-            {
-                return MapLesson(reader, cache);
-            }
-            return null;
-        }
-        catch (Exception ex)
-        {
-            LogError($"시간대 수업 조회 실패", ex);
-            throw;
-        }
-    }
+    // 시간대 수업 조회(GetBySlotAsync)는 이를 쓰던 LessonService.HasConflictAsync 와 함께
+    // 지웠다(39차).
 
     #endregion
 

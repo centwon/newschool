@@ -140,8 +140,6 @@ public sealed partial class RichTextEditorWin : Window
 
     #region Public Methods
 
-    public Task<string> GetHtmlAsync() => richEditor.GetHtmlAsync();
-
     public Task PrintAsync() => richEditor.PrintAsync(Title ?? "NewSchool");
 
     #endregion

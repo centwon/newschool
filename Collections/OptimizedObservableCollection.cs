@@ -69,38 +69,8 @@ namespace NewSchool.Collections
             }
         }
 
-        /// <summary>
-        /// 대량 제거 (이벤트 일괄 처리)
-        /// </summary>
-        public void RemoveRange(IEnumerable<T> items)
-        {
-            if (items == null)
-                throw new ArgumentNullException(nameof(items));
-
-            var list = items as IReadOnlyCollection<T> ?? new List<T>(items);
-
-            // 소량이면 개별 알림 (Reset 으로 인한 스크롤 초기화 회피)
-            if (list.Count <= ResetThreshold)
-            {
-                foreach (var item in list)
-                    Remove(item);
-                return;
-            }
-
-            _suppressNotification = true;
-            try
-            {
-                foreach (var item in list)
-                {
-                    Remove(item);
-                }
-            }
-            finally
-            {
-                _suppressNotification = false;
-                RaiseResetNotifications();
-            }
-        }
+        // 대량 제거(RemoveRange)는 호출부가 없어 지웠다(39차) —
+        // 목록을 갈아 끼울 때는 ReplaceAll 을 쓴다.
 
         /// <summary>
         /// 전체 교체 (Clear + AddRange 최적화)

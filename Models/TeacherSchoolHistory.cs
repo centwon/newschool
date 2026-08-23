@@ -126,30 +126,8 @@ namespace NewSchool.Models
             return $"{SchoolCode} ({StartDate} ~ {(IsCurrent ? "현재" : EndDate)})";
         }
 
-        /// <summary>
-        /// 근무 기간 계산 (년)
-        /// </summary>
-        public int GetYearsOfService()
-        {
-            if (!DateTime.TryParse(StartDate, out DateTime start))
-                return 0;
-
-            DateTime end = IsCurrent || string.IsNullOrEmpty(EndDate)
-                ? DateTime.Today
-                : DateTime.TryParse(EndDate, out DateTime parsedEnd)
-                    ? parsedEnd
-                    : DateTime.Today;
-
-            return (int)((end - start).TotalDays / 365.25);
-        }
-
-        /// <summary>
-        /// 현재 근무 중인지 확인
-        /// </summary>
-        public bool IsActiveNow()
-        {
-            return IsCurrent && string.IsNullOrEmpty(EndDate);
-        }
+        // 근무 연수(GetYearsOfService)와 현재 근무 확인(IsActiveNow)은 호출부가 없어
+        // 지웠다(39차). 교사 관리 화면 자체가 없어 이 이력은 등록 때만 쓰인다.
 
         #endregion
     }

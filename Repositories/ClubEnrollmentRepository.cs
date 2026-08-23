@@ -175,69 +175,9 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 학생의 특정 학년도 동아리 조회
-        /// Club과 JOIN하여 조회
-        /// </summary>
-        public async Task<List<ClubEnrollment>> GetByStudentAndYearAsync(
-            string studentId, int year)
-        {
-            const string query = @"
-                SELECT ce.* FROM ClubEnrollment ce
-                INNER JOIN Club c ON ce.ClubNo = c.No
-                WHERE ce.StudentID = @StudentID
-                  AND c.Year = @Year
-                  AND c.IsDeleted = 0
-                ORDER BY c.ClubName";
+        // 학년도별 학생 동아리 조회(GetByStudentAndYearAsync)와 중복 배정 확인(ExistsAsync)은
+        // 호출부가 없어 지웠다(39차). 배정 화면은 동아리 기준 목록을 받아 화면에서 비교한다.
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@Year", year);
-
-                var enrollments = new List<ClubEnrollment>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    enrollments.Add(MapEnrollment(reader, cache));
-                }
-
-                return enrollments;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 동아리 조회 실패: StudentID={studentId}, Year={year}", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 중복 동아리 배정 확인
-        /// </summary>
-        public async Task<bool> ExistsAsync(string studentId, int clubNo)
-        {
-            const string query = @"
-                SELECT EXISTS(SELECT 1 FROM ClubEnrollment
-                WHERE StudentID = @StudentID AND ClubNo = @ClubNo)";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@ClubNo", clubNo);
-
-                var result = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-                return result == 1;
-            }
-            catch (Exception ex)
-            {
-                LogError($"중복 동아리 확인 실패: StudentID={studentId}, ClubNo={clubNo}", ex);
-                throw;
-            }
-        }
 
         #endregion
 
@@ -340,29 +280,7 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 동아리의 모든 배정 삭제
-        /// </summary>
-        public async Task<int> DeleteByClubAsync(int clubNo)
-        {
-            const string query = "DELETE FROM ClubEnrollment WHERE ClubNo = @ClubNo";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@ClubNo", clubNo);
-
-                int affected = await cmd.ExecuteNonQueryAsync();
-
-                LogInfo($"동아리 배정 일괄 삭제 완료: ClubNo={clubNo}, 삭제 건수={affected}");
-                return affected;
-            }
-            catch (Exception ex)
-            {
-                LogError($"동아리 배정 일괄 삭제 실패: ClubNo={clubNo}", ex);
-                throw;
-            }
-        }
+        // 동아리 배정 일괄 삭제(DeleteByClubAsync)는 호출부가 없어 지웠다(39차).
 
         #endregion
 

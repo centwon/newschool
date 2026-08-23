@@ -6,43 +6,8 @@ namespace NewSchool;
 /// <summary>
 /// WinUI 3 + Native AOT 호환 유틸리티 클래스
 /// </summary>
-public partial class Tool
-{
-    /// <summary>
-    /// 파일 크기 포맷
-    /// </summary>
-    public static string FormatSize(long bytes)
-    {
-        string[] suffixes = { "Bytes", "KB", "MB", "GB", "TB", "PB" };
-
-        int counter = 0;
-        decimal number = bytes;
-        while (number >= 1024 && counter < suffixes.Length - 1)
-        {
-            number /= 1024;
-            counter++;
-        }
-
-        return $"({number:n1}{suffixes[counter]})";
-    }
-
-    /// <summary>
-    /// NEIS 바이트 카운트 (한글 3byte, 그 외 1byte)
-    /// 문자마다 정규식 2회 + ToString 을 돌리던 방식을 범위 비교로 교체
-    /// (학생부 실시간 글자수 카운트에 사용되므로 성능 중요)
-    /// 한글 범위는 기존 정규식과 동일: 음절 U+AC00~U+D7AF, 자모 U+3130~U+318F
-    /// </summary>
-    public static int CountNeisByte(string str)
-    {
-        int byteCount = 0;
-        foreach (char ch in str)
-        {
-            bool isHangul = (ch >= '가' && ch <= '힯') || (ch >= '㄰' && ch <= '㆏');
-            byteCount += isHangul ? 3 : 1;
-        }
-        return byteCount;
-    }
-}
+// class Tool 은 통째로 지웠다(39차). 담고 있던 FormatSize·CountNeisByte 둘 다 호출부가 없었다.
+// NEIS 바이트 세기는 NeisHelper.CountSpecBytes 가 맡는다(영역별 규칙까지 본다).
 
 #region Value Converters (WinUI 3용 - string language 사용)
 

@@ -118,8 +118,7 @@ public sealed partial class LogListViewer : UserControl
         }
     }
 
-    /// <summary>선택된 로그 수</summary>
-    public int SelectedCount => Logs.Count(l => l.IsSelected);
+    // SelectedCount 는 쓰는 곳이 없어 지웠다(39차) — 선택 결과는 SelectedLogs 로 받아 센다.
 
     /// <summary>로그 편집 후 변경됨 이벤트 (외부에서 목록 새로고침용)</summary>
     public event EventHandler<StudentLog>? LogEdited;

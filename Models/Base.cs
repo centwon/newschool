@@ -34,10 +34,8 @@ public sealed partial class SchoolMeal
 
     public string DDISH_NM { get; set; } = string.Empty;         //9	    DDISH_NM 요리명
 
-    /// <summary>
-    /// 한 줄 표시용 텍스트 (예: "중식: 현미밥, 된장찌개, 김치")
-    /// </summary>
-    public string DisplayText => $"{MMEAL_SC_NM}: {DDISH_NM.Replace("\r\n", ", ").Replace("\n", ", ").Replace("\r", ", ")}";
+    // 한 줄 표시용 DisplayText 는 바인딩도 호출도 없어 지웠다(39차) —
+    // 급식 카드는 요리명을 여러 줄로 그대로 보여 준다.
 
     /// <summary>
     /// 식사 유형별 아이콘

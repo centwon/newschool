@@ -232,33 +232,6 @@ namespace NewSchool.Board.Caching
             }
         }
 
-        /// <summary>
-        /// 캐시 통계
-        /// </summary>
-        public CacheStatistics GetStatistics()
-        {
-            lock (_lockObject)
-            {
-                int expired = 0;
-
-                foreach (var entry in _cache.Values)
-                {
-                    if (entry.ExpiresAt < DateTime.Now)
-                    {
-                        expired++;
-                    }
-                }
-
-                return new CacheStatistics
-                {
-                    TotalEntries = _cache.Count,
-                    ActiveEntries = _cache.Count - expired,
-                    ExpiredEntries = expired,
-                    EstimatedSizeBytes = _currentCacheSize,
-                    MaxSizeBytes = _maxCacheSizeBytes
-                };
-            }
-        }
 
         #endregion
 
@@ -281,13 +254,8 @@ namespace NewSchool.Board.Caching
             }, token);
         }
 
-        /// <summary>
-        /// 백그라운드 정리 태스크 중지
-        /// </summary>
-        public void StopCleanup()
-        {
-            _cleanupCts.Cancel();
-        }
+        // 정리 태스크를 밖에서 멈추던 StopCleanup 은 호출부가 없어 지웠다(39차) —
+        // 이 캐시는 앱과 수명을 같이하는 싱글턴이라 멈출 시점이 없다.
 
         private void CleanupExpired()
         {
@@ -414,45 +382,8 @@ namespace NewSchool.Board.Caching
         }
     }
 
-    /// <summary>
-    /// 캐시 통계
-    /// </summary>
-    public class CacheStatistics
-    {
-        public int TotalEntries { get; set; }
-        public int ActiveEntries { get; set; }
-        public int ExpiredEntries { get; set; }
-        public long EstimatedSizeBytes { get; set; }
-        public long MaxSizeBytes { get; set; }
-
-        public string EstimatedSizeFormatted
-        {
-            get
-            {
-                if (EstimatedSizeBytes < 1024)
-                    return $"{EstimatedSizeBytes} B";
-                if (EstimatedSizeBytes < 1024 * 1024)
-                    return $"{EstimatedSizeBytes / 1024.0:F2} KB";
-                return $"{EstimatedSizeBytes / (1024.0 * 1024.0):F2} MB";
-            }
-        }
-
-        public string MaxSizeFormatted
-        {
-            get
-            {
-                if (MaxSizeBytes < 1024)
-                    return $"{MaxSizeBytes} B";
-                if (MaxSizeBytes < 1024 * 1024)
-                    return $"{MaxSizeBytes / 1024.0:F2} KB";
-                return $"{MaxSizeBytes / (1024.0 * 1024.0):F2} MB";
-            }
-        }
-
-        public double UsagePercentage => MaxSizeBytes > 0
-            ? (double)EstimatedSizeBytes / MaxSizeBytes * 100
-            : 0;
-    }
+    // 통계(GetStatistics)와 그 결과 타입 CacheStatistics 는 호출부가 없어 지웠다(39차) —
+    // 캐시 상태를 보여 주는 화면이 없다.
 
     /// <summary>
     /// Board 전용 캐시 키 생성기

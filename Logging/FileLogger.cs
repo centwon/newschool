@@ -358,34 +358,8 @@ namespace NewSchool.Logging
 
     #endregion
 
-    #region Extension Methods
-
-    public static class LoggerExtensions
-    {
-        public static void LogOperation(this FileLogger logger, string operation, bool success, TimeSpan elapsed)
-        {
-            string message = $"{operation} - {(success ? "성공" : "실패")} ({elapsed.TotalMilliseconds:F2}ms)";
-
-            if (success)
-                logger.Info(message);
-            else
-                logger.Error(message);
-        }
-
-        public static void LogDatabaseOperation(this FileLogger logger, string operation, int recordsAffected)
-        {
-            logger.Info($"[DB] {operation} - {recordsAffected}개 레코드 영향받음");
-        }
-
-        public static void LogUserAction(this FileLogger logger, string action, string details = "")
-        {
-            string message = string.IsNullOrEmpty(details)
-                ? $"[사용자] {action}"
-                : $"[사용자] {action} - {details}";
-
-            logger.Info(message);
-        }
-    }
+    // 확장 메서드 셋(LogOperation·LogDatabaseOperation·LogUserAction)과 그것들만 담고 있던
+    // LoggerExtensions 클래스는 호출부가 없어 지웠다(39차). 코드는 아래 Log 정적 헬퍼로 남긴다.
 
     /// <summary>
     /// 서비스/페이지 코드에서 Debug.WriteLine + FileLogger를 함께 사용하기 위한 정적 헬퍼
@@ -425,6 +399,4 @@ namespace NewSchool.Logging
             FileLogger.Instance.Error($"[{tag}] {message}", ex);
         }
     }
-
-    #endregion
 }

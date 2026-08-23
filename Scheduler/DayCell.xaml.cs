@@ -209,10 +209,6 @@ public sealed partial class DayCell : UserControl
         ? new(Colors.Gray)
         : new(ColorHelper.FromArgb(255, 0, 120, 215));
 
-    /// <summary>TimeLabel 비어있으면 Collapsed (EventsRepeater용)</summary>
-    public static Visibility IsNotEmpty(string text)
-        => string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
-
     /// <summary>KEvent 색상 문자열을 SolidColorBrush로 변환</summary>
     public static SolidColorBrush EventColorToBrush(string colorHex)
     {
@@ -429,29 +425,8 @@ public sealed partial class DayCell : UserControl
         }
     }
 
-    public async Task AddNewTaskAsync()
-    {
-        if (Dayinfo == null) return;
-
-        try
-        {
-            var dialog = new UnifiedItemDialog(Dayinfo.Date)
-            {
-                XamlRoot = this.XamlRoot
-            };
-            var result = await MessageBox.ShowDialogAsync(dialog);
-
-            if (result == ContentDialogResult.Primary && dialog.ResultEvent != null)
-            {
-                // DB에서 전체 새로고침 (반복 생성, 다일 일정 등 반영)
-                CellChanged?.Invoke(this, EventArgs.Empty);
-            }
-        }
-        catch (Exception ex)
-        {
-            await MessageBox.ShowAsync($"항목 추가 오류: {ex.Message}");
-        }
-    }
+    // 새 항목 추가(AddNewTaskAsync)는 이를 부르던 OnCellDoubleClick 과 함께 지웠다(39차) —
+    // 날짜 칸에서 항목을 만드는 길은 달력 쪽 DayCell_PointerPressed 하나뿐이다.
 
     private async void TaskItem_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
@@ -745,11 +720,6 @@ public sealed partial class DayCell : UserControl
     private void TaskItem_PointerExited(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid grid) grid.Background = _transparentBrush;
-    }
-
-    public async void OnCellDoubleClick()
-    {
-        await AddNewTaskAsync();
     }
 
     private async void EventItem_PointerPressed(object sender, PointerRoutedEventArgs e)

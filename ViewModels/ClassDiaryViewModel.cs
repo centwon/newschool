@@ -66,8 +66,7 @@ namespace NewSchool.ViewModels
 
         #region Properties - ClassDiary Wrapper
 
-        /// <summary>원본 ClassDiary 모델</summary>
-        public ClassDiary CurrentDiary => Diary;
+        // 같은 값을 가리키던 별칭 CurrentDiary 는 쓰는 곳이 없어 지웠다(39차).
 
         /// <summary>원본 ClassDiary 모델</summary>
         public ClassDiary Diary

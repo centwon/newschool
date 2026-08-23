@@ -287,7 +287,7 @@ namespace NewSchool.Controls
             StudentListView.SelectedItem = null;
         }
 
-        public int SelectedCount => StudentListView.SelectedItems.Count;
+        // SelectedCount 는 쓰는 곳이 없어 지웠다(39차) — 선택 결과는 목록을 직접 받아 센다.
 
         public void SelectAll() => StudentListView.SelectAll();
 

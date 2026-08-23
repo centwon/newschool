@@ -179,47 +179,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 최근 일지 조회
-        /// </summary>
-        public async Task<ClassDiary?> GetLatestAsync(string schoolCode, int year, int semester, int grade, int classNum)
-        {
-            const string query = @"
-                SELECT * FROM ClassDiary 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester 
-                  AND Grade = @Grade 
-                  AND Class = @Class
-                ORDER BY Date DESC
-                LIMIT 1";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                if (await reader.ReadAsync())
-                {
-                    return MapDiary(reader, cache);
-                }
-
-                LogDebug($"최근 일지 없음: {grade}학년 {classNum}반");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                LogError($"최근 일지 조회 실패: {grade}학년 {classNum}반", ex);
-                throw;
-            }
-        }
+        // 최근 일지 한 건(GetLatestAsync)과 존재 확인(ExistsAsync)은 호출부가 없어 지웠다(39차).
+        // 학급일지는 날짜로 직접 읽고(GetByDateAsync), 없으면 그 자리에서 새로 만든다.
 
         /// <summary>
         /// 검색 (메모, 알림장, 생활 기록에서 키워드 검색)
@@ -389,40 +350,6 @@ namespace NewSchool.Repositories
             catch (Exception ex)
             {
                 LogError("일지 개수 조회 실패", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 일지 존재 여부 확인
-        /// </summary>
-        public async Task<bool> ExistsAsync(string schoolCode, int year, int semester, int grade, int classNum, DateTime date)
-        {
-            const string query = @"
-                SELECT EXISTS(SELECT 1 FROM ClassDiary
-                WHERE SchoolCode = @SchoolCode
-                  AND Year = @Year
-                  AND Semester = @Semester
-                  AND Grade = @Grade
-                  AND Class = @Class
-                  AND Date = @Date)";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-                cmd.Parameters.AddWithValue("@Date", date.ToString("yyyy-MM-dd"));
-
-                var result = await cmd.ExecuteScalarAsync();
-                return Convert.ToInt32(result) == 1;
-            }
-            catch (Exception ex)
-            {
-                LogError("일지 존재 확인 실패", ex);
                 throw;
             }
         }

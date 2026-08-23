@@ -416,5 +416,6 @@ public partial class App : Application
         Debug.WriteLine("========================================");
     }
 
-    public static Window? GetCurrentWindow() => MainWindow;
+    // GetCurrentWindow 는 호출부가 없어 지웠다(39차) — 창이 필요한 곳은 App.MainWindow 를
+    // 직접 쓰거나, 대화상자라면 MessageBox 가 활성 창을 찾아 준다.
 }

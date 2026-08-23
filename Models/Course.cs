@@ -137,27 +137,8 @@ public partial class Course : NotifyPropertyChangedBase
     /// </summary>
     public bool IsClassType => EffectiveType == CourseTypes.Class;
 
-    /// <summary>
-    /// 선택 과목 여부
-    /// </summary>
-    public bool IsSelectiveType => EffectiveType == CourseTypes.Selective;
-
-    /// <summary>
-    /// 동아리 여부
-    /// </summary>
-    public bool IsClubType => EffectiveType == CourseTypes.Club;
-
-    /// <summary>
-    /// 수강생 자동 등록 대상 여부
-    /// Class 유형은 학급 학생 전체 자동 등록
-    /// </summary>
-    public bool RequiresAutoEnrollment => IsClassType;
-
-    /// <summary>
-    /// 수강생 수동 등록 대상 여부
-    /// Selective, Club 유형은 CourseAssignment로 수동 등록
-    /// </summary>
-    public bool RequiresManualEnrollment => !IsClassType;
+    // 유형 판정 넷(IsSelectiveType·IsClubType·RequiresAutoEnrollment·RequiresManualEnrollment)은
+    // 읽는 곳이 없어 지웠다(39차). 화면은 IsClassType 과 TypeDisplay 만 쓴다.
 
     /// <summary>
     /// 수업 유형 표시명

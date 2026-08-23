@@ -185,37 +185,6 @@ namespace NewSchool.Helpers
             return outputPath;
         }
 
-        /// <summary>
-        /// 여러 시트를 포함한 Excel 파일 생성
-        /// </summary>
-        public static string WriteMultipleSheets(Dictionary<string, DataTable> sheets, string? filePath = null)
-        {
-            if (sheets == null || sheets.Count == 0)
-                throw new ArgumentException("시트 데이터가 비어있습니다.", nameof(sheets));
-
-            string outputPath = filePath ?? Path.Combine(Path.GetTempPath(), $"excel_{Guid.NewGuid()}.xlsx");
-
-            var sheetData = new Dictionary<string, object>();
-
-            foreach (var sheet in sheets)
-            {
-                var rows = new List<Dictionary<string, object>>();
-                foreach (DataRow row in sheet.Value.Rows)
-                {
-                    var rowData = new Dictionary<string, object>();
-                    for (int i = 0; i < sheet.Value.Columns.Count; i++)
-                    {
-                        rowData[sheet.Value.Columns[i].ColumnName] = row[i];
-                    }
-                    rows.Add(rowData);
-                }
-                sheetData[sheet.Key] = rows;
-            }
-
-            MiniExcel.SaveAs(outputPath, sheetData);
-            return outputPath;
-        }
-
         // 미사용 메서드 제거 (2026-04-22): WriteArray — 호출처 0건
 
         /// <summary>
@@ -238,47 +207,10 @@ namespace NewSchool.Helpers
             return outputPath;
         }
 
-        /// <summary>
-        /// CSV를 Excel로 변환
-        /// </summary>
-        public static string ConvertCsvToExcel(string csvPath, string? excelPath = null)
-        {
-            if (!File.Exists(csvPath))
-                throw new FileNotFoundException("CSV 파일을 찾을 수 없습니다.", csvPath);
-
-            string outputPath = excelPath ?? Path.ChangeExtension(csvPath, ".xlsx");
-
-            var rows = new List<Dictionary<string, object>>();
-
-            // RFC 4180 파싱 — 따옴표 안 쉼표·줄바꿈을 올바로 처리(단순 Split(',') 는 인용 필드를 깨뜨림)
-            var records = Services.CsvExportService.ParseRecords(File.ReadAllText(csvPath));
-
-            if (records.Count == 0)
-                throw new Exception("CSV 파일이 비어있습니다.");
-
-            // 첫 레코드를 헤더로 사용
-            var headers = records[0];
-
-            // 데이터 행 처리
-            for (int i = 1; i < records.Count; i++)
-            {
-                var values = records[i];
-                var row = new Dictionary<string, object>();
-
-                for (int j = 0; j < Math.Min(headers.Length, values.Length); j++)
-                {
-                    row[headers[j]] = values[j];
-                }
-
-                rows.Add(row);
-            }
-
-            MiniExcel.SaveAs(outputPath, rows);
-            return outputPath;
-        }
-
         // 미사용 메서드 제거 (2026-04-22): CreateExcelStream(DataTable),
         //   CreateExcelStream<T>(IEnumerable<T>) — 호출처 0건
+        // 미사용 메서드 제거 (39차): WriteMultipleSheets, ConvertCsvToExcel — 이들을 감싸던
+        //   ExcelHelpers 의 SaveMultipleSheetsAsync·ConvertCsvToExcelAsync 와 함께 사라졌다.
 
         #endregion
 

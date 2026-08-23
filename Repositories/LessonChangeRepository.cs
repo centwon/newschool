@@ -185,28 +185,8 @@ public class LessonChangeRepository : BaseRepository
         }
     }
 
-    /// <summary>기간 안의 변경을 모두 되돌린다 (그 주 전체 되돌리기용)</summary>
-    public async Task<int> DeleteRangeAsync(string teacherId, DateTime from, DateTime to)
-    {
-        const string query = @"
-            DELETE FROM LessonChange
-            WHERE TeacherID = @TeacherID AND Date >= @From AND Date <= @To";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@TeacherID", teacherId);
-            cmd.Parameters.AddWithValue("@From", from.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@To", to.ToString("yyyy-MM-dd"));
-
-            return await cmd.ExecuteNonQueryAsync();
-        }
-        catch (Exception ex)
-        {
-            LogError($"시간표 변경 일괄 삭제 실패: {teacherId} {from:yyyy-MM-dd}~{to:yyyy-MM-dd}", ex);
-            throw;
-        }
-    }
+    // 기간 일괄 되돌리기(DeleteRangeAsync)는 호출부가 없어 지웠다(39차) —
+    // 화면에 '그 주 전체 되돌리기'가 없고, 되돌리기는 칸 하나씩 한다.
 
     /// <summary>변경 삭제</summary>
     public async Task<bool> DeleteAsync(int no)

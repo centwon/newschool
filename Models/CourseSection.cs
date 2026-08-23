@@ -129,23 +129,12 @@ public class CourseSection : NotifyPropertyChangedBase
 
     #region Computed Properties - 기존
 
-    /// <summary>대단원 표시 (예: "1. 수와 연산")</summary>
-    public string UnitDisplay => $"{UnitNo}. {UnitName}";
-
-    /// <summary>중단원 표시 (예: "1-1. 자연수의 혼합 계산")</summary>
-    public string ChapterDisplay => $"{UnitNo}-{ChapterNo}. {ChapterName}";
-
-    /// <summary>소단원 표시 (예: "① 덧셈과 뺄셈")</summary>
-    public string SectionDisplay => $"{GetCircledNumber(SectionNo)} {SectionName}";
+    // 표시용 다섯(UnitDisplay·ChapterDisplay·SectionDisplay·UnitChapterPath·PageDisplay)은
+    // 읽는 곳이 없어 지웠다(39차). 화면은 FullPath·HoursDisplay·PageRangeDisplay·ShortInfo 를 쓴다.
+    // SectionDisplay 만 쓰던 원문자 변환기 GetCircledNumber 도 함께 사라졌다.
 
     /// <summary>단원번호 대-중-소 (예: "1-1-1)</summary>
     public string FullPath => $"{UnitNo}-{ChapterNo}-{SectionNo}";
-
-    /// <summary>대단원 > 중단원 경로 (예: "수와 연산 > 자연수의 혼합 계산")</summary>
-    public string UnitChapterPath => $"{UnitName} > {ChapterName}";
-
-    /// <summary>페이지 정보 (예: "p.8")</summary>
-    public string PageDisplay => StartPage > 0 ? $"p.{StartPage}" : "";
 
     /// <summary>차시 정보 (예: "2차시")</summary>
     public string HoursDisplay => $"{EstimatedHours}차시";
@@ -172,19 +161,6 @@ public class CourseSection : NotifyPropertyChangedBase
     #endregion
 
     #region Helper Methods
-
-    /// <summary>
-    /// 숫자를 원문자로 변환 (1~20)
-    /// </summary>
-    private static string GetCircledNumber(int number)
-    {
-        if (number < 1 || number > 20) return number.ToString();
-
-        // ① ~ ⑳
-        char[] circled = { '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩',
-                          '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳' };
-        return circled[number - 1].ToString();
-    }
 
     /// <summary>
     /// 복제본 생성 (수정 전 백업용)

@@ -47,9 +47,11 @@ namespace NewSchool.Scheduler
         public async Task<bool> UpdateTaskAsync(KEvent task)
             => await KEventRepo.UpdateAsync(task);
 
-        /// <summary>작업 삭제</summary>
-        public async Task<bool> DeleteTaskAsync(int no)
-            => await SmartDeleteAsync(no);
+        // 작업 삭제(DeleteTaskAsync)·작업 조회(GetTaskAsync)·캘린더별 작업 조회
+        // (GetTasksByCalendarIdAsync)·이벤트 조회(GetEventAsync)·캘린더 생성/삭제
+        // (CreateCalendarAsync·DeleteCalendarAsync)는 호출부가 없어 지웠다(39차).
+        // 할 일과 일정은 KEvent 한 테이블이라 삭제·조회 경로도 DeleteEventAsync·
+        // GetEventsByDateAsync 쪽 하나면 된다.
 
         /// <summary>
         /// 동기화 여부에 따른 스마트 삭제:
@@ -107,10 +109,6 @@ namespace NewSchool.Scheduler
             return count;
         }
 
-        /// <summary>작업 조회 (ID)</summary>
-        public async Task<KEvent?> GetTaskAsync(int no)
-            => await KEventRepo.GetByIdAsync(no);
-
         /// <summary>날짜 범위로 작업 조회 (ItemType="task"만)</summary>
         public async Task<List<KEvent>> GetTasksByDateAsync(
             DateTime startDate,
@@ -121,10 +119,6 @@ namespace NewSchool.Scheduler
         /// <summary>오늘 기준 미완료 할일 + 오늘 이후 모든 할일 조회 (ItemType="task"만)</summary>
         public async Task<List<KEvent>> GetPendingAndFutureTasksAsync()
             => await KEventRepo.GetPendingAndFutureTasksAsync(DateTime.Today);
-
-        /// <summary>CalendarId 기준 미완료 + 미래 작업 조회 (ItemType="task"만)</summary>
-        public async Task<List<KEvent>> GetTasksByCalendarIdAsync(int calendarId)
-            => await KEventRepo.GetTasksByCalendarIdPendingAsync(calendarId, DateTime.Today);
 
         /// <summary>
         /// 모든 작업 조회 (ItemType="task"만)
@@ -156,9 +150,6 @@ namespace NewSchool.Scheduler
         public async Task<bool> DeleteEventAsync(int no)
             => await SmartDeleteAsync(no);
 
-        public async Task<KEvent?> GetEventAsync(int no)
-            => await KEventRepo.GetByIdAsync(no);
-
         /// <summary>날짜 범위로 이벤트 조회</summary>
         public async Task<List<KEvent>> GetEventsByDateAsync(DateTime startDate, int days = 1)
             => await KEventRepo.GetByDateRangeAsync(startDate, days);
@@ -174,9 +165,6 @@ namespace NewSchool.Scheduler
         public async Task<List<KCalendarList>> GetAllCalendarsAsync()
             => await KCalendarListRepo.GetAllAsync();
 
-        public async Task<int> CreateCalendarAsync(KCalendarList cal)
-            => await KCalendarListRepo.CreateAsync(cal);
-
         public async Task<int> GetOrCreateCalendarIdAsync(string title, string color = "#4285F4")
             => await KCalendarListRepo.GetOrCreateAsync(title, color);
 
@@ -186,9 +174,6 @@ namespace NewSchool.Scheduler
 
         public async Task<bool> UpdateCalendarAsync(KCalendarList cal)
             => await KCalendarListRepo.UpdateAsync(cal);
-
-        public async Task<bool> DeleteCalendarAsync(int no)
-            => await KCalendarListRepo.DeleteAsync(no);
 
         public async Task<KCalendarList?> GetCalendarByGoogleIdAsync(string googleId)
             => await KCalendarListRepo.GetByGoogleIdAsync(googleId);

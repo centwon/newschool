@@ -241,41 +241,8 @@ public class CourseSectionRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 대단원 목록 조회 (중복 제거)
-    /// </summary>
-    public async Task<List<(int UnitNo, string UnitName)>> GetUnitsAsync(int courseNo)
-    {
-        const string query = @"
-            SELECT DISTINCT UnitNo, UnitName
-            FROM CourseSection
-            WHERE Course = @Course
-            ORDER BY UnitNo";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Course", courseNo);
-
-            var units = new List<(int, string)>();
-            using var reader = await cmd.ExecuteReaderAsync();
-            var cache = new ReaderColumnCache();
-            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-            while (await reader.ReadAsync())
-            {
-                units.Add((
-                    reader.GetInt32(cache.GetOrdinal("UnitNo")),
-                    reader.GetString(cache.GetOrdinal("UnitName"))
-                ));
-            }
-            return units;
-        }
-        catch (Exception ex)
-        {
-            LogError($"대단원 목록 조회 실패: Course={courseNo}", ex);
-            throw;
-        }
-    }
+    // 대단원 목록만 뽑는 GetUnitsAsync 는 호출부가 없어 지웠다(39차).
+    // 화면은 단원 전체(GetByCourseAsync)를 받아 대단원으로 묶는다.
 
     #endregion
 

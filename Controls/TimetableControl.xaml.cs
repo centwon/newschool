@@ -157,38 +157,9 @@ namespace NewSchool.Controls
             }
         }
 
-        /// <summary>
-        /// 교사 시간표 로드 (Lesson 기반)
-        /// </summary>
-        public async Task LoadTeacherScheduleAsync(string teacherId, int year, int semester)
-        {
-            DisplayMode = TimetableDisplayMode.Teacher;
-            using var service = new NewSchool.Services.LessonService();
-            var viewModel = await service.GetTeacherTimetableViewModelAsync(teacherId, year, semester);
-            DataContext = viewModel;
-        }
-
-        /// <summary>
-        /// 현재 사용자(교사) 시간표 로드
-        /// </summary>
-        public async Task LoadMyScheduleAsync()
-        {
-            DisplayMode = TimetableDisplayMode.Teacher;
-            using var service = new NewSchool.Services.LessonService();
-            var viewModel = await service.GetMyTimetableViewModelAsync();
-            DataContext = viewModel;
-        }
-
-        /// <summary>
-        /// 학급 시간표 로드 (Lesson 기반)
-        /// </summary>
-        public async Task LoadClassScheduleAsync(int year, int semester, int grade, int classNum)
-        {
-            DisplayMode = TimetableDisplayMode.Class;
-            using var service = new NewSchool.Services.LessonService();
-            var viewModel = await service.GetClassTimetableViewModelAsync(year, semester, grade, classNum);
-            DataContext = viewModel;
-        }
+        // 외부 로드 진입점 셋(LoadTeacherScheduleAsync·LoadMyScheduleAsync·
+        // LoadClassScheduleAsync)은 호출부가 없어 지웠다(39차). 이 컨트롤은 Loaded 에서
+        // 스스로 내 시간표를 읽어 오고, 다른 시간표는 DataContext 를 직접 넣어 보여 준다.
 
         /// <summary>
         /// DataContext가 변경될 때 시간표 셀 생성

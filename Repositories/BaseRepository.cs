@@ -284,10 +284,8 @@ namespace NewSchool.Repositories
             public bool TryGetOrdinal(string columnName, out int ordinal)
                 => _ordinals.TryGetValue(columnName, out ordinal);
 
-            /// <summary>
-            /// 컬럼 존재 여부
-            /// </summary>
-            public bool HasColumn(string columnName) => _ordinals.ContainsKey(columnName);
+            // 컬럼 존재 여부(HasColumn)는 호출부가 없어 지웠다(39차) —
+            // 매퍼들은 TryGetOrdinal 로 없는 컬럼을 함께 처리한다.
         }
 
         /// <summary>

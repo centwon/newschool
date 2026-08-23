@@ -23,59 +23,8 @@ public class StudentSpecPrintService
         return dir;
     }
 
-    /// <summary>
-    /// 개인 학생부 PDF 생성
-    /// </summary>
-    public string GenerateStudentSpecPdf(
-        int year, int grade, int classNo, int number, string name,
-        List<StudentSpecial> specs)
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-
-        var fileName = $"학생부_{grade}학년{classNo}반_{number}번_{Helpers.FileNameHelper.Sanitize(name)}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
-
-        Document.Create(container =>
-        {
-            container.Page(page =>
-            {
-                page.Size(PageSizes.A4);
-                page.Margin(40);
-                page.PageColor(Colors.White);
-
-                page.Header().Column(column =>
-                {
-                    column.Item().Row(row =>
-                    {
-                        row.RelativeItem().AlignLeft().Text($"{year}학년도 학생부 특기사항")
-                            .FontSize(18).Bold().FontColor(Colors.Blue.Darken3);
-                        row.AutoItem().AlignRight()
-                            .Text($"{grade}학년 {classNo}반 {number}번 {name}")
-                            .FontSize(14).SemiBold().FontColor(Colors.Grey.Darken2);
-                    });
-                    column.Item().PaddingTop(6).LineHorizontal(2).LineColor(Colors.Blue.Medium);
-                    column.Item().PaddingBottom(8);
-                });
-
-                page.Content().Element(content => ComposeSpecTable(content, specs));
-
-                page.Footer().Row(row =>
-                {
-                    row.RelativeItem().AlignLeft()
-                        .Text($"출력일시: {DateTime.Now:yyyy년 MM월 dd일 HH:mm}")
-                        .FontSize(8).FontColor(Colors.Grey.Darken1);
-                    row.AutoItem().AlignRight().Text(t =>
-                    {
-                        t.CurrentPageNumber().FontSize(8);
-                        t.Span(" / ").FontSize(8);
-                        t.TotalPages().FontSize(8);
-                    });
-                });
-            });
-        }).GeneratePdf(filePath);
-
-        return filePath;
-    }
+    // 개인 학생부 PDF(GenerateStudentSpecPdf)와 그것만 쓰던 ComposeSpecTable 은 호출부가 없어
+    // 지웠다(39차). 학생부 PDF 는 학급 전체를 한 부로 뽑는 GenerateClassSpecPdf 하나로 나간다.
 
     /// <summary>
     /// 학급 전체 학생부를 하나의 PDF로 생성 (표 형식)
@@ -128,58 +77,6 @@ public class StudentSpecPrintService
         }).GeneratePdf(filePath);
 
         return filePath;
-    }
-
-    /// <summary>개인 학생부 표</summary>
-    private void ComposeSpecTable(IContainer container, List<StudentSpecial> specs)
-    {
-        container.Table(table =>
-        {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.ConstantColumn(90);   // 영역
-                columns.ConstantColumn(80);   // 과목
-                columns.RelativeColumn(1);    // 특기사항
-                columns.ConstantColumn(80);   // Byte
-            });
-
-            table.Header(header =>
-            {
-                var style = TextStyle.Default.FontSize(10).Bold().FontColor(Colors.White);
-                void H(IContainer c, string text) =>
-                    c.Background(Colors.Blue.Darken2).Padding(5)
-                     .AlignCenter().AlignMiddle().Text(text).Style(style);
-
-                H(header.Cell(), "영역");
-                H(header.Cell(), "과목/분야");
-                H(header.Cell(), "특기사항");
-                H(header.Cell(), "Byte");
-            });
-
-            foreach (var spec in specs)
-            {
-                var bg = Colors.White;
-
-                void Cell(IContainer c, string text, bool wrap = false) =>
-                    c.Border(0.5f).BorderColor(Colors.Grey.Lighten2)
-                     .Background(bg).Padding(5)
-                     .Text(text ?? string.Empty).FontSize(9)
-                     .LineHeight(wrap ? 1.4f : 1f);
-
-                Cell(table.Cell(), spec.Type);
-                // 진로활동은 희망분야, 교과활동은 "과목 (N학기)" — 화면 목록과 같은 기준
-                Cell(table.Cell(), Helpers.NeisHelper.BuildSubjectDisplay(
-                    spec.Type, spec.SubjectName, spec.Title, spec.Semester));
-                Cell(table.Cell(), spec.Content ?? string.Empty, true);
-
-                var byteCount = Helpers.NeisHelper.CountSpecBytes(spec.Type, spec.Title, spec.Content);
-                var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
-                table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten2)
-                    .Background(bg).Padding(5).AlignCenter()
-                    .Text($"{byteCount}/{maxBytes}").FontSize(8)
-                    .FontColor(Helpers.NeisHelper.IsOverLimit(byteCount, maxBytes) ? Colors.Red.Medium : Colors.Grey.Darken1);
-            }
-        });
     }
 
     /// <summary>학급 전체 표</summary>

@@ -267,29 +267,7 @@ namespace NewSchool.Repositories
         /// <summary>
         /// 동아리 물리 삭제 (주의!)
         /// </summary>
-        public async Task<bool> HardDeleteAsync(int no)
-        {
-            const string query = "DELETE FROM Club WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-
-                int affected = await cmd.ExecuteNonQueryAsync();
-                bool success = affected > 0;
-
-                if (success)
-                    LogInfo($"동아리 물리 삭제 완료: No={no}");
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"동아리 물리 삭제 실패: No={no}", ex);
-                throw;
-            }
-        }
+        // 물리 삭제(HardDeleteAsync)는 호출부가 없어 지웠다(39차) — soft-delete 하나로 통일.
 
         #endregion
 

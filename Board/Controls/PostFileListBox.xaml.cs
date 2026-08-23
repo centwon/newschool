@@ -47,8 +47,7 @@ namespace NewSchool.Board.Controls
             }
         }
 
-        /// <summary>파일 개수</summary>
-        public int FileCount => FileBoxes.Count;
+        // FileCount 는 바인딩도 호출도 없어 지웠다(39차).
 
         /// <summary>
         /// 읽기 전용 모드 (추가/삭제 불가)

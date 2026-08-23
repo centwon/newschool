@@ -98,29 +98,6 @@ public sealed partial class SchoolScheduleListControl : UserControl
         }
     }
 
-    /// <summary>
-    /// 학사일정 설정 (직접 할당)
-    /// </summary>
-    public void SetSchedules(List<SchoolSchedule> schedules)
-    {
-        try
-        {
-            if (schedules == null || schedules.Count == 0)
-            {
-                _scheduleGroups.Clear();
-                return;
-            }
-
-            var grouped = SchoolScheduleGroupHelper.GroupSchedules(schedules);
-            _scheduleGroups.Clear();
-            foreach (var group in grouped)
-            {
-                _scheduleGroups.Add(group);
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[SchoolScheduleListControl] 학사일정 설정 오류: {ex.Message}");
-        }
-    }
+    // 학사일정을 밖에서 넣어 주던 SetSchedules 는 호출부가 없어 지웠다(39차) —
+    // 이 컨트롤은 기간이 정해지면 스스로 DB 에서 읽는다.
 }

@@ -245,21 +245,8 @@ public sealed partial class ClassPicker : UserControl
         });
     }
 
-    // ── 공개 메서드 ──────────────────────────────────────
-
-    /// <summary>외부에서 학년·반을 강제 지정 후 이벤트 발생</summary>
-    public async Task SetSelectionAsync(int grade, int classNum = 0)
-    {
-        _updating = true;
-        try
-        {
-            SelectByTag(CBoxGrade, grade);
-            await InitClassComboAsync(_loadedYear, grade);
-            SelectByTag(CBoxClass, classNum);
-        }
-        finally { _updating = false; }
-        await RaiseChangedAsync();
-    }
+    // 외부에서 학년·반을 강제 지정하던 SetSelectionAsync 는 호출부가 없어 지웠다(39차).
+    // 화면들은 이 컨트롤이 스스로 고른 값을 이벤트로 받기만 한다.
 
     // ── 헬퍼 ────────────────────────────────────────────
 
@@ -299,6 +286,6 @@ public sealed class ClassChangedEventArgs : EventArgs
     public int Class { get; init; }
     public IReadOnlyList<Enrollment> Students { get; init; } = Array.Empty<Enrollment>();
 
-    public bool IsAllGrade => Grade == 0;
+    // IsAllGrade 는 쓰는 곳이 없어 지웠다(39차) — 화면이 가리는 것은 '반 전체'뿐이다.
     public bool IsAllClass => Class == 0;
 }

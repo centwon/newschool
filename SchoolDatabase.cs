@@ -147,36 +147,8 @@ namespace NewSchool
             return File.Exists(DbPath);
         }
 
-        /// <summary>
-        /// DB 파일 크기 가져오기 (bytes)
-        /// </summary>
-        public static long GetDatabaseSize()
-        {
-            if (!File.Exists(DbPath))
-                return 0;
-
-            var fileInfo = new FileInfo(DbPath);
-            return fileInfo.Length;
-        }
-
-        /// <summary>
-        /// DB 파일 크기 문자열로 가져오기 (KB, MB)
-        /// </summary>
-        public static string GetDatabaseSizeFormatted()
-        {
-            long bytes = GetDatabaseSize();
-
-            if (bytes == 0)
-                return "0 KB";
-
-            if (bytes < 1024)
-                return $"{bytes} B";
-
-            if (bytes < 1024 * 1024)
-                return $"{bytes / 1024.0:F2} KB";
-
-            return $"{bytes / (1024.0 * 1024.0):F2} MB";
-        }
+        // DB 파일 크기 조회 둘(GetDatabaseSize·GetDatabaseSizeFormatted)은 호출부가 없어
+        // 지웠다(39차) — 크기를 보여 주는 화면이 없다.
 
         #endregion
     }

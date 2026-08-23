@@ -177,15 +177,7 @@ namespace NewSchool.Models
             return $"{Name} ({Position})";
         }
 
-        /// <summary>
-        /// 교사 표시명 (직위 포함)
-        /// </summary>
-        public string GetDisplayName()
-        {
-            return string.IsNullOrEmpty(Position)
-                ? Name
-                : $"{Name} {Position}";
-        }
+        // 직위를 붙인 표시명(GetDisplayName)은 호출부가 없어 지웠다(39차).
 
         /// <summary>
         /// 재직 중인지 확인

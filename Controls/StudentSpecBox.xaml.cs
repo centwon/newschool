@@ -385,16 +385,8 @@ public sealed partial class StudentSpecBox : UserControl
 
     #region Public Methods
 
-    /// <summary>
-    /// 강제 저장 (외부에서 호출)
-    /// </summary>
-    public async Task<bool> ForceSaveAsync()
-    {
-        if (!_isModified || _special == null)
-            return false;
-
-        return await SaveInternalAsync();
-    }
+    // 강제 저장(ForceSaveAsync)은 호출부가 없어 지웠다(39차) —
+    // 저장은 이 컨트롤 안의 저장 버튼과 포커스 이탈이 맡는다.
 
     /// <summary>
     /// 변경 사항 버리기

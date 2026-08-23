@@ -191,45 +191,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 학년별 수업 목록 조회
-        /// </summary>
-        public async Task<List<Course>> GetByGradeAsync(
-            string schoolCode, int year, int semester, int grade)
-        {
-            const string query = @"
-                SELECT * FROM Course 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester
-                  AND Grade = @Grade
-                ORDER BY Subject";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-
-                var courses = new List<Course>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    courses.Add(MapCourse(reader, cache));
-                }
-
-                return courses;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학년별 수업 목록 조회 실패: Grade={grade}", ex);
-                throw;
-            }
-        }
+        // 학년별 수업 목록(GetByGradeAsync)은 호출부가 없어 지웠다(39차) —
+        // 수업은 담당 교사 기준으로 읽는다.
 
         /// <summary>
         /// 여러 No로 수업 일괄 조회

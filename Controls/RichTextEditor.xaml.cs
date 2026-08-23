@@ -162,8 +162,8 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
 
     #region Public Methods (JoditEditor API 호환)
 
-    /// <summary>현재 HTML 내용 가져오기.</summary>
-    public Task<string> GetHtmlAsync() => Task.FromResult(_editor?.ToHtml() ?? string.Empty);
+    // HTML 로 내보내던 GetHtmlAsync 는 호출부가 없어 지웠다(39차) — 저장은 .flow 패키지
+    // 바이트로 하고, 검색·미리보기는 PlainText 를 쓴다.
 
     /// <summary>캐럿 위치에 HTML 삽입 (JoditEditor 의 editor.selection.insertHTML 대응).</summary>
     /// <summary>

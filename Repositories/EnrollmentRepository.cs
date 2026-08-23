@@ -295,33 +295,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 특정학교의 모든 학생 목록 조회
-        ///</summary>
-        public async Task<List<Enrollment>> GetAllBySchoolAsync(string schoolCode)
-        {
-            const string query = @"
-                SELECT * FROM Enrollment 
-                WHERE SchoolCode = @SchoolCode 
-                  AND IsDeleted = 0
-                ORDER BY Year DESC, Semester DESC, Grade, Class, Number";
-            var enrollments = new List<Enrollment>();
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
-                enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
-                LogInfo($"학교별 전체 학생 조회 완료: SchoolCode={schoolCode}, Count={enrollments.Count}");
-                return enrollments;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학교별 전체 학생 조회 실패: SchoolCode={schoolCode}", ex);
-                throw;
-            }
-        }
-
+        // 학년도를 가리지 않는 전체 조회(GetAllBySchoolAsync)는 호출부가 없어 지웠다(39차).
+        // 학적은 늘 학년도로 좁혀 읽는다(GetBySchoolAndYearAsync).
 
         /// <summary>
         /// 특정 학교의 특정 학년도/학기 학생 목록
@@ -556,89 +531,9 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 모든 학년의 학급 수 조회 (학년별 통계)
-        /// </summary>
-        /// <returns>Dictionary&lt;학년, 학급 수&gt;</returns>
-        public async Task<Dictionary<int, int>> GetClassCountByGradeAsync(
-            string schoolCode, int year, int semester)
-        {
-            const string query = @"
-                SELECT Grade, COUNT(DISTINCT Class) as ClassCount
-                FROM Enrollment 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester 
-                  AND IsDeleted = 0
-                GROUP BY Grade
-                ORDER BY Grade";
-
-            var gradeClassCount = new Dictionary<int, int>();
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    int grade = reader.GetInt32(0);
-                    int classCount = reader.GetInt32(1);
-                    gradeClassCount[grade] = classCount;
-                }
-
-                LogInfo($"학년별 학급 수 조회 완료: {string.Join(", ", gradeClassCount.Select(x => $"{x.Key}학년={x.Value}반"))}");
-                return gradeClassCount;
-            }
-            catch (Exception ex)
-            {
-                LogError("학년별 학급 수 조회 실패", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 특정 반의 학생 수 조회
-        /// </summary>
-        public async Task<int> GetStudentCountByClassAsync(
-            string schoolCode, int year, int semester, int grade, int classNum)
-        {
-            const string query = @"
-                SELECT COUNT(*) 
-                FROM Enrollment 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester 
-                  AND Grade = @Grade 
-                  AND Class = @Class 
-                  AND IsDeleted = 0";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-
-                var result = await cmd.ExecuteScalarAsync();
-                int count = Convert.ToInt32(result);
-
-                LogInfo($"반별 학생 수 조회 완료: {grade}학년 {classNum}반 = {count}명");
-                return count;
-            }
-            catch (Exception ex)
-            {
-                LogError($"반별 학생 수 조회 실패: {grade}학년 {classNum}반", ex);
-                throw;
-            }
-        }
+        // 학년별 학급 수(GetClassCountByGradeAsync)와 반별 학생 수(GetStudentCountByClassAsync)
+        // 집계는 호출부가 없어 지웠다(39차). 화면들은 학생 목록을 그대로 받아 세거나
+        // GetClassListAsync 로 학급 목록을 얻는다.
 
         #endregion
 
@@ -745,33 +640,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 담임교사 변경
-        /// </summary>
-        public async Task<bool> UpdateTeacherAsync(int no, string teacherId)
-        {
-            const string query = @"
-                UPDATE Enrollment 
-                SET TeacherID = @TeacherID, UpdatedAt = @UpdatedAt 
-                WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-                cmd.Parameters.AddWithValue("@TeacherID", teacherId ?? (object)DBNull.Value);
-                cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                LogInfo($"담임교사 변경: No={no}, TeacherID={teacherId}");
-                return rowsAffected > 0;
-            }
-            catch (Exception ex)
-            {
-                LogError($"담임교사 변경 실패: No={no}", ex);
-                throw;
-            }
-        }
+        // 담임교사만 바꾸는 UpdateTeacherAsync 는 호출부가 없어 지웠다(39차).
+        // 담임은 학적 전체 수정(UpdateAsync)에 실려 함께 저장된다.
 
         #endregion
 
@@ -814,34 +684,8 @@ namespace NewSchool.Repositories
             }
         }
 
-        /// <summary>
-        /// 학적 물리 삭제 (주의!)
-        /// </summary>
-        public async Task<bool> HardDeleteAsync(int no)
-        {
-            const string query = "DELETE FROM Enrollment WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"학적 물리 삭제 완료: No={no}");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학적 물리 삭제 실패: No={no}", ex);
-                throw;
-            }
-        }
+        // 물리 삭제(HardDeleteAsync)는 호출부가 없어 지웠다(39차).
+        // 학적 삭제는 IsDeleted 를 세우는 soft-delete 하나로 통일돼 있다.
 
         #endregion
 

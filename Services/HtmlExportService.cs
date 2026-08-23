@@ -80,57 +80,6 @@ public class HtmlExportService
 
     #region 누가기록
 
-    /// <summary>개인 누가기록 HTML 문자열 생성</summary>
-    public string BuildStudentLogsHtml(
-        StudentCardViewModel studentVm,
-        List<StudentLogViewModel> logs)
-    {
-        var year = studentVm.Enrollment?.Year ?? Settings.WorkYear.Value;
-        var grade = studentVm.Enrollment?.Grade ?? 0;
-        var classNo = studentVm.Enrollment?.Class ?? 0;
-        var number = studentVm.Enrollment?.Number ?? 0;
-        var name = studentVm.Name ?? string.Empty;
-
-        var sb = new StringBuilder(BuildHtmlHeader($"누가기록 - {name}"));
-        sb.AppendLine($"<h1>{year}학년도 누가 기록</h1>");
-        sb.AppendLine($"<div class=\"meta\">{grade}학년 {classNo}반 {number}번 · {E(name)} · 총 {logs.Count}건</div>");
-
-        if (logs.Count == 0)
-        {
-            sb.AppendLine("<p>기록이 없습니다.</p>");
-        }
-        else
-        {
-            var grouped = logs.GroupBy(l => l.Category).OrderBy(g => g.Key);
-            foreach (var group in grouped)
-            {
-                sb.AppendLine($"<h2>{E(group.Key.ToString())} <span class=\"badge\">{group.Count()}건</span></h2>");
-                AppendLogTable(sb, group.ToList());
-            }
-        }
-
-        sb.Append(BuildHtmlFooter());
-        return sb.ToString();
-    }
-
-    /// <summary>개인 누가기록 HTML 파일 저장</summary>
-    public string ExportStudentLogsToHtml(
-        StudentCardViewModel studentVm,
-        List<StudentLogViewModel> logs)
-    {
-        var grade = studentVm.Enrollment?.Grade ?? 0;
-        var classNo = studentVm.Enrollment?.Class ?? 0;
-        var number = studentVm.Enrollment?.Number ?? 0;
-        var name = studentVm.Name ?? string.Empty;
-
-        var fileName = $"누가기록_{grade}학년{classNo}반_{number}번_{FileNameHelper.Sanitize(name)}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
-
-        var html = BuildStudentLogsHtml(studentVm, logs);
-        File.WriteAllText(filePath, html, Encoding.UTF8);
-        return filePath;
-    }
-
     /// <summary>학급 전체 누가기록 HTML 문자열 생성</summary>
     public string BuildClassLogsHtml(
         int year, int grade, int classNo,
@@ -200,64 +149,12 @@ public class HtmlExportService
         return filePath;
     }
 
-    /// <summary>누가기록 표(개인용)</summary>
-    private static void AppendLogTable(StringBuilder sb, List<StudentLogViewModel> logs)
-    {
-        sb.AppendLine("<table><thead><tr>");
-        sb.AppendLine("<th style=\"width:80px\">날짜</th>");
-        sb.AppendLine("<th style=\"width:70px\">과목/분야</th>");
-        sb.AppendLine("<th style=\"width:120px\">활동명</th>");
-        sb.AppendLine("<th>내용</th>");
-        sb.AppendLine("<th>학생부초안</th>");
-        sb.AppendLine("</tr></thead><tbody>");
-
-        foreach (var logVm in logs)
-        {
-            var model = logVm.StudentLog;
-            var content = !string.IsNullOrWhiteSpace(logVm.Description)
-                ? logVm.Description
-                : (logVm.Log ?? string.Empty);
-            sb.Append("<tr>");
-            sb.Append($"<td class=\"center\">{logVm.Date:yyyy-MM-dd}</td>");
-            sb.Append($"<td class=\"center\">{E(logVm.SubjectName)}</td>");
-            sb.Append($"<td>{E(logVm.ActivityName)}</td>");
-            sb.Append($"<td>{E(content)}</td>");
-            sb.Append($"<td>{E(model.HasStructuredData() ? model.DraftSummary : string.Empty)}</td>");
-            sb.AppendLine("</tr>");
-        }
-        sb.AppendLine("</tbody></table>");
-    }
-
     #endregion
 
     #region 학생부 특기사항
 
-    /// <summary>개인 학생부 HTML 문자열 생성</summary>
-    public string BuildStudentSpecHtml(
-        int year, int grade, int classNo, int number, string name,
-        List<StudentSpecial> specs)
-    {
-        var sb = new StringBuilder(BuildHtmlHeader($"학생부 - {name}"));
-        sb.AppendLine($"<h1>{year}학년도 학생부 특기사항</h1>");
-        sb.AppendLine($"<div class=\"meta\">{grade}학년 {classNo}반 {number}번 · {E(name)}</div>");
-
-        AppendSpecTable(sb, specs);
-
-        sb.Append(BuildHtmlFooter());
-        return sb.ToString();
-    }
-
-    /// <summary>개인 학생부 HTML 파일 저장</summary>
-    public string ExportStudentSpecToHtml(
-        int year, int grade, int classNo, int number, string name,
-        List<StudentSpecial> specs)
-    {
-        var fileName = $"학생부_{grade}학년{classNo}반_{number}번_{FileNameHelper.Sanitize(name)}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
-        var html = BuildStudentSpecHtml(year, grade, classNo, number, name, specs);
-        File.WriteAllText(filePath, html, Encoding.UTF8);
-        return filePath;
-    }
+    // 개인 단위 HTML(BuildStudentLogsHtml·BuildStudentSpecHtml 과 그 저장 함수들)은 호출부가
+    // 없어 지웠다(39차). HTML 내보내기는 학급 단위 한 벌만 남는다.
 
     /// <summary>학급 전체 학생부 HTML 문자열 생성</summary>
     public string BuildClassSpecsHtml(
@@ -372,33 +269,6 @@ public class HtmlExportService
         File.WriteAllText(filePath, BuildClassInfoHtml(year, grade, classNo, students), Encoding.UTF8);
         return filePath;
     }
-
-    private static void AppendSpecTable(StringBuilder sb, List<StudentSpecial> specs)
-    {
-        sb.AppendLine("<table><thead><tr>");
-        sb.AppendLine("<th style=\"width:100px\">영역</th>");
-        sb.AppendLine("<th style=\"width:90px\">과목/분야</th>");
-        sb.AppendLine("<th>특기사항</th>");
-        sb.AppendLine("<th style=\"width:80px\">바이트</th>");
-        sb.AppendLine("</tr></thead><tbody>");
-
-        foreach (var spec in specs)
-        {
-            var byteCount = NeisHelper.CountSpecBytes(spec.Type, spec.Title, spec.Content);
-            var maxBytes = Settings.GetSpecMaxBytes(spec.Type, spec.Year);   // 설정 오버라이드 반영(입력 화면과 동일 기준)
-            var over = NeisHelper.IsOverLimit(byteCount, maxBytes);
-
-            sb.Append("<tr>");
-            sb.Append($"<td class=\"center\">{E(spec.Type)}</td>");
-            // 진로활동은 희망분야, 교과활동은 "과목 (N학기)" — 화면 목록과 같은 기준
-            sb.Append($"<td class=\"center\">{E(NeisHelper.BuildSubjectDisplay(spec.Type, spec.SubjectName, spec.Title, spec.Semester))}</td>");
-            sb.Append($"<td>{E(spec.Content)}</td>");
-            sb.Append($"<td class=\"center{(over ? " over" : string.Empty)}\">{byteCount}/{maxBytes}</td>");
-            sb.AppendLine("</tr>");
-        }
-        sb.AppendLine("</tbody></table>");
-    }
-
     #endregion
 
     #region 학생카드 (학급 일괄)

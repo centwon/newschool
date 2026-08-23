@@ -170,28 +170,8 @@ namespace NewSchool.Board.Repositories
             }
         }
 
-        /// <summary>
-        /// Post의 모든 PostFile 삭제 (비동기)
-        /// </summary>
-        public async Task<int> DeleteByPostAsync(int postNo)
-        {
-            const string query = "DELETE FROM PostFile WHERE Post = @Post";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Post", postNo);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                LogInfo($"PostFile 일괄 삭제 완료: Post={postNo}, Count={rowsAffected}");
-                return rowsAffected;
-            }
-            catch (Exception ex)
-            {
-                LogError($"PostFile 일괄 삭제 실패: Post={postNo}", ex);
-                throw;
-            }
-        }
+        // 글 단위 일괄 삭제(DeleteByPostAsync)는 호출부가 없어 지웠다(39차).
+        // 글을 지울 때는 BoardService 가 실물 파일까지 함께 지우려고 한 건씩 훑는다.
 
         #endregion
 

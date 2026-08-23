@@ -19,8 +19,8 @@ public class GoogleTokenResponse
     [JsonPropertyName("expires_in")]
     public int ExpiresIn { get; set; }
 
-    [JsonPropertyName("token_type")]
-    public string TokenType { get; set; } = "Bearer";
+    // token_type 은 읽는 곳이 없어 지웠다(39차). 응답 전용 DTO 라 필드를 받지 않을 뿐,
+    // 요청 본문에는 영향이 없다(전송 직렬화 대상은 InsertRequest·Event 둘뿐).
 
     [JsonPropertyName("scope")]
     public string? Scope { get; set; }
@@ -56,17 +56,11 @@ public class GoogleCalendarListEntry
     [JsonPropertyName("backgroundColor")]
     public string? BackgroundColor { get; set; }
 
-    [JsonPropertyName("foregroundColor")]
-    public string? ForegroundColor { get; set; }
-
-    [JsonPropertyName("accessRole")]
-    public string? AccessRole { get; set; }
-
     [JsonPropertyName("primary")]
     public bool? Primary { get; set; }
 
-    [JsonPropertyName("selected")]
-    public bool? Selected { get; set; }
+    // foregroundColor·accessRole·selected 는 읽는 곳이 없어 지웠다(39차).
+    // 앱은 캘린더 목록에서 id·요약·배경색·primary 만 쓴다.
 }
 
 /// <summary>Google Calendar 생성 요청 (POST /calendars)</summary>
@@ -191,8 +185,7 @@ public class GoogleErrorWrapper
 
 public class GoogleError
 {
-    [JsonPropertyName("code")]
-    public int Code { get; set; }
+    // code 는 읽는 곳이 없어 지웠다(39차) — 오류는 HTTP 상태와 message 로만 다룬다.
 
     [JsonPropertyName("message")]
     public string? Message { get; set; }
@@ -203,11 +196,7 @@ public class GoogleError
 
 public class GoogleErrorDetail
 {
-    [JsonPropertyName("domain")]
-    public string? Domain { get; set; }
-
-    [JsonPropertyName("reason")]
-    public string? Reason { get; set; }
+    // domain·reason 도 같은 이유로 지웠다(39차).
 
     [JsonPropertyName("message")]
     public string? Message { get; set; }

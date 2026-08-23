@@ -235,20 +235,8 @@ public sealed class SeatService : IDisposable
         return a;
     }
 
-    /// <summary>배치 존재 여부</summary>
-    public async Task<bool> ExistsAsync(string schoolCode, int year, int grade, int classNo)
-    {
-        using var q = _connection.CreateCommand();
-        q.CommandText = @"
-            SELECT 1 FROM SeatArrangement
-            WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c LIMIT 1;";
-        q.Parameters.AddWithValue("$sc", schoolCode);
-        q.Parameters.AddWithValue("$y", year);
-        q.Parameters.AddWithValue("$g", grade);
-        q.Parameters.AddWithValue("$c", classNo);
-        var v = await q.ExecuteScalarAsync();
-        return v != null && v != DBNull.Value;
-    }
+    // 배치 존재 여부(ExistsAsync)는 호출부가 없어 지웠다(39차) —
+    // 화면은 LoadAsync 가 null 을 돌려주는 것으로 "저장된 배치 없음"을 안다.
 
     /// <summary>저장된 옵션만 빠르게 로드 (없으면 기본값)</summary>
     public async Task<SeatOptions> LoadOptionsAsync(string schoolCode, int year, int grade, int classNo)

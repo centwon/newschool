@@ -310,31 +310,9 @@ namespace NewSchool.Board.Services
             _cache.RemoveByPattern("board:subjects:");
         }
 
-        /// <summary>
-        /// 모든 캐시 무효화
-        /// </summary>
-        public void ClearAllCaches()
-        {
-            _cache.Clear();
-            System.Diagnostics.Debug.WriteLine("[CachedBoardService] 모든 캐시 삭제");
-        }
-
-        /// <summary>
-        /// 특정 카테고리 캐시 무효화
-        /// </summary>
-        public void ClearCategoryCache(string category)
-        {
-            _cache.RemoveByPattern($":{category}");
-            System.Diagnostics.Debug.WriteLine($"[CachedBoardService] {category} 캐시 삭제");
-        }
-
-        /// <summary>
-        /// 캐시 통계 조회
-        /// </summary>
-        public CacheStatistics GetCacheStatistics()
-        {
-            return _cache.GetStatistics();
-        }
+        // 전체 비우기(ClearAllCaches)·카테고리 비우기(ClearCategoryCache)·통계(GetCacheStatistics)는
+        // 호출부가 없어 지웠다(39차). 캐시는 글·댓글·첨부를 쓸 때 InvalidatePostCaches 가
+        // 알아서 비우고, 나머지는 짧은 만료로 스스로 사라진다.
 
         #endregion
     }
