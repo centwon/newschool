@@ -239,14 +239,6 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
             UpdatedAt = DateTime.Now
         };
 
-        // Teacher 저장
-        var (success, message) = await teacherService.CreateAsync(teacher);
-        if (!success)
-        {
-            throw new Exception($"교사 정보 저장 실패: {message}");
-        }
-
-        // TeacherSchoolHistory 저장
         var history = new TeacherSchoolHistory
         {
             TeacherID = teacherId,
@@ -258,10 +250,13 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
             UpdatedAt = DateTime.Now
         };
 
-        (success, message) = await teacherService.AddHistoryAsync(history);
+        // 교사와 근무 이력은 한 트랜잭션으로 함께 만든다. 예전에는 둘을 따로 저장해서,
+        // 이력 저장이 실패하면 근무 이력 없는 교사 행만 DB 에 남았다(재시도하면 TeacherID 를
+        // 새로 만들므로 그 고아 행은 영영 지워지지 않는다).
+        var (success, message, _) = await teacherService.RegisterTeacherAsync(teacher, history);
         if (!success)
         {
-            throw new Exception($"근무 이력 저장 실패: {message}");
+            throw new Exception($"교사 정보 저장 실패: {message}");
         }
 
         Debug.WriteLine($"[InitialSetupWindow] 사용자 정보 저장 완료: {teacherId}");

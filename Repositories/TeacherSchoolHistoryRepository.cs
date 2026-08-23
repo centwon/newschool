@@ -14,6 +14,12 @@ namespace NewSchool.Repositories
     {
         public TeacherSchoolHistoryRepository(string dbPath) : base(dbPath) { }
 
+        /// <summary>
+        /// 다른 Repository 와 <b>한 연결·한 트랜잭션</b>을 공유한다.
+        /// 교사와 근무 이력은 함께 만들어져야 하는데, 각자 연결을 열면 트랜잭션이 공유되지 않는다.
+        /// </summary>
+        public TeacherSchoolHistoryRepository(SqliteConnection connection) : base(connection) { }
+
         #region Create
 
         /// <summary>

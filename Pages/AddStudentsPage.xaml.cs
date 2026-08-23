@@ -8,7 +8,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.Storage;
 using Windows.Storage.Pickers;
-using Microsoft.Data.Sqlite;
 using NewSchool.Models;
 using NewSchool.Helpers;
 using NewSchool.Repositories;
@@ -633,11 +632,16 @@ public sealed partial class AddStudentsPage : Page
 
         try
         {
-            // StudentRepository만 사용 (단일 Connection)
             using var studentRepo = new StudentRepository(dbPath);
+
+            // 학적 Repository 는 학생 Repository 의 **연결을 공유**한다. 각자 연결을 열면
+            // 트랜잭션이 공유되지 않아(BaseRepository 가 "이 연결에서 시작된 트랜잭션인가"를
+            // 확인하고 아니면 무시한다) 학생만 저장되고 학적은 밖에서 도는 상태가 된다.
+            using var enrollmentRepo = new EnrollmentRepository(studentRepo.GetConnection());
 
             // 트랜잭션 시작
             studentRepo.BeginTransaction();
+            enrollmentRepo.SetTransaction(studentRepo.GetTransaction());
 
             try
             {
@@ -660,8 +664,32 @@ public sealed partial class AddStudentsPage : Page
                 await studentRepo.CreateAsync(student);
                 System.Diagnostics.Debug.WriteLine($"[AddStudents] Student 저장 완료: {vm.StudentID}");
 
-                // 2. Enrollment 테이블에 학적정보 저장 (같은 Connection 사용)
-                await InsertEnrollmentDirectlyAsync(studentRepo, vm);
+                // 2. Enrollment 테이블에 학적정보 저장 (같은 Connection·Transaction)
+                var enrollment = new Enrollment
+                {
+                    StudentID = vm.StudentID,
+                    Name = vm.Name,
+                    Sex = vm.Sex,
+                    Photo = string.Empty,
+                    SchoolCode = Settings.SchoolCode.Value,
+                    Year = vm.Year,
+                    Semester = EnrollmentSemester,
+                    Grade = vm.Grade,
+                    Class = vm.Class,
+                    Number = vm.Number,
+                    Status = EnrollmentStatus.Enrolled,
+                    // 담임이 비어 있으면 Teacher FK 위반이 되므로 리포지토리가 NULL 로 바꿔 넣는다.
+                    TeacherID = Settings.User.Value ?? string.Empty,
+                    AdmissionDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                    Memo = string.Empty,
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    IsDeleted = false
+                };
+
+                if (await enrollmentRepo.CreateAsync(enrollment) <= 0)
+                    throw new InvalidOperationException("학적이 저장되지 않았습니다.");
+
                 System.Diagnostics.Debug.WriteLine($"[AddStudents] Enrollment 저장 완료: {vm.Grade}-{vm.Class}-{vm.Number}");
 
                 // 트랜잭션 커밋 - 둘 다 성공해야 저장됨
@@ -683,71 +711,6 @@ public sealed partial class AddStudentsPage : Page
             System.Diagnostics.Debug.WriteLine($"[AddStudents] 연결 오류: {vm.Name} - {ex}");
             return ex.Message;
         }
-    }
-
-    /// <summary>
-    /// StudentRepository의 Connection과 Transaction을 직접 사용하여 Enrollment INSERT
-    /// </summary>
-    private async Task InsertEnrollmentDirectlyAsync(StudentRepository studentRepo, StudentAddViewModel vm)
-    {
-        var connection = studentRepo.GetConnection();
-        var transaction = studentRepo.GetTransaction();
-
-        if (connection == null)
-            throw new InvalidOperationException("Connection이 null입니다.");
-
-        if (transaction == null)
-            throw new InvalidOperationException("Transaction이 null입니다.");
-
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-
-        // Enrollment INSERT 쿼리 (Name, Sex, Photo 포함)
-        cmd.CommandText = @"
-                INSERT INTO Enrollment (
-                    StudentID, Name, Sex, Photo, SchoolCode, Year, Semester, Grade, Class, Number,
-                    Status, TeacherID, AdmissionDate, GraduationDate,
-                    TransferOutDate, TransferOutSchool, TransferInDate, TransferInSchool,
-                    Memo, CreatedAt, UpdatedAt, IsDeleted
-                ) VALUES (
-                    @StudentID, @Name, @Sex, @Photo, @SchoolCode, @Year, @Semester, @Grade, @Class, @Number,
-                    @Status, @TeacherID, @AdmissionDate, @GraduationDate,
-                    @TransferOutDate, @TransferOutSchool, @TransferInDate, @TransferInSchool,
-                    @Memo, @CreatedAt, @UpdatedAt, @IsDeleted
-                )";
-
-        var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
-        // 파라미터 추가
-        cmd.Parameters.AddWithValue("@StudentID", vm.StudentID);
-        cmd.Parameters.AddWithValue("@Name", vm.Name); // ⭐ Name 추가
-        cmd.Parameters.AddWithValue("@Sex", vm.Sex); // ⭐ Sex (입력/엑셀 값)
-        cmd.Parameters.AddWithValue("@Photo", string.Empty); // ⭐ Photo 추가
-        cmd.Parameters.AddWithValue("@SchoolCode", Settings.SchoolCode.Value);
-        cmd.Parameters.AddWithValue("@Year", vm.Year);
-        cmd.Parameters.AddWithValue("@Semester", EnrollmentSemester);
-        cmd.Parameters.AddWithValue("@Grade", vm.Grade);
-        cmd.Parameters.AddWithValue("@Class", vm.Class);
-        cmd.Parameters.AddWithValue("@Number", vm.Number);
-        cmd.Parameters.AddWithValue("@Status", EnrollmentStatus.Enrolled);
-        // 빈 문자열을 넣으면 Teacher FK 를 위반해 저장이 통째로 실패한다 - 비어 있으면 NULL
-        cmd.Parameters.AddWithValue("@TeacherID",
-            string.IsNullOrWhiteSpace(Settings.User.Value) ? (object)DBNull.Value : Settings.User.Value);
-        cmd.Parameters.AddWithValue("@AdmissionDate", DateTime.Now.ToString("yyyy-MM-dd"));
-        cmd.Parameters.AddWithValue("@GraduationDate", DBNull.Value);
-        cmd.Parameters.AddWithValue("@TransferOutDate", DBNull.Value);
-        cmd.Parameters.AddWithValue("@TransferOutSchool", DBNull.Value);
-        cmd.Parameters.AddWithValue("@TransferInDate", DBNull.Value);
-        cmd.Parameters.AddWithValue("@TransferInSchool", DBNull.Value);
-        cmd.Parameters.AddWithValue("@Memo", string.Empty);
-        cmd.Parameters.AddWithValue("@CreatedAt", now);
-        cmd.Parameters.AddWithValue("@UpdatedAt", now);
-        cmd.Parameters.AddWithValue("@IsDeleted", 0);
-
-        int rowsAffected = await cmd.ExecuteNonQueryAsync();
-
-        if (rowsAffected == 0)
-            throw new Exception("Enrollment 저장 실패: 영향받은 행이 0개입니다.");
     }
 
     #endregion

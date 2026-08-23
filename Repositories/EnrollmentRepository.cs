@@ -16,6 +16,13 @@ namespace NewSchool.Repositories
     {
         public EnrollmentRepository(string dbPath) : base(dbPath) { }
 
+        /// <summary>
+        /// 다른 Repository 와 <b>한 연결·한 트랜잭션</b>을 공유한다.
+        /// 학생(Student)과 학적(Enrollment)은 함께 만들어져야 하는데, 각자 연결을 열면
+        /// 트랜잭션이 공유되지 않아 한쪽만 저장될 수 있다.
+        /// </summary>
+        public EnrollmentRepository(SqliteConnection connection) : base(connection) { }
+
         #region Create
 
         /// <summary>

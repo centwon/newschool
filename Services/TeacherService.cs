@@ -91,7 +91,12 @@ namespace NewSchool.Services
             TeacherSchoolHistory history)
         {
             using var teacherRepo = new TeacherRepository(_dbPath);
-            using var historyRepo = new TeacherSchoolHistoryRepository(_dbPath);
+            // ⚠ 이력 Repository 는 반드시 교사 Repository 의 **연결을 공유**해야 한다.
+            // 각자 연결을 열면 `SetTransaction` 을 해도 `CreateCommand` 의
+            // "이 연결에서 시작된 트랜잭션인가" 검사에 걸려 조용히 무시되고, 이력 INSERT 가
+            // 트랜잭션 밖 다른 연결에서 돌아 아직 커밋 안 된 교사 행을 못 본다
+            // (외래키 위반이거나 쓰기 락 대기 → "database is locked").
+            using var historyRepo = new TeacherSchoolHistoryRepository(teacherRepo.GetConnection());
 
             try
             {
@@ -152,12 +157,13 @@ namespace NewSchool.Services
             TeacherSchoolHistory newHistory)
         {
             using var teacherRepo = new TeacherRepository(_dbPath);
-            using var historyRepo = new TeacherSchoolHistoryRepository(_dbPath);
+            using var historyRepo = new TeacherSchoolHistoryRepository(teacherRepo.GetConnection());
 
             try
             {
                 // 트랜잭션 시작
-                historyRepo.BeginTransaction();
+                teacherRepo.BeginTransaction();
+                historyRepo.SetTransaction(teacherRepo.GetTransaction());
 
                 // 1. 현재 근무 이력 종료
                 await historyRepo.EndCurrentAsync(teacherId, endDate);
@@ -177,13 +183,13 @@ namespace NewSchool.Services
                     await teacherRepo.UpdateAsync(teacher);
                 }
 
-                historyRepo.Commit();
+                teacherRepo.Commit();
 
                 return (true, "교사 전보 처리가 완료되었습니다.");
             }
             catch (Exception ex)
             {
-                historyRepo.Rollback();
+                teacherRepo.Rollback();
                 Debug.WriteLine($"[TeacherService] 교사 전보 처리 실패: {ex.Message}");
                 return (false, $"교사 전보 처리 중 오류가 발생했습니다: {ex.Message}");
             }
@@ -201,7 +207,7 @@ namespace NewSchool.Services
             string retireDate)
         {
             using var teacherRepo = new TeacherRepository(_dbPath);
-            using var historyRepo = new TeacherSchoolHistoryRepository(_dbPath);
+            using var historyRepo = new TeacherSchoolHistoryRepository(teacherRepo.GetConnection());
 
             try
             {

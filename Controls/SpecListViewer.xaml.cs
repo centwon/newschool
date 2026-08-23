@@ -204,8 +204,12 @@ public sealed partial class SpecListViewer : UserControl
         if (sender is TextBox textBox && textBox.DataContext is StudentSpecialViewModel vm)
         {
             // x:Bind TwoWay는 LostFocus시만 Source 반영 → 즉시 동기화
+            //
+            // ⚠ 여기서 IsSelected 를 켜면 안 된다. ItemsRepeater 는 행을 재활용하므로
+            // 스크롤만 해도(그리고 처음 그릴 때도) 바인딩이 Text 를 다시 넣어 TextChanged 가
+            // 뜬다 — 손대지 않은 기록까지 체크되어 저장 대상이 됐다.
+            // 실제로 내용이 바뀐 경우는 Content 세터가 IsModified·IsSelected 를 스스로 켠다.
             vm.Content = textBox.Text;
-            vm.IsSelected = true;
         }
     }
 
