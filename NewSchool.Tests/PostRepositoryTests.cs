@@ -48,6 +48,72 @@ public class PostRepositoryTests : IClassFixture<BoardTestFixture>
         Assert.False((await repo.GetByIdAsync(no))!.IsCompleted);
     }
 
+    /// <summary>글쓰기·수정 화면의 "중요 글" 체크는 글 저장(UpdateAsync)에 실려 들어간다.</summary>
+    private static async Task<bool> PinAsync(PostRepository repo, int no)
+    {
+        var post = await repo.GetByIdAsync(no);
+        post!.IsPinned = true;
+        return await repo.UpdateAsync(post);
+    }
+
+    [Fact]
+    public async Task IsPinned_저장_왕복()
+    {
+        using var repo = new PostRepository(_db.DbPath);
+        int no = await repo.CreateAsync(TestData.NewPost(title: "중요로 올릴 글"));
+
+        Assert.False((await repo.GetByIdAsync(no))!.IsPinned);
+
+        Assert.True(await PinAsync(repo, no));
+        Assert.True((await repo.GetByIdAsync(no))!.IsPinned);
+
+        var post = await repo.GetByIdAsync(no);
+        post!.IsPinned = false;
+        Assert.True(await repo.UpdateAsync(post));
+        Assert.False((await repo.GetByIdAsync(no))!.IsPinned);
+    }
+
+    [Fact]
+    public async Task 중요글은_나중_글보다_앞에_온다()
+    {
+        // 목록은 기본이 최신순(No DESC)이다. 중요로 표시한 글은 더 오래됐어도 맨 앞으로 와야 한다.
+        using var repo = new PostRepository(_db.DbPath);
+        int old = await repo.CreateAsync(TestData.NewPost(category: "중요정렬", title: "오래된 공지"));
+        await repo.CreateAsync(TestData.NewPost(category: "중요정렬", title: "새 글1"));
+        await repo.CreateAsync(TestData.NewPost(category: "중요정렬", title: "새 글2"));
+
+        var before = await repo.GetListAsync(category: "중요정렬");
+        Assert.Equal("새 글2", before[0].Title);   // 표시 전에는 최신순
+
+        Assert.True(await PinAsync(repo, old));
+
+        var after = await repo.GetListAsync(category: "중요정렬");
+        Assert.Equal(old, after[0].No);
+        Assert.Equal("오래된 공지", after[0].Title);
+        // 중요 글 뒤는 원래 순서(최신순)를 그대로 지킨다
+        Assert.Equal("새 글2", after[1].Title);
+        Assert.Equal("새 글1", after[2].Title);
+    }
+
+    [Fact]
+    public async Task 중요글은_페이지_정렬에서도_앞에_온다()
+    {
+        // 목록 화면은 GetListWithCountAsync 를 쓰고 정렬 기준을 고를 수 있다.
+        // 어떤 정렬을 골라도 중요 글이 먼저 와야 한다.
+        using var repo = new PostRepository(_db.DbPath);
+        int old = await repo.CreateAsync(TestData.NewPost(category: "중요페이지", title: "가 공지"));
+        await repo.CreateAsync(TestData.NewPost(category: "중요페이지", title: "나 새글"));
+        Assert.True(await PinAsync(repo, old));
+
+        var (posts, total) = await repo.GetListWithCountAsync(
+            limit: 10, offset: 0, category: "중요페이지",
+            sortOrder: NewSchool.Board.Models.PostSortOrder.OldestFirst);
+
+        Assert.Equal(2, total);
+        Assert.Equal(old, posts[0].No);
+        Assert.True(posts[0].IsPinned);
+    }
+
     [Fact]
     public async Task GetList_includeCompleted_false는_완료글_제외()
     {

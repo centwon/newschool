@@ -242,9 +242,29 @@ namespace NewSchool.Board
             }
         }
 
+        private bool _isPinned;
+        /// <summary>
+        /// 중요 글 여부. 참이면 목록에서 항상 맨 앞으로 온다
+        /// (지금 보고 있는 목록 안에서만 — 카테고리·주제 필터나 검색을 걸면 그 안에서 위로 온다).
+        /// </summary>
+        public bool IsPinned
+        {
+            get => _isPinned;
+            set
+            {
+                if (_isPinned != value)
+                {
+                    _isPinned = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(PinIconVisibility));
+                }
+            }
+        }
+
         // UI 바인딩용 속성
         public Visibility FileIconVisibility => HasFile ? Visibility.Visible : Visibility.Collapsed;
         public Visibility CommentIconVisibility => HasComment ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility PinIconVisibility => IsPinned ? Visibility.Visible : Visibility.Collapsed;
         public string DateTimeDisplay => DateTime.ToString("M/d HH:mm");
 
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

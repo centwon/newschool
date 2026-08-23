@@ -519,9 +519,23 @@ public class PostItemViewModel : INotifyPropertyChanged
     public bool HasComment => _post.HasComment;
     public bool IsCompleted => _post.IsCompleted;
 
+    /// <summary>중요 글 여부. 목록에서 이 글이 맨 앞으로 온다.</summary>
+    public bool IsPinned
+    {
+        get => _post.IsPinned;
+        set
+        {
+            if (_post.IsPinned == value) return;
+            _post.IsPinned = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PinIconVisibility));
+        }
+    }
+
     // UI 바인딩용 속성
     public Visibility FileIconVisibility => _post.FileIconVisibility;
     public Visibility CommentIconVisibility => _post.CommentIconVisibility;
+    public Visibility PinIconVisibility => _post.PinIconVisibility;
     public string DateTimeDisplay => _post.DateTimeDisplay;
 
     // 댓글 개수

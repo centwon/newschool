@@ -28,9 +28,9 @@ namespace NewSchool.Board.Repositories
             // ✅ INSERT와 SELECT를 한 쿼리로 결합
             const string query = @"
         INSERT INTO Post (User, DateTime, Category, Subject, Title, Content, PlainText,
-                         RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted)
+                         RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, IsPinned)
         VALUES (@User, @DateTime, @Category, @Subject, @Title, @Content, @PlainText,
-               @RefNo, @ReplyOrder, @Depth, @ReadCount, @HasFile, @HasComment, @IsCompleted);
+               @RefNo, @ReplyOrder, @Depth, @ReadCount, @HasFile, @HasComment, @IsCompleted, @IsPinned);
         SELECT last_insert_rowid();";
 
             try
@@ -105,7 +105,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 // 메모 대시보드(GetMemosAsync)는 최근 메모의 Content(.flow)를 인라인 에디터에 바로 로드하므로 Content 포함
-                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted FROM Post WHERE 1=1";
+                string query = "SELECT No, User, DateTime, Category, Subject, Title, Content, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, IsPinned FROM Post WHERE 1=1";
                 using var cmd = CreateCommand(query);
 
                 // 카테고리 필터
@@ -163,8 +163,8 @@ namespace NewSchool.Board.Repositories
                     cmd.Parameters.AddWithValue("@EndDate", DateTimeHelper.ToStandardString(DateTimeHelper.ToEndOfDay(endDate.Value)));
                 }
 
-                // 정렬
-                query += " ORDER BY No DESC";
+                // 정렬 — 중요 글이 먼저(지금 보는 목록 안에서만. 필터·검색 조건은 이미 WHERE 에 걸려 있다)
+                query += " ORDER BY IsPinned DESC, No DESC";
 
                 // 페이징
                 if (limit > 0)
@@ -212,7 +212,7 @@ namespace NewSchool.Board.Repositories
             try
             {
                 // 목록은 PlainText(미리보기/검색)만 사용하므로 무거운 Content(.flow BLOB)는 조회하지 않음 (메모리 절약)
-                string query = "SELECT No, User, DateTime, Category, Subject, Title, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, COUNT(*) OVER() AS TotalCount FROM Post WHERE 1=1";
+                string query = "SELECT No, User, DateTime, Category, Subject, Title, PlainText, RefNo, ReplyOrder, Depth, ReadCount, HasFile, HasComment, IsCompleted, IsPinned, COUNT(*) OVER() AS TotalCount FROM Post WHERE 1=1";
                 using var cmd = CreateCommand(query);
 
                 // 카테고리 필터
@@ -251,8 +251,9 @@ namespace NewSchool.Board.Repositories
                     }
                 }
 
-                // 정렬 (화이트리스트 매핑 — SQL 인젝션 방지)
-                query += " ORDER BY " + MapSortOrder(sortOrder);
+                // 정렬 (화이트리스트 매핑 — SQL 인젝션 방지).
+                // 중요 글은 어떤 정렬을 골라도 그 앞에 온다 — 지금 보는 목록(필터·검색 결과) 안에서만.
+                query += " ORDER BY IsPinned DESC, " + MapSortOrder(sortOrder);
 
                 // 페이징
                 if (limit > 0)
@@ -366,7 +367,7 @@ namespace NewSchool.Board.Repositories
                     Subject = @Subject, Title = @Title, Content = @Content, PlainText = @PlainText,
                     RefNo = @RefNo, ReplyOrder = @ReplyOrder, Depth = @Depth,
                     ReadCount = @ReadCount, HasFile = @HasFile, HasComment = @HasComment,
-                    IsCompleted = @IsCompleted
+                    IsCompleted = @IsCompleted, IsPinned = @IsPinned
                 WHERE No = @No";
 
             try
@@ -633,6 +634,7 @@ namespace NewSchool.Board.Repositories
             cmd.Parameters.Add("@HasFile", SqliteType.Integer).Value = post.HasFile ? 1 : 0;
             cmd.Parameters.Add("@HasComment", SqliteType.Integer).Value = post.HasComment ? 1 : 0;
             cmd.Parameters.Add("@IsCompleted", SqliteType.Integer).Value = post.IsCompleted ? 1 : 0;
+            cmd.Parameters.Add("@IsPinned", SqliteType.Integer).Value = post.IsPinned ? 1 : 0;
         }
 
         /// <summary>
@@ -672,6 +674,10 @@ namespace NewSchool.Board.Repositories
             // IsCompleted 컬럼 (기존 DB 호환성)
             if (cache.TryGetOrdinal("IsCompleted", out var compOrd))
                 post.IsCompleted = !reader.IsDBNull(compOrd) && reader.GetInt32(compOrd) == 1;
+
+            // IsPinned 컬럼 (기존 DB 호환성 — 초기화가 ALTER 로 붙이지만 조회 컬럼 목록에 없을 수도 있다)
+            if (cache.TryGetOrdinal("IsPinned", out var pinOrd))
+                post.IsPinned = !reader.IsDBNull(pinOrd) && reader.GetInt32(pinOrd) == 1;
 
             // PlainText 컬럼 (검색용)
             if (cache.TryGetOrdinal("PlainText", out var ptOrd))

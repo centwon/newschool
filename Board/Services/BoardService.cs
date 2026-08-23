@@ -469,6 +469,10 @@ public partial class BoardService:IDisposable
         }
     }
 
+    // 중요 글(IsPinned)은 글쓰기·수정 화면의 체크박스로만 바뀌고, 그 저장은 SavePostAsync 를
+    // 그대로 탄다(UpdateAsync 가 IsPinned 를 함께 쓴다). 그래서 플래그만 따로 고치는
+    // 메서드는 두지 않는다.
+
     // HasFile 플래그를 따로 세우는 UpdatePostHasFileAsync 는 호출부가 없어 지웠다(39차).
     // 이 플래그는 첨부를 붙이고 떼는 경로(AddPostFileAsync·DeletePostFileAsync)가 알아서 맞춘다.
 

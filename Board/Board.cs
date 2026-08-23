@@ -232,7 +232,8 @@ namespace NewSchool.Board
                 ReadCount INTEGER DEFAULT 0,
                 HasFile INTEGER DEFAULT 0,
                 HasComment INTEGER DEFAULT 0,
-                IsCompleted INTEGER DEFAULT 0
+                IsCompleted INTEGER DEFAULT 0,
+                IsPinned INTEGER NOT NULL DEFAULT 0
             )";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] Post 테이블 생성 완료");
@@ -267,6 +268,11 @@ namespace NewSchool.Board
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] PostFile 테이블 생성 완료");
         }
+
+        // ⚠ 여기에는 마이그레이션(ALTER)이 없다. 위 CREATE 는 IF NOT EXISTS 라서 이미 만들어진
+        // 파일에는 아무 일도 하지 않는다 — 나중에 열이 늘면 쓰던 board.db 에 직접 넣어야 한다.
+        // IsPinned(중요 글, 39차)는 그렇게 손으로 넣었다:
+        //   ALTER TABLE Post ADD COLUMN IsPinned INTEGER NOT NULL DEFAULT 0
 
         private async Task CreateIndexesAsync(SqliteConnection connection)
         {

@@ -77,6 +77,7 @@ public sealed partial class PostEditPage : Page
             {
                 _originalCategory = _post.Category;
                 TitleTextBox.Text = _post.Title;
+                PinnedCheckBox.IsChecked = _post.IsPinned;
                 ContentEditor.LoadFlow(_post.Content);
 
                 // 카테고리 선택
@@ -351,6 +352,7 @@ public sealed partial class PostEditPage : Page
                 _post.Content = ContentEditor.GetFlowBytes();
                 _post.PlainText = ContentEditor.PlainText;
                 _post.Subject = SubjectComboBox.Text.Trim();
+                _post.IsPinned = PinnedCheckBox.IsChecked == true;
 
                 if (CategoryComboBox.SelectedItem is string selectedCategory)
                 {

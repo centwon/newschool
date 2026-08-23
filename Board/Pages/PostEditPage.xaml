@@ -59,6 +59,18 @@
                     <TextBlock Text="명렬표 삽입"/>
                 </StackPanel>
             </Button>
+
+            <CheckBox x:Name="PinnedCheckBox"
+                      Grid.Column="4"
+                      Margin="12,0,0,0"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="켜면 목록에서 항상 맨 앞에 표시됩니다">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE718;" FontSize="14"
+                              Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    <TextBlock Text="중요 글"/>
+                </StackPanel>
+            </CheckBox>
         </Grid>
 
         <!-- Row1: 제목 -->

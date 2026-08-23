@@ -189,6 +189,7 @@
                                         <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
                                     </Button.Resources>
 
+
                                     <Grid Padding="12,12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="80"/>
@@ -210,6 +211,13 @@
                                         <StackPanel Grid.Column="1"
                                                     Orientation="Horizontal"
                                                     Margin="8,0,0,0">
+                                            <FontIcon Glyph="&#xE718;"
+                                                      FontSize="12"
+                                                      Margin="0,0,6,0"
+                                                      Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                                      ToolTipService.ToolTip="중요"
+                                                      Visibility="{x:Bind PinIconVisibility}"/>
+
                                             <FontIcon Glyph="&#xE73E;"
                                                       FontSize="12"
                                                       Margin="0,0,6,0"
