@@ -180,7 +180,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     {
         var grid = new Grid
         {
-            Padding = new Thickness(12, 8, 12, 8),
+            Padding = new Thickness(12, 4, 12, 4),
             Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
             BorderThickness = new Thickness(0, 0, 0, 1),
             BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
