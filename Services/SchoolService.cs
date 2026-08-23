@@ -343,25 +343,6 @@ namespace NewSchool.Services
             }
         }
 
-        /// <summary>
-        /// 학교의 교사 수 조회
-        /// </summary>
-        public async Task<int> GetTeacherCountAsync(string schoolCode)
-        {
-            using var historyRepo = new TeacherSchoolHistoryRepository(_dbPath);
-
-            try
-            {
-                var histories = await historyRepo.GetCurrentBySchoolCodeAsync(schoolCode);
-                return histories.Count;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SchoolService] 교사 수 조회 실패: {ex.Message}");
-                return 0;
-            }
-        }
-
         #endregion
 
         #region IDisposable

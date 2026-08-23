@@ -56,9 +56,7 @@
     <None Remove="Controls\MonthPicker.xaml" />
     <None Remove="Controls\SchoolMealBox.xaml" />
     <None Remove="Controls\StudentCard.xaml" />
-    <None Remove="Dialogs\InitialSetupDialog.xaml" />
     <None Remove="Dialogs\SchoolSearchDialog.xaml" />
-    <None Remove="nul" />
     <None Remove="Pages\AddStudentsPage.xaml" />
     <None Remove="Pages\StudentInfoExportPage.xaml" />
     <None Remove="Pages\StudentManagementPage.xaml" />
@@ -198,9 +196,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="Pages\InitialSetupWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Dialogs\InitialSetupDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="Pages\AddStudentsPage.xaml">

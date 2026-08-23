@@ -177,7 +177,6 @@
 
 | 파일 | 기능 |
 |------|------|
-| `InitialSetupDialog.xaml` | 초기 설정 |
 | `SchoolSearchDialog.xaml` | 학교 검색 (NEIS API) |
 | `CalendarSettingsDialog.xaml` | 구글 캘린더 연동·학사일정 동기화 |
 | `StudentLogDialog.xaml` | 학생 기록 입력 |
@@ -240,7 +239,7 @@
 |------|------|
 | `SchoolService.cs` | 학교 정보 |
 | `SchoolScheduleService.cs` | 학사일정 |
-| `TeacherService.cs` | 교사 정보 |
+| `TeacherService.cs` | 교사 등록 (첫 실행 초기 설정 전용) |
 | `ClubService.cs` | 동아리 |
 | `ClassDiaryService.cs` | 학급일지 |
 | `PhotoService.cs` | 사진 |

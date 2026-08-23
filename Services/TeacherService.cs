@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using NewSchool.Models;
 using NewSchool.Repositories;
@@ -9,9 +7,12 @@ using NewSchool.Repositories;
 namespace NewSchool.Services
 {
     /// <summary>
-    /// Teacher Service
-    /// 교사 정보 + 근무 이력 통합 관리
-    /// ⭐ CreateAsync, AddHistoryAsync 추가 (InitialSetupDialog 지원)
+    /// 교사 등록 — 교사 행과 근무 이력을 <b>함께</b> 만든다.
+    ///
+    /// 이 앱에는 교사를 관리하는 화면이 없다. 교사가 생기는 자리는 첫 실행 초기 설정 한 곳뿐이라
+    /// 서비스도 그 한 가지만 한다. (조회·수정·전보·퇴직 등 12개 중 10개는 만들어만 두고
+    /// 한 번도 부르지 않은 채였고, 그중 둘은 연결을 공유하지 않아 실제로는 동작하지도 않았다 —
+    /// 2026-08-23 정리.)
     /// </summary>
     public sealed class TeacherService : IDisposable
     {
@@ -23,65 +24,6 @@ namespace NewSchool.Services
             _dbPath = dbPath;
         }
 
-        #region 교사 등록 (신규 추가)
-
-        /// <summary>
-        /// Teacher만 단독으로 생성 (InitialSetupDialog용)
-        /// </summary>
-        public async Task<(bool Success, string Message)> CreateAsync(Teacher teacher)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-
-            try
-            {
-                // 1. TeacherID 중복 확인
-                var existing = await teacherRepo.GetByTeacherIdAsync(teacher.TeacherID);
-                if (existing != null)
-                {
-                    return (false, "이미 등록된 교사 ID입니다.");
-                }
-
-                // 2. LoginID 중복 확인
-                existing = await teacherRepo.GetByLoginIdAsync(teacher.LoginID);
-                if (existing != null)
-                {
-                    return (false, "이미 사용 중인 로그인 ID입니다.");
-                }
-
-                // 3. Teacher 생성
-                await teacherRepo.CreateAsync(teacher);
-                Debug.WriteLine($"[TeacherService] Teacher 생성: {teacher.TeacherID}");
-
-                return (true, "교사 등록이 완료되었습니다.");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 교사 등록 실패: {ex.Message}");
-                return (false, $"교사 등록 중 오류가 발생했습니다: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// TeacherSchoolHistory만 단독으로 추가 (InitialSetupDialog용)
-        /// </summary>
-        public async Task<(bool Success, string Message)> AddHistoryAsync(TeacherSchoolHistory history)
-        {
-            using var historyRepo = new TeacherSchoolHistoryRepository(_dbPath);
-
-            try
-            {
-                await historyRepo.CreateAsync(history);
-                Debug.WriteLine($"[TeacherService] TeacherSchoolHistory 생성: {history.TeacherID}");
-
-                return (true, "근무 이력이 추가되었습니다.");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 근무 이력 추가 실패: {ex.Message}");
-                return (false, $"근무 이력 추가 중 오류가 발생했습니다: {ex.Message}");
-            }
-        }
-
         /// <summary>
         /// 신규 교사 등록 (Teacher + TeacherSchoolHistory 동시 생성)
         /// 트랜잭션으로 원자성 보장
@@ -91,6 +33,7 @@ namespace NewSchool.Services
             TeacherSchoolHistory history)
         {
             using var teacherRepo = new TeacherRepository(_dbPath);
+
             // ⚠ 이력 Repository 는 반드시 교사 Repository 의 **연결을 공유**해야 한다.
             // 각자 연결을 열면 `SetTransaction` 을 해도 `CreateCommand` 의
             // "이 연결에서 시작된 트랜잭션인가" 검사에 걸려 조용히 무시되고, 이력 INSERT 가
@@ -143,289 +86,6 @@ namespace NewSchool.Services
             }
         }
 
-        #endregion
-
-        #region 교사 전보 처리
-
-        /// <summary>
-        /// 교사 전보 처리
-        /// 기존 근무 이력 종료 + 새 근무 이력 생성
-        /// </summary>
-        public async Task<(bool Success, string Message)> TransferTeacherAsync(
-            string teacherId,
-            string endDate,
-            TeacherSchoolHistory newHistory)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-            using var historyRepo = new TeacherSchoolHistoryRepository(teacherRepo.GetConnection());
-
-            try
-            {
-                // 트랜잭션 시작
-                teacherRepo.BeginTransaction();
-                historyRepo.SetTransaction(teacherRepo.GetTransaction());
-
-                // 1. 현재 근무 이력 종료
-                await historyRepo.EndCurrentAsync(teacherId, endDate);
-                Debug.WriteLine($"[TeacherService] 기존 근무 종료: {teacherId}");
-
-                // 2. 새 근무 이력 생성
-                newHistory.TeacherID = teacherId;
-                newHistory.IsCurrent = true;
-                await historyRepo.CreateAsync(newHistory);
-                Debug.WriteLine($"[TeacherService] 새 근무 이력 생성: {newHistory.No}");
-
-                // 3. Teacher 정보 업데이트 (필요시)
-                var teacher = await teacherRepo.GetByTeacherIdAsync(teacherId);
-                if (teacher != null)
-                {
-                    teacher.UpdatedAt = DateTime.Now;
-                    await teacherRepo.UpdateAsync(teacher);
-                }
-
-                teacherRepo.Commit();
-
-                return (true, "교사 전보 처리가 완료되었습니다.");
-            }
-            catch (Exception ex)
-            {
-                teacherRepo.Rollback();
-                Debug.WriteLine($"[TeacherService] 교사 전보 처리 실패: {ex.Message}");
-                return (false, $"교사 전보 처리 중 오류가 발생했습니다: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region 교사 상태 관리
-
-        /// <summary>
-        /// 교사 퇴직 처리
-        /// </summary>
-        public async Task<(bool Success, string Message)> RetireTeacherAsync(
-            string teacherId,
-            string retireDate)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-            using var historyRepo = new TeacherSchoolHistoryRepository(teacherRepo.GetConnection());
-
-            try
-            {
-                teacherRepo.BeginTransaction();
-                historyRepo.SetTransaction(teacherRepo.GetTransaction());
-
-                // 1. 교사 상태 변경
-                var teacher = await teacherRepo.GetByTeacherIdAsync(teacherId);
-                if (teacher == null)
-                {
-                    teacherRepo.Rollback();
-                    return (false, "교사를 찾을 수 없습니다.");
-                }
-
-                await teacherRepo.UpdateStatusAsync(teacher.No, "퇴직");
-
-                // 2. 현재 근무 이력 종료
-                await historyRepo.EndCurrentAsync(teacherId, retireDate);
-
-                teacherRepo.Commit();
-
-                return (true, "교사 퇴직 처리가 완료되었습니다.");
-            }
-            catch (Exception ex)
-            {
-                teacherRepo.Rollback();
-                Debug.WriteLine($"[TeacherService] 교사 퇴직 처리 실패: {ex.Message}");
-                return (false, $"교사 퇴직 처리 중 오류가 발생했습니다: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 교사 상태 변경 (휴직, 복직 등)
-        /// </summary>
-        public async Task<(bool Success, string Message)> UpdateTeacherStatusAsync(
-            string teacherId,
-            string status)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-
-            try
-            {
-                var teacher = await teacherRepo.GetByTeacherIdAsync(teacherId);
-                if (teacher == null)
-                {
-                    return (false, "교사를 찾을 수 없습니다.");
-                }
-
-                await teacherRepo.UpdateStatusAsync(teacher.No, status);
-
-                return (true, $"{status} 처리가 완료되었습니다.");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 교사 상태 변경 실패: {ex.Message}");
-                return (false, $"교사 상태 변경 중 오류가 발생했습니다: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region 교사 정보 조회
-
-        /// <summary>
-        /// 교사 전체 정보 조회 (Teacher + 근무 이력)
-        /// </summary>
-        public async Task<TeacherFullInfo?> GetTeacherFullInfoAsync(string teacherId)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-            using var historyRepo = new TeacherSchoolHistoryRepository(_dbPath);
-
-            try
-            {
-                var teacher = await teacherRepo.GetByTeacherIdAsync(teacherId);
-                if (teacher == null) return null;
-
-                var currentHistory = await historyRepo.GetCurrentByTeacherIdAsync(teacherId);
-                var allHistory = await historyRepo.GetByTeacherIdAsync(teacherId);
-
-                return new TeacherFullInfo
-                {
-                    Teacher = teacher,
-                    CurrentHistory = currentHistory,
-                    AllHistory = allHistory
-                };
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 교사 정보 조회 실패: {ex.Message}");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// 특정 학교의 현재 재직 중인 교사 목록
-        /// </summary>
-        public async Task<List<TeacherWithHistory>> GetSchoolTeachersAsync(string schoolCode)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-            using var historyRepo = new TeacherSchoolHistoryRepository(_dbPath);
-
-            try
-            {
-                var histories = await historyRepo.GetCurrentBySchoolCodeAsync(schoolCode);
-                var teachers = new List<TeacherWithHistory>();
-
-                // N+1 해소: 재직 이력마다 교사를 한 명씩 읽던 것을 IN 절 한 방으로 바꿨다
-                //   (교사 40명이면 쿼리 40회 → 1회).
-                var teachersById = await teacherRepo.GetByTeacherIdsAsync(
-                    histories.Select(h => h.TeacherID));
-
-                foreach (var history in histories)
-                {
-                    if (teachersById.TryGetValue(history.TeacherID ?? string.Empty, out var teacher))
-                    {
-                        teachers.Add(new TeacherWithHistory
-                        {
-                            Teacher = teacher,
-                            History = history
-                        });
-                    }
-                }
-
-                return teachers.OrderBy(t => t.Teacher.Name).ToList();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 학교 교사 목록 조회 실패: {ex.Message}");
-                return new List<TeacherWithHistory>();
-            }
-        }
-
-        /// <summary>
-        /// 교사 검색
-        /// </summary>
-        public async Task<List<Teacher>> SearchTeachersAsync(string keyword)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-
-            try
-            {
-                return await teacherRepo.SearchAsync(keyword);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 교사 검색 실패: {ex.Message}");
-                return new List<Teacher>();
-            }
-        }
-
-        /// <summary>
-        /// 과목별 교사 조회
-        /// </summary>
-        public async Task<List<Teacher>> GetTeachersBySubjectAsync(string subject)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-
-            try
-            {
-                return await teacherRepo.GetBySubjectAsync(subject);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 과목별 교사 조회 실패: {ex.Message}");
-                return new List<Teacher>();
-            }
-        }
-
-        #endregion
-
-        #region 교사 정보 수정
-
-        /// <summary>
-        /// 교사 정보 수정
-        /// </summary>
-        public async Task<(bool Success, string Message)> UpdateTeacherAsync(Teacher teacher)
-        {
-            using var teacherRepo = new TeacherRepository(_dbPath);
-
-            try
-            {
-                var success = await teacherRepo.UpdateAsync(teacher);
-                return success
-                    ? (true, "교사 정보가 수정되었습니다.")
-                    : (false, "교사 정보 수정에 실패했습니다.");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 교사 정보 수정 실패: {ex.Message}");
-                return (false, $"교사 정보 수정 중 오류가 발생했습니다: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 근무 이력 수정
-        /// </summary>
-        public async Task<(bool Success, string Message)> UpdateHistoryAsync(TeacherSchoolHistory history)
-        {
-            using var historyRepo = new TeacherSchoolHistoryRepository(_dbPath);
-
-            try
-            {
-                var success = await historyRepo.UpdateAsync(history);
-                return success
-                    ? (true, "근무 이력이 수정되었습니다.")
-                    : (false, "근무 이력 수정에 실패했습니다.");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TeacherService] 근무 이력 수정 실패: {ex.Message}");
-                return (false, $"근무 이력 수정 중 오류가 발생했습니다: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region IDisposable
-
         public void Dispose()
         {
             if (!_disposed)
@@ -433,30 +93,5 @@ namespace NewSchool.Services
                 _disposed = true;
             }
         }
-
-        #endregion
     }
-
-    #region Helper Classes
-
-    /// <summary>
-    /// 교사 전체 정보 (조회용)
-    /// </summary>
-    public class TeacherFullInfo
-    {
-        public Teacher Teacher { get; set; } = new();
-        public TeacherSchoolHistory? CurrentHistory { get; set; }
-        public List<TeacherSchoolHistory> AllHistory { get; set; } = new();
-    }
-
-    /// <summary>
-    /// 교사 + 근무 이력 (목록 조회용)
-    /// </summary>
-    public class TeacherWithHistory
-    {
-        public Teacher Teacher { get; set; } = new();
-        public TeacherSchoolHistory History { get; set; } = new();
-    }
-
-    #endregion
 }
