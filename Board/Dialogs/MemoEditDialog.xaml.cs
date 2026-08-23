@@ -162,38 +162,9 @@ public sealed partial class MemoEditDialog : Window
                 return;
             }
 
-            {
-                string fileCategory = _post.Category;
-
-                // 2. 기존 파일 삭제
-                foreach (var fileToDelete in FileList.FilesToDelete)
-                {
-                    await service.DeletePostFileAsync(fileToDelete.No, fileCategory);
-                    Debug.WriteLine($"[MemoEditDialog] 파일 삭제: {fileToDelete.FileName}");
-                }
-
-                // 3. 새 파일 저장
-                foreach (var fileBox in FileList.FileBoxes)
-                {
-                    // OrgFilePath가 있으면 새로 추가된 파일
-                    if (!string.IsNullOrEmpty(fileBox.OrgFilePath) && fileBox.PostFile != null)
-                    {
-                        var savedFile = await SaveFileAsync(
-                            fileBox.OrgFilePath,
-                            postNo,
-                            fileCategory);
-
-                        if (savedFile != null)
-                        {
-                            await service.AddPostFileAsync(savedFile);
-                            Debug.WriteLine($"[MemoEditDialog] 파일 저장: {savedFile.FileName}");
-                        }
-                    }
-                }
-
-                // HasFile 플래그 업데이트
-                _post.HasFile = FileList.FileCount > 0;
-            }
+            // 2. 첨부 변경(삭제 예정 + 새로 붙인 파일) 반영
+            _post.HasFile = await PostAttachments.ApplyAsync(
+                service, FileList, postNo, _post.Category);
 
             Debug.WriteLine($"[MemoEditDialog] 메모 저장 완료: No={_post.No}");
 
@@ -250,52 +221,5 @@ public sealed partial class MemoEditDialog : Window
             return tag;
         }
         return CategoryNames.Lesson;
-    }
-
-    /// <summary>
-    /// 파일 저장 (물리적 파일 복사)
-    /// </summary>
-    private async Task<PostFile?> SaveFileAsync(string sourceFilePath, int postNo, string category)
-    {
-        try
-        {
-            // 카테고리 디렉토리 확인 및 생성
-            Board.EnsureCategoryDirectory(category);
-
-            // 원본 파일 정보
-            var sourceFile = await StorageFile.GetFileFromPathAsync(sourceFilePath);
-            var properties = await sourceFile.GetBasicPropertiesAsync();
-
-            // 저장할 이름(희망값). 타임스탬프는 초 단위라 이것만으로는 유일하지 않다.
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var extension = Path.GetExtension(sourceFile.Name);
-            var fileNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile.Name);
-            var desiredName = $"{timestamp}_{fileNameWithoutExt}{extension}";
-
-            var destinationFolder = await StorageFolder.GetFolderFromPathAsync(
-                Path.GetDirectoryName(Board.GetFilePath(desiredName, category)));
-
-            // ⚠ ReplaceExisting 금지 — 같은 초에 저장되는 동명 첨부가 서로를 조용히 덮어썼다.
-            // 충돌 해소는 OS 에 맡기고, 실제로 저장된 이름을 DB 에 넣는다. (PostEditPage 와 동일)
-            var savedFile = await sourceFile.CopyAsync(
-                destinationFolder, desiredName, NameCollisionOption.GenerateUniqueName);
-
-            var postFile = new PostFile
-            {
-                Post = postNo,
-                FileName = savedFile.Name,
-                FileSize = (int)properties.Size,
-                DateTime = DateTime.Now
-            };
-
-            Debug.WriteLine($"[MemoEditDialog] 파일 저장 완료: {savedFile.Path}");
-            return postFile;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MemoEditDialog] 파일 저장 실패: {ex.Message}");
-            await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 저장", ex);
-            return null;
-        }
     }
 }

@@ -483,26 +483,20 @@ public sealed partial class PostListPage : Page
             return;
         }
 
-        string? seedTitle = null;
-        string? seedFirstLine = null;
-
-        // 수업 일지 게시판이면 머리 정보를 먼저 받는다. 취소하면 글쓰기 자체를 중단한다.
+        // 수업 일지는 전용 창에서 머리 정보·본문·첨부를 한 번에 받는다.
+        // 여기서 편집기 페이지로 넘어가지 않으므로 목록만 새로 읽으면 된다.
         if (_parameter.UseLessonJournalTemplate)
         {
-            var dialog = new NewSchool.Dialogs.LessonJournalDialog { XamlRoot = this.XamlRoot };
-            if (await MessageBox.ShowDialogAsync(dialog) != ContentDialogResult.Primary) return;
-
-            seedTitle = dialog.GeneratedTitle;
-            seedFirstLine = dialog.GeneratedFirstLine;
+            if (await NewSchool.Dialogs.LessonJournalComposer.ComposeAsync())
+                await ViewModel.RefreshAsync();
+            return;
         }
 
         Frame.Navigate(typeof(PostEditPage), new PostEditPageParameter
         {
             DefaultCategory = _parameter.Category,
             DefaultSubject = _parameter.Subject,
-            AllowCategoryChange = _parameter.AllowCategoryChange,
-            SeedTitle = seedTitle,
-            SeedFirstLine = seedFirstLine
+            AllowCategoryChange = _parameter.AllowCategoryChange
         });
     }
 

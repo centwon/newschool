@@ -77,8 +77,10 @@
                             </StackPanel>
 
                             <!--
-                                주를 옮기면 그 주의 휴강·교체·보강·대강이 얹혀 보인다(읽기 전용).
-                                넣고 고치는 곳은 수업 관리의 [주별 시간표 확인 및 변경] 탭이다.
+                                주를 옮기면 그 주의 휴강·교체·보강·대강이 얹혀 보인다.
+                                칸을 누르면 그 수업의 수업 일지를 쓴다 — 시간표 자체를 고치지는
+                                않는다. 변경을 넣고 고치는 곳은 수업 관리의
+                                [주별 시간표 확인 및 변경] 탭이다.
                             -->
                             <StackPanel Orientation="Horizontal" Spacing="4"
                                         HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -103,6 +105,8 @@
 
                         <controls:TimetableControl x:Name="Timetable"
                                                    Grid.Row="1"
+                                                   IsSlotClickable="True"
+                                                   SlotInvoked="Timetable_SlotInvoked"
                                                    HorizontalAlignment="Stretch"
                                                    VerticalAlignment="Top"/>
                     </Grid>
@@ -252,9 +256,9 @@
                         CornerRadius="8"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         Margin="0,0,0,8">
-                    <controls:LessonLogList x:Name="LessonLogList"
-                                            LessonSelected="LessonLogList_LessonSelected"
-                                            AddRequested="LessonLogList_AddRequested"/>
+                    <board:LessonJournalList x:Name="JournalList"
+                                             PostSelected="JournalList_PostSelected"
+                                             AddRequested="JournalList_AddRequested"/>
                 </Border>
 
                 <!-- 수업 메모 -->

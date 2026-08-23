@@ -62,7 +62,6 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
     /// </summary>
     [Theory]
     [InlineData("ClassDiary", "CreatedAt,UpdatedAt")]
-    [InlineData("LessonLog", "Grade,Class,CourseSectionNo,SectionName,Note,CreatedAt,UpdatedAt")]
     [InlineData("LessonChange", "CourseNo,SubjectText,Room,Memo")]
     [InlineData("CourseWeeklyHours", "Room,Week,PlannedHours")]
     [InlineData("StudentSpecial", "Semester")]
@@ -185,69 +184,5 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
         Assert.Contains("CourseNo", columns);
         Assert.Contains("Room", columns);
         Assert.Contains("Week", columns);
-    }
-
-
-    /// <summary>
-    /// LessonLog 는 초기화기와 리포지토리가 서로 다른 정의를 갖고 있었다.
-    /// 정본 하나로 합쳤으므로, 초기화기만 돈 DB 에도 리포지토리가 기대하는
-    /// 확장 컬럼과 FK 가 모두 있어야 한다.
-    /// </summary>
-    [Fact]
-    public async Task LessonLog_는_초기화기만으로_확장_컬럼과_FK_를_갖춘다()
-    {
-        using var conn = new SqliteConnection($"Data Source={_fx.DbPath}");
-        await conn.OpenAsync();
-
-        var columns = new List<string>();
-        using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = "SELECT name FROM pragma_table_info('LessonLog')";
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                columns.Add(reader.GetString(0));
-        }
-
-        foreach (var expected in new[]
-                 { "Grade", "Class", "CourseSectionNo", "SectionName", "Note", "CreatedAt", "UpdatedAt" })
-        {
-            Assert.Contains(expected, columns);
-        }
-
-        int fkCount;
-        using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = "SELECT COUNT(*) FROM pragma_foreign_key_list('LessonLog')";
-            fkCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-        }
-
-        Assert.Equal(2, fkCount);
-    }
-
-    /// <summary>
-    /// 리포지토리를 나중에 만들어도 스키마가 달라지지 않아야 한다
-    /// (정의가 하나뿐이므로 CREATE 는 no-op, 마이그레이션은 멱등).
-    /// </summary>
-    [Fact]
-    public async Task 리포지토리_생성_후에도_LessonLog_컬럼_집합이_그대로다()
-    {
-        async Task<List<string>> ColumnsAsync()
-        {
-            using var conn = new SqliteConnection($"Data Source={_fx.DbPath}");
-            await conn.OpenAsync();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT name FROM pragma_table_info('LessonLog') ORDER BY cid";
-            var cols = new List<string>();
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                cols.Add(reader.GetString(0));
-            return cols;
-        }
-
-        var before = await ColumnsAsync();
-
-        using (var _ = new LessonLogRepository(_fx.DbPath)) { }
-
-        Assert.Equal(before, await ColumnsAsync());
     }
 }

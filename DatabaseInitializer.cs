@@ -24,10 +24,12 @@ namespace NewSchool.Database
         ///
         /// 이 상수와 기록 자체는 남긴다 — 1.0 이 나간 뒤 스키마를 바꾸려면
         /// "이 파일이 어느 세대인지" 알아야 하기 때문이다. 앞으로 스키마를 바꿀 때마다
-        /// 이 값을 올리고 <c>if (user_version &lt; N) { …변환…; user_version = N; }</c>
-        /// 형태의 마이그레이션을 추가한다.
+        /// 이 값을 올리고 <see cref="MigrateSchemaAsync"/> 에 변환 한 덩이를 더한다.
+        ///
+        /// <b>2 = 수업 일지 일원화.</b> 수업 일지를 게시판(board.db) 한 곳으로 모으면서
+        /// 쓰이지 않게 된 <c>LessonLog</c> 테이블을 버렸다.
         /// </summary>
-        public const int SchemaVersion = 1;
+        public const int SchemaVersion = 2;
 
         private readonly string _dbPath;
         private SqliteConnection? _connection;
@@ -50,6 +52,7 @@ namespace NewSchool.Database
 
                 Debug.WriteLine("[DatabaseInitializer] 데이터베이스 연결 완료");
 
+                await MigrateSchemaAsync();
                 await CreateTablesAsync();
                 await CreateIndexesAsync();
                 await CleanupOrphansAsync();
@@ -444,11 +447,6 @@ namespace NewSchool.Database
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] ClubEnrollment 테이블 생성 완료");
 
-            // LessonLog 테이블 — 정의는 LessonLogRepository.SchemaSql 하나뿐(이중 정의 제거)
-            cmd.CommandText = Repositories.LessonLogRepository.SchemaSql;
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] LessonLog 테이블 생성 완료");
-
             // ==========================================
             // 18. ClassDiary 테이블 (학급 일지) - ⭐ 개선 버전
             // ==========================================
@@ -707,7 +705,6 @@ namespace NewSchool.Database
                 -- 기존 테이블 인덱스
                 CREATE INDEX IF NOT EXISTS idx_lesson_teacher ON Lesson(Teacher, Year, Semester);
                 CREATE INDEX IF NOT EXISTS idx_lesson_date ON Lesson(Date, Period);
-                CREATE INDEX IF NOT EXISTS idx_lessonlog_teacher ON LessonLog(TeacherID, Date);
 
                 -- Club 인덱스
                 CREATE INDEX IF NOT EXISTS idx_club_school ON Club(SchoolCode, Year);
@@ -759,10 +756,30 @@ namespace NewSchool.Database
         }
 
         /// <summary>
-        /// 외래키(PRAGMA foreign_keys)가 꺼진 채 운영되던 시기에 쌓였을 수 있는 고아 행 정리.
-        /// BaseRepository 가 연결마다 foreign_keys=ON 을 켜므로, 기존 위반 데이터를 남겨두면
-        /// 이후 UPDATE 시 FK 위반으로 실패한다. 스키마의 CASCADE/SET NULL 의도대로 일괄 보정한다.
+        /// 세대 변환. <see cref="SchemaVersion"/> 을 올릴 때마다 <c>if (version &lt; N) { …변환… }</c>
+        /// 한 덩이를 여기에 더한다. 테이블 생성보다 <b>먼저</b> 돈다 — 버릴 테이블을 지운 뒤에
+        /// 남길 테이블을 만들어야 순서가 꼬이지 않는다. 새 번호는 초기화 끝에
+        /// <see cref="StampSchemaVersionAsync"/> 가 찍는다.
         /// </summary>
+        private async Task MigrateSchemaAsync()
+        {
+            if (_connection == null) return;
+
+            using var cmd = _connection.CreateCommand();
+
+            cmd.CommandText = "PRAGMA user_version;";
+            int version = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+
+            // 새 DB 는 0 으로 시작해 아래를 모두 훑지만, 전부 IF EXISTS 라 실질적으로 no-op 이다.
+            if (version < 2)
+            {
+                // 수업 일지가 게시판 한 곳으로 모이면서 읽는 코드가 사라졌다.
+                cmd.CommandText = "DROP TABLE IF EXISTS LessonLog;";
+                await cmd.ExecuteNonQueryAsync();
+                Debug.WriteLine("[DatabaseInitializer] 마이그레이션 2: LessonLog 테이블 제거");
+            }
+        }
+
         /// <summary>
         /// 스키마 세대 번호를 <c>PRAGMA user_version</c> 에 기록한다.
         /// 이미 같은 값이 찍혀 있으면 실질적으로 no-op. (PRAGMA 는 파라미터 바인딩을
@@ -778,6 +795,11 @@ namespace NewSchool.Database
             Debug.WriteLine($"[DatabaseInitializer] 스키마 버전 기록: {SchemaVersion}");
         }
 
+        /// <summary>
+        /// 외래키(PRAGMA foreign_keys)가 꺼진 채 운영되던 시기에 쌓였을 수 있는 고아 행 정리.
+        /// BaseRepository 가 연결마다 foreign_keys=ON 을 켜므로, 기존 위반 데이터를 남겨두면
+        /// 이후 UPDATE 시 FK 위반으로 실패한다. 스키마의 CASCADE/SET NULL 의도대로 일괄 보정한다.
+        /// </summary>
         private async Task CleanupOrphansAsync()
         {
             if (_connection == null) return;
@@ -827,10 +849,6 @@ namespace NewSchool.Database
                     WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
                 UPDATE StudentSpecial SET CourseNo = NULL
                     WHERE CourseNo IS NOT NULL AND CourseNo NOT IN (SELECT No FROM Course);
-                UPDATE LessonLog SET Lesson = NULL
-                    WHERE Lesson IS NOT NULL AND Lesson NOT IN (SELECT No FROM Lesson);
-                UPDATE LessonLog SET TeacherID = NULL
-                    WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
                 UPDATE ClassDiary SET TeacherID = NULL
                     WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
             ";

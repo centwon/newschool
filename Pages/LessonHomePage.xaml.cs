@@ -9,17 +9,24 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using NewSchool.Board;
+using NewSchool.Board.Controls;
 using NewSchool.Controls;
 using NewSchool.Dialogs;
 using NewSchool.Models;
 using NewSchool.Services;
+using NewSchool.ViewModels;
 
 namespace NewSchool.Pages;
 
 /// <summary>
 /// 수업 홈 페이지 (대시보드형)
 /// - 좌측: 시간표 + 메모 + 할일
-/// - 우측: 오늘의 수업 + 최근 수업 기록
+/// - 우측: 오늘의 수업 + 최근 수업 일지
+///
+/// 시간표 칸과 오늘의 수업은 <b>수업 일지로 가는 문</b>이다. 여기서는
+/// <see cref="LessonJournalComposer"/> 만 부르고, 일지는 전용 창에서 쓰고 저장된다 —
+/// 화면 이동이 없으므로 저장하고 돌아오면 목록과 완료 표시를 직접 다시 읽는다.
 /// </summary>
 public sealed partial class LessonHomePage : Page
 {
@@ -55,7 +62,7 @@ public sealed partial class LessonHomePage : Page
 
         await LoadCoursesAsync();
         await LoadTodayLessonsAsync();
-        await LoadLessonLogsAsync();
+        await LoadJournalsAsync();
         await LoadTimetableAsync();
         await LoadLessonTasksAsync();
     }
@@ -82,12 +89,11 @@ public sealed partial class LessonHomePage : Page
                 courseDict[c.No] = c;
             }
 
-            // 3. 오늘 이미 작성된 기록
-            using var logSvc = new LessonLogService();
-            var todayLogs = await logSvc.GetTodayLessonsAsync();
+            // 3. 오늘 이미 써 둔 수업 일지 (교시별)
+            var todayJournals = await LoadTodayJournalsAsync(DateTime.Today);
 
-            // 4. 현재 교시
-            int currentPeriod = LessonLogService.GetCurrentPeriod();
+            // 4. 현재 교시 — 학교 교시 설정을 따르는 계산을 오늘 화면과 함께 쓴다
+            int currentPeriod = Functions.GetPeriodNow().Index;
 
             // 5. TodayLessonItem 빌드
             _todayLessons.Clear();
@@ -98,13 +104,9 @@ public sealed partial class LessonHomePage : Page
                 var subject = courseDict.TryGetValue(lesson.Course, out var course)
                     ? course.Subject : "";
 
-                // 매칭 기록 찾기: 같은 교시 + 같은 학급
-                var matchedLog = todayLogs.FirstOrDefault(log =>
-                    log.Period == lesson.Period &&
-                    log.Grade == lesson.Grade &&
-                    log.Class == lesson.Class);
+                todayJournals.TryGetValue(lesson.Period, out var journal);
 
-                _todayLessons.Add(new TodayLessonItem(lesson, subject, lesson.Course, matchedLog, currentPeriod));
+                _todayLessons.Add(new TodayLessonItem(lesson, subject, lesson.Course, journal, currentPeriod));
             }
 
             // 요약 텍스트
@@ -124,45 +126,91 @@ public sealed partial class LessonHomePage : Page
     }
 
     /// <summary>
-    /// 오늘의 수업 아이템 클릭 (기록 작성/편집)
+    /// 그 날짜에 써 둔 수업 일지를 교시별로 모은다.
+    ///
+    /// 게시글에는 날짜·교시를 담을 칸이 없어서 제목 규칙(<see cref="LessonJournalTitle"/>)을
+    /// 되읽는다. 제목을 손으로 고친 글은 못 알아보고 그 교시가 다시 '예정'으로 보이는데,
+    /// 글이 사라지는 것은 아니고 목록에는 그대로 남는다.
+    /// </summary>
+    private static async Task<Dictionary<int, Post>> LoadTodayJournalsAsync(DateTime date)
+    {
+        var byPeriod = new Dictionary<int, Post>();
+
+        try
+        {
+            // 제목이 "8/21 " 로 시작하는 글만 추린 뒤 교시를 되읽는다.
+            using var service = NewSchool.Board.Board.CreateCachedService();
+            var page = await service.GetPostsPagedAsync(
+                pageNumber: 1,
+                pageSize: 50,
+                category: LessonJournalComposer.Category,
+                subject: LessonJournalComposer.Subject,
+                searchTitle: true,
+                searchText: $"{date.Month}/{date.Day} ");
+
+            foreach (var post in page.Items)
+            {
+                // 해가 바뀌면 "8/21" 이 겹치므로 쓴 해까지 본다.
+                if (post.DateTime.Year != date.Year) continue;
+
+                int period = LessonJournalTitle.PeriodOf(post.Title, date);
+                if (period > 0) byPeriod.TryAdd(period, post);
+            }
+        }
+        catch (Exception ex)
+        {
+            // 일지를 못 읽었다고 오늘의 수업까지 버리지는 않는다 — 전부 '예정' 으로 보일 뿐이다.
+            Debug.WriteLine($"[LessonHomePage] 오늘 수업 일지 조회 실패: {ex.Message}");
+        }
+
+        return byPeriod;
+    }
+
+    /// <summary>
+    /// 오늘의 수업 아이템 클릭 — 써 둔 일지가 있으면 그 글로, 없으면 새 일지 쓰기로.
     /// </summary>
     private async void TodayLessonItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button btn || btn.Tag is not TodayLessonItem item) return;
 
-        ContentDialog dialog;
-
-        if (item.ExistingLog != null)
-        {
-            // 기존 기록 편집
-            dialog = new LessonLogEditDialog(item.ExistingLog, item.CourseNo)
-            {
-                XamlRoot = XamlRoot
-            };
-        }
-        else
-        {
-            // 새 기록 생성
-            dialog = new LessonLogEditDialog(
-                Settings.User.Value,
-                item.Subject,
-                item.Lesson.Room,
-                item.Lesson.Grade,
-                item.Lesson.Class,
+        bool saved = item.ExistingPost != null
+            ? await LessonJournalComposer.OpenPostAsync(item.ExistingPost.No)
+            : await LessonJournalComposer.ComposeAsync(new LessonSlotSeed(
+                DateTime.Today,
+                item.Lesson.Period,
                 item.CourseNo,
-                item.Lesson.Period)
-            {
-                XamlRoot = XamlRoot
-            };
-        }
+                item.Subject,
+                item.Lesson.Room));
 
-        _ = await MessageBox.ShowDialogAsync(dialog);
+        if (saved) await RefreshJournalsAsync();
+    }
 
-        var editDialog = (LessonLogEditDialog)dialog;
-        if (editDialog.IsDeleted || editDialog.ResultLog != null)
+    #endregion
+
+    #region 수업 일지 쓰기
+
+    /// <summary>
+    /// 일지를 쓰거나 고친 뒤 — 창에서 저장하고 돌아오므로 화면 이동이 없다.
+    /// 목록과 완료 표시를 직접 다시 읽어야 한다.
+    /// </summary>
+    private async Task RefreshJournalsAsync()
+    {
+        await LoadJournalsAsync();
+        await LoadTodayLessonsAsync();
+    }
+
+    /// <summary>
+    /// 내 시간표 칸 클릭 — 그 칸의 날짜·교시·교과·강의실로 일지를 시작한다.
+    /// 날짜는 <b>보고 있는 주</b>의 그 요일이다(지난 주를 펼쳐 놓고 눌렀으면 그 날짜).
+    /// </summary>
+    private async void Timetable_SlotInvoked(object sender, TimetableItemViewModel item)
+    {
+        var date = _weekMonday.AddDays(item.DayOfWeek - 1);
+
+        if (await LessonJournalComposer.ComposeAsync(new LessonSlotSeed(
+                date, item.Period, item.CourseNo, item.SubjectName, item.Room)))
         {
-            await LoadTodayLessonsAsync();
-            await LoadLessonLogsAsync();
+            await RefreshJournalsAsync();
         }
     }
 
@@ -300,77 +348,35 @@ public sealed partial class LessonHomePage : Page
 
     #endregion
 
-    #region 수업 기록
+    #region 최근 수업 일지
 
     /// <summary>
-    /// 최근 수업 기록 로드 (전체 — 필터 없음)
+    /// 최근 수업 일지 로드 (게시판의 수업일지 글)
     /// </summary>
-    private async Task LoadLessonLogsAsync()
+    private async Task LoadJournalsAsync()
     {
-        await LessonLogList.LoadAsync();
+        await JournalList.LoadAsync();
     }
 
     /// <summary>
-    /// 저장된 수업 기록에서 교과 번호를 되찾는다.
-    ///
-    /// LessonLog 는 교과 번호를 직접 갖고 있지 않고 과목명·학년·학급만 남긴다.
-    /// 이미 불러둔 담당 교과(<see cref="_courses"/>) 안에서 과목명으로 맞추되,
-    /// 같은 과목을 여러 학년에서 가르치는 경우가 있으므로 학년까지 일치하는 것을 먼저 본다.
-    /// 못 찾으면 null — 다이얼로그가 단원 콤보를 비활성으로 두고 나머지는 정상 동작한다.
+    /// 목록에서 고른 일지를 같은 창으로 연다.
     /// </summary>
-    private int? FindCourseNo(LessonLog log)
+    private async void JournalList_PostSelected(object sender, int postNo)
     {
-        if (string.IsNullOrWhiteSpace(log.Subject)) return null;
-
-        var match = _courses.FirstOrDefault(c => c.Subject == log.Subject && c.Grade == log.Grade)
-                 ?? _courses.FirstOrDefault(c => c.Subject == log.Subject);
-
-        return match?.No;
+        if (await LessonJournalComposer.OpenPostAsync(postNo))
+            await RefreshJournalsAsync();
     }
 
     /// <summary>
-    /// 수업 기록 선택됨 → 편집 다이얼로그
+    /// 카드의 + 버튼 — 수업 칸을 거치지 않고 바로 쓴다.
+    /// 오늘·지금 교시를 시작값으로 주고 교과는 창이 첫 교과로 채운다.
     /// </summary>
-    private async void LessonLogList_LessonSelected(object sender, LessonLog lessonLog)
+    private async void JournalList_AddRequested(object sender, EventArgs e)
     {
-        // 교과 번호를 함께 넘겨야 단원 콤보가 살아난다. 넘기지 않으면 다이얼로그가
-        // "수업(Course) 정보 없음" 으로 비활성 처리한다(LessonLogEditDialog.LoadSectionsAsync).
-        var dialog = new LessonLogEditDialog(lessonLog, FindCourseNo(lessonLog))
+        if (await LessonJournalComposer.ComposeAsync(new LessonSlotSeed(
+                DateTime.Today, Functions.GetPeriodNow().Index, CourseNo: 0, Subject: "", Room: "")))
         {
-            XamlRoot = XamlRoot
-        };
-        _ = await MessageBox.ShowDialogAsync(dialog);
-
-        if (dialog.IsDeleted || dialog.ResultLog != null)
-        {
-            await LoadLessonLogsAsync();
-            await LoadTodayLessonsAsync();
-        }
-    }
-
-    /// <summary>
-    /// 수업 기록 추가 요청 → 다이얼로그 (과목 미지정)
-    /// </summary>
-    private async void LessonLogList_AddRequested(object sender, EventArgs e)
-    {
-        // 과목 필터가 없으므로 첫 교과를 기본으로 삼는다. 교과를 정했으면 번호·학년·강의실도
-        // 함께 넘긴다 — 예전에는 과목명만 넘겨서 단원 콤보가 늘 비활성이었고 강의실도 비어 있었다.
-        var course = _courses.Count > 0 ? _courses[0] : null;
-        var dialog = new LessonLogEditDialog(
-            Settings.User.Value,
-            course?.Subject ?? string.Empty,
-            course?.RoomList.FirstOrDefault() ?? string.Empty,
-            grade: course?.Grade ?? 0,
-            courseNo: course?.No)
-        {
-            XamlRoot = XamlRoot
-        };
-        _ = await MessageBox.ShowDialogAsync(dialog);
-
-        if (dialog.ResultLog != null)
-        {
-            await LoadLessonLogsAsync();
-            await LoadTodayLessonsAsync();
+            await RefreshJournalsAsync();
         }
     }
 
@@ -386,18 +392,24 @@ internal sealed class TodayLessonItem
     public Lesson Lesson { get; }
     public string Subject { get; }
     public int CourseNo { get; }
-    public LessonLog? ExistingLog { get; }
+
+    /// <summary>이 교시에 이미 써 둔 수업 일지(게시글). 없으면 null.</summary>
+    public Post? ExistingPost { get; }
+
     public int CurrentPeriod { get; }
 
     // 계산 프로퍼티
-    public bool IsCompleted => ExistingLog != null;
+    public bool IsCompleted => ExistingPost != null;
     public bool IsCurrent => !IsCompleted && Lesson.Period == CurrentPeriod;
 
     // 바인딩용 프로퍼티
     public string PeriodText => $"{Lesson.Period}교시";
     public string ClassDisplay => Lesson.ClassDisplay;
-    public string TopicText => ExistingLog?.Topic ?? "";
-    public Visibility HasTopic => IsCompleted && !string.IsNullOrWhiteSpace(ExistingLog?.Topic)
+
+    /// <summary>일지 본문 첫 줄 — 머리 정보 다이얼로그가 심어 둔 단원이 대개 여기 걸린다.</summary>
+    public string TopicText => LessonJournalListHelpers.Summary(ExistingPost?.PlainText);
+
+    public Visibility HasTopic => TopicText.Length > 0
         ? Visibility.Visible : Visibility.Collapsed;
 
     // 교시 스타일
@@ -445,12 +457,12 @@ internal sealed class TodayLessonItem
 
     public Thickness StatusBorderThickness => IsCompleted ? new(0) : IsCurrent ? new(0) : new(1);
 
-    public TodayLessonItem(Lesson lesson, string subject, int courseNo, LessonLog? existingLog, int currentPeriod)
+    public TodayLessonItem(Lesson lesson, string subject, int courseNo, Post? existingPost, int currentPeriod)
     {
         Lesson = lesson;
         Subject = subject;
         CourseNo = courseNo;
-        ExistingLog = existingLog;
+        ExistingPost = existingPost;
         CurrentPeriod = currentPeriod;
     }
 }

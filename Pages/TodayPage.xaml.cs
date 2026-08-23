@@ -11,6 +11,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Board;
 using NewSchool.Board.Services;
+using NewSchool.Dialogs;
 using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Services;
@@ -420,6 +421,25 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
     /// <summary>휴강은 흐리게 (DataTemplate x:Bind용 순수 함수)</summary>
     public static double DimIfCancelled(bool isCancelled) => isCancelled ? 0.5 : 1.0;
+
+    /// <summary>하지 않은 수업의 일지를 쓸 일은 없다 (DataTemplate x:Bind용 순수 함수)</summary>
+    public static bool ClickableIfNotCancelled(bool isCancelled) => !isCancelled;
+
+    #endregion
+
+    #region 수업 일지
+
+    /// <summary>
+    /// 내 수업 한 줄 클릭 → 그 수업의 수업 일지 쓰기.
+    /// 날짜는 <b>보고 있는 날짜</b>다 — 날짜를 옮겨 둔 채 누르면 그 날짜로 쓴다.
+    /// </summary>
+    private async void TeacherSlot_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: TimetableItemViewModel slot }) return;
+
+        await LessonJournalComposer.ComposeAsync(new LessonSlotSeed(
+            _viewDate, slot.Period, slot.CourseNo, slot.SubjectName, slot.Room));
+    }
 
     #endregion
 

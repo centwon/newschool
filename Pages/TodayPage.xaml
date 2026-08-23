@@ -1,4 +1,4 @@
-<Page
+﻿<Page
     x:Class="NewSchool.Pages.TodayPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -131,7 +131,21 @@
                             <ItemsControl x:Name="TeacherSlotsList" Padding="4,4,4,8" Visibility="Collapsed">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:TimetableItemViewModel">
-                                        <Grid Margin="4,1" MinHeight="20">
+                                        <!--
+                                            줄 전체가 수업 일지로 가는 버튼이다. 배경을 투명으로 둬서
+                                            생김새는 그대로 두고 눌림·포커스만 얹는다.
+                                            휴강 줄은 hit test 를 꺼서 눌러도 아무 일이 없게 한다.
+                                        -->
+                                        <Button Margin="4,1" MinHeight="20" Padding="0"
+                                                Background="Transparent" BorderThickness="0"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Stretch"
+                                                VerticalContentAlignment="Center"
+                                                Tag="{x:Bind}"
+                                                Click="TeacherSlot_Click"
+                                                IsHitTestVisible="{x:Bind local:TodayPage.ClickableIfNotCancelled(IsCancelled), Mode=OneWay}"
+                                                ToolTipService.ToolTip="눌러서 수업 일지 쓰기">
+                                        <Grid MinHeight="20">
                                             <!-- 현재 교시 강조 배경 -->
                                             <Border CornerRadius="5"
                                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
@@ -177,6 +191,7 @@
                                                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                             </Border>
                                         </Grid>
+                                        </Button>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

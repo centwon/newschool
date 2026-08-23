@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -137,19 +136,6 @@ public sealed partial class PostEditPage : Page
                 {
                     _post.Subject = _parameter.DefaultSubject;
                     SelectOrAddSubject(_parameter.DefaultSubject);
-                }
-
-                // 수업 일지 등에서 넘어온 기본값. 어디까지나 시작값이라 그대로 편집할 수 있다.
-                if (!string.IsNullOrEmpty(_parameter.SeedTitle))
-                {
-                    TitleTextBox.Text = _parameter.SeedTitle;
-                    _post.Title = _parameter.SeedTitle;
-                }
-
-                if (!string.IsNullOrEmpty(_parameter.SeedFirstLine))
-                {
-                    // 본문 첫 줄로 넣는다 — PlainText 로 저장되므로 단원명·페이지가 검색에 걸린다.
-                    ContentEditor.InsertHtml($"<p>{WebUtility.HtmlEncode(_parameter.SeedFirstLine)}</p><p></p>");
                 }
             }
         }
@@ -395,31 +381,9 @@ public sealed partial class PostEditPage : Page
                         await MoveExistingFilesAsync(_originalCategory, _post.Category, postNo, service);
                     }
 
-                    // 2. 기존 파일 삭제 처리
-                    foreach (var fileToDelete in FileListBox.FilesToDelete)
-                    {
-                        await service.DeletePostFileAsync(fileToDelete.No, _post.Category);
-                        Debug.WriteLine($"파일 삭제: {fileToDelete.FileName}");
-                    }
-
-                    // 3. 새 파일 저장
-                    foreach (var fileBox in FileListBox.FileBoxes)
-                    {
-                        // OrgFilePath가 있으면 새로 추가된 파일
-                        if (!string.IsNullOrEmpty(fileBox.OrgFilePath) && fileBox.PostFile != null)
-                        {
-                            var savedFile = await SaveFileAsync(
-                                fileBox.OrgFilePath,
-                                postNo,
-                                _post.Category);
-
-                            if (savedFile != null)
-                            {
-                                await service.AddPostFileAsync(savedFile);
-                                Debug.WriteLine($"파일 저장: {savedFile.FileName}");
-                            }
-                        }
-                    }
+                    // 2. 첨부 변경(삭제 예정 + 새로 붙인 파일) 반영
+                    _post.HasFile = await PostAttachments.ApplyAsync(
+                        service, FileListBox, postNo, _post.Category);
 
                     // 4. 목록으로 돌아가기 (원래 설정 유지)
                     Debug.WriteLine($"Frame.CanGoBack={Frame.CanGoBack}, BackStackDepth={Frame.BackStackDepth}");
@@ -503,56 +467,6 @@ public sealed partial class PostEditPage : Page
         {
             Debug.WriteLine($"첨부파일 이동 실패: {ex.Message}");
             await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 이동", ex);
-        }
-    }
-
-    /// <summary>
-    /// 파일 저장
-    /// </summary>
-    private async Task<PostFile?> SaveFileAsync(string sourceFilePath, int postNo, string category)
-    {
-        try
-        {
-            // 카테고리 디렉토리 확인 및 생성
-            Board.EnsureCategoryDirectory(category);
-
-            // 원본 파일 정보
-            var sourceFile = await StorageFile.GetFileFromPathAsync(sourceFilePath);
-            var properties = await sourceFile.GetBasicPropertiesAsync();
-
-            // 저장할 이름(희망값). 타임스탬프는 초 단위라 이것만으로는 유일하지 않다.
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var extension = Path.GetExtension(sourceFile.Name);
-            var fileNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile.Name);
-            var desiredName = $"{timestamp}_{fileNameWithoutExt}{extension}";
-
-            var destinationFolder = await StorageFolder.GetFolderFromPathAsync(
-                Path.GetDirectoryName(Board.GetFilePath(desiredName, category)));
-
-            // ⚠ ReplaceExisting 을 쓰면 안 된다. 새 첨부는 "붙일 때"가 아니라 저장 버튼을 눌렀을 때
-            // 한 루프에서 한꺼번에 복사되므로 전부 같은 초를 받는다. 그래서 이름이 같은 파일을
-            // 두 개 붙이면(다른 폴더의 동명 파일) 뒤엣것이 앞엣것을 조용히 덮어썼고,
-            // DB 에는 첨부 2건이 남는데 실물은 1개뿐인 상태가 됐다.
-            // → 충돌 해소는 OS 에 맡기고(GenerateUniqueName), 실제로 저장된 이름을 DB 에 넣는다.
-            var savedFile = await sourceFile.CopyAsync(
-                destinationFolder, desiredName, NameCollisionOption.GenerateUniqueName);
-
-            var postFile = new PostFile
-            {
-                Post = postNo,
-                FileName = savedFile.Name,
-                FileSize = (int)properties.Size,
-                DateTime = DateTime.Now
-            };
-
-            Debug.WriteLine($"파일 저장 완료: {savedFile.Path}");
-            return postFile;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"파일 저장 실패: {ex.Message}");
-            await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 저장", ex);
-            return null;
         }
     }
 

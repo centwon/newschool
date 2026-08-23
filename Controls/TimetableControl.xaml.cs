@@ -50,6 +50,16 @@ namespace NewSchool.Controls
         /// </summary>
         public DateTime? WeekMonday { get; private set; }
 
+        /// <summary>
+        /// 수업이 든 칸을 누를 수 있게 한다(기본 꺼짐). 켜면 <see cref="SlotInvoked"/> 가 뜨고,
+        /// 무엇을 할지는 부르는 화면이 정한다 — 이 컨트롤은 학급 시간표에도 쓰이므로
+        /// 동작을 안에 넣지 않는다. 빈 칸과 휴강 칸은 누를 수 없다.
+        /// </summary>
+        public bool IsSlotClickable { get; set; }
+
+        /// <summary>수업이 든 칸을 눌렀다(<see cref="IsSlotClickable"/> 이 켜져 있을 때만).</summary>
+        public event EventHandler<TimetableItemViewModel>? SlotInvoked;
+
         public TimetableControl()
         {
             this.InitializeComponent();
@@ -319,15 +329,56 @@ namespace NewSchool.Controls
                     }
                 }
 
-                border.Child = stackPanel;
+                // 휴강은 누를 수 없다 — 하지 않은 수업의 일지를 쓸 일은 없다.
+                bool clickable = IsSlotClickable && !item.IsCancelled;
+
+                // 툴팁은 늘 가장 안쪽 요소에 건다. 버튼이 끼면 테두리에 건 툴팁은 가려진다.
+                FrameworkElement content = clickable ? CreateSlotButton(item, stackPanel) : stackPanel;
+                border.Child = content;
+
                 border.Background = (SolidColorBrush)Application.Current.Resources[
                     item.HasChange ? "SystemFillColorCautionBackgroundBrush" : "CardBackgroundFillColorDefaultBrush"];
 
-                if (item.HasChange)
-                    ToolTipService.SetToolTip(border, item.ChangeTooltip);
+                string? tooltip = item.HasChange ? item.ChangeTooltip : null;
+                if (clickable)
+                    tooltip = tooltip == null ? SlotClickHint : $"{tooltip} · {SlotClickHint}";
+
+                if (tooltip != null)
+                    ToolTipService.SetToolTip(content, tooltip);
             }
 
             return border;
+        }
+
+        private const string SlotClickHint = "눌러서 수업 일지 쓰기";
+
+        /// <summary>
+        /// 칸 내용을 누를 수 있게 감싼다. 배경을 투명으로 두어 시간표 모양은 그대로 두고,
+        /// 눌림·포커스·키보드 조작은 Button 이 알아서 해 준다.
+        /// </summary>
+        private Button CreateSlotButton(TimetableItemViewModel item, FrameworkElement content)
+        {
+            var button = new Button
+            {
+                Content = content,
+                Tag = item,
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+
+            button.Click += OnSlotClick;
+            return button;
+        }
+
+        private void OnSlotClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { Tag: TimetableItemViewModel item })
+                SlotInvoked?.Invoke(this, item);
         }
     }
 }

@@ -28,10 +28,10 @@
 ### 수업 (동아리 포함)
 | Tag | 메뉴 | Page | 기능 |
 |-----|------|------|------|
-| `LessonHome` | 수업홈 | `LessonHomePage.xaml` | 수업 홈 대시보드 — 내 시간표(주 이동·그 주 변경 반영, 읽기 전용), 수업 일지 |
+| `LessonHome` | 수업홈 | `LessonHomePage.xaml` | 수업 홈 대시보드 — 내 시간표(주 이동·그 주 변경 반영), 오늘의 수업, 최근 수업 일지. 시간표 칸·오늘의 수업을 누르면 그 수업의 수업 일지를 쓴다 |
 | `LessonActivity` | 누가 기록 | `LessonActivityPage.xaml` | 수업 누가 기록 |
 | `CourseSpec` | 학생부 기록 | `CourseSpecPage.xaml` | 교과세특 (과목/강의실 필터) |
-| `LessonJournal` | 수업 일지 | `Board/Pages/PostListPage.xaml` | 카테고리 `수업`·주제 `수업일지` 전용 게시판. 새 글에 날짜·교시·교과·강의실·단원 머리 정보를 주입(`LessonJournalDialog`) |
+| `LessonJournal` | 수업 일지 | `Board/Pages/PostListPage.xaml` | 카테고리 `수업`·주제 `수업일지` 전용 게시판. 새 글은 전용 창(`LessonJournalWindow`)에서 쓴다 |
 | `LessonBoard` | 수업 게시판 | `Board/Pages/PostListPage.xaml` | 카테고리 `수업` 고정 게시판 |
 | `CourseManagement` | 수업 관리 | `CourseManagementPage.xaml` | 6탭 — 수업 개설 · 단원 관리 · 수업 시수 · 진도 관리 · 수업 시간표 입력 · 주별 시간표 확인 및 변경 |
 | `ClubManagement` | 동아리 관리 | `ClubManagementPage.xaml` | 동아리 생성/수정/삭제 |
@@ -70,6 +70,7 @@
 | `FileItemBox.xaml` | 첨부파일 아이템 |
 | `PostFileListBox.xaml` | 첨부파일 목록 |
 | `MemoBoard.xaml` | 메모 보드 뷰 |
+| `LessonJournalList.xaml` | 최근 수업 일지 카드 (수업 홈에 얹힘) |
 
 ### Dialogs
 | 파일 | 기능 |
@@ -148,7 +149,6 @@
 | `TimetableControl.xaml` | 시간표 컨트롤 (주 이동·그 주 변경 표시) |
 | `ClassDiaryBox.xaml` | 학급일지 박스 |
 | `ClassDiaryListWin.xaml` | 학급일지 목록 |
-| `LessonLogList.xaml` | 수업 일지 목록 |
 | `LogListViewer.xaml` | 기록 목록 뷰어 |
 | `YearSemesterPicker.xaml` | 학년도/학기 선택기 |
 | `ClassPicker.xaml` | 학년/반 선택기 (확정 시 학생 목록 이벤트 전달) |
@@ -196,8 +196,7 @@
 | `ClassTimetableEditDialog.xaml` | 학급 시간표 편집 |
 | `LessonChangeDialog.xaml` | 앞으로 걸린 수업 변경 목록 (읽기·되돌리기) |
 | `SubstituteInputDialog.xaml` | 보결 입력 (남의 수업 과목명 직접 적기) |
-| `LessonJournalDialog.xaml` | 수업 일지 새 글 머리 정보 (날짜·교시·교과·강의실·단원) |
-| `LessonLogEditDialog.xaml` | 수업 일지 편집 |
+| `LessonJournalWindow.xaml` | 수업 일지 작성·편집 창 (머리 정보 + 제목 + 본문 + 첨부, 저장까지). 시간표 칸에서 열면 채워진 채 뜬다 |
 | `MaterialEditDialog.xaml` | 자료 편집 |
 | `ClubEditDialog.xaml` | 동아리 편집 |
 | `ClubEnrollmentDialog.xaml` | 동아리 등록 |
@@ -224,7 +223,6 @@
 |------|------|
 | `CourseService.cs` | 수업(교과) 관리 |
 | `LessonService.cs` | 수업 |
-| `LessonLogService.cs` | 수업 일지 |
 | `EnrollmentService.cs` | 수강 등록 |
 | `TimetableService.cs` | 시간표 |
 
@@ -271,7 +269,6 @@
 - `CourseEnrollment.cs` - 수강 등록
 - `Lesson.cs` - 정기 수업(요일 × 교시 배치)
 - `LessonChange.cs` - 날짜·교시 단위 예외 — 휴강·교체·보강·대강. `Lesson` 은 건드리지 않는다
-- `LessonLog.cs` - 수업 일지
 - `LessonProgress.cs` - 수업 진도 (단원 × 학급)
 - `CourseWeeklyHours.cs` - 주차별 시수 조정(손으로 고친 주차만 저장)
 
@@ -314,7 +311,6 @@
 | `CourseEnrollmentRepository.cs` | CourseEnrollment |
 | `LessonRepository.cs` | Lesson |
 | `LessonChangeRepository.cs` | LessonChange |
-| `LessonLogRepository.cs` | LessonLog |
 | `LessonProgressRepository.cs` | LessonProgress |
 | `CourseWeeklyHoursRepository.cs` | CourseWeeklyHours |
 | `SchoolScheduleRepository.cs` | SchoolSchedule |
@@ -450,7 +446,7 @@
 | 진도 관리 | `Controls/ProgressMatrixView.xaml`, `Repositories/LessonProgressRepository.cs` |
 | 수업 시간표 입력 | `Controls/CourseTimetableBoard.xaml`, `Repositories/LessonRepository.cs` |
 | 주별 시간표·수업 변경 | `Controls/WeeklyTimetableView.xaml`, `Models/LessonChange.cs`, `Services/TimetableChangeMerger.cs` |
-| 수업 일지 | `Board/Pages/PostListPage.xaml`(카테고리 `수업`·주제 `수업일지`), `Dialogs/LessonJournalDialog.xaml` |
+| 수업 일지 | `Board/Pages/PostListPage.xaml`(카테고리 `수업`·주제 `수업일지`), `Dialogs/LessonJournalComposer.cs`(진입점·제목 규칙), `Dialogs/LessonJournalWindow.xaml`(작성·편집 창), `Board/Controls/LessonJournalList.xaml` |
 | 동아리 | `Pages/ClubManagementPage.xaml`, `Services/ClubService.cs` |
 | 게시판 | `Board/Pages/PostListPage.xaml`, `Board/Services/BoardService.cs` |
 | 달력/일정 | `Scheduler/Kcalendar.xaml`, `Scheduler/SchedulerService.cs` |
