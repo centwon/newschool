@@ -37,6 +37,24 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
     /// <summary>리스트 그룹핑용 표시 날짜 (다일 일정은 날짜별로 복제)</summary>
     public DateTime DisplayDate { get; init; }
 
+    /// <summary>
+    /// 오늘 자리의 항목인가. 목록은 지난 미완료 할 일부터 두 달 뒤 일정까지 한 줄로 이어지므로
+    /// 오늘이 어디서 시작하는지가 눈에 띄어야 한다.
+    ///
+    /// ⚠ 값을 담아 두지 않고 볼 때마다 계산한다(<see cref="DateLabel"/> 과 같은 규칙). 자정을
+    /// 넘기면 낡은 값이 되지만, 그때는 화면이 목록을 다시 읽으면서 항목도 새로 만들어진다.
+    /// </summary>
+    public bool IsToday => DisplayDate.Date == DateTime.Today;
+
+    /// <summary>
+    /// 기한이 지난 할 일인가. 이 목록에서 지난 날짜로 남는 것은 <b>미완료 할 일뿐</b>이고
+    /// (일정은 오늘부터 담는다) 그게 목록에서 가장 급한 항목이다.
+    ///
+    /// 완료 토글을 누르면 그 자리에서 지연이 풀려야 하므로 <see cref="IsTaskDone"/> 이
+    /// 바뀔 때 함께 알린다.
+    /// </summary>
+    public bool IsOverdue => IsTask && !IsTaskDone && DisplayDate.Date < DateTime.Today;
+
     /// <summary>목록 항목의 날짜 열에 표시할 라벨 (예: "오늘 7/3(금)")</summary>
     public string DateLabel
     {
@@ -84,6 +102,7 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
             OnPropertyChanged(nameof(Decorations));
             OnPropertyChanged(nameof(TitleOpacity));
             OnPropertyChanged(nameof(DoneLabel));
+            OnPropertyChanged(nameof(IsOverdue));   // 완료하면 그 자리에서 지연 표시가 풀린다
         }
     }
 
@@ -173,6 +192,56 @@ public sealed partial class KAgendaControl : UserControl
         catch { /* 파싱 실패 시 기본 */ }
         return new SolidColorBrush(Colors.Gray);
     }
+
+    // ── 지연 · 오늘 강조 ─────────────────────────
+    //
+    // 이 목록은 지난 미완료 할 일부터 두 달 뒤 일정까지 한 줄로 이어진다. 눈이 먼저 가야 할
+    // 자리는 둘이다 — 기한이 지난 할 일(가장 급하다)과 오늘(기준점).
+    //
+    // 배경 하나만으로는 약하다. 이 줄에는 이미 분류 배지라는 짙은 색이 있어서 배경까지 칠하면
+    // "이 항목의 색"으로 오해되기 쉽고, 목록이 ListView 라 선택·마우스오버도 배경으로 표시된다.
+    // 그래서 ①날짜 라벨을 색·굵기로 세우고 ②배경은 그 위에 옅게만 깐다.
+    // 배경은 반투명 계열 테마 브러시라 선택 표시가 그 아래로 비쳐 보인다.
+    //
+    // 지연과 오늘은 겹치지 않는다(지연은 오늘보다 앞선 날짜다). 그래도 지연을 먼저 본다.
+    //
+    // ⚠ 브러시를 지금 한 번 꺼내 오므로 설정에서 밝게/어둡게를 바꿔도 이미 그려진 줄은
+    // 옛 색을 유지한다(목록을 다시 읽으면 맞춰진다). TimetableControl 의 변경 칸도 같은 방식이다.
+
+    private static readonly SolidColorBrush Transparent = new(Colors.Transparent);
+
+    /// <summary>
+    /// 테마 브러시를 이름으로 꺼낸다. 없는 이름이면 예외 대신 대체색을 준다 —
+    /// 목록 한 줄의 색 때문에 화면이 통째로 못 그려지면 곤란하다.
+    /// </summary>
+    private static Brush ThemeBrush(string key, Brush fallback)
+        => Application.Current.Resources.TryGetValue(key, out var value) && value is Brush brush
+            ? brush
+            : fallback;
+
+    /// <summary>줄 배경 — 지연은 경고 틴트, 오늘은 강조 틴트, 나머지는 투명.</summary>
+    public static Brush RowBackground(bool isOverdue, bool isToday)
+    {
+        if (isOverdue) return ThemeBrush("SystemFillColorCautionBackgroundBrush", Transparent);
+        if (isToday) return ThemeBrush("SystemFillColorAttentionBackgroundBrush", Transparent);
+        return Transparent;
+    }
+
+    /// <summary>날짜 라벨 색 — 지연은 경고색, 오늘은 강조색, 나머지는 보조 텍스트색.</summary>
+    public static Brush DateLabelBrush(bool isOverdue, bool isToday)
+    {
+        var normal = ThemeBrush("TextFillColorTertiaryBrush", Transparent);
+        if (isOverdue) return ThemeBrush("SystemFillColorCautionBrush", normal);
+        if (isToday) return ThemeBrush("AccentTextFillColorPrimaryBrush", normal);
+        return normal;
+    }
+
+    /// <summary>날짜 라벨 굵기 — 지연·오늘만 굵게.</summary>
+    // FontWeight 는 Windows.UI.Text, FontWeights 는 Microsoft.UI.Text — 짝이 갈려 있어 한정한다.
+    public static FontWeight DateLabelWeight(bool isOverdue, bool isToday)
+        => isOverdue || isToday
+            ? Microsoft.UI.Text.FontWeights.SemiBold
+            : Microsoft.UI.Text.FontWeights.Normal;
 
     // ─────────────────────────────────────────────
     // 공개 로드 메서드

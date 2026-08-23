@@ -14,10 +14,11 @@
 
         <!-- 개별 항목 템플릿: [분류 배지][날짜][시간] [제목][완료/진행] -->
         <DataTemplate x:Key="ItemTemplate" x:DataType="local:AgendaItem">
-            <Grid Padding="8,4" MinHeight="32">
+            <Grid Padding="8,4" MinHeight="32"
+                  Background="{x:Bind local:KAgendaControl.RowBackground(IsOverdue, IsToday), Mode=OneWay}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="76"/>
+                    <ColumnDefinition Width="110"/>
                     <ColumnDefinition Width="80"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -41,11 +42,12 @@
                                Foreground="White"/>
                 </Border>
 
-                <!-- 날짜 -->
+                <!-- 날짜 — 지연은 경고색, 오늘은 강조색으로 굵게 (줄을 찾는 주된 단서) -->
                 <TextBlock Grid.Column="1"
                            Text="{x:Bind DateLabel}"
                            FontSize="13"
-                           Foreground="#777"
+                           Foreground="{x:Bind local:KAgendaControl.DateLabelBrush(IsOverdue, IsToday), Mode=OneWay}"
+                           FontWeight="{x:Bind local:KAgendaControl.DateLabelWeight(IsOverdue, IsToday), Mode=OneWay}"
                            TextTrimming="CharacterEllipsis"
                            VerticalAlignment="Center"
                            Margin="2,0,4,0"/>
@@ -54,7 +56,7 @@
                 <TextBlock Grid.Column="2"
                            Text="{x:Bind TimeLabel}"
                            FontSize="13"
-                           Foreground="#777"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                            VerticalAlignment="Center"
                            Margin="0,0,4,0"/>
 

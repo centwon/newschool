@@ -30,7 +30,15 @@
         </Style>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollMode="Auto" Padding="4">
+    <!-- 앱 공용 카드 면(DashboardCard) 위에 올린다 — 아래 누가기록 카드와 한 쌍으로 보이고,
+         밝게/어둡게를 따라간다.
+
+         스크롤이 실제로 걸리려면 이 컨트롤에 높이 상한이 있어야 한다.
+         쓰는 쪽(PageStudentInfo)이 남는 공간에 맞춰 MaxHeight 를 준다. -->
+    <Border Style="{StaticResource DashboardCard}">
+        <ScrollViewer VerticalScrollMode="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Padding="10,8">
         <StackPanel Spacing="2">
 
             <!-- ===== 기본 정보 + 사진 ===== -->
@@ -252,5 +260,6 @@
                 </StackPanel>
             </Expander>
         </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Border>
 </UserControl>

@@ -195,6 +195,38 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         BtnSave.IsEnabled = SCard.IsChanged;
     }
 
+    /// <summary>누가기록에 남겨 둘 몫 — 창이 커지면 함께 커진다</summary>
+    private const double LogHeightRatio = 0.4;
+
+    /// <summary>누가기록에 남겨 둘 최소 높이(창이 아주 작을 때)</summary>
+    private const double LogMinHeight = 220;
+
+    /// <summary>학생카드가 아무리 밀려도 이보다 작아지지는 않는다</summary>
+    private const double CardMinHeight = 200;
+
+    /// <summary>
+    /// 학생카드의 높이 상한을 남은 공간에 맞춘다.
+    ///
+    /// 학생카드는 스스로 ScrollViewer 를 갖고 있지만, 놓인 자리가 <c>Height="Auto"</c> 행이라
+    /// 재는 동안 높이를 <b>무한</b>으로 받는다. 그러면 ScrollViewer 는 "내용만큼 크면 된다"고
+    /// 판단해 스크롤을 걸지 않고, 행은 화면 밖까지 자라 잘린다 — 상세 정보를 펼치면
+    /// 아래쪽이 통째로 보이지 않던 이유다. 상한을 주면 그 값이 곧 스크롤 기준이 된다.
+    ///
+    /// 상한은 "누가기록 몫(<see cref="LogHeightRatio"/>)을 남기고 나머지 전부"다. 고정값으로
+    /// 남기면 창이 커져도 누가기록은 그대로라, 카드를 펼쳤을 때 기록이 스크롤은 되지만
+    /// 몇 줄밖에 안 보였다. 접혀 있을 때는 카드가 상한보다 작으므로 예전처럼 필요한 만큼만
+    /// 쓰고 남는 자리는 전부 누가기록이 가져간다.
+    /// </summary>
+    private void DetailArea_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        double reserve = Math.Max(LogMinHeight, e.NewSize.Height * LogHeightRatio);
+        double max = Math.Max(CardMinHeight, e.NewSize.Height - reserve);
+
+        // 같은 값을 다시 넣어 레이아웃을 또 돌리지 않는다.
+        if (Math.Abs(SCard.MaxHeight - max) > 0.5)
+            SCard.MaxHeight = max;
+    }
+
     #endregion
 
     #region Event Handlers - Buttons

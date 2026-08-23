@@ -5,7 +5,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:NewSchool.Controls"
-    mc:Ignorable="d">
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -115,8 +116,10 @@
 
 
         <!-- Column 1: StudentCard + 누가기록 래퍼 (너비 통일) -->
-        <Grid Grid.Column="1" Grid.Row="1"
-              MaxWidth="1000" HorizontalAlignment="Left" Margin="4">
+        <Grid x:Name="DetailArea"
+              Grid.Column="1" Grid.Row="1"
+              MaxWidth="1000" HorizontalAlignment="Left" Margin="4"
+              SizeChanged="DetailArea_SizeChanged">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -126,23 +129,20 @@
             <controls:StudentCard x:Name="SCard"
                                   Grid.Row="0"/>
 
-            <!-- 누가기록 영역 -->
+            <!-- 누가기록 영역 — 위 학생카드와 같은 공용 카드 스타일.
+                 예전에는 CornflowerBlue·AliceBlue·#E3F2FD 를 직접 적어 어두운 테마에서 깨졌다. -->
             <Border Grid.Row="1"
-                    BorderBrush="CornflowerBlue"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Margin="0,4,0,0"
-                    Padding="4">
-                <Grid Background="AliceBlue">
+                    Style="{StaticResource DashboardCard}"
+                    Margin="0,6,0,0">
+                <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
                     <!-- 누가기록 헤더 -->
-                    <Grid Grid.Row="0"
-                          Padding="8,4,8,4"
-                          Background="#E3F2FD">
+                    <Border Grid.Row="0" Style="{StaticResource DashboardCardHeader}" Padding="8,4">
+                    <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -202,6 +202,7 @@
                             <FontIcon Glyph="&#xE160;" FontSize="16"/>
                         </Button>
                     </Grid>
+                    </Border>
 
                     <!-- 누가기록 리스트 -->
                     <controls:LogListViewer x:Name="LogList"

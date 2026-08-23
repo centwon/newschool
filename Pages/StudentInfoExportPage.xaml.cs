@@ -125,6 +125,22 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
     /// <summary>
     /// DataTable 생성
     /// </summary>
+    /// <summary>
+    /// 이미 쓰고 있는 이름이면 "이름(2)", "이름(3)" … 으로 비켜 준다.
+    /// 열을 빼 버리면 선택한 항목과 열이 어긋나 값이 엉뚱한 칸에 들어간다.
+    /// </summary>
+    private static string UniqueColumnName(DataTable table, string desired)
+    {
+        if (string.IsNullOrWhiteSpace(desired)) desired = "항목";
+        if (!table.Columns.Contains(desired)) return desired;
+
+        for (int n = 2; ; n++)
+        {
+            string candidate = $"{desired}({n})";
+            if (!table.Columns.Contains(candidate)) return candidate;
+        }
+    }
+
     private async Task MakeDataAsync()
     {
         _data = new DataTable();
@@ -156,17 +172,22 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
             .ToList();
 
         // Native AOT 호환 - 직접 타입 지정으로 열 추가
-        // (사전 정의 항목은 Content 가 서로 겹치지 않으며, selectedTags 와 컬럼 수가
-        //  1:1 로 대응해야 하므로 여기서는 중복 제거하지 않는다)
+        //
+        // selectedTags 와 컬럼 수가 1:1 로 대응해야 하므로 중복이라고 건너뛰면 안 된다.
+        // 이름이 겹치면 뒤엣것에 번호를 붙여 <b>둘 다</b> 만든다 — 예전에는 이름이 겹치지
+        // 않는다고 가정하고 그대로 넣었고, '전화'(학생 본인)와 '전화'(보호자)를 함께 고르면
+        // DuplicateNameException 으로 출력 자체가 실패했다.
         foreach (var item in selectedItems)
         {
+            string name = UniqueColumnName(_data, item.Content);
+
             switch (item.Tag)
             {
                 case "Birth":
-                    _data.Columns.Add(item.Content, typeof(DateTime));
+                    _data.Columns.Add(name, typeof(DateTime));
                     break;
                 default:
-                    _data.Columns.Add(item.Content, typeof(string));
+                    _data.Columns.Add(name, typeof(string));
                     break;
             }
         }
