@@ -29,8 +29,18 @@ public sealed class GoogleSyncService : IDisposable
     // 학사일정 중복 판정용. 예전에는 Pull 되는 이벤트 하나마다 SchoolScheduleService 를 새로
     // 만들어(= SQLite 연결을 새로 열어) 하루치를 조회했다. 서비스는 한 번만 열고, 날짜별 결과는
     // 기억해 둔다 — 같은 날짜에 여러 이벤트가 걸려도 조회는 한 번이다.
+    // ⚠ 캐시 수명은 '동기화 한 번'이다. 자동 동기화를 켜면 이 서비스가 앱이 켜져 있는 동안
+    // 계속 살아 있어서, 비우지 않으면 첫 동기화 때 읽은 학사일정이 영원히 기준이 된다
+    // (그 뒤 추가한 학사일정은 중복으로 걸러지지 않고, 조회가 한 번 실패해 빈 집합이 들어가면
+    // 그 날짜는 다시는 판정되지 않는다). 그래서 동기화를 시작할 때마다 비운다.
     private Services.SchoolScheduleService? _scheduleService;
     private readonly Dictionary<DateTime, HashSet<string>> _scheduleTitlesByDate = new();
+
+    // 이번 Pull 에서 구글이 준 그대로 로컬에 반영한 이벤트들. 이 항목들은 로컬 Updated 가
+    // lastSync 보다 뒤라서 곧바로 이어지는 Push 의 "수정됨" 대상에 걸리는데, 방금 구글에서
+    // 받아온 내용을 그대로 되돌려 보내는 것이라 의미가 없다(호출량만 늘고 구글 쪽 수정 시각이
+    // 우리 때문에 계속 갱신된다). 같은 동기화 안에서는 건너뛴다.
+    private readonly HashSet<string> _pulledGoogleIds = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 전체 동기화(SyncAllAsync) 완료 시 발생. 백그라운드(시작 시·주기적) 동기화 실패를
@@ -122,6 +132,10 @@ public sealed class GoogleSyncService : IDisposable
             return new SyncResult { ErrorMessages = { "동기화가 이미 진행 중입니다." } };
 
         var result = new SyncResult();
+
+        // 이 동기화 회차에만 유효한 기억들 — 회차마다 새로 시작한다.
+        _scheduleTitlesByDate.Clear();
+        _pulledGoogleIds.Clear();
 
         try
         {
@@ -265,6 +279,7 @@ public sealed class GoogleSyncService : IDisposable
             // 신규 이벤트
             var newEvent = GoogleEventToLocal(gEvent, calendarId);
             await service.CreateEventAsync(newEvent);
+            _pulledGoogleIds.Add(gEvent.Id);
             result.Created++;
         }
         else
@@ -274,6 +289,7 @@ public sealed class GoogleSyncService : IDisposable
             {
                 UpdateLocalFromGoogle(localEvent, gEvent);
                 await service.UpdateEventAsync(localEvent);
+                _pulledGoogleIds.Add(gEvent.Id);
                 result.Updated++;
             }
         }
@@ -365,6 +381,11 @@ public sealed class GoogleSyncService : IDisposable
             var modified = await service.GetModifiedEventsSinceAsync(calendar.No, sinceUtc);
             foreach (var localEvent in modified)
             {
+                // 방금 Pull 로 구글 내용을 그대로 받아 적은 항목 — 되돌려 보낼 것이 없다
+                if (!string.IsNullOrEmpty(localEvent.GoogleId)
+                    && _pulledGoogleIds.Contains(localEvent.GoogleId))
+                    continue;
+
                 try
                 {
                     var gEvent = LocalToGoogleEvent(localEvent);
@@ -467,11 +488,16 @@ public sealed class GoogleSyncService : IDisposable
 
     private static GoogleEvent LocalToGoogleEvent(KEvent ke)
     {
+        // ⚠ 수정 Push 는 PATCH(부분 갱신)라, null 로 두면 "그대로 두라"는 뜻이 된다
+        // (직렬화 옵션이 WhenWritingNull 이라 전송 자체가 생략됨).
+        // 내용·장소는 앱이 소유하는 값이므로 비었을 때 빈 문자열을 보내 구글에서도 지워지게 한다.
+        // 색(ColorId)만은 빈 문자열이 유효한 값이 아니라 null 로 남긴다 — 앱에서 색을 지워도
+        // 구글 쪽 색은 그대로 유지된다.
         var ge = new GoogleEvent
         {
             Summary = ke.Title,
-            Description = string.IsNullOrEmpty(ke.Notes) ? null : ke.Notes,
-            Location = string.IsNullOrEmpty(ke.Location) ? null : ke.Location,
+            Description = ke.Notes ?? string.Empty,
+            Location = ke.Location ?? string.Empty,
             Status = ke.Status,
             ColorId = string.IsNullOrEmpty(ke.ColorId) ? null : ke.ColorId,
         };

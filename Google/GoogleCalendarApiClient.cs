@@ -140,11 +140,20 @@ public class GoogleCalendarApiClient
         return created;
     }
 
-    /// <summary>이벤트 수정</summary>
+    /// <summary>
+    /// 이벤트 수정.
+    ///
+    /// ⚠ PUT(events.update)이 아니라 <b>PATCH(events.patch)</b> 를 쓴다. PUT 은 보낸 본문으로
+    /// 이벤트를 <b>통째로 대체</b>하므로, 우리가 <see cref="GoogleEvent"/> 에 모델링하지 않은 필드
+    /// (참석자·알림·Meet 링크·공개 범위·첨부 등)가 전부 사라진다. 구글 웹에서 참석자를 넣어 만든
+    /// 일정을 앱에서 열어 제목만 고쳐도 참석자와 회의 링크가 날아갔다.
+    /// PATCH 는 본문에 담긴 필드만 바꾸고 나머지는 그대로 둔다(직렬화 옵션이
+    /// <c>WhenWritingNull</c> 이라 null 필드는 아예 전송되지 않는다).
+    /// </summary>
     public async Task<GoogleEvent?> UpdateEventAsync(string calendarId, string eventId, GoogleEvent ev)
     {
         string url = $"{BaseUrl}/calendars/{Uri.EscapeDataString(calendarId)}/events/{Uri.EscapeDataString(eventId)}";
-        var request = await CreateAuthRequestAsync(HttpMethod.Put, url);
+        var request = await CreateAuthRequestAsync(HttpMethod.Patch, url);
         request.Content = new StringContent(
             JsonSerializer.Serialize(ev, GoogleCalendarJsonContext.Default.GoogleEvent),
             Encoding.UTF8, "application/json");
