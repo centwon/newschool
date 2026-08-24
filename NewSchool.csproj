@@ -12,7 +12,7 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
 
-    <!-- MSB3277: WindowsAppSDK 2.2.0 이 전이적으로 끌고 오는 Microsoft.Web.WebView2 패키지가
+    <!-- MSB3277: WindowsAppSDK 메타패키지가 전이적으로 끌고 오는 Microsoft.Web.WebView2 패키지가
          net6.0-windows/net8.0-windows TFM에는 Microsoft.Web.WebView2.Wpf.dll을 아예 배포하지 않아,
          NuGet이 유일하게 그 어셈블리를 가진 net5.0-windows(WPF의 WindowsBase 5.0.0.0 참조) 자산으로
          폴백하면서 앱 자체의 WindowsBase(4.0.0.0) 참조와 충돌 경고가 발생한다.
@@ -133,12 +133,13 @@
        파일 하단 RemoveUnusedWinAppSdkAssets Target 에서 처리한다(ResolvedFileToPublish 필터). -->
 
   <!-- WinUIRichEditor: Jodit(WebView2) 대체용 Win2D 네이티브 리치에디터. nuget.org 패키지 참조.
-       ⚠ 버전 선택 제약: 이 패키지가 선언하는 Microsoft.WindowsAppSDK.WinUI 하한선이
-       위 메타패키지(2.3.1)가 제공하는 WinUI 2.3.0 을 "넘지 않아야" 한다. 넘으면 NuGet 이 위로
-       통일하면서 .Runtime 2.3.1 의 컴포넌트 버전 검사에 걸려 빌드가 실패하고, 이를 피하려
-       self-contained 로 돌리면 게시가 9개 → 70개(44MB → 97MB)로 불어난다.
-       0.9.1 = 하한선 2.2.1 → 2.3.0 으로 해석되어 적합.
-       (0.9.0 은 하한선이 2.3.2 라 부적합 — 올리지 말 것.) -->
+       ⚠ 버전 선택 제약(메커니즘은 그대로 유효): 이 패키지가 선언하는 Microsoft.WindowsAppSDK.WinUI
+       하한선이 위 메타패키지가 제공하는 WinUI 를 "넘지 않아야" 한다. 넘으면 NuGet 이 위로 통일하면서
+       .Runtime 의 컴포넌트 버전 검사에 걸려 빌드가 실패하고, 이를 피하려 self-contained 로 돌리면
+       게시가 9개 → 70개(44MB → 97MB)로 불어난다.
+       올리기 전에 반드시 이 조합으로 빌드해 볼 것.
+       (아래 0.9.x 기록은 메타패키지가 2.3.1 이던 시절의 것이다: 0.9.1 = 하한선 2.2.1 → 적합,
+        0.9.0 = 하한선 2.3.2 → 부적합. 지금 조합은 메타패키지 2.4.0 + 이 패키지 1.1.0 이다.) -->
   <ItemGroup>
     <PackageReference Include="WinUIRichEditor" Version="1.1.0" />
   </ItemGroup>
@@ -358,7 +359,7 @@
   </Target>
 
   <!-- ==========================================
-       미사용 전이 자산 게시 제외 (WindowsAppSDK 2.2 가 끌고 오는 WebView2·Windows AI(ML))
+       미사용 전이 자산 게시 제외 (WindowsAppSDK 가 끌고 오는 WebView2·Windows AI(ML))
        앱은 WebView2(Jodit 제거)·Windows AI/ML 을 사용하지 않음 → 게시본에서 제거.
        · managed projection(WebView2·Microsoft.Windows.AI.*·Imaging) ~2MB
        · 네이티브 ML 런타임(onnxruntime.dll 20.7MB + DirectML.dll 17.8MB) ~38MB
