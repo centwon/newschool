@@ -117,14 +117,13 @@ namespace NewSchool.ViewModels
                     OnPropertyChanged(nameof(HasChange));
                     OnPropertyChanged(nameof(IsCancelled));
                     OnPropertyChanged(nameof(ChangeLabel));
-                    OnPropertyChanged(nameof(ChangePrefix));
                     OnPropertyChanged(nameof(SubjectWithPrefix));
                     OnPropertyChanged(nameof(ChangeTooltip));
                 }
             }
         }
 
-        /// <summary>변경 사유 — 배지 툴팁에 쓴다</summary>
+        /// <summary>변경 사유 — 툴팁에 쓴다</summary>
         public string ChangeMemo
         {
             get => _changeMemo;
@@ -135,7 +134,7 @@ namespace NewSchool.ViewModels
             }
         }
 
-        /// <summary>배지 툴팁 — 사유가 없으면 구분만 보여 준다(빈 툴팁 상자가 뜨지 않게)</summary>
+        /// <summary>변경 툴팁 — 사유가 없으면 구분만 보여 준다(빈 툴팁 상자가 뜨지 않게)</summary>
         public string ChangeTooltip => string.IsNullOrWhiteSpace(ChangeMemo)
             ? ChangeLabel
             : $"{ChangeLabel} · {ChangeMemo}";
@@ -146,11 +145,11 @@ namespace NewSchool.ViewModels
         /// <summary>휴강인가</summary>
         public bool IsCancelled => ChangeKind == LessonChangeKind.Cancelled;
 
-        /// <summary>배지 글자 (휴강 · 교체 · 보강 · 대강)</summary>
+        /// <summary>구분 이름 (휴강 · 교체 · 보강 · 대강) — 툴팁 문구를 만들 때 쓴다</summary>
         public string ChangeLabel => LessonChangeLabels.Name(ChangeKind);
 
-        /// <summary>과목명 앞에 붙는 표식 (예: "(교)")</summary>
-        public string ChangePrefix => LessonChangeLabels.Prefix(ChangeKind);
+        // ChangePrefix 는 바인딩도 호출도 없어 지웠다 — 표식이 필요한 곳은 전부
+        // SubjectWithPrefix 로 과목명과 함께 받는다. (39차 검사는 nameof 자기 참조 때문에 놓쳤다.)
 
         /// <summary>표식이 붙은 과목명 (예: "(교)영어")</summary>
         public string SubjectWithPrefix => LessonChangeLabels.WithPrefix(ChangeKind, SubjectName);

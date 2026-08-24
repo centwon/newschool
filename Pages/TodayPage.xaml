@@ -144,7 +144,7 @@
                                                 Tag="{x:Bind}"
                                                 Click="TeacherSlot_Click"
                                                 IsHitTestVisible="{x:Bind local:TodayPage.ClickableIfNotCancelled(IsCancelled), Mode=OneWay}"
-                                                ToolTipService.ToolTip="눌러서 수업 일지 쓰기">
+                                                ToolTipService.ToolTip="{x:Bind local:TodayPage.SlotTooltip(HasChange, ChangeTooltip), Mode=OneWay}">
                                         <Grid MinHeight="20">
                                             <!-- 현재 교시 강조 배경 -->
                                             <Border CornerRadius="5"
@@ -170,16 +170,12 @@
                                                                Opacity="{x:Bind local:TodayPage.DimIfCancelled(IsCancelled), Mode=OneWay}"
                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-                                                    <!-- 변경 배지: 휴강 · 교체 · 보강 · 대강 -->
-                                                    <Border CornerRadius="7" Padding="5,1"
-                                                            VerticalAlignment="Center"
-                                                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
-                                                            ToolTipService.ToolTip="{x:Bind ChangeTooltip, Mode=OneWay}"
-                                                            Visibility="{x:Bind local:TodayPage.ShowIfChanged(HasChange), Mode=OneWay}">
-                                                        <TextBlock Text="{x:Bind ChangeLabel, Mode=OneWay}"
-                                                                   FontSize="9" FontWeight="SemiBold"
-                                                                   Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
-                                                    </Border>
+                                                    <!--
+                                                        변경 배지(휴강·교체·보강·대강)는 두지 않는다 — 과목명 앞의
+                                                        표식이 (휴)·(교)·(보)·(대) 로 같은 말을 이미 하고 있어서,
+                                                        "(보)영어 1-1 [보강]" 처럼 두 번 읽힌다.
+                                                        변경 사유 메모는 줄 전체의 툴팁으로 옮겼다.
+                                                    -->
                                                 </StackPanel>
                                             </Grid>
                                             <!-- '지금' 배지 (오버레이, 우측) -->

@@ -411,9 +411,16 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         }
     }
 
-    /// <summary>변경 배지 표시 여부 → Visibility (DataTemplate x:Bind용 순수 함수)</summary>
-    public static Visibility ShowIfChanged(bool hasChange)
-        => hasChange ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>
+    /// 수업 한 줄의 툴팁 (DataTemplate x:Bind용 순수 함수).
+    ///
+    /// <para>변경이 걸린 교시면 사유 메모까지 함께 보여 준다 — 예전에는 이 내용이 변경 배지에
+    /// 달려 있었는데, 배지 자체가 과목명 앞 표식과 겹쳐 없앴다. 메모까지 같이 사라지면 안 된다.</para>
+    /// </summary>
+    public static string SlotTooltip(bool hasChange, string changeTooltip)
+        => hasChange && !string.IsNullOrWhiteSpace(changeTooltip)
+            ? $"{changeTooltip} · 눌러서 수업 일지 쓰기"
+            : "눌러서 수업 일지 쓰기";
 
     /// <summary>휴강이면 취소선 (DataTemplate x:Bind용 순수 함수)</summary>
     public static Windows.UI.Text.TextDecorations StrikeIfCancelled(bool isCancelled)
