@@ -70,7 +70,7 @@
                     <!-- Row 0: 이름, 성별, 나이 -->
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="이름" Style="{StaticResource FormLabelStyle}"/>
                     <TextBox Grid.Row="0" Grid.Column="1"
-                            Text="{x:Bind ViewModel.Student.Name, Mode=TwoWay}"/>
+                            Text="{x:Bind ViewModel.Student.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <TextBlock Grid.Row="0" Grid.Column="2" Text="성별" Style="{StaticResource FormLabelStyle}"/>
                     <ComboBox Grid.Row="0" Grid.Column="3"
@@ -93,21 +93,21 @@
                     <!-- Row 2: 전화번호, 이메일 -->
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="전화번호" Style="{StaticResource FormLabelStyle}"/>
                     <TextBox Grid.Row="2" Grid.Column="1"
-                            Text="{x:Bind ViewModel.Student.Phone, Mode=TwoWay}"/>
+                            Text="{x:Bind ViewModel.Student.Phone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <TextBlock Grid.Row="2" Grid.Column="2" Text="이메일" Style="{StaticResource FormLabelStyle}"/>
                     <TextBox Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="3"
-                            Text="{x:Bind ViewModel.Student.Email, Mode=TwoWay}"/>
+                            Text="{x:Bind ViewModel.Student.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <!-- Row 3: 주소 -->
                     <TextBlock Grid.Row="3" Grid.Column="0" Text="주소" Style="{StaticResource FormLabelStyle}"/>
                     <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="5"
-                            Text="{x:Bind ViewModel.Student.Address, Mode=TwoWay}"/>
+                            Text="{x:Bind ViewModel.Student.Address, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <!-- Row 4: 간단 메모 -->
                     <TextBlock Grid.Row="4" Grid.Column="0" Text="메모" Style="{StaticResource FormLabelStyle}"/>
                     <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="5"
-                            Text="{x:Bind ViewModel.Student.Memo, Mode=TwoWay}"
+                            Text="{x:Bind ViewModel.Student.Memo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             PlaceholderText="간단한 메모"/>
                 </Grid>
 
@@ -148,15 +148,15 @@
 
                         <TextBlock Grid.Column="0" Text="보호자" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Column="1" PlaceholderText="이름"
-                                Text="{x:Bind ViewModel.Detail.GuardianName, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.GuardianName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         
                         <TextBlock Grid.Column="2" Text="관계" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Column="3" PlaceholderText="부/모"
-                                Text="{x:Bind ViewModel.Detail.GuardianRelation, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.GuardianRelation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         
                         <TextBlock Grid.Column="4" Text="연락처" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Column="5"
-                                Text="{x:Bind ViewModel.Detail.GuardianPhone, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.GuardianPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
                     <!-- 가족 정보 -->
@@ -176,21 +176,21 @@
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="아버지" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="0" Grid.Column="1" PlaceholderText="이름"
-                                Text="{x:Bind ViewModel.Detail.FatherName, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.FatherName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="연락처" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="0" Grid.Column="3"
-                                Text="{x:Bind ViewModel.Detail.FatherPhone, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.FatherPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="어머니" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="1" Grid.Column="1" PlaceholderText="이름"
-                                Text="{x:Bind ViewModel.Detail.MotherName, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.MotherName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         <TextBlock Grid.Row="1" Grid.Column="2" Text="연락처" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="1" Grid.Column="3"
-                                Text="{x:Bind ViewModel.Detail.MotherPhone, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.MotherPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="가족구성" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Top" Margin="0,8,6,0"/>
                         <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3"
-                                Text="{x:Bind ViewModel.Detail.FamilyInfo, Mode=TwoWay}"
+                                Text="{x:Bind ViewModel.Detail.FamilyInfo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 PlaceholderText="가족 구성 및 환경"
                                 AcceptsReturn="True"
                                 TextWrapping="Wrap"
@@ -213,15 +213,15 @@
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="진로희망" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="0" Grid.Column="1"
-                                Text="{x:Bind ViewModel.Detail.CareerGoal, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.CareerGoal, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="특기" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="0" Grid.Column="3"
-                                Text="{x:Bind ViewModel.Detail.Talents, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.Talents, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="관심/취미" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3"
-                                Text="{x:Bind ViewModel.Detail.Interests, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.Interests, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
                     <!-- 건강 정보 -->
@@ -240,20 +240,20 @@
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="건강정보" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3"
-                                Text="{x:Bind ViewModel.Detail.HealthInfo, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.HealthInfo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="알레르기" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="1" Grid.Column="1"
-                                Text="{x:Bind ViewModel.Detail.Allergies, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.Allergies, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="2" Text="특수교육" Style="{StaticResource FormLabelStyle}"/>
                         <TextBox Grid.Row="1" Grid.Column="3"
-                                Text="{x:Bind ViewModel.Detail.SpecialNeeds, Mode=TwoWay}"/>
+                                Text="{x:Bind ViewModel.Detail.SpecialNeeds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
                     <!-- 상세 메모 -->
                     <TextBlock Text="상세 메모" Style="{StaticResource SectionHeaderStyle}"/>
-                    <TextBox Text="{x:Bind ViewModel.Detail.Memo, Mode=TwoWay}"
+                    <TextBox Text="{x:Bind ViewModel.Detail.Memo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             AcceptsReturn="True"
                             MinHeight="60"
                             PlaceholderText="학생에 대한 상세 메모"/>

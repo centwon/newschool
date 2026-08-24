@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.ViewModels;
@@ -12,6 +13,15 @@ namespace NewSchool.Controls
     /// </summary>
     public sealed partial class StudentCard : UserControl
     {
+        #region Fields
+
+        /// <summary>마지막 편집 후 이만큼 지나면 자동 저장한다.</summary>
+        private const int AutoSaveDelayMs = 3000;
+
+        private readonly DispatcherQueueTimer _autoSaveTimer;
+
+        #endregion
+
         #region Properties
 
         /// <summary>
@@ -52,6 +62,8 @@ namespace NewSchool.Controls
             // PropertyChanged 이벤트 구독
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
+            _autoSaveTimer = CreateAutoSaveTimer();
+
             // Unloaded 이벤트 (자동 저장)
             this.Unloaded += StudentCard_Unloaded;
         }
@@ -64,9 +76,35 @@ namespace NewSchool.Controls
             ViewModel = viewModel;
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
+            _autoSaveTimer = CreateAutoSaveTimer();
+
             // 기본 생성자와 동일하게 Unloaded 구독 (이중 호출 시 중복 방지는 호출측 책임)
             this.Unloaded -= StudentCard_Unloaded;
             this.Unloaded += StudentCard_Unloaded;
+        }
+
+        /// <summary>
+        /// 입력이 멎고 <see cref="AutoSaveDelayMs"/> 뒤에 저장하는 디바운스 타이머를 만든다.
+        ///
+        /// <para>⚠ 예전에는 저장이 <c>Unloaded</c>(다른 학생 선택·페이지 이탈·대화상자 닫기)에서만
+        /// 일어나서, 고친 내용을 두고 <b>앱을 그냥 닫으면 그대로 사라졌다</b>. 창 닫기 훅으로는
+        /// 못 막는다 — 핸들러가 동기라 비동기 DB 저장이 프로세스 종료와 경합한다.
+        /// 학급일지(<see cref="ClassDiaryBox"/>)와 같은 방식으로 저장 시점을 앞당긴다.</para>
+        /// </summary>
+        private DispatcherQueueTimer CreateAutoSaveTimer()
+        {
+            var timer = DispatcherQueue.CreateTimer();
+            timer.Interval = TimeSpan.FromMilliseconds(AutoSaveDelayMs);
+            timer.IsRepeating = false;
+            timer.Tick += async (_, _) => await SaveChangedAsync();
+            return timer;
+        }
+
+        /// <summary>편집이 있을 때마다 자동 저장 타이머를 다시 센다(디바운스).</summary>
+        private void RestartAutoSaveTimer()
+        {
+            _autoSaveTimer.Stop();
+            _autoSaveTimer.Start();
         }
 
         #endregion
@@ -75,6 +113,9 @@ namespace NewSchool.Controls
 
         private void StudentCard_Unloaded(object sender, RoutedEventArgs e)
         {
+            // 대기 중인 디바운스 저장은 아래에서 바로 처리하므로 타이머는 멈춘다
+            _autoSaveTimer.Stop();
+
             // 자동 저장 시도
             _ = SaveChangedAsync().ContinueWith(t =>
             {
@@ -93,6 +134,13 @@ namespace NewSchool.Controls
             if (e.PropertyName == nameof(StudentCardViewModel.IsChanged) && ViewModel.IsChanged)
             {
                 StudentChanged?.Invoke(this, EventArgs.Empty);
+            }
+
+            // 미저장 편집이 남아 있는 동안은 어떤 항목이 바뀌든 저장 시각을 뒤로 민다.
+            // 로드·초기화는 끝에서 IsChanged 를 내리므로 여기 걸리지 않는다.
+            if (ViewModel.IsChanged)
+            {
+                RestartAutoSaveTimer();
             }
         }
 
@@ -159,6 +207,8 @@ namespace NewSchool.Controls
         /// </summary>
         private async Task<bool> SaveChangedAsync()
         {
+            _autoSaveTimer.Stop();
+
             if (!ViewModel.IsChanged)
                 return true;
 
