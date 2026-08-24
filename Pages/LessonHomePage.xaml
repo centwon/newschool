@@ -109,6 +109,17 @@
                                                    SlotInvoked="Timetable_SlotInvoked"
                                                    HorizontalAlignment="Stretch"
                                                    VerticalAlignment="Top"/>
+
+                        <!--
+                            한 칸도 배치하지 않으면 빈 격자만 남아, 아직 안 넣은 것인지 못 읽어 온
+                            것인지 구분되지 않는다. 어디서 넣는지까지 짚어 준다.
+                        -->
+                        <TextBlock x:Name="TxtNoTimetable" Grid.Row="1"
+                                   Text="아직 배치한 수업이 없습니다 — 수업 관리의 [수업 시간표 입력] 탭에서 넣으면 여기에 나옵니다."
+                                   Visibility="Collapsed"
+                                   TextWrapping="Wrap" FontSize="12" Margin="8,10"
+                                   HorizontalAlignment="Center" VerticalAlignment="Top"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </Grid>
                 </Border>
 

@@ -63,11 +63,42 @@ public sealed partial class LessonHomePage : Page
         // 페이지 헤더 날짜 표시
         TxtPageDate.Text = DateTime.Today.ToString("yyyy년 M월 d일 (ddd)");
 
-        await LoadCoursesAsync();
-        await LoadTodayLessonsAsync();
-        await LoadJournalsAsync();
-        await LoadTimetableAsync();
-        await LoadLessonTasksAsync();
+        // 섹션 하나가 실패해도 나머지는 보여주되, 실패했다는 사실은 알린다.
+        //
+        // ⚠ 예전에는 각 로드가 실패를 Debug 로그로만 삼켜서, 과목·시간표·할일을 못 불러와도
+        //    화면상 "오늘은 없음"과 구분되지 않았다. 오늘 화면과 같은 방식으로 표면화한다.
+        // 순서를 지킨다 — 오늘의 수업이 과목 목록(_courses)에서 과목명을 채운다.
+        var failed = new List<string>();
+
+        await SafeLoadAsync("과목", LoadCoursesAsync, failed);
+        await SafeLoadAsync("오늘의 수업", LoadTodayLessonsAsync, failed);
+        await SafeLoadAsync("최근 수업 일지", LoadJournalsAsync, failed);
+        await SafeLoadAsync("내 시간표", LoadTimetableAsync, failed);
+        await SafeLoadAsync("수업 할일", LoadLessonTasksAsync, failed);
+
+        ReportFailures(failed);
+    }
+
+    private static async Task SafeLoadAsync(string name, Func<Task> load, List<string> failed)
+    {
+        try
+        {
+            await load();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[LessonHomePage] ✗ {name} 로드 실패: {ex}");
+            failed.Add(name);
+        }
+    }
+
+    private static void ReportFailures(List<string> failed)
+    {
+        if (failed.Count == 0 || App.MainWindow is not MainWindow main) return;
+
+        main.ShowGlobalWarning(
+            "일부 정보를 불러오지 못했습니다",
+            $"{string.Join(", ", failed)} — 새로고침하거나 잠시 후 다시 확인해주세요.");
     }
 
     #endregion
@@ -124,11 +155,13 @@ public sealed partial class LessonHomePage : Page
 
             Debug.WriteLine($"[LessonHomePage] 오늘의 수업: {total}건, 기록 완료: {completed}건");
         }
-        catch (Exception ex)
+        catch
         {
-            Debug.WriteLine($"[LessonHomePage] 오늘의 수업 로드 실패: {ex.Message}");
+            // 자리 안내 문구는 여기서 갈아 끼우고, 실패 자체는 호출부(SafeLoadAsync)가
+            // 모아서 알린다 — 카드 하나가 비었다는 사실이 전역 안내와 어긋나면 안 된다.
             TxtNoLessons.Text = "수업 정보를 불러올 수 없습니다.";
             TxtNoLessons.Visibility = Visibility.Visible;
+            throw;
         }
     }
 
@@ -202,8 +235,14 @@ public sealed partial class LessonHomePage : Page
     /// </summary>
     private async Task RefreshJournalsAsync()
     {
-        await LoadJournalsAsync();
-        await LoadTodayLessonsAsync();
+        // 호출부가 전부 async void 라 예외가 새어 나가면 앱이 그대로 죽는다 —
+        // 로드 실패는 여기서도 모아서 알린다.
+        var failed = new List<string>();
+
+        await SafeLoadAsync("최근 수업 일지", LoadJournalsAsync, failed);
+        await SafeLoadAsync("오늘의 수업", LoadTodayLessonsAsync, failed);
+
+        ReportFailures(failed);
     }
 
     /// <summary>
@@ -230,16 +269,9 @@ public sealed partial class LessonHomePage : Page
     /// </summary>
     private async Task LoadCoursesAsync()
     {
-        try
-        {
-            using var courseService = new CourseService();
-            _courses = await courseService.GetMyCoursesAsync();
-            Debug.WriteLine($"[LessonHomePage] 과목 로드 완료: {_courses.Count}개");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[LessonHomePage] 과목 로드 실패: {ex.Message}");
-        }
+        using var courseService = new CourseService();
+        _courses = await courseService.GetMyCoursesAsync();
+        Debug.WriteLine($"[LessonHomePage] 과목 로드 완료: {_courses.Count}개");
     }
 
     #endregion
@@ -291,6 +323,12 @@ public sealed partial class LessonHomePage : Page
 
         await Timetable.LoadMyWeekScheduleAsync(monday);
 
+        // 한 칸도 없으면 빈 격자 대신 어디서 넣는지 안내한다 —
+        // 격자만 남으면 아직 안 넣은 것인지 못 읽어 온 것인지 알 수 없다.
+        bool hasLesson = Timetable.HasAnyLesson;
+        Timetable.Visibility = hasLesson ? Visibility.Visible : Visibility.Collapsed;
+        TxtNoTimetable.Visibility = hasLesson ? Visibility.Collapsed : Visibility.Visible;
+
         bool thisWeek = monday == MondayOf(DateTime.Today);
 
         // 범위 옆에 늘 "이번 주 / 다음 주 / 지난 주" 를 붙인다 —
@@ -324,15 +362,8 @@ public sealed partial class LessonHomePage : Page
 
     private async Task LoadTimetableAsync()
     {
-        try
-        {
-            await LoadWeekAsync(_weekMonday);
-            Debug.WriteLine("[LessonHomePage] 시간표 로드 완료");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[LessonHomePage] 시간표 로드 실패: {ex.Message}");
-        }
+        await LoadWeekAsync(_weekMonday);
+        Debug.WriteLine("[LessonHomePage] 시간표 로드 완료");
     }
 
     #endregion
@@ -341,16 +372,9 @@ public sealed partial class LessonHomePage : Page
 
     private async Task LoadLessonTasksAsync()
     {
-        try
-        {
-            // 미완료 할일 + 향후 14일만 표시
-            await LessonTaskList.LoadByDateRangeAsync(DateTime.Today, days: 14, showCompleted: false);
-            Debug.WriteLine("[LessonHomePage] 수업 할일 로드 완료");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[LessonHomePage] 수업 할일 로드 실패: {ex.Message}");
-        }
+        // 미완료 할일 + 향후 14일만 표시
+        await LessonTaskList.LoadByDateRangeAsync(DateTime.Today, days: 14, showCompleted: false);
+        Debug.WriteLine("[LessonHomePage] 수업 할일 로드 완료");
     }
 
     #endregion

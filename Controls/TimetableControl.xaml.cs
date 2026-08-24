@@ -164,10 +164,17 @@ namespace NewSchool.Controls
         /// <summary>
         /// DataContext가 변경될 때 시간표 셀 생성
         /// </summary>
+        /// <summary>
+        /// 지금 그려 놓은 시간표에 수업이 한 칸이라도 있는가.
+        /// 호출부가 <b>빈 시간표</b>에 안내를 얹을지 판단할 때 쓴다.
+        /// </summary>
+        public bool HasAnyLesson { get; private set; }
+
         private void TimetableControl_DataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
         {
             if (DataContext is TimetableViewModel viewModel)
             {
+                HasAnyLesson = viewModel.Items.Any(i => !i.IsEmpty);
                 UpdateTimetable(viewModel);
             }
         }
