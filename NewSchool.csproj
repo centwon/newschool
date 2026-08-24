@@ -337,6 +337,35 @@
       <!-- 개발용/내장 전환된 파일은 게시 폴더에 두지 않음(이전 게시 잔존분도 제거) -->
       <_PublishEditorConfig Include="$(PublishDir).editorconfig" />
       <_PublishSecretsJson Include="$(PublishDir)secrets.json" />
+
+      <!--
+        자체 포함(WindowsAppSDKSelfContained=true) 게시본 정리.
+        프레임워크 의존 게시본에는 애초에 없는 파일들이라 그때는 조용히 넘어간다.
+
+        ① .winmd — WinRT 메타데이터. Native AOT 는 프로젝션을 실행 파일에 내장하므로
+           런타임에 읽지 않는다. 44개나 되어 파일 수의 40%를 차지했다.
+        ② 안 쓰는 언어 리소스 — `.mui` 필터가 접두어(StartsWith)라 kok-IN(콘칸어)·en-GB 가
+           함께 통과한다. 이 앱은 ko-KR·en-us 만 쓴다.
+        ③ 앱에 없는 기능의 컴포넌트 — Windows 검색 통합·위젯·NPU/AI 추론.
+        ④ qpdf — QuestPDF 부속이지만 **문서 병합·PDF/A 전용**이다. 이 앱은 GeneratePdf 만
+           쓰고 QuestPDF.Qpdf 경로를 타지 않는다(렌더링은 QuestPdfSkia.dll 이 한다 — 지우지 말 것).
+        ⑤ Bootstrap — 프레임워크 패키지를 찾아 주는 역할이라 자체 포함에서는 쓰이지 않는다.
+
+        ⚠ MS 가 보증하는 구성이 아니다. WinAppSDK 를 올릴 때마다 아래 스모크를 다시 볼 것 —
+          PDF 출력(좌석·학생카드·누가기록) · 리치에디터 · 엑셀 내보내기 · 구글 연동 · 인쇄.
+      -->
+      <_PublishWinmdFiles Include="$(PublishDir)*.winmd" />
+      <_PublishUnusedLocaleDirs Include="kok-IN;en-GB" />
+      <_PublishUnrelatedNative Include="$(PublishDir)Microsoft.Windows.Search.dll" />
+      <_PublishUnrelatedNative Include="$(PublishDir)Microsoft.Windows.Widgets.dll" />
+      <_PublishUnrelatedNative Include="$(PublishDir)PerceptiveStreaming.dll" />
+      <_PublishUnrelatedNative Include="$(PublishDir)NPUDetect.dll" />
+      <_PublishUnrelatedNative Include="$(PublishDir)Microsoft.Windows.Workloads*" />
+      <_PublishUnrelatedNative Include="$(PublishDir)qpdf.dll" />
+      <!-- ⚠ 부트스트래퍼는 **자체 포함일 때만** 뺀다. 프레임워크 의존 게시본에서 지우면
+           프레임워크 패키지를 찾지 못해 앱이 시작조차 못 한다. -->
+      <_PublishUnrelatedNative Include="$(PublishDir)Microsoft.WindowsAppRuntime.Bootstrap.dll"
+                              Condition="'$(WindowsAppSDKSelfContained)' == 'true'" />
     </ItemGroup>
     <Delete Files="@(_PublishXamlFiles)" />
     <Delete Files="@(_PublishPdbFiles)" />
@@ -347,6 +376,9 @@
     <Delete Files="@(_PublishPrereqFiles)" />
     <Delete Files="@(_PublishEditorConfig)" />
     <Delete Files="@(_PublishSecretsJson)" />
+    <Delete Files="@(_PublishWinmdFiles)" />
+    <Delete Files="@(_PublishUnrelatedNative)" />
+    <RemoveDir Directories="@(_PublishUnusedLocaleDirs->'$(PublishDir)%(Identity)')" />
     <RemoveDir Directories="$(PublishDir)Properties" />
     <RemoveDir Directories="$(PublishDir)Pages" />
     <RemoveDir Directories="$(PublishDir)Controls" />
