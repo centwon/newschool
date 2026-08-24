@@ -212,27 +212,27 @@
             <div class="feature-grid">
                 <div class="feature-item">
                     <h3>👨‍🎓 체계적인 학급 관리</h3>
-                    <p>학생 기본 인적사항 관리, 출결 현황 기록, 학부모 상담 내용 누적 관리를 통해 효율적인 담임 업무를 지원합니다.</p>
+                    <p>학생 인적사항과 사진, 누가기록, 학생부 특기사항(NEIS 글자 수 제한 실시간 표시), 자리 배정까지 담임 업무를 한곳에서 처리합니다.</p>
                 </div>
                 <div class="feature-item">
                     <h3>📚 효율적인 수업 관리</h3>
-                    <p>수업 시간표 및 과목별 준비사항을 확인하고, 수업 진행과 관련된 메모와 전달사항을 손쉽게 정리할 수 있습니다.</p>
+                    <p>수업을 개설해 시간표에 배치하고, 단원·주차별 시수·반별 진도를 관리합니다. 휴강·교체·보강·대강은 그날만 얹히고 평소 시간표는 그대로 둡니다. 수업 일지는 시간표 칸을 누르면 바로 씁니다.</p>
                 </div>
                 <div class="feature-item">
-                    <h3>🏫 NEIS 연동 학사일정·시간표</h3>
-                    <p>나이스(NEIS) OpenAPI를 활용하여 우리 학교의 최신 학사일정과 시간표 데이터를 자동으로 연동하여 조회합니다.</p>
+                    <h3>🏫 NEIS 연동 학사일정·급식</h3>
+                    <p>나이스(NEIS) OpenAPI를 활용하여 우리 학교의 학사일정과 급식 식단을 자동으로 가져옵니다. 학교 검색으로 처음 한 번만 학교를 지정하면 됩니다.</p>
                 </div>
                 <div class="feature-item">
-                    <h3>📅 Google 캘린더 실시간 동기화</h3>
-                    <p>Google OAuth 연동을 통해 주요 학급 행사, 수업 일정, 개인 업무 스케줄을 구글 캘린더와 실시간 동기화합니다.</p>
+                    <h3>📅 Google 캘린더 양방향 동기화</h3>
+                    <p>Google 계정을 연결하면 학급 행사·수업 일정·할 일을 구글 캘린더와 양쪽으로 맞춥니다. 앱을 켤 때 한 번 맞추고, 자동 동기화를 켜면 정해진 간격(기본 15분)으로 이어서 맞춥니다.</p>
                 </div>
                 <div class="feature-item">
-                    <h3>📋 학급일지 및 주간 업무</h3>
-                    <p>학급일지 작성, 전달사항 기록, 주간 업무 메모 기능을 통해 놓치기 쉬운 주요 교사 업무를 꼼꼼하게 관리합니다.</p>
+                    <h3>📋 학급일지 · 게시판 · 내보내기</h3>
+                    <p>학급일지에 결석·지각·조퇴와 알림장을 남기고, 학급·수업·업무 게시판으로 자료를 모읍니다. 누가기록·학생부·좌석배정·학생카드·학생정보는 Excel·PDF·HTML·CSV 로 한 번에 내보냅니다.</p>
                 </div>
                 <div class="feature-item">
-                    <h3>🔒 세련된 UI & 안전한 데이터</h3>
-                    <p>Windows 11 Fluent UI 디자인 시스템을 적용하여 쾌적한 UX를 제공하며, 모든 데이터는 안전하게 보관됩니다.</p>
+                    <h3>🔒 세련된 UI & 내 PC 안에 머무는 데이터</h3>
+                    <p>Windows 11 Fluent Design 을 적용해 쾌적하게 쓸 수 있습니다. 모든 기록은 <strong>내 PC 안 파일</strong>에 저장되며, 주민등록번호와 구글 로그인 정보는 Windows 계정 키로 암호화됩니다(DPAPI). 자동 백업도 지원합니다.</p>
                 </div>
             </div>
 
@@ -258,29 +258,40 @@
 
     <!-- GitHub API 기반 최신 .exe 파일 자동 추출 스크립트 -->
     <script>
+        // ⚠ GitHub 은 릴리스가 하나도 없을 때도 404 를 "JSON 본문"으로 돌려준다.
+        //    response.ok 를 보지 않으면 response.json() 이 성공해 .catch 가 걸리지 않고,
+        //    화면이 "불러오는 중" 에서 영영 멈춘 채 버튼은 404 페이지로 간다.
+        const RELEASES_PAGE = 'https://github.com/centwon/newschool/releases';
+        const btn = document.getElementById('download-btn');
+        const info = document.getElementById('version-info');
+
         fetch('https://api.github.com/repos/centwon/newschool/releases/latest')
-            .then(response => response.json())
+            .then(response => response.ok ? response.json() : Promise.reject(response.status))
             .then(data => {
-                if (data && data.assets && data.assets.length > 0) {
-                    // .exe 실행파일 탐색
-                    const exeAsset = data.assets.find(asset => asset.name.endsWith('.exe'));
-                    const btn = document.getElementById('download-btn');
-                    const info = document.getElementById('version-info');
-                    
-                    if (exeAsset) {
-                        btn.href = exeAsset.browser_download_url;
-                        btn.innerHTML = `📥 최신 버전 다운로드 (${data.tag_name})`;
-                        info.innerHTML = `파일명: <strong>${exeAsset.name}</strong> | <a href="${data.html_url}" target="_blank" style="color: var(--primary-color);">릴리즈 노트 보기</a>`;
-                    } else {
-                        btn.href = data.html_url;
-                        info.innerHTML = `최신 버전: <strong>${data.tag_name}</strong> | <a href="${data.html_url}" target="_blank" style="color: var(--primary-color);">릴리즈 페이지로 이동</a>`;
-                    }
+                const exeAsset = (data.assets || []).find(asset => asset.name.endsWith('.exe'));
+
+                if (exeAsset) {
+                    btn.href = exeAsset.browser_download_url;
+                    btn.textContent = `📥 최신 버전 다운로드 (${data.tag_name})`;
+                    info.innerHTML = `파일명: <strong>${exeAsset.name}</strong> | <a href="${data.html_url}" target="_blank" rel="noopener" style="color: var(--primary-color);">릴리즈 노트 보기</a>`;
+                } else {
+                    btn.href = data.html_url;
+                    btn.textContent = `📥 릴리즈 페이지로 이동 (${data.tag_name})`;
+                    info.innerHTML = `최신 버전: <strong>${data.tag_name}</strong> — 설치 파일은 릴리즈 페이지에서 내려받으세요.`;
                 }
             })
-            .catch(err => {
-                console.error('Release 정보 로드 실패:', err);
-                document.getElementById('version-info').innerHTML = 
-                    '<a href="https://github.com/centwon/newschool/releases/latest" target="_blank" style="color: var(--primary-color);">GitHub Releases 페이지에서 최신 설치 파일 확인하기</a>';
+            .catch(status => {
+                btn.href = RELEASES_PAGE;
+
+                if (status === 404) {
+                    // 아직 게시된 릴리스가 없다 — 없는 파일로 보내지 않는다.
+                    btn.textContent = '🚧 아직 공개된 설치 파일이 없습니다';
+                    info.textContent = '출시를 준비하고 있습니다. 공개되면 이 자리에 다운로드 링크가 나타납니다.';
+                } else {
+                    console.error('Release 정보 로드 실패:', status);
+                    btn.textContent = '📥 GitHub Releases 에서 내려받기';
+                    info.textContent = '버전 정보를 불러오지 못했습니다. 위 버튼으로 릴리즈 페이지를 확인해 주세요.';
+                }
             });
     </script>
 </body>
