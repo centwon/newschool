@@ -44,40 +44,6 @@
                                 <ComboBoxItem Content="다크" Tag="Dark"/>
                                 <ComboBoxItem Content="시스템 설정 따르기" Tag="Default"/>
                             </ComboBox>
-
-                            <ComboBox
-                                x:Name="LanguageComboBox"
-                                Header="언어"
-                                PlaceholderText="언어 선택"
-                                SelectionChanged="OnLanguageChanged"
-                                HorizontalAlignment="Stretch">
-                                <ComboBoxItem Content="한국어" Tag="ko-KR"/>
-                                <ComboBoxItem Content="English" Tag="en-US"/>
-                            </ComboBox>
-                        </StackPanel>
-                    </Expander.Content>
-                </Expander>
-
-                <!-- 성능 및 캐시 -->
-                <Expander Header="성능 및 캐시" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,0,0,8">
-                    <Expander.Content>
-                        <StackPanel Spacing="12" Padding="16">
-
-                            <ToggleSwitch
-                                x:Name="EnableCacheToggle"
-                                Header="캐시 사용"
-                                OnContent="활성화"
-                                OffContent="비활성화"
-                                Toggled="OnEnableCacheToggled"/>
-
-                            <NumberBox
-                                x:Name="DefaultPageSizeNumberBox"
-                                Header="페이지당 항목 수"
-                                PlaceholderText="20"
-                                SpinButtonPlacementMode="Inline"
-                                Minimum="10"
-                                Maximum="100"
-                                ValueChanged="OnDefaultPageSizeChanged"/>
                         </StackPanel>
                     </Expander.Content>
                 </Expander>

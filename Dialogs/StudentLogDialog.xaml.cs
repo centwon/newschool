@@ -247,6 +247,9 @@ public sealed partial class StudentLogDialog : Window
         if (Settings.TopMost.Value)
             MainWindow.SetAlwaysOnTop(this, true);
 
+        // 메인 창과 같은 테마로 연다
+        NewSchool.Helpers.ThemeHelper.Apply(this);
+
         CBoxCategory.Items.Clear();
         foreach (LogCategory cat in Enum.GetValues<LogCategory>())
         {

@@ -73,6 +73,9 @@ public sealed partial class ClassDiaryListWin : Window, IDisposable
         if (Settings.TopMost.Value)
             MainWindow.SetAlwaysOnTop(this, true);
 
+        // 메인 창과 같은 테마로 연다
+        NewSchool.Helpers.ThemeHelper.Apply(this);
+
         // 초기화
         InitializeAsync();
 

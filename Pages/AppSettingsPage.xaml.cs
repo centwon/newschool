@@ -32,12 +32,6 @@ public sealed partial class AppSettingsPage : Page
             "Default" => 2,
             _ => 0
         };
-        LanguageComboBox.SelectedIndex = Settings.Language.Value == "ko-KR" ? 0 : 1;
-
-        EnableCacheToggle.IsOn = Settings.EnableCache.Value;
-        DefaultPageSizeNumberBox.Value = Settings.DefaultPageSize.Value;
-
-
         AutoBackupToggle.IsOn = Settings.AutoBackup.Value;
         AutoBackupIntervalDaysNumberBox.Value = Settings.AutoBackupIntervalDays.Value;
         BackupRetentionCountNumberBox.Value = Settings.BackupRetentionCount.Value;
@@ -85,50 +79,13 @@ public sealed partial class AppSettingsPage : Page
             string? theme = item.Tag as string;
             if (theme != null)
             {
+                // 저장한 뒤 열려 있는 메인 창에 바로 반영한다.
+                // 다음 실행부터는 MainWindow 가, 새로 여는 보조 창은 각자
+                // ThemeHelper.Apply 로 같은 값을 집어 온다.
                 Settings.Theme.Set(theme);
-                var rootElement = App.MainWindow?.Content as FrameworkElement;
-                if (rootElement != null)
-                {
-                    rootElement.RequestedTheme = theme switch
-                    {
-                        "Light" => ElementTheme.Light,
-                        "Dark" => ElementTheme.Dark,
-                        _ => ElementTheme.Default
-                    };
-                }
+                Helpers.ThemeHelper.Apply(App.MainWindow);
             }
         }
-    }
-
-    private async void OnLanguageChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_isInitialized) return;
-        if (LanguageComboBox.SelectedItem is ComboBoxItem item)
-        {
-            string? language = item.Tag?.ToString();
-            if (!string.IsNullOrEmpty(language))
-            {
-                Settings.Language.Set(language);
-                await MessageBox.ShowAsync("언어 변경은 앱을 다시 시작한 후 적용됩니다.", "언어 변경");
-            }
-        }
-    }
-
-    #endregion
-
-    #region 성능/캐시
-
-    private void OnEnableCacheToggled(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitialized) return;
-        Settings.EnableCache.Set(EnableCacheToggle.IsOn);
-    }
-
-    private void OnDefaultPageSizeChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (!_isInitialized) return;
-        if (!double.IsNaN(args.NewValue))
-            Settings.DefaultPageSize.Set((int)args.NewValue);
     }
 
     #endregion
@@ -288,8 +245,14 @@ public sealed partial class AppSettingsPage : Page
 
     private async void OnResetSettingsClick(object sender, RoutedEventArgs e)
     {
+        // "모든 설정" 에는 학교 정보·NEIS 키·구글 연결도 들어간다(Settings 테이블을 통째로 비운다).
+        // 지우고 나면 다시 시작할 때 초기 설정 창부터 다시 밟아야 하므로 그 사실을 먼저 말한다.
         var confirmed = await MessageBox.ShowConfirmAsync(
-            "모든 설정을 기본값으로 초기화하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+            "모든 설정을 기본값으로 초기화하시겠습니까?\n\n" +
+            "학교 정보·NEIS 인증키·구글 계정 연결·시정표·담임 학급까지 함께 지워지며,\n" +
+            "다시 시작하면 초기 설정을 처음부터 다시 해야 합니다.\n" +
+            "학생·수업·게시글 등 저장된 데이터는 지워지지 않습니다.\n\n" +
+            "이 작업은 되돌릴 수 없습니다.",
             "설정 초기화", "초기화", "취소");
         if (confirmed)
         {

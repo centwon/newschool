@@ -96,7 +96,7 @@
 | 파일 | 기능 |
 |------|------|
 | `BoardService.cs` | 게시글·댓글·첨부 비즈니스 로직 |
-| `CachedBoardService.cs` | 캐시 계층 (`EnableCache` 설정) |
+| `CachedBoardService.cs` | 캐시 계층. 항상 켜져 있다 — 끄는 설정은 저장만 되고 읽는 곳이 없어 40차에 걷어냈다 |
 | `Board.cs` | 정적 진입점 (DB 초기화·서비스 생성) |
 
 ---
@@ -345,6 +345,7 @@
 | `Helpers/ImportParsing.cs` | 일괄 입력 파싱 ("1학년"→1, 성별 정규화) |
 | `Helpers/FileNameHelper.cs` | 파일명 정리 |
 | `Helpers/DbIntegrity.cs` | DB 무결성 점검 |
+| `Helpers/ThemeHelper.cs` | 저장된 테마를 창에 적용 (메인 창 시작 시 + 보조 창 열 때) |
 | `Helpers/KoreanImeHelper.cs` | 한글 IME 조합 처리 |
 | `Helpers/TextBoxDropHelper.cs` | 텍스트박스 드롭 처리 |
 | `DateTimeHelper.cs` | 날짜·주차 계산 |
@@ -368,7 +369,7 @@
 - `TaskFontSize` - DayCell **이벤트/할일 목록**(`EvtTitleText`/`EvtTimeText`/`TaskTitleText`) 폰트 크기 — 설정창 라벨은 "할 일 폰트 (이벤트/할일 목록)". `KAgendaControl`(아젠다 목록)은 별도 컨트롤이라 이 설정과 무관하게 고정 폰트(제목/날짜/시간 12px) 사용
 - `DateFontSize` - 날짜 숫자(`LbDate`)·요일 헤더·년월 선택(`MonthPicker.DisplayFontSize`) 폰트 크기 — 설정창 라벨은 "요일/날짜 폰트"
 - `UseGoogle` - 구글 캘린더 연동
-- `GoogleCalendarName` / `GoogleCalendarID` - 구글 캘린더 정보
+- `GoogleCalendarID` - 구글 캘린더 정보 (`GoogleCalendarName` 은 읽는 곳이 없어 40차에 제거)
 
 ### 학교 설정
 - `SchoolDB` - 학교 DB 경로
@@ -385,13 +386,11 @@
 - `LunchTime` - 점심 시간
 
 ### 게시판 설정
-- `Board_DB` - 게시판 DB 경로
-- `EnableCache` - 캐시 활성화
-- `DefaultPageSize` - 페이지 크기
+- `Board_DB` - 게시판 DB 경로 (페이지 크기는 목록 화면의 콤보가 직접 들고 있다)
 
 ### 일반 설정
 - `AutoBackup` / `AutoBackupIntervalDays` / `BackupRetentionCount` - 백업
-- `Theme` / `Language` - 테마/언어
+- `Theme` - 테마. 시작 시 `Helpers/ThemeHelper.Apply` 로 메인 창과 보조 창에 건다
 - `TopMost` - 항상 위에(기본 꺼짐, `OverlappedPresenter.IsAlwaysOnTop`)
 - `WindowWidth` / `WindowHeight` - 창 크기
 - `LogLevel` - 로그 레벨

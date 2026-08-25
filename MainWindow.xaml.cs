@@ -35,6 +35,9 @@ public sealed partial class MainWindow : Window
 
         this.Title = $"{Settings.SchoolName} - {DateTime.Now:yyyy년 M월 d일 dddd}";
 
+        // 저장된 테마 복원 — 없으면 다크로 바꿔 두고 앱을 껐다 켰을 때 라이트로 돌아온다.
+        Helpers.ThemeHelper.Apply(this);
+
         // ✅ 창 크기 복원 (Settings에서 로드)
         InitializeWindowSize();
 

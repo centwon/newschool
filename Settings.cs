@@ -192,7 +192,6 @@ public static class Settings
     public static SettingProperty<double> TaskFontSize { get; private set; } = null!;
     public static SettingProperty<double> DateFontSize { get; private set; } = null!;
     public static SettingProperty<bool> UseGoogle { get; private set; } = null!;
-    public static SettingProperty<string> GoogleCalendarName { get; private set; } = null!;
     public static SettingProperty<string> GoogleCalendarID { get; private set; } = null!;
 
     // Google OAuth 인증
@@ -240,15 +239,9 @@ public static class Settings
     //Board 설정
     public static SettingProperty<string> Board_DB { get; private set; } = null!;
     public static SettingProperty<bool> Board_Inited { get; private set; } = null!;
-    /// <summary>
-    /// 캐시 활성화 여부
-    /// </summary>
-    public static SettingProperty<bool> EnableCache { get; private set; } = null!;
-
-    /// <summary>
-    /// 페이지 크기 (기본값)
-    /// </summary>
-    public static SettingProperty<int> DefaultPageSize { get; private set; } = null!;
+    // 캐시 사용(EnableCache)·페이지 크기(DefaultPageSize)·언어(Language) 는 설정 화면에 있었지만
+    // 저장만 되고 읽는 곳이 한 군데도 없었다(40차). 컨트롤과 함께 걷어냈다.
+    // 게시판 목록의 페이지 크기는 목록 화면 자체의 콤보가 맡는다.
     /// <summary>
     /// Windows 시작 시 자동 실행
     /// </summary>
@@ -282,11 +275,6 @@ public static class Settings
     public static SettingProperty<string> Theme { get; private set; } = null!;
 
     /// <summary>
-    /// 언어
-    /// </summary>
-    public static SettingProperty<string> Language { get; private set; } = null!;
-
-    /// <summary>
     /// 창 너비
     /// </summary>
     public static SettingProperty<int> WindowWidth { get; private set; } = null!;
@@ -316,7 +304,6 @@ public static class Settings
         TaskFontSize = new SettingProperty<double>("TaskFontSize", 10.0, double.Parse, d => d.ToString());
         DateFontSize = new SettingProperty<double>("DateFontSize", 12.0, double.Parse, d => d.ToString());
         UseGoogle = new SettingProperty<bool>("UseGoogle", false, bool.Parse, b => b.ToString().ToLower());
-        GoogleCalendarName = new SettingProperty<string>("GoogleCalendarName", "", s => s, s => s);
         GoogleCalendarID = new SettingProperty<string>("GoogleCalendarID", "", s => s, s => s);
 
         // Google OAuth
@@ -357,16 +344,6 @@ public static class Settings
         Board_DB = new SettingProperty<string>("Board_DB", "board.db", s => s, s => s);
         Board_Inited = new SettingProperty<bool>("Board_Init", false, bool.Parse, b => b.ToString().ToLower());
 
-                /// <summary>
-                /// 캐시 활성화 여부
-                /// </summary>
-        EnableCache = new SettingProperty<bool>("EnableCache", true, bool.Parse, b => b.ToString().ToLower());
-
-    /// <summary>
-    /// 페이지 크기 (기본값)
-    /// </summary>
-    DefaultPageSize = new SettingProperty<int>("DefaultPageSize", 20, int.Parse, i => i.ToString());
-
 
         /// <summary>
         /// Windows 시작 시 자동 실행
@@ -404,11 +381,6 @@ public static class Settings
     Theme = new SettingProperty<string>("Theme", "Light", s => s, s => s);
 
     /// <summary>
-    /// 언어
-    /// </summary>
-    Language = new SettingProperty<string>("Language", "ko-KR", s => s, s => s);
-
-    /// <summary>
     /// 창 크기 (기본값: 1400x900)
     /// </summary>
     WindowWidth = new SettingProperty<int>("WindowWidth", 1400, int.Parse, i => i.ToString());
@@ -436,7 +408,6 @@ public static class Settings
         TaskFontSize.Reload();
         DateFontSize.Reload();
         UseGoogle.Reload();
-        GoogleCalendarName.Reload();
         GoogleCalendarID.Reload();
         GoogleClientId.Reload();
         GoogleClientSecret.Reload();
@@ -477,14 +448,11 @@ public static class Settings
 
         Board_DB.Reload();
         Board_Inited.Reload();
-        EnableCache.Reload();
-        DefaultPageSize.Reload();
         AutoBackupIntervalDays.Reload();
         BackupRetentionCount.Reload();
         LogLevel.Reload();
 
         Theme.Reload();
-        Language.Reload();
         WindowWidth.Reload();
         WindowHeight.Reload();
 
