@@ -116,7 +116,9 @@ public sealed partial class AppSettingsPage : Page
     {
         try
         {
-            string? backupPath = Settings.Backup();
+            // DB 스냅샷 + ZIP 압축은 데이터가 쌓이면 몇 초씩 걸린다. UI 스레드에서 부르면
+            // 그동안 창이 얼어붙는다 — 시작 시 자동 백업을 백그라운드로 뺀 것과 같은 이유다.
+            string? backupPath = await Task.Run(Settings.Backup);
             if (!string.IsNullOrEmpty(backupPath))
             {
                 UpdateLastBackupTimeText();
@@ -162,14 +164,21 @@ public sealed partial class AppSettingsPage : Page
                     "복원 확인", "복원", "취소");
                 if (!confirmed) return;
 
-                bool success = Settings.Restore(restorePath);
+                // 복원도 ZIP 해제 + 파일 복사라 UI 스레드에서 부르면 창이 멎는다.
+                bool success = await Task.Run(() => Settings.Restore(restorePath));
                 if (success)
                 {
                     await MessageBox.ShowAsync("복원이 완료되었습니다.\n앱을 재시작해주세요.", "복원 완료");
                 }
                 else
                 {
-                    await MessageBox.ShowAsync("복원 중 오류가 발생했습니다.", "복원 실패");
+                    // 데이터 DB 는 실패하면 되돌리지만, 설정(Settings.db) 만 실패하는 경우가 있어
+                    // "아무것도 안 바뀌었다" 고 단정하지 않는다.
+                    await MessageBox.ShowAsync(
+                        "복원 중 오류가 발생했습니다.\n" +
+                        "일부만 복원됐을 수 있으니 앱을 다시 시작한 뒤 데이터를 확인하세요.\n" +
+                        "자세한 내용은 [고급] > [로그 폴더 열기] 에서 볼 수 있습니다.",
+                        "복원 실패");
                 }
             }
         }

@@ -716,28 +716,100 @@ public static class Settings
             // 폴더 복원
             if (!Directory.Exists(backupDirOrFile)) return false;
 
-            // 백업과 같은 화이트리스트로 되돌린다 — 옛 백업에 섞여 든 충돌본을 되살리지 않는다.
-            foreach (var fileName in BackupDbFileNames())
-            {
-                var dbFile = Path.Combine(backupDirOrFile, fileName);
-                if (!File.Exists(dbFile)) continue;
+            Directory.CreateDirectory(UserDataPath);
 
-                if (fileName.Equals("Settings.db", StringComparison.OrdinalIgnoreCase))
+            // 되돌릴 자리를 먼저 마련한다. DB 를 한 개씩 덮어쓰다 중간에 실패하면
+            // (파일 잠금·디스크 부족 등) 학생은 백업 시점, 게시판은 현재 시점처럼
+            // DB 마다 시점이 어긋난 채 남는다. 그 상태로 "복원 실패" 라고만 알리면
+            // 사용자는 아무것도 안 바뀐 줄 안다.
+            var rollbackDir = Path.Combine(Path.GetTempPath(), $"newschool_rollback_{Guid.NewGuid():N}");
+            var replaced = new List<string>();
+            bool committed = false;
+
+            try
+            {
+                Directory.CreateDirectory(rollbackDir);
+
+                // 백업과 같은 화이트리스트로 되돌린다 — 옛 백업에 섞여 든 충돌본을 되살리지 않는다.
+                bool allRestored = true;
+                foreach (var fileName in BackupDbFileNames())
                 {
-                    SettingsDb.Restore(dbFile);
-                }
-                else
-                {
-                    // UserDataPath에 복원 (열린 연결·잔여 WAL 정리 후 덮어쓰기)
-                    Directory.CreateDirectory(UserDataPath);
+                    var dbFile = Path.Combine(backupDirOrFile, fileName);
+                    if (!File.Exists(dbFile)) continue;
+
+                    // 네 파일 모두 UserDataPath 아래에 있다(SettingsDb 도 같은 폴더를 쓴다).
+                    // 덮어쓰기 전에 현재 것을 옆에 떠 둔다.
                     var targetPath = Path.Combine(UserDataPath, fileName);
                     PrepareForRestore(targetPath);
-                    File.Copy(dbFile, targetPath, true);
+
+                    if (File.Exists(targetPath))
+                    {
+                        File.Copy(targetPath, Path.Combine(rollbackDir, fileName), true);
+                        replaced.Add(fileName);
+                    }
+
+                    if (fileName.Equals("Settings.db", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 설정 DB 는 덮어쓴 뒤 다시 읽어야 하므로 전용 경로를 쓴다.
+                        // 결과를 버리면 설정만 옛 상태로 남은 반쪽 복원을 "복원 완료" 로 알리게 된다.
+                        if (!SettingsDb.Restore(dbFile))
+                        {
+                            allRestored = false;
+                            System.Diagnostics.Debug.WriteLine("[Settings] Settings.db 복원 실패");
+                        }
+                    }
+                    else
+                    {
+                        File.Copy(dbFile, targetPath, true);
+                    }
+                }
+
+                committed = true;
+                LoadAll();
+                return allRestored;
+            }
+            finally
+            {
+                // 되돌리기까지 실패하면 사본을 지우지 않고 남긴다 — 손으로 살릴 수 있도록.
+                bool keepRollbackCopies = false;
+
+                if (!committed)
+                {
+                    // 여기까지 바꾼 DB 만 되돌린다.
+                    foreach (var fileName in replaced)
+                    {
+                        try
+                        {
+                            var savedCopy = Path.Combine(rollbackDir, fileName);
+                            if (fileName.Equals("Settings.db", StringComparison.OrdinalIgnoreCase))
+                            {
+                                SettingsDb.Restore(savedCopy);   // 덮어쓴 뒤 다시 읽어야 한다
+                            }
+                            else
+                            {
+                                var targetPath = Path.Combine(UserDataPath, fileName);
+                                PrepareForRestore(targetPath);
+                                File.Copy(savedCopy, targetPath, true);
+                            }
+                        }
+                        catch (Exception rex)
+                        {
+                            System.Diagnostics.Debug.WriteLine(
+                                $"[Settings] 복원 롤백 실패({fileName}): {rex.Message} — 원본 사본: {rollbackDir}");
+                            Logging.Log.Error("Settings",
+                                $"복원 롤백 실패({fileName}). 원본 사본 위치: {rollbackDir}");
+                            keepRollbackCopies = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!keepRollbackCopies)
+                {
+                    try { if (Directory.Exists(rollbackDir)) Directory.Delete(rollbackDir, true); }
+                    catch { /* 임시 폴더 정리 실패 무시 */ }
                 }
             }
-
-            LoadAll();
-            return true;
         }
         catch (Exception ex)
         {

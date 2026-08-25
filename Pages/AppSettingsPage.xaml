@@ -83,6 +83,12 @@
                                        Text="마지막 백업: 없음"
                                        FontSize="12" Opacity="0.7"/>
 
+                            <!-- 백업에 무엇이 담기는지 사용자에게 알린다. 담기지 않는 것을
+                                 모르면 복원 후에야 사진·첨부가 사라진 것을 알게 된다. -->
+                            <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
+                                     Title="백업에는 데이터베이스만 담깁니다"
+                                     Message="학생 사진과 게시판·수업 일지 첨부파일은 용량이 커서 백업에서 빠집니다. 이것까지 지키려면 [데이터 폴더 열기] 로 열리는 폴더를 통째로 복사해 두세요."/>
+
                             <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
