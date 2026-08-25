@@ -216,7 +216,10 @@ public sealed class SchoolScheduleService : IDisposable
         if (string.IsNullOrWhiteSpace(Settings.NeisApiKey.Value))
         {
             Debug.WriteLine("[SchoolScheduleService] NEIS API 키가 설정되지 않았습니다.");
-            return (false, "NEIS API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.", schedules);
+            // ⚠ "설정에서 입력해주세요" 라고 말하면 안 된다 — 설정 화면에 인증키 입력칸은 없다.
+            //    키는 secrets.json 으로 빌드에 내장되므로 사용자가 채울 수 있는 자리가 아니다.
+            return (false, "이 설치본에 NEIS 인증키가 없어 학사일정을 내려받을 수 없습니다. "
+                         + "프로그램을 다시 설치하거나 배포자에게 문의해주세요.", schedules);
         }
 
         try
@@ -255,17 +258,16 @@ public sealed class SchoolScheduleService : IDisposable
             var resultCode = xmlDoc.Descendants("CODE").FirstOrDefault()?.Value;
             var resultMessage = xmlDoc.Descendants("MESSAGE").FirstOrDefault()?.Value;
             
-            if (!string.IsNullOrEmpty(resultCode) && resultCode != "INFO-000")
+            if (NewSchool.Helpers.NeisResult.IsNoData(resultCode))
             {
-                // INFO-200: 해당하는 데이터가 없습니다
-                if (resultCode == "INFO-200")
-                {
-                    Debug.WriteLine($"[SchoolScheduleService] NEIS API: 데이터 없음 ({startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd})");
-                    return (true, "해당 기간의 학사일정이 없습니다.", schedules);
-                }
-                
+                Debug.WriteLine($"[SchoolScheduleService] NEIS API: 데이터 없음 ({startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd})");
+                return (true, "해당 기간의 학사일정이 없습니다.", schedules);
+            }
+
+            if (NewSchool.Helpers.NeisResult.IsError(resultCode))
+            {
                 Debug.WriteLine($"[SchoolScheduleService] NEIS API 에러: {resultCode} - {resultMessage}");
-                return (false, $"NEIS API 오류: {resultMessage ?? resultCode}", schedules);
+                return (false, $"NEIS API 오류: {NewSchool.Helpers.NeisResult.Describe(resultCode, resultMessage)}", schedules);
             }
 
             // 데이터 변환

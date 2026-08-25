@@ -60,6 +60,16 @@ namespace NewSchool.Dialogs
                 return;
             }
 
+            // 키가 비면 NEIS 는 200 응답에 오류 코드를 실어 보낸다 — 그것을 "검색 결과 없음"으로
+            // 보여주면 사용자는 학교 이름을 잘못 쳤다고 믿고 계속 헤맨다. 아예 보내지 않고 사실대로 말한다.
+            if (string.IsNullOrWhiteSpace(Settings.NeisApiKey.Value))
+            {
+                InfoTextBlock.Text = "이 설치본에 NEIS 인증키가 없어 학교를 검색할 수 없습니다.\n"
+                                   + "프로그램을 다시 설치하거나 배포자에게 문의해주세요.";
+                SchoolListView.ItemsSource = null;
+                return;
+            }
+
             try
             {
                 // UI 상태 업데이트
@@ -112,6 +122,14 @@ namespace NewSchool.Dialogs
                 InfoTextBlock.Text = "요청 시간이 초과되었습니다. 다시 시도해주세요.";
                 SchoolListView.ItemsSource = null;
             }
+            catch (InvalidOperationException ex)
+            {
+                // NEIS 가 오류 코드를 실어 보낸 경우 — 급식(Functions.GetMealsAsync)과 같은 규칙으로
+                // 그 메시지를 그대로 올린다. "검색 결과가 없습니다"로 뭉개면 원인을 알 길이 없다.
+                Debug.WriteLine($"[SchoolSearch] API 오류: {ex.Message}");
+                InfoTextBlock.Text = ex.Message;
+                SchoolListView.ItemsSource = null;
+            }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SchoolSearch] 오류: {ex.Message}");
@@ -137,17 +155,20 @@ namespace NewSchool.Dialogs
                 XmlDocument xmlDoc = new();
                 xmlDoc.LoadXml(xml);
 
-                // 에러 체크
+                // 에러 체크 — NEIS 는 실패도 HTTP 200 에 코드로 실어 보낸다.
+                // INFO-000(정상)·INFO-200(해당 데이터 없음)만 "결과 0건"이고, 나머지(인증키 오류,
+                // 호출 한도 초과, 서비스 점검 등)는 검색이 성립하지 않은 것이므로 올려 보낸다.
                 XmlNodeList? errorNodes = xmlDoc.GetElementsByTagName("RESULT");
                 if (errorNodes != null && errorNodes.Count > 0)
                 {
-                    XmlNode? errorCode = errorNodes[0]?["CODE"];
-                    XmlNode? errorMsg = errorNodes[0]?["MESSAGE"];
+                    string? errorCode = errorNodes[0]?["CODE"]?.InnerText;
+                    string? errorMsg = errorNodes[0]?["MESSAGE"]?.InnerText;
 
-                    if (errorCode?.InnerText != "INFO-000") // 정상 응답 코드
+                    if (NewSchool.Helpers.NeisResult.IsError(errorCode))
                     {
-                        Debug.WriteLine($"[SchoolSearch] API 오류: {errorCode?.InnerText} - {errorMsg?.InnerText}");
-                        return schools;
+                        Debug.WriteLine($"[SchoolSearch] API 오류: {errorCode} - {errorMsg}");
+                        throw new InvalidOperationException(
+                            $"학교 정보를 받지 못했습니다: {NewSchool.Helpers.NeisResult.Describe(errorCode, errorMsg)}");
                     }
                 }
 
@@ -207,9 +228,15 @@ namespace NewSchool.Dialogs
                     }
                 }
             }
+            catch (InvalidOperationException)
+            {
+                throw;   // 위에서 만든 NEIS 오류 안내 — 여기서 삼키면 다시 "결과 없음"이 된다
+            }
             catch (Exception ex)
             {
+                // 응답이 XML 이 아니거나 형태가 다른 경우(점검 안내 HTML 등)도 "결과 0건"이 아니다
                 Debug.WriteLine($"[SchoolSearch] XML 파싱 오류: {ex.Message}");
+                throw new InvalidOperationException("학교 정보 응답을 읽지 못했습니다. 잠시 후 다시 시도해주세요.", ex);
             }
 
             return schools;

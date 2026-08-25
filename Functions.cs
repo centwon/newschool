@@ -73,8 +73,10 @@ namespace NewSchool
                     Debug.WriteLine($"[Functions] NEIS 결과코드: {resultCode} / {resultMsg}");
                     // INFO-200(해당 자료 없음)은 정상 — 그 외 코드는 오류다.
                     // 빈 목록으로 돌려주면 "급식 없음"과 구분되지 않으므로 예외로 올린다.
-                    if (!resultCode.StartsWith("INFO"))
-                        throw new InvalidOperationException($"급식 정보를 받지 못했습니다: {resultMsg ?? resultCode}");
+                    // ⚠ 예전에는 StartsWith("INFO") 로 판정해 인증키 오류(INFO-300)까지 통과시켰다.
+                    if (NewSchool.Helpers.NeisResult.IsError(resultCode))
+                        throw new InvalidOperationException(
+                            $"급식 정보를 받지 못했습니다: {NewSchool.Helpers.NeisResult.Describe(resultCode, resultMsg)}");
                 }
 
                 foreach (var node in xmlDoc.Descendants("row"))
