@@ -254,11 +254,13 @@ public sealed partial class AppSettingsPage : Page
 
     private async void OnResetSettingsClick(object sender, RoutedEventArgs e)
     {
-        // "모든 설정" 에는 학교 정보·NEIS 키·구글 연결도 들어간다(Settings 테이블을 통째로 비운다).
+        // "모든 설정" 에는 학교 정보·구글 연결도 들어간다(Settings 테이블을 통째로 비운다).
         // 지우고 나면 다시 시작할 때 초기 설정 창부터 다시 밟아야 하므로 그 사실을 먼저 말한다.
+        // ⚠ NEIS 인증키는 여기 적지 않는다 — 기본값이 내장 secrets.json 이라 ResetToDefaults 뒤
+        //    LoadAll 이 곧바로 되채운다. "지워진다" 고 말하면 사실과 다르다.
         var confirmed = await MessageBox.ShowConfirmAsync(
             "모든 설정을 기본값으로 초기화하시겠습니까?\n\n" +
-            "학교 정보·NEIS 인증키·구글 계정 연결·시정표·담임 학급까지 함께 지워지며,\n" +
+            "학교 정보·구글 계정 연결·시정표·담임 학급까지 함께 지워지며,\n" +
             "다시 시작하면 초기 설정을 처음부터 다시 해야 합니다.\n" +
             "학생·수업·게시글 등 저장된 데이터는 지워지지 않습니다.\n\n" +
             "이 작업은 되돌릴 수 없습니다.",
