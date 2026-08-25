@@ -20,6 +20,12 @@ namespace NewSchool.Controls
 
         private readonly DispatcherQueueTimer _autoSaveTimer;
 
+        /// <summary>
+        /// 자동 저장 실패를 이미 알렸는지. 디바운스가 계속 돌면서 같은 실패로 대화상자를
+        /// 반복해 띄우지 않도록 한 번만 알리고, 저장에 성공하면 다시 알릴 수 있게 내린다.
+        /// </summary>
+        private bool _autoSaveFailureReported;
+
         #endregion
 
         #region Properties
@@ -203,7 +209,14 @@ namespace NewSchool.Controls
         }
 
         /// <summary>
-        /// 자동 저장 (확인 없이)
+        /// 자동 저장 (확인 없이).
+        ///
+        /// <para>⚠ <b>실패를 알려야 한다.</b> 이 자동 저장은 "앱을 그냥 닫아도 잃지 않게" 하려고
+        /// 넣은 것인데, 실패를 <c>Debug.WriteLine</c> 으로만 흘리면 사용자는 저장된 줄 알고
+        /// 앱을 닫아 결국 잃는다. <see cref="StudentCardViewModel.SaveAsync"/> 는 0행 갱신도
+        /// <c>false</c> 로 내며 <c>IsChanged</c> 를 유지하는데(주석에 "호출부가 사용자에게 알릴 수
+        /// 있게" 라고 적혀 있다), 정작 이 호출부가 삼키고 있었다.
+        /// 학급일지(<see cref="ClassDiaryBox"/>)와 같은 처리로 맞춘다.</para>
         /// </summary>
         private async Task<bool> SaveChangedAsync()
         {
@@ -214,13 +227,37 @@ namespace NewSchool.Controls
 
             try
             {
-                return await ViewModel.SaveAsync();
+                if (await ViewModel.SaveAsync())
+                {
+                    _autoSaveFailureReported = false;
+                    return true;
+                }
+
+                System.Diagnostics.Debug.WriteLine("[StudentCard] 자동 저장 0행 — 변경 표시를 유지한다");
+                await ReportAutoSaveFailureAsync(
+                    "학생 정보를 저장하지 못했습니다.\n" +
+                    "고친 내용은 화면에 그대로 있으니 [저장] 을 눌러 다시 시도하세요.");
+                return false;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[StudentCard] SaveChangedAsync 오류: {ex.Message}");
+                NewSchool.Logging.Log.Error("StudentCard", "학생 정보 자동 저장 실패", ex);
+                await ReportAutoSaveFailureAsync(
+                    "학생 정보를 저장하지 못했습니다.\n" +
+                    $"{ex.Message}\n\n" +
+                    "고친 내용은 화면에 그대로 있으니 [저장] 을 눌러 다시 시도하세요.");
                 return false;
             }
+        }
+
+        /// <summary>같은 실패로 대화상자를 반복해 띄우지 않도록 한 번만 알린다.</summary>
+        private async Task ReportAutoSaveFailureAsync(string message)
+        {
+            if (_autoSaveFailureReported) return;
+            _autoSaveFailureReported = true;
+
+            await MessageBox.ShowAsync(message, "자동 저장 실패");
         }
 
         /// <summary>
