@@ -408,7 +408,8 @@ namespace NewSchool.Repositories
         //
         // 지금 이 경로를 타는 필드는 ResidentNumber 하나뿐이고, 그 값을 넣는 화면이 없어
         // 실제로는 늘 빈 문자열이 지나간다. 그래도 남긴다 — Models/Student.ResidentNumber
-        // 의 주석에 적은 결정이다(2026-08-25). 미사용이라고 걷어내지 말 것.
+        // 의 주석에 적은 결정이다(2026-08-25). 쓰게 될지 아닐지는 정해진 바 없다.
+        // 미사용이라고 걷어내지 말 것.
         #region DPAPI 암호화 (주민번호 등 민감 필드)
 
         /// <summary>
