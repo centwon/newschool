@@ -192,9 +192,16 @@ namespace NewSchool.Helpers
         /// </summary>
         public static string CreateStudentTemplate(string? filePath = null)
         {
+            // 이 파일은 저장 위치로 복사한 뒤 지우는 <b>중간 산출물</b>이다.
+            // 예전에는 Exports\학생명단_템플릿_20260825.xlsx 처럼 날짜만 붙여 그 폴더에 썼는데,
+            //  ① 갓 설치한 PC 에는 Exports 폴더가 없어 DirectoryNotFoundException
+            //  ② 같은 날 두 번째부터는 파일이 이미 있어 IOException
+            // (MiniExcel.SaveAs 는 기본이 덮어쓰기 금지다 — 실측 확인)
+            // 둘 다 "취소되었습니다" 로 둔갑했다. 다른 임시 파일들과 같은 방식으로 맞춘다.
             string outputPath = filePath ?? Path.Combine(
-                Settings.RootPath, "Exports",
-                $"학생명단_템플릿_{DateTime.Now:yyyyMMdd}.xlsx");
+                Path.GetTempPath(), $"학생명단_템플릿_{Guid.NewGuid():N}.xlsx");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
             var template = new List<Dictionary<string, object>>
             {

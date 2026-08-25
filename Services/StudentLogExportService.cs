@@ -33,8 +33,8 @@ public class StudentLogExportService
         var classNo = studentVm.Enrollment?.Class ?? 0;
         var number = studentVm.Enrollment?.Number ?? 0;
 
-        // 엑셀 파일 경로 생성
-        var fileName = $"누가기록_{grade}학년{classNo}반_{number}번_{studentVm.Name}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        // 엑셀 파일 경로 생성 — 이름은 사용자 입력이라 파일명에 못 쓰는 문자가 섞일 수 있다
+        var fileName = $"누가기록_{grade}학년{classNo}반_{number}번_{Helpers.FileNameHelper.Sanitize(studentVm.Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
         var filePath = Path.Combine(GetOutputDir(), fileName);
 
         // 카테고리별로 그룹화

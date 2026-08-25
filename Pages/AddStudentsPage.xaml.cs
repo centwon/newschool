@@ -408,17 +408,23 @@ public sealed partial class AddStudentsPage : Page
                 await MessageBox.ShowAsync("메인 창을 찾을 수 없습니다.", "오류");
                 return;
             }
-            bool success = await ExcelHelpers.DownloadStudentTemplateAsync(
-                window);
+            var result = await ExcelHelpers.DownloadStudentTemplateAsync(window);
 
-            if (success)
+            switch (result)
             {
-                await MessageBox.ShowAsync("템플릿 파일이 다운로드되고 열렸습니다.\n" +
-                    "이 템플릿을 참고하여 학생 정보를 입력해주세요.", "알림");
-            }
-            else
-            {
-                await MessageBox.ShowAsync("템플릿 다운로드가 취소되었습니다.", "오류");
+                case TemplateDownloadResult.Completed:
+                    await MessageBox.ShowAsync("템플릿 파일이 다운로드되고 열렸습니다.\n" +
+                        "이 템플릿을 참고하여 학생 정보를 입력해주세요.", "알림");
+                    break;
+
+                case TemplateDownloadResult.Failed:
+                    await MessageBox.ShowAsync(
+                        "템플릿 파일을 만들지 못했습니다.\n" +
+                        "앱 설정 > 고급 > [로그 폴더 열기] 에서 자세한 내용을 볼 수 있습니다.",
+                        "오류");
+                    break;
+
+                // 취소는 사용자가 한 일이라 따로 알리지 않는다.
             }
         }
         catch (Exception ex)

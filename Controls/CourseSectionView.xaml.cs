@@ -311,15 +311,12 @@ public sealed partial class CourseSectionView : UserControl
         return sb.ToString();
     }
 
-    private static string EscapeCsv(string field)
-    {
-        if (string.IsNullOrEmpty(field)) return "";
-        if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
-        {
-            return $"\"{field.Replace("\"", "\"\"")}\"";
-        }
-        return field;
-    }
+    /// <summary>
+    /// 내보내기용 CSV 인용. 되읽는 쪽이 <see cref="Services.CsvExportService.ParseRecords"/> 이므로
+    /// 만드는 쪽도 같은 규칙을 써야 왕복이 맞는다 — 손수 짠 사본은 <c>\r</c> 와
+    /// 엑셀 수식 해석(<c>= + - @</c>) 처리가 빠져 있었다.
+    /// </summary>
+    private static string EscapeCsv(string field) => Services.CsvExportService.Escape(field);
 
     #endregion
 

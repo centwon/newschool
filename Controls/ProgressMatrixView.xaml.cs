@@ -717,13 +717,8 @@ public sealed partial class ProgressMatrixView : UserControl
                 : progress.ProgressTypeDisplay;
         }
 
-        static string Escape(string field)
-        {
-            if (string.IsNullOrEmpty(field)) return "";
-            if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
-                return $"\"{field.Replace("\"", "\"\"")}\"";
-            return field;
-        }
+        // 인용 규칙은 한 벌만 둔다 — 손수 짠 사본은 \r 와 엑셀 수식 해석(= + - @) 처리가 빠져 있었다.
+        static string Escape(string field) => Services.CsvExportService.Escape(field);
     }
 
     #endregion
