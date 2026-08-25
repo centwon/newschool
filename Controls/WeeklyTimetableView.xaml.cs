@@ -101,13 +101,7 @@ public sealed partial class WeeklyTimetableView : UserControl
         await ReloadAsync();
     }
 
-    private static DateTime MondayOf(DateTime date)
-    {
-        var monday = date.Date;
-        while (monday.DayOfWeek != DayOfWeek.Monday)
-            monday = monday.AddDays(-1);
-        return monday;
-    }
+    private static DateTime MondayOf(DateTime date) => DateTimeHelper.MondayOf(date);
 
     private async Task LoadSchedulesAsync()
     {

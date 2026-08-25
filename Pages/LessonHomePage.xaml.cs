@@ -278,13 +278,7 @@ public sealed partial class LessonHomePage : Page
 
     #region 시간표 로드
 
-    private static DateTime MondayOf(DateTime date)
-    {
-        var monday = date.Date;
-        while (monday.DayOfWeek != DayOfWeek.Monday)
-            monday = monday.AddDays(-1);
-        return monday;
-    }
+    private static DateTime MondayOf(DateTime date) => DateTimeHelper.MondayOf(date);
 
     /// <summary>
     /// 처음 열 때 보여줄 주. <b>주말이면 다가오는 주</b>를 연다 —

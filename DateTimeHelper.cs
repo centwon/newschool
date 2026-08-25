@@ -16,6 +16,18 @@ public static class DateTimeHelper
     public static int WeekNumber(DateTime date, DateTime startDate)
         => (int)((date.Date - startDate.Date).TotalDays / 7) + 1;
 
+    /// <summary>
+    /// 그 날짜가 속한 주의 월요일. 주 단위 시간표가 어느 주를 펼칠지 정하는 기준이다.
+    /// (수업 홈의 내 시간표와 주간 시간표 화면이 각자 같은 코드를 들고 있었다 — 한 벌로 모은다.)
+    /// </summary>
+    public static DateTime MondayOf(DateTime date)
+    {
+        var monday = date.Date;
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+            monday = monday.AddDays(-1);
+        return monday;
+    }
+
     #region 상수 정의
     /// <summary>
     /// DB 저장 및 API 통신용 표준 형식 (ISO 8601/RFC 3339)
