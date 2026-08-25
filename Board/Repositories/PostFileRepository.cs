@@ -138,6 +138,38 @@ namespace NewSchool.Board.Repositories
         #region Delete
 
         /// <summary>
+        /// 저장된 파일명 변경 (비동기).
+        ///
+        /// 글의 카테고리를 옮길 때, 대상 폴더에 같은 이름이 이미 있으면 실물을 다른 이름으로
+        /// 옮겨야 한다. 그때 DB 의 이름도 함께 따라가지 않으면 첨부를 못 찾거나 —
+        /// 더 나쁘게는 그 자리에 있던 <b>남의 파일</b>을 가리키게 된다.
+        /// </summary>
+        public async Task<bool> UpdateFileNameAsync(int no, string fileName)
+        {
+            const string query = "UPDATE PostFile SET FileName = @FileName WHERE No = @No";
+
+            try
+            {
+                using var cmd = CreateCommand(query);
+                cmd.Parameters.AddWithValue("@No", no);
+                cmd.Parameters.AddWithValue("@FileName", fileName);
+
+                bool success = await cmd.ExecuteNonQueryAsync() > 0;
+                if (success)
+                    LogInfo($"PostFile 이름 변경: No={no} → {fileName}");
+                else
+                    LogWarning($"PostFile 이름 변경 실패 (존재하지 않음): No={no}");
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                LogError($"PostFile 이름 변경 실패: No={no}", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
         /// PostFile 삭제 (비동기)
         /// </summary>
         public async Task<bool> DeleteAsync(int no)

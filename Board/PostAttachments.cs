@@ -18,6 +18,82 @@ namespace NewSchool.Board;
 internal static class PostAttachments
 {
     /// <summary>
+    /// 첨부 한 건을 다른 카테고리 폴더로 옮긴다 (글의 카테고리를 바꿀 때).
+    ///
+    /// 첨부 실물은 <c>Data\Files\{카테고리}\{파일명}</c> 에 살고, 경로를 만드는
+    /// <see cref="Board.GetFilePath"/> 는 언제나 <b>글의 현재 카테고리</b>를 쓴다.
+    /// 그래서 옮기지 못한 파일은 "안 보이는" 정도로 끝나지 않는다 — 대상 폴더에 같은 이름의
+    /// <b>남의 파일</b>이 있으면 그 글의 첨부를 열 때 그것이 열리고, 지우면 그것이 지워진다.
+    /// 예전에는 그 경우를 조용히 건너뛰었다.
+    ///
+    /// 이제 <see cref="SaveFileAsync"/> 와 같은 규칙으로 푼다 — <b>충돌하면 빈 이름을 찾아
+    /// 옮기고, 실제로 저장된 이름을 DB 에 넣는다.</b> DB 를 먼저 고치고 실물을 옮기는 순서인데,
+    /// 도중에 실패해도 DB 가 가리키는 이름은 방금 비어 있음을 확인한 이름이라
+    /// 절대로 남의 파일을 가리키지 않기 때문이다.
+    /// </summary>
+    /// <param name="renameInDb">이름이 바뀔 때만 불린다. DB 의 파일명을 새 이름으로 고치고 성공 여부를 낸다.</param>
+    /// <returns>옮겼거나 옮길 것이 없으면 true, 실패해 첨부가 끊겼으면 false</returns>
+    public static async Task<bool> MoveToCategoryAsync(
+        string fileName, string oldCategory, string newCategory, Func<string, Task<bool>> renameInDb)
+    {
+        var oldPath = Board.GetFilePath(fileName, oldCategory);
+        if (!File.Exists(oldPath))
+            return true;   // 실물이 원래 없다 — 이 함수가 만든 문제가 아니다
+
+        Board.EnsureCategoryDirectory(newCategory);
+        var targetName = ResolveFreeName(fileName, newCategory);
+
+        try
+        {
+            if (targetName != fileName && !await renameInDb(targetName))
+            {
+                Debug.WriteLine($"[PostAttachments] 첨부 이름 변경 실패: {fileName} → {targetName}");
+                return false;
+            }
+
+            File.Move(oldPath, Board.GetFilePath(targetName, newCategory));
+            Debug.WriteLine($"[PostAttachments] 첨부 이동: {oldCategory}/{fileName} → {newCategory}/{targetName}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[PostAttachments] 첨부 이동 실패({fileName}): {ex.Message}");
+
+            // DB 이름만 바뀌고 실물이 안 옮겨졌으면 되돌린다.
+            if (targetName != fileName)
+            {
+                try { await renameInDb(fileName); }
+                catch (Exception rex) { Debug.WriteLine($"[PostAttachments] 이름 되돌리기 실패: {rex.Message}"); }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="category"/> 폴더에서 아직 비어 있는 이름을 찾는다.
+    /// 부딪히지 않으면 원래 이름 그대로, 부딪히면 탐색기와 같은 <c>이름 (2).ext</c> 꼴.
+    /// </summary>
+    internal static string ResolveFreeName(string fileName, string category)
+    {
+        if (!File.Exists(Board.GetFilePath(fileName, category)))
+            return fileName;
+
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        var ext = Path.GetExtension(fileName);
+
+        for (int i = 2; i <= 1000; i++)
+        {
+            var candidate = $"{stem} ({i}){ext}";
+            if (!File.Exists(Board.GetFilePath(candidate, category)))
+                return candidate;
+        }
+
+        // 1000개까지 찼다면 이름 규칙으로는 못 푼다 — 겹치지 않을 이름을 만들어 준다.
+        return $"{stem}_{Guid.NewGuid():N}{ext}";
+    }
+
+    /// <summary>
     /// 삭제 예정 파일을 지우고, 새로 붙인 파일을 복사해 등록한다.
     /// </summary>
     /// <returns>처리 후 이 글에 첨부가 남아 있는지(<c>Post.HasFile</c> 에 넣을 값)</returns>

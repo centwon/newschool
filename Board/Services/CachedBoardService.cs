@@ -168,6 +168,8 @@ namespace NewSchool.Board.Services
                 // 관련 캐시 무효화
                 _cache.Remove(CacheKeys.Comments(comment.Post));
                 _cache.Remove(CacheKeys.Post(comment.Post));
+                // 첫 댓글이면 Post.HasComment 가 켜져 목록의 댓글 아이콘이 달라진다.
+                InvalidatePostListCaches();
             }
 
             return result;
@@ -183,7 +185,8 @@ namespace NewSchool.Board.Services
             if (result)
             {
                 _cache.Remove(CacheKeys.Comments(comment.Post));
-                _cache.Remove(CacheKeys.Post(comment.Post)); // 목록의 댓글 수가 구버전으로 남지 않도록
+                _cache.Remove(CacheKeys.Post(comment.Post));
+                // 내용만 바뀌므로 목록에 보이는 것(댓글 아이콘)은 그대로다 — 목록 캐시는 건드리지 않는다.
             }
 
             return result;
@@ -205,6 +208,8 @@ namespace NewSchool.Board.Services
                 // 관련 캐시 무효화
                 _cache.Remove(CacheKeys.Comments(comment.Post));
                 _cache.Remove(CacheKeys.Post(comment.Post));
+                // 마지막 댓글이었으면 Post.HasComment 가 꺼져 목록의 댓글 아이콘이 사라진다.
+                InvalidatePostListCaches();
             }
 
             return result;
@@ -239,6 +244,29 @@ namespace NewSchool.Board.Services
                 // 관련 캐시 무효화
                 _cache.Remove(CacheKeys.PostFiles(postFile.Post));
                 _cache.Remove(CacheKeys.Post(postFile.Post));
+                // 첫 첨부면 Post.HasFile 이 켜져 목록의 클립 아이콘이 달라진다.
+                InvalidatePostListCaches();
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// PostFile 이름 변경 (캐시 무효화)
+        /// </summary>
+        public override async Task<bool> UpdatePostFileNameAsync(int postFileNo, string fileName)
+        {
+            // 어느 글의 첨부인지 알아야 그 글의 캐시를 지운다.
+            using var uow = new UnitOfWork(_dbPath);
+            var postFile = await uow.PostFiles.GetByIdAsync(postFileNo);
+
+            bool result = await base.UpdatePostFileNameAsync(postFileNo, fileName);
+
+            if (result && postFile != null)
+            {
+                _cache.Remove(CacheKeys.PostFiles(postFile.Post));
+                _cache.Remove(CacheKeys.Post(postFile.Post));
+                // 이름만 바뀌므로 목록에 보이는 것(클립 아이콘)은 그대로다.
             }
 
             return result;
@@ -260,6 +288,8 @@ namespace NewSchool.Board.Services
                 // 관련 캐시 무효화
                 _cache.Remove(CacheKeys.PostFiles(postFile.Post));
                 _cache.Remove(CacheKeys.Post(postFile.Post));
+                // 마지막 첨부였으면 Post.HasFile 이 꺼져 목록의 클립 아이콘이 사라진다.
+                InvalidatePostListCaches();
             }
 
             return result;
@@ -296,14 +326,26 @@ namespace NewSchool.Board.Services
         #region Cache Management
 
         /// <summary>
-        /// Post 관련 캐시 무효화.
+        /// 목록 캐시만 무효화.
         ///
         /// 목록 캐시는 카테고리·주제·검색어·페이지가 키에 섞여 있어 개별 지목이 어렵다.
         /// 어차피 짧은 캐시(2분)라 접두사로 통째로 비운다.
+        ///
+        /// 댓글·첨부를 더하거나 지우면 <c>Post.HasComment</c>/<c>HasFile</c> 이 DB 에서 바뀌고
+        /// 그 값이 목록의 💬·📎 아이콘이 된다. 예전에는 상세 캐시(<c>board:post:N</c>)만 지워서,
+        /// 댓글을 달고 목록으로 돌아와도 아이콘이 최대 2분간 안 붙었다.
+        /// </summary>
+        private void InvalidatePostListCaches()
+        {
+            _cache.RemoveByPattern("board:posts:");
+        }
+
+        /// <summary>
+        /// Post 관련 캐시 무효화 — 목록에 더해 카테고리·주제 목록까지.
         /// </summary>
         private void InvalidatePostCaches()
         {
-            _cache.RemoveByPattern("board:posts:");
+            InvalidatePostListCaches();
             // 카테고리/주제 목록은 30분 캐시라, 새 주제·카테고리로 글을 쓰면
             // 필터 콤보에 한참 안 나타난다 — 글 저장/삭제 시 함께 무효화
             _cache.Remove(CacheKeys.Categories());

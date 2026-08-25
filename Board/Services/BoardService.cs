@@ -383,6 +383,16 @@ public partial class BoardService:IDisposable
     }
 
     /// <summary>
+    /// 첨부의 저장 파일명만 변경. 카테고리를 옮기다 이름이 부딪혔을 때 쓴다.
+    /// 실물 파일은 건드리지 않는다 — 부르는 쪽이 순서를 정한다.
+    /// </summary>
+    public virtual async Task<bool> UpdatePostFileNameAsync(int postFileNo, string fileName)
+    {
+        using var repo = new PostFileRepository(_dbPath);
+        return await repo.UpdateFileNameAsync(postFileNo, fileName);
+    }
+
+    /// <summary>
     /// PostFile 삭제 (물리적 파일도 삭제, Post의 HasFile 업데이트)
     /// </summary>
     public virtual async Task<bool> DeletePostFileAsync(int postFileNo, string category)

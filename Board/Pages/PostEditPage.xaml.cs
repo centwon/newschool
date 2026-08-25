@@ -430,10 +430,21 @@ public sealed partial class PostEditPage : Page
     }
 
     /// <summary>
-    /// 카테고리 변경 시 기존 첨부파일을 새 카테고리 폴더로 이동
+    /// 카테고리 변경 시 기존 첨부파일을 새 카테고리 폴더로 이동.
+    ///
+    /// 첨부 실물은 <c>Data\Files\{카테고리}\{파일명}</c> 에 살고, 경로를 만드는
+    /// <see cref="Board.GetFilePath"/> 는 언제나 <b>글의 현재 카테고리</b>를 쓴다.
+    /// 그래서 옮기지 못한 파일은 그냥 "안 보이는" 정도로 끝나지 않는다 —
+    /// 대상 폴더에 같은 이름의 <b>남의 파일</b>이 있으면 그 글의 첨부를 열 때 그것이 열리고,
+    /// 첨부를 지우면 그것이 지워진다. 예전에는 그 경우를 조용히 건너뛰었다.
+    ///
+    /// 실제 이동 규칙은 <see cref="PostAttachments.MoveToCategoryAsync"/> 가 들고 있다 —
+    /// 새 첨부를 저장할 때의 이름 충돌 규칙과 한자리에 있어야 서로 어긋나지 않는다.
     /// </summary>
     private async Task MoveExistingFilesAsync(string oldCategory, string newCategory, int postNo, BoardService service)
     {
+        var failed = new List<string>();
+
         try
         {
             Board.EnsureCategoryDirectory(newCategory);
@@ -441,27 +452,33 @@ public sealed partial class PostEditPage : Page
             var existingFiles = await service.GetPostFilesByPostAsync(postNo);
             foreach (var file in existingFiles)
             {
-                var oldPath = Board.GetFilePath(file.FileName, oldCategory);
-                var newPath = Board.GetFilePath(file.FileName, newCategory);
+                if (string.IsNullOrEmpty(file.FileName)) continue;
 
-                if (File.Exists(oldPath) && !File.Exists(newPath))
-                {
-                    File.Move(oldPath, newPath);
-                    Debug.WriteLine($"첨부파일 이동: {oldPath} → {newPath}");
-                }
+                bool moved = await PostAttachments.MoveToCategoryAsync(
+                    file.FileName, oldCategory, newCategory,
+                    renamed => service.UpdatePostFileNameAsync(file.No, renamed));
+
+                if (!moved) failed.Add(file.FileName);
             }
 
             // 댓글 첨부파일도 이동
             var comments = await service.GetCommentsByPostAsync(postNo);
             foreach (var comment in comments.Where(c => c.HasFile && !string.IsNullOrEmpty(c.FileName)))
             {
-                var oldPath = Board.GetFilePath(comment.FileName, oldCategory);
-                var newPath = Board.GetFilePath(comment.FileName, newCategory);
+                var original = comment.FileName;
 
-                if (File.Exists(oldPath) && !File.Exists(newPath))
+                bool moved = await PostAttachments.MoveToCategoryAsync(
+                    original, oldCategory, newCategory,
+                    renamed =>
+                    {
+                        comment.FileName = renamed;
+                        return service.UpdateCommentAsync(comment);
+                    });
+
+                if (!moved)
                 {
-                    File.Move(oldPath, newPath);
-                    Debug.WriteLine($"댓글 파일 이동: {oldPath} → {newPath}");
+                    comment.FileName = original;   // DB 를 못 고쳤으면 메모리도 되돌린다
+                    failed.Add(original);
                 }
             }
         }
@@ -469,6 +486,15 @@ public sealed partial class PostEditPage : Page
         {
             Debug.WriteLine($"첨부파일 이동 실패: {ex.Message}");
             await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 이동", ex);
+            return;
+        }
+
+        if (failed.Count > 0)
+        {
+            await NewSchool.Controls.MessageBox.ShowErrorAsync(
+                $"글은 '{newCategory}' 로 옮겼지만 첨부 {failed.Count}건을 함께 옮기지 못했습니다.\n" +
+                string.Join("\n", failed) +
+                "\n\n해당 첨부는 지금 열리지 않습니다. 다시 붙여 주세요.");
         }
     }
 
