@@ -412,12 +412,12 @@ public sealed partial class AddStudentsPage : Page
 
             switch (result)
             {
-                case TemplateDownloadResult.Completed:
+                case FileSaveResult.Completed:
                     await MessageBox.ShowAsync("템플릿 파일이 다운로드되고 열렸습니다.\n" +
                         "이 템플릿을 참고하여 학생 정보를 입력해주세요.", "알림");
                     break;
 
-                case TemplateDownloadResult.Failed:
+                case FileSaveResult.Failed:
                     await MessageBox.ShowAsync(
                         "템플릿 파일을 만들지 못했습니다.\n" +
                         "앱 설정 > 고급 > [로그 폴더 열기] 에서 자세한 내용을 볼 수 있습니다.",
@@ -463,7 +463,7 @@ public sealed partial class AddStudentsPage : Page
                 await MessageBox.ShowAsync("메인 창을 찾을 수 없습니다.", "오류");
                 return;
             } 
-            bool success = await ExcelHelpers.ExportStudentsToExcelAsync(
+            var exportResult = await ExcelHelpers.ExportStudentsToExcelAsync(
                 window,
                 NewStudents.Select(s => new StudentExportModel
                 {
@@ -479,9 +479,20 @@ public sealed partial class AddStudentsPage : Page
                 openAfterSave: true
             );
 
-            if (success)
+            switch (exportResult)
             {
-                await MessageBox.ShowAsync($"{NewStudents.Count}명의 학생 목록이 Excel 파일로 저장되었습니다.", "알림");
+                case FileSaveResult.Completed:
+                    await MessageBox.ShowAsync($"{NewStudents.Count}명의 학생 목록이 Excel 파일로 저장되었습니다.", "알림");
+                    break;
+
+                case FileSaveResult.Failed:
+                    await MessageBox.ShowAsync(
+                        "학생 목록을 저장하지 못했습니다.\n" +
+                        "앱 설정 > 고급 > [로그 폴더 열기] 에서 자세한 내용을 볼 수 있습니다.",
+                        "오류");
+                    break;
+
+                // 취소는 사용자가 한 일이라 따로 알리지 않는다.
             }
         }
         catch (Exception ex)

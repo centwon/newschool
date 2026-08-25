@@ -10,10 +10,12 @@ using NewSchool.Helpers;
 namespace NewSchool.Helpers
 {
     /// <summary>
-    /// 템플릿 내려받기 결과. <b>취소와 실패를 갈라야</b> 사용자에게 맞는 말을 할 수 있다 —
-    /// 예전에는 둘 다 <c>false</c> 라 오류가 "취소되었습니다" 로 둔갑했다.
+    /// 파일 저장(내보내기·템플릿 내려받기) 결과. <b>취소와 실패를 갈라야</b> 사용자에게 맞는 말을
+    /// 할 수 있다 — 예전에는 둘 다 <c>false</c> 라 오류가 "취소되었습니다" 로 둔갑했다.
+    /// <para>이 파일의 저장 함수 <b>셋 모두</b>가 이 규칙을 쓴다. 예전에는 템플릿 하나만
+    /// 따랐고 나머지 둘은 <c>catch { return false; }</c> 라 로그조차 남지 않았다.</para>
     /// </summary>
-    public enum TemplateDownloadResult
+    public enum FileSaveResult
     {
         /// <summary>저장하고 열었다.</summary>
         Completed,
@@ -75,13 +77,15 @@ namespace NewSchool.Helpers
         /// <summary>
         /// DataTable을 Excel 파일로 저장하고 저장 위치 선택
         /// </summary>
-        public static async Task<bool> SaveDataTableToExcelAsync(
+        public static async Task<FileSaveResult> SaveDataTableToExcelAsync(
             Window window,
             DataTable data,
             string? title = null,
             string? subtitle = null,
             bool openAfterSave = true)
         {
+            string? tempPath = null;
+
             try
             {
                 // 기본 파일명 생성 — title 은 화면의 제목 입력칸에서 그대로 오므로
@@ -94,17 +98,14 @@ namespace NewSchool.Helpers
                 // 파일 저장 위치 선택
                 var saveFile = await SaveExcelFileAsync(window, defaultFileName);
                 if (saveFile == null)
-                    return false;
+                    return FileSaveResult.Canceled;
 
                 // 임시 파일에 먼저 저장
-                string tempPath = await ExcelHelper.WriteDataAsync(data, title, subtitle);
+                tempPath = await ExcelHelper.WriteDataAsync(data, title, subtitle);
 
                 // 선택한 위치로 복사
                 var tempFile = await StorageFile.GetFileFromPathAsync(tempPath);
                 await tempFile.CopyAndReplaceAsync(saveFile);
-
-                // 임시 파일 삭제
-                System.IO.File.Delete(tempPath);
 
                 // 파일 열기
                 if (openAfterSave)
@@ -112,23 +113,32 @@ namespace NewSchool.Helpers
                     await Launcher.LaunchFileAsync(saveFile);
                 }
 
-                return true;
+                return FileSaveResult.Completed;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return false;
+                // 저장 위치까지 고른 뒤의 실패를 "취소" 로 뭉뚱그리면 사용자는 자기가 취소한 줄 안다.
+                System.Diagnostics.Debug.WriteLine($"[ExcelHelpers] 엑셀 저장 실패: {ex.Message}");
+                NewSchool.Logging.Log.Error("ExcelHelpers", "엑셀 저장 실패", ex);
+                return FileSaveResult.Failed;
+            }
+            finally
+            {
+                DeleteTempFile(tempPath);
             }
         }
 
         /// <summary>
         /// 학생 목록을 Excel로 내보내기
         /// </summary>
-        public static async Task<bool> ExportStudentsToExcelAsync<T>(
+        public static async Task<FileSaveResult> ExportStudentsToExcelAsync<T>(
             Window window,
             System.Collections.Generic.IEnumerable<T> students,
             string title = "학생 명단",
             bool openAfterSave = true) where T : class
         {
+            string? tempPath = null;
+
             try
             {
                 var safeTitle = Helpers.FileNameHelper.Sanitize(title);
@@ -138,34 +148,38 @@ namespace NewSchool.Helpers
                 var saveFile = await SaveExcelFileAsync(window, defaultFileName);
 
                 if (saveFile == null)
-                    return false;
+                    return FileSaveResult.Canceled;
 
                 // 임시 파일에 저장
-                string tempPath = await ExcelHelper.WriteListAsync(students);
+                tempPath = await ExcelHelper.WriteListAsync(students);
 
                 // 선택한 위치로 복사
                 var tempFile = await StorageFile.GetFileFromPathAsync(tempPath);
                 await tempFile.CopyAndReplaceAsync(saveFile);
-
-                System.IO.File.Delete(tempPath);
 
                 if (openAfterSave)
                 {
                     await Launcher.LaunchFileAsync(saveFile);
                 }
 
-                return true;
+                return FileSaveResult.Completed;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return false;
+                System.Diagnostics.Debug.WriteLine($"[ExcelHelpers] 학생 목록 내보내기 실패: {ex.Message}");
+                NewSchool.Logging.Log.Error("ExcelHelpers", "학생 목록 내보내기 실패", ex);
+                return FileSaveResult.Failed;
+            }
+            finally
+            {
+                DeleteTempFile(tempPath);
             }
         }
 
         /// <summary>
         /// Excel 템플릿 다운로드
         /// </summary>
-        public static async Task<TemplateDownloadResult> DownloadStudentTemplateAsync(Window window)
+        public static async Task<FileSaveResult> DownloadStudentTemplateAsync(Window window)
         {
             string? tempPath = null;
 
@@ -176,7 +190,7 @@ namespace NewSchool.Helpers
                     $"학생명단_템플릿_{DateTime.Now:yyyyMMdd}.xlsx");
 
                 if (saveFile == null)
-                    return TemplateDownloadResult.Canceled;
+                    return FileSaveResult.Canceled;
 
                 tempPath = ExcelHelper.CreateStudentTemplate();
                 var tempFile = await StorageFile.GetFileFromPathAsync(tempPath);
@@ -184,24 +198,30 @@ namespace NewSchool.Helpers
 
                 await Launcher.LaunchFileAsync(saveFile);
 
-                return TemplateDownloadResult.Completed;
+                return FileSaveResult.Completed;
             }
             catch (Exception ex)
             {
                 // 저장 위치까지 고른 뒤의 실패를 "취소" 로 뭉뚱그리면 사용자는 자기가 취소한 줄 안다.
                 System.Diagnostics.Debug.WriteLine($"[ExcelHelpers] 템플릿 다운로드 실패: {ex.Message}");
                 NewSchool.Logging.Log.Error("ExcelHelpers", "학생 명단 템플릿 다운로드 실패", ex);
-                return TemplateDownloadResult.Failed;
+                return FileSaveResult.Failed;
             }
             finally
             {
-                // 중간 산출물은 성공하든 실패하든 남기지 않는다 — 예전에는 실패 시 그대로 남았다.
-                if (tempPath != null)
-                {
-                    try { if (System.IO.File.Exists(tempPath)) System.IO.File.Delete(tempPath); }
-                    catch { /* 임시 파일 정리 실패 무시 */ }
-                }
+                DeleteTempFile(tempPath);
             }
+        }
+
+        /// <summary>
+        /// 중간 산출물 정리. 성공하든 실패하든 남기지 않는다 —
+        /// 예전에는 복사가 실패하면 %TEMP% 에 그대로 쌓였다.
+        /// </summary>
+        private static void DeleteTempFile(string? tempPath)
+        {
+            if (tempPath == null) return;
+            try { if (System.IO.File.Exists(tempPath)) System.IO.File.Delete(tempPath); }
+            catch { /* 임시 파일 정리 실패 무시 */ }
         }
 
         // 여러 시트 저장(SaveMultipleSheetsAsync), CSV→Excel 변환(ConvertCsvToExcelAsync),

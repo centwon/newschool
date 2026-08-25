@@ -558,7 +558,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
                 return;
             }
 
-            bool success = await ExcelHelpers.SaveDataTableToExcelAsync(
+            var saveResult = await ExcelHelpers.SaveDataTableToExcelAsync(
                 window,
                 _data,
                 title: title,
@@ -566,9 +566,13 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
                 openAfterSave: true
             );
 
-            if (!success)
+            // 취소는 사용자가 한 일이라 알리지 않는다 — 예전에는 실패와 한 문장으로 묶여
+            // "취소되었거나 실패했습니다" 라고만 말했다.
+            if (saveResult == Helpers.FileSaveResult.Failed)
             {
-                await MessageBox.ShowAsync("엑셀 저장이 취소되었거나 실패했습니다.");
+                await MessageBox.ShowAsync(
+                    "엑셀 파일을 저장하지 못했습니다.\n" +
+                    "앱 설정 > 고급 > [로그 폴더 열기] 에서 자세한 내용을 볼 수 있습니다.");
             }
         }
         catch (Exception ex)
