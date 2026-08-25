@@ -18,11 +18,14 @@ public sealed class SeatService : IDisposable
     private readonly SqliteConnection _connection;
     private bool _disposed;
 
-    public SeatService()
+    public SeatService() : this(SchoolDatabase.DbPath) { }
+
+    /// <summary>DB 경로를 직접 주는 생성자 — 다른 리포지토리·서비스와 같은 꼴이며 테스트가 쓴다.</summary>
+    public SeatService(string dbPath)
     {
         var cs = new SqliteConnectionStringBuilder
         {
-            DataSource = SchoolDatabase.DbPath,
+            DataSource = dbPath,
             Mode = SqliteOpenMode.ReadWriteCreate,
             // Cache=Shared 를 쓰지 않는다(기본값 Private). WAL 위에 공유 캐시를 얹으면
             // 같은 프로세스의 연결들 사이에 테이블 락이 생겨 WAL 이 주는 읽기/쓰기 동시성이
@@ -85,12 +88,11 @@ public sealed class SeatService : IDisposable
                 await ins.ExecuteNonQueryAsync();
             }
 
-            // 3) 이력 누적 — 다음 Round 번호 조회
-            int nextRound = await GetNextRoundAsync(
-                arrangement.SchoolCode, arrangement.Year, arrangement.Grade, arrangement.Class, tx);
+            // 3) 이력 누적 — 이 저장이 들어갈 회차 번호 결정
+            int round = await ResolveRoundAsync(arrangement, jjakForHistory, tx);
 
-            await InsertPairHistoryAsync(arrangement, jjakForHistory, nextRound, tx);
-            await InsertPosHistoryAsync(arrangement, nextRound, tx);
+            await InsertPairHistoryAsync(arrangement, jjakForHistory, round, tx);
+            await InsertPosHistoryAsync(arrangement, round, tx);
 
             tx.Commit();
             return arrangementNo;
@@ -260,37 +262,48 @@ public sealed class SeatService : IDisposable
 
     #region 이력
 
-    private async Task<int> GetNextRoundAsync(string sc, int y, int g, int c, SqliteTransaction tx)
+    /// <summary>
+    /// 이 저장이 들어갈 회차 번호.
+    ///
+    /// 회차는 <b>서로 다른 자리 배치</b>를 세는 것이지 저장 버튼을 누른 횟수가 아니다.
+    /// 예전에는 무조건 <c>MAX(Round)+1</c> 이라, 자리를 한 번 짜면서 안내 문구를 고치고
+    /// 고정 좌석을 잡느라 저장을 다섯 번 누르면 "최근 3회차의 짝 회피" 창이 <b>오늘 만든
+    /// 같은 배치 세 벌</b>로 차버려 지난달 짝을 전혀 회피하지 못했다. 옵션 창의
+    /// "누적된 배치 회차" 안내도 그만큼 부풀려졌다.
+    ///
+    /// 그래서 <b>직전 회차와 배치가 같으면 그 회차를 그대로 쓴다</b>.
+    /// 이력 INSERT 는 <c>INSERT OR IGNORE</c> + Round 포함 UNIQUE 인덱스라 같은 회차로
+    /// 다시 넣으면 한 줄도 쓰이지 않는다.
+    /// </summary>
+    private async Task<int> ResolveRoundAsync(SeatArrangement a, int jjak, SqliteTransaction tx)
+    {
+        int latest = await GetMaxRoundAsync(a.SchoolCode, a.Year, a.Grade, a.Class, tx);
+
+        if (latest > 0 && await IsSameAsRoundAsync(a, jjak, latest, tx))
+            return latest;
+
+        return latest + 1;
+    }
+
+    /// <summary>
+    /// 이 학급의 최대 회차. 0이면 이력이 없다.
+    /// 1인석(Jjak&lt;2)은 짝 이력을 쓰지 않으므로 SeatHistory 만 보면 Round 가 1에 고정되어
+    /// 위치 이력이 INSERT OR IGNORE 로 전부 무시된다 — 두 이력 테이블의 MAX 를 사용.
+    /// </summary>
+    private async Task<int> GetMaxRoundAsync(string sc, int y, int g, int c, SqliteTransaction tx)
     {
         using var q = _connection.CreateCommand();
         q.Transaction = tx;
-        // 1인석(Jjak<2)은 짝 이력을 쓰지 않으므로 SeatHistory 만 보면 Round 가 1에 고정되어
-        // 위치 이력이 INSERT OR IGNORE 로 전부 무시된다 — 두 이력 테이블의 MAX 를 사용
-        q.CommandText = @"
-            SELECT COALESCE(MAX(r), 0) + 1 FROM (
-                SELECT MAX(Round) AS r FROM SeatHistory
-                WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c
-                UNION ALL
-                SELECT MAX(Round) AS r FROM SeatPosHistory
-                WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c
-            );";
+        q.CommandText = MaxRoundSql;
         q.Parameters.AddWithValue("$sc", sc);
         q.Parameters.AddWithValue("$y", y);
         q.Parameters.AddWithValue("$g", g);
         q.Parameters.AddWithValue("$c", c);
         var v = await q.ExecuteScalarAsync();
-        return Convert.ToInt32(v);
+        return v == null || v == DBNull.Value ? 0 : Convert.ToInt32(v);
     }
 
-    /// <summary>
-    /// 지금까지 누적된 배치 회차 수(= 최대 Round). 옵션 다이얼로그 안내용.
-    /// 짝 이력만 세면 1인석(Jjak&lt;2) 학급은 짝 이력이 아예 없어 항상 0 으로 보이므로,
-    /// <see cref="GetNextRoundAsync"/> 와 동일하게 짝·위치 두 이력의 MAX 를 본다.
-    /// </summary>
-    public async Task<int> GetRoundCountAsync(string sc, int y, int g, int c)
-    {
-        using var q = _connection.CreateCommand();
-        q.CommandText = @"
+    private const string MaxRoundSql = @"
             SELECT COALESCE(MAX(r), 0) FROM (
                 SELECT MAX(Round) AS r FROM SeatHistory
                 WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c
@@ -298,6 +311,106 @@ public sealed class SeatService : IDisposable
                 SELECT MAX(Round) AS r FROM SeatPosHistory
                 WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c
             );";
+
+    /// <summary>
+    /// 지금 저장하려는 배치가 <paramref name="round"/> 회차에 기록된 것과 같은가.
+    ///
+    /// 자리(학생·행·열)뿐 아니라 <b>짝 관계까지</b> 본다 — 자리가 그대로여도 짝 모드
+    /// (<paramref name="jjak"/>)가 바뀌면 누가 누구와 짝인지가 달라지기 때문이다.
+    /// </summary>
+    private async Task<bool> IsSameAsRoundAsync(SeatArrangement a, int jjak, int round, SqliteTransaction tx)
+    {
+        var savedPositions = new HashSet<string>();
+        using (var q = _connection.CreateCommand())
+        {
+            q.Transaction = tx;
+            q.CommandText = @"
+                SELECT StudentID, Row, Col FROM SeatPosHistory
+                WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c AND Round=$r;";
+            AddClassRoundParams(q, a, round);
+
+            using var r = await q.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+                savedPositions.Add($"{r.GetString(0)}|{r.GetInt32(1)}|{r.GetInt32(2)}");
+        }
+
+        var newPositions = new HashSet<string>();
+        foreach (var x in a.Assignments)
+        {
+            if (string.IsNullOrEmpty(x.StudentID)) continue;
+            if (x.IsUnUsed || x.IsHidden) continue;
+            newPositions.Add($"{x.StudentID}|{x.Row}|{x.Col}");
+        }
+
+        if (!savedPositions.SetEquals(newPositions)) return false;
+
+        var savedPairs = new HashSet<string>();
+        using (var q = _connection.CreateCommand())
+        {
+            q.Transaction = tx;
+            q.CommandText = @"
+                SELECT StudentID_A, StudentID_B FROM SeatHistory
+                WHERE SchoolCode=$sc AND Year=$y AND Grade=$g AND Class=$c AND Round=$r AND Kind='Pair';";
+            AddClassRoundParams(q, a, round);
+
+            using var r = await q.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+                savedPairs.Add($"{r.GetString(0)}|{r.GetString(1)}");
+        }
+
+        var newPairs = new HashSet<string>();
+        foreach (var (pa, pb) in EnumeratePairs(a, jjak))
+            newPairs.Add($"{pa}|{pb}");
+
+        return savedPairs.SetEquals(newPairs);
+    }
+
+    private static void AddClassRoundParams(SqliteCommand q, SeatArrangement a, int round)
+    {
+        q.Parameters.AddWithValue("$sc", a.SchoolCode);
+        q.Parameters.AddWithValue("$y", a.Year);
+        q.Parameters.AddWithValue("$g", a.Grade);
+        q.Parameters.AddWithValue("$c", a.Class);
+        q.Parameters.AddWithValue("$r", round);
+    }
+
+    /// <summary>
+    /// 같은 Row · 같은 Jjak 그룹 안에서 인접한(Col 차이 1) 학생 쌍.
+    /// 한 쌍이 두 번 나오지 않도록 <c>A &lt; B</c> 정렬된 한 방향만 낸다.
+    /// (기록하는 쪽과 "같은 배치인가" 를 판정하는 쪽이 같은 규칙을 봐야 하므로 한자리에 둔다.)
+    /// </summary>
+    private static IEnumerable<(string A, string B)> EnumeratePairs(SeatArrangement a, int jjak)
+    {
+        if (jjak < 2) yield break;   // 1인석은 짝 이력 없음
+
+        var placed = a.Assignments
+            .Where(x => !string.IsNullOrEmpty(x.StudentID) && !x.IsUnUsed && !x.IsHidden)
+            .ToList();
+
+        foreach (var p in placed)
+        {
+            foreach (var q in placed)
+            {
+                if (ReferenceEquals(p, q)) continue;
+                if (p.Row != q.Row) continue;
+                if (p.Col / jjak != q.Col / jjak) continue;
+                if (Math.Abs(p.Col - q.Col) != 1) continue;
+                if (string.Compare(p.StudentID, q.StudentID, StringComparison.Ordinal) >= 0) continue;
+
+                yield return (p.StudentID!, q.StudentID!);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 지금까지 누적된 배치 회차 수(= 최대 Round). 옵션 다이얼로그 안내용.
+    /// 짝 이력만 세면 1인석(Jjak&lt;2) 학급은 짝 이력이 아예 없어 항상 0 으로 보이므로,
+    /// <see cref="GetMaxRoundAsync"/> 와 동일하게 짝·위치 두 이력의 MAX 를 본다.
+    /// </summary>
+    public async Task<int> GetRoundCountAsync(string sc, int y, int g, int c)
+    {
+        using var q = _connection.CreateCommand();
+        q.CommandText = MaxRoundSql;
         q.Parameters.AddWithValue("$sc", sc);
         q.Parameters.AddWithValue("$y", y);
         q.Parameters.AddWithValue("$g", g);
@@ -308,44 +421,26 @@ public sealed class SeatService : IDisposable
 
     private async Task InsertPairHistoryAsync(SeatArrangement a, int jjak, int round, SqliteTransaction tx)
     {
-        if (jjak < 2) return; // 1인석은 짝 이력 없음
         var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-        // 같은 Row, 같은 Jjak 그룹 내 인접(Col 차이 1) 학생 쌍 찾기
-        var placed = a.Assignments
-            .Where(x => !string.IsNullOrEmpty(x.StudentID) && !x.IsUnUsed && !x.IsHidden)
-            .ToList();
-
-        foreach (var p in placed)
+        foreach (var (studentA, studentB) in EnumeratePairs(a, jjak))
         {
-            foreach (var q2 in placed)
-            {
-                if (p == q2) continue;
-                if (p.Row != q2.Row) continue;
-                int gA = p.Col / jjak;
-                int gB = q2.Col / jjak;
-                if (gA != gB) continue;
-                if (Math.Abs(p.Col - q2.Col) != 1) continue;
-                // 중복 방지: A < B 정렬된 한 방향만
-                if (string.Compare(p.StudentID, q2.StudentID, StringComparison.Ordinal) >= 0) continue;
-
-                using var ins = _connection.CreateCommand();
-                ins.Transaction = tx;
-                // UNIQUE 인덱스(ux_seathistory_pair)와 짝: 재저장 등으로 같은 키가 다시 들어와도 무시
-                ins.CommandText = @"
-                    INSERT OR IGNORE INTO SeatHistory
-                    (SchoolCode, Year, Grade, Class, StudentID_A, StudentID_B, Round, Kind, SavedAt)
-                    VALUES ($sc,$y,$g,$c,$a,$b,$r,'Pair',$t);";
-                ins.Parameters.AddWithValue("$sc", a.SchoolCode);
-                ins.Parameters.AddWithValue("$y", a.Year);
-                ins.Parameters.AddWithValue("$g", a.Grade);
-                ins.Parameters.AddWithValue("$c", a.Class);
-                ins.Parameters.AddWithValue("$a", p.StudentID!);
-                ins.Parameters.AddWithValue("$b", q2.StudentID!);
-                ins.Parameters.AddWithValue("$r", round);
-                ins.Parameters.AddWithValue("$t", now);
-                await ins.ExecuteNonQueryAsync();
-            }
+            using var ins = _connection.CreateCommand();
+            ins.Transaction = tx;
+            // UNIQUE 인덱스(ux_seathistory_pair)와 짝: 재저장 등으로 같은 키가 다시 들어와도 무시
+            ins.CommandText = @"
+                INSERT OR IGNORE INTO SeatHistory
+                (SchoolCode, Year, Grade, Class, StudentID_A, StudentID_B, Round, Kind, SavedAt)
+                VALUES ($sc,$y,$g,$c,$a,$b,$r,'Pair',$t);";
+            ins.Parameters.AddWithValue("$sc", a.SchoolCode);
+            ins.Parameters.AddWithValue("$y", a.Year);
+            ins.Parameters.AddWithValue("$g", a.Grade);
+            ins.Parameters.AddWithValue("$c", a.Class);
+            ins.Parameters.AddWithValue("$a", studentA);
+            ins.Parameters.AddWithValue("$b", studentB);
+            ins.Parameters.AddWithValue("$r", round);
+            ins.Parameters.AddWithValue("$t", now);
+            await ins.ExecuteNonQueryAsync();
         }
     }
 

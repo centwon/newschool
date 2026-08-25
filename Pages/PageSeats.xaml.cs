@@ -1071,7 +1071,10 @@ public sealed partial class PageSeats : Page, IDisposable
         try
         {
             await seatService.SaveAsync(arrangement, _options, _jjak);
-            _savedRoundsCount++;
+
+            // 세지 말고 다시 읽는다 — 같은 배치를 두 번 저장하면 회차가 늘지 않으므로
+            // 손으로 ++ 하면 옵션 창의 "누적된 배치 회차" 안내가 실제보다 부풀려진다.
+            _savedRoundsCount = await CountRoundsAsync();
             SelectedStudentInfoBar.Severity = InfoBarSeverity.Success;
             SelectedStudentInfoBar.Title = "저장 완료";
             SelectedStudentInfoBar.Message = $"{Grade}학년 {ClassRoom}반 좌석 배치가 저장되었습니다.";
