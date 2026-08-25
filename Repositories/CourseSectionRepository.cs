@@ -21,8 +21,13 @@ public class CourseSectionRepository : BaseRepository
 
     /// <summary>
     /// CourseSection 스키마 정본(기본 컬럼만 — 기존 DB 호환).
-    /// v2 추가 컬럼과 인덱스는 이 리포지토리 생성 시 <c>AddNewColumnsIfNeeded</c> 가 붙인다.
-    /// <c>DatabaseInitializer</c> 가 이 상수를 함께 실행한다.
+    /// <c>DatabaseInitializer</c> 가 이 상수를 함께 실행하고, 인덱스는
+    /// <see cref="CreateIndexesIfNeeded"/> 가 붙인다.
+    ///
+    /// ⚠ 컬럼을 나중에 추가하는 장치는 <b>두지 않기로 한 것</b>이다(2026-08-25 결정, 재검토 금지).
+    /// 예전 주석이 말하던 <c>AddNewColumnsIfNeeded</c> 는 실제로 존재하지 않는다 —
+    /// <c>CREATE TABLE IF NOT EXISTS</c> 는 이미 만들어진 파일에 아무 일도 하지 않는다.
+    /// 앱 전체가 같은 방침이다(대가와 배경은 <c>Board.cs</c> 의 같은 취지 주석에 적어 두었다).
     /// </summary>
     internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS CourseSection (

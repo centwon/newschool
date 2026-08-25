@@ -269,10 +269,15 @@ namespace NewSchool.Board
             Debug.WriteLine("[DatabaseInitializer] PostFile 테이블 생성 완료");
         }
 
-        // ⚠ 여기에는 마이그레이션(ALTER)이 없다. 위 CREATE 는 IF NOT EXISTS 라서 이미 만들어진
-        // 파일에는 아무 일도 하지 않는다 — 나중에 열이 늘면 쓰던 board.db 에 직접 넣어야 한다.
-        // IsPinned(중요 글, 39차)는 그렇게 손으로 넣었다:
+        // ⚠ 마이그레이션(ALTER)은 **두지 않기로 한 것**이다(2026-08-25 결정, 재검토 금지).
+        // 위 CREATE 는 IF NOT EXISTS 라서 이미 만들어진 파일에는 아무 일도 하지 않는다 —
+        // 열이 늘면 쓰던 board.db 에 직접 넣는다. IsPinned(중요 글, 39차)도 그렇게 손으로 넣었다:
         //   ALTER TABLE Post ADD COLUMN IsPinned INTEGER NOT NULL DEFAULT 0
+        //
+        // 대가를 알고 내린 결정이다: 조회 쿼리가 컬럼 이름을 직접 대므로(SELECT ... IsPinned,
+        // ORDER BY IsPinned DESC), 컬럼이 없는 옛 board.db 에서는 'no such column' 으로
+        // 그 화면이 통째로 실패한다. 매핑 쪽 TryGetOrdinal 방어는 쿼리가 먼저 터져서 못 막는다.
+        // v1.0.0 신규 설치는 위 CREATE 에 IsPinned 가 들어 있어 해당 없음.
 
         private async Task CreateIndexesAsync(SqliteConnection connection)
         {
