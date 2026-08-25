@@ -71,7 +71,20 @@ namespace NewSchool.Models
             set => SetProperty(ref _birthDate, value);
         }
 
-        /// <summary>주민등록번호 (암호화 필요)</summary>
+        /// <summary>
+        /// 주민등록번호. 저장 시 DPAPI 로 암호화된다
+        /// (<see cref="Repositories.StudentRepository"/> 의 EncryptField/DecryptField).
+        ///
+        /// <para><b>★ 결정(2026-08-25): 입력칸이 없어도 이 자리는 남긴다 — 제거 재제안 금지.</b>
+        /// 지금은 값을 넣는 화면도 가져오기 경로도 없어 항상 비어 있지만, 나중에 쓸 자리로
+        /// 남겨 두기로 했다. 미참조라고 걷어내지 말 것.</para>
+        ///
+        /// <para>⚠ 입력칸을 만들 때 함께 해야 하는 일 둘 —
+        /// ① <c>Privacy.html</c> 의 "수집·처리하는 정보 항목" 에 고유식별정보로 추가한다
+        ///    (지금은 수집하지 않으므로 일부러 빠져 있다).
+        /// ② EncryptField 는 DPAPI 실패 시 <b>평문을 그대로 저장</b>한다 — 그 동작을 그대로 둘지
+        ///    구글 토큰처럼 저장을 포기할지 정한다.</para>
+        /// </summary>
         public string ResidentNumber
         {
             get => _residentNumber;
