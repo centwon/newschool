@@ -9,6 +9,17 @@
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <Version>1.0.0</Version>
+    <!-- 실행 파일 속성 창에 뜨는 정보. 비워 두면 LegalCopyright 가 빈 문자열이 되어
+         배포 바이너리에 저작권 표시가 아예 없다. Company 는 설치 파일의
+         AppPublisher(Installer\NewSchoolSetup.iss)와 같은 이름으로 맞춘다. -->
+    <Product>NewSchool</Product>
+    <!-- Win32 리소스의 FileDescription 은 Description 이 아니라 AssemblyTitle 에서 온다
+         (작업 관리자에 뜨는 이름). 둘 다 적어 두어야 양쪽이 채워진다. -->
+    <AssemblyTitle>교사를 위한 학급 경영 도우미</AssemblyTitle>
+    <Description>교사를 위한 학급 경영 도우미</Description>
+    <Company>Centwon</Company>
+    <Authors>Centwon</Authors>
+    <Copyright>Copyright © 2026 Centwon</Copyright>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
 
@@ -91,6 +102,19 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="newschool.ico" />
+    <!-- 제3자 라이선스 고지. MIT·Apache-2.0·BSD 계열은 바이너리 배포에도 저작권 문구와
+         라이선스 전문을 함께 보낼 것을 요구하므로, 게시 폴더에 실어 설치본과 포터블
+         양쪽에 따라가게 한다({app}\bin\ 아래에 놓인다). 지우면 고지가 끊긴다. -->
+    <Content Include="THIRD-PARTY-NOTICES.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- 사용권 계약. 설치 마법사가 동의 페이지로 띄우는 것과 같은 파일이며,
+         설치 뒤에도 읽을 수 있도록, 또 마법사를 거치지 않는 포터블에도 닿도록
+         게시 폴더 루트에 함께 싣는다(Link 로 Installer\ 를 벗겨 낸다 —
+         CleanPublishOutput 이 게시본의 Installer\ 폴더를 통째로 지우기 때문). -->
+    <Content Include="Installer\LICENSE_ko.txt" Link="LICENSE_ko.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- secrets.json 은 빌드 시 어셈블리에 내장(EmbeddedResource) → 게시 폴더에 평문 파일을 두지 않음.
          빌드 입력일 뿐이며 .gitignore 로 git 에는 포함되지 않음. -->
     <EmbeddedResource Include="secrets.json" Condition="Exists('secrets.json')" />

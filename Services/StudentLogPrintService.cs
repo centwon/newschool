@@ -33,8 +33,6 @@ namespace NewSchool.Services
             StudentCardViewModel studentVm,
             List<StudentLogViewModel> logs)
         {
-            QuestPDF.Settings.License = LicenseType.Community;
-
             var year = studentVm.Enrollment?.Year ?? Settings.WorkYear.Value;
             var grade = studentVm.Enrollment?.Grade ?? 0;
             var classNo = studentVm.Enrollment?.Class ?? 0;
@@ -89,8 +87,6 @@ namespace NewSchool.Services
             int year, int grade, int classNo,
             List<(StudentCardViewModel Student, List<StudentLogViewModel> Logs)> studentLogs)
         {
-            QuestPDF.Settings.License = LicenseType.Community;
-
             var fileName = $"누가기록_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
             var filePath = Path.Combine(GetOutputDir(), fileName);
 

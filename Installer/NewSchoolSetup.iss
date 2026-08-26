@@ -32,6 +32,13 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 ; 설치 시 폴더 선택 허용
 AllowNoIcons=yes
+; 사용권 계약 — 설치 마법사에 동의 페이지를 띄운다.
+;
+; 이것이 없으면 최종 사용자가 어떤 조건에도 동의하지 않은 채 설치가 끝난다.
+; 앱에 담아 함께 배포하는 Windows App SDK 의 라이선스(§3(b)(ii))는 "배포자와 외부
+; 최종 사용자가 Microsoft 를 이 계약만큼 보호하는 약관에 동의하도록 할 것" 을
+; 재배포 조건으로 걸고 있어, 동의 지점 자체가 필요하다.
+LicenseFile=LICENSE_ko.txt
 ; 출력 설치파일
 OutputDir=Output
 OutputBaseFilename=NewSchoolSetup_{#MyAppVersion}

@@ -24,6 +24,22 @@ public partial class App : Application
     public App()
     {
         Batteries_V2.Init();
+
+        // QuestPDF 라이선스는 정적 전역이라 프로세스당 한 번만 정해 두면 된다.
+        //
+        // 예전에는 PDF 를 만드는 서비스마다 각자 설정했는데(6곳), 그중
+        // StudentCardPrintService.GenerateClassInfoPdfFromDbAsync 하나가 빠져 있었다.
+        // 다른 PDF 를 먼저 만들어 본 적이 있으면 값이 이미 남아 있어 넘어가지만,
+        // 앱을 켜고 그 메뉴를 가장 먼저 누르면 QuestPDF 가 예외를 던진다.
+        // 시작 시 한 번으로 옮겨 그 순서 의존을 없앤다.
+        //
+        // Community 자격 근거(LICENSE.md v3.0, 2026-07-06 시행): 개인이 만드는
+        // 프로젝트이고 연 매출이 100만 달러에 못 미친다(1항). 사용자인 학교는
+        // 앱을 쓸 뿐 QuestPDF API 를 직접 부르지 않으므로 7항(전이 의존)에 든다.
+        // ⚠ 이 라이선스는 OSI 승인 오픈소스가 아니며 MIT 가 적용되지 않는다.
+        // 자격을 잃으면 90일 안에 유료 라이선스를 사야 한다.
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
         InitializeComponent();
 
         UnhandledException += (sender, e) =>

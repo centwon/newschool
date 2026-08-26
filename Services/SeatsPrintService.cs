@@ -288,8 +288,6 @@ public class SeatsPrintService
         PrintOrientation orientation = PrintOrientation.Auto,
         bool includeRoster = false)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var fileName = $"좌석배정표_{grade}학년{classRoom}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
         var printsDir = Path.Combine(Settings.RootPath, "Prints");
         if (!Directory.Exists(printsDir))

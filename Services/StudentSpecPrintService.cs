@@ -33,8 +33,6 @@ public class StudentSpecPrintService
         int year, int grade, int classNo,
         List<(int Number, string Name, List<StudentSpecial> Specs)> studentSpecs)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var fileName = $"학생부_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
         var filePath = Path.Combine(GetOutputDir(), fileName);
 

@@ -162,3 +162,14 @@ dotnet publish -c Release -p:Platform=x64
 소스 코드의 재배포·수정본 배포나 상업적 이용에 대해서는 아직 별도로 정해 두지
 않았습니다. 그런 용도가 필요하시면 <centwon@gmail.com> 으로 문의해 주세요.
 프로그램 이용 자체에 관한 조건은 [이용약관](Terms.html)을 따릅니다.
+
+### 제3자 구성 요소
+
+이 프로그램은 MiniExcel·SQLitePCLRaw·SQLite·QuestPDF·Skia·HarfBuzz·HtmlAgilityPack·
+WinUIRichEditor·Windows App SDK·.NET 등을 포함해 함께 배포합니다. 각 구성 요소의 저작권
+표시와 라이선스 전문은 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt) 에 있으며,
+같은 파일이 게시본에 실려 설치 폴더(`{app}\bin\`)와 포터블 폴더에도 함께 들어갑니다.
+
+QuestPDF 는 Community License 로 사용합니다. 2026-07-06 시행 v3.0 부터 **OSI 승인
+오픈소스가 아닌 소스 공개형 상업 라이선스**이며 MIT 가 적용되지 않습니다 — 개인·연 매출
+100만 달러 미만 조직·자선단체·학술기관은 무상입니다.

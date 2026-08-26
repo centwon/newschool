@@ -37,7 +37,6 @@ public class StudentCardPrintService
         if (window == null)
             throw new ArgumentNullException(nameof(window));
 
-        QuestPDF.Settings.License = LicenseType.Community;
         ConfigureKoreanFont();
 
         var grade = viewModel.Enrollment?.Grade ?? 0;
@@ -470,7 +469,6 @@ public class StudentCardPrintService
     /// </summary>
     public async Task<string?> GenerateClassCardsPdfFromDbAsync(int year, int grade, int classNo)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
         ConfigureKoreanFont();
 
         var students = await LoadClassStudentsAsync(year, grade, classNo);
