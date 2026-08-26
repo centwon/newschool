@@ -216,7 +216,22 @@ public sealed partial class StudentSpecPage : Page, IDisposable
             : null;
 
         var dialog = new Dialogs.StudentSpecBatchDialog(year, 0, grade, classNo, defaultType);
+        // 닫힐 때 목록을 다시 읽는다 — 일괄 입력 창은 DB 를 직접 고치는데, 여기가 모르면
+        // 화면에는 열기 전의 내용이 그대로 남고 그 상태로 [저장] 을 누르는 순간
+        // 방금 일괄로 넣은 내용을 옛 내용으로 덮어쓴다.
+        // (누가기록 쪽 다이얼로그들과 같은 규칙 — named method 로 구독해 자기 자신을 해제한다.)
+        dialog.Closed += OnBatchDialogClosedReload;
         dialog.Activate();
+    }
+
+    private async void OnBatchDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    {
+        if (sender is Window w) w.Closed -= OnBatchDialogClosedReload;
+
+        // 필터가 온전할 때만 다시 읽는다. LoadSpecsAsync 는 비어 있으면 안내 대화상자를
+        // 띄우는데, 창을 닫았을 뿐인 사용자에게 그것이 튀어나오면 뜬금없다.
+        if (YearSemPicker.Year != 0 && ClassFilter.Grade != 0 && ClassFilter.ClassNum != 0)
+            await LoadSpecsAsync();
     }
 
     /// <summary>

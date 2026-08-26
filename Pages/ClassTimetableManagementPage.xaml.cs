@@ -83,6 +83,17 @@ public sealed partial class ClassTimetableManagementPage : Page
     }
 
     /// <summary>
+    /// 테마 브러시를 이름으로 가져온다.
+    ///
+    /// <para>이 화면은 셀을 XAML 이 아니라 코드로 만들기 때문에, 형제 시간표들
+    /// (<c>WeeklyTimetableView</c>·<c>CourseTimetableBoard</c>·<c>TimetableControl</c>)이
+    /// XAML 에서 <c>ThemeResource</c> 로 지키던 규칙에서 혼자 새어나가 있었다. 셀 배경을
+    /// <c>Colors.White</c> 로 박아 놓고 과목명에는 색을 주지 않아, <b>다크 테마에서는
+    /// 흰 배경에 흰 글씨가 되어 시간표가 통째로 보이지 않았다</b>.</para>
+    /// </summary>
+    private static Brush ThemeBrush(string key) => (Brush)Application.Current.Resources[key];
+
+    /// <summary>
     /// 시간표 그리드 그리기
     /// </summary>
     private void DrawTimetable()
@@ -101,9 +112,9 @@ public sealed partial class ClassTimetableManagementPage : Page
         {
             var border = new Border
             {
-                BorderBrush = new SolidColorBrush(Colors.LightGray),
+                BorderBrush = ThemeBrush("DividerStrokeColorDefaultBrush"),
                 BorderThickness = new Thickness(0, 0, 1, 1),
-                Background = new SolidColorBrush(Colors.WhiteSmoke)
+                Background = ThemeBrush("SubtleFillColorSecondaryBrush")
             };
             Grid.SetRow(border, period);
             Grid.SetColumn(border, 0);
@@ -129,9 +140,9 @@ public sealed partial class ClassTimetableManagementPage : Page
 
                 var border = new Border
                 {
-                    BorderBrush = new SolidColorBrush(Colors.LightGray),
+                    BorderBrush = ThemeBrush("DividerStrokeColorDefaultBrush"),
                     BorderThickness = new Thickness(0, 0, day == 5 ? 0 : 1, 1),
-                    Background = new SolidColorBrush(Colors.White),
+                    Background = ThemeBrush("LayerFillColorDefaultBrush"),
                     Padding = new Thickness(8),
                     MinHeight = 80
                 };
@@ -160,7 +171,7 @@ public sealed partial class ClassTimetableManagementPage : Page
                         {
                             Text = timetable.TeacherName,
                             FontSize = 12,
-                            Foreground = new SolidColorBrush(Colors.Gray)
+                            Foreground = ThemeBrush("TextFillColorSecondaryBrush")
                         };
                         stackPanel.Children.Add(teacherText);
                     }

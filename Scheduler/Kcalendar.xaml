@@ -35,7 +35,10 @@
                         <TextBlock FontFamily="{StaticResource SymbolThemeFontFamily}" Text="&#xE76C;" FontSize="18"/>
                     </Button>
 
-                    <Button x:Name="BtnSetup" Grid.Column="4" Margin="4,2,4,2" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="4,2,4,2" Click="BtnSetup_Click" Background="{x:Null}" BorderBrush="{x:Null}">
+                    <!-- 열은 0~3 이다. 예전에 Grid.Column="4" 로 적혀 있었는데, WinUI 가 범위를
+                         넘는 값을 마지막 열로 클램프해 준 덕에 우연히 의도대로 보였을 뿐이다
+                         (열을 하나라도 추가하면 이 버튼이 조용히 딸려 간다). -->
+                    <Button x:Name="BtnSetup" Grid.Column="3" Margin="4,2,4,2" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="4,2,4,2" Click="BtnSetup_Click" Background="{x:Null}" BorderBrush="{x:Null}">
                         <Button.Content>
                             <TextBlock FontFamily="{StaticResource SymbolThemeFontFamily}" Text="&#xE713;" FontSize="18"/>
 

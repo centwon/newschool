@@ -140,12 +140,15 @@
                         <DataTemplate x:DataType="models:CourseSection">
                             <Grid Padding="8,4" ColumnSpacing="8" ToolTipService.ToolTip="클릭하여 편집">
                                 <Grid.ColumnDefinitions>
+                                    <!-- 마지막 열은 헤더와 같은 36 고정이다. Auto 로 두면 삭제 버튼의
+                                         실제 폭에 맞춰지는데, 헤더는 36 이라 남는 공간을 먹는 * 열
+                                         (소단원명)의 너비가 헤더와 행에서 달라져 가운데 열들이 밀린다. -->
                                     <ColumnDefinition Width="40"/>
                                     <ColumnDefinition Width="70"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="60"/>
                                     <ColumnDefinition Width="50"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="36"/>
                                 </Grid.ColumnDefinitions>
 
                                 <!-- 연번 (ContainerContentChanging 에서 채움) -->
@@ -184,6 +187,7 @@
 
                                 <Button Grid.Column="5"
                                         Click="OnDeleteSectionClick"
+                                        ToolTipService.ToolTip="이 단원 삭제"
                                         Tag="{x:Bind}"
                                         Padding="4"
                                         Background="Transparent"

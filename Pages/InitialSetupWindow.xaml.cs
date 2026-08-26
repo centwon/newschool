@@ -42,12 +42,16 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
         // 안내가 띄울 창을 못 찾아 Debug 출력으로만 사라진다(첫 실행 사용자는 아무것도 못 본다).
         Controls.MessageBox.TrackWindow(this);
 
+        // 저장된 테마로 연다. 창 여덟 중 여기만 빠져 있었다 — 첫 실행에는 테마가 기본값이라
+        // 티가 나지 않지만, 다크로 쓰던 사용자가 학교 정보를 잃으면(복원 직후 등) 이 창이
+        // 다시 뜨는데 그때 혼자 밝게 뜬다.
+        Helpers.ThemeHelper.Apply(this);
+
         // 현재 연도로 기본값 설정
         WorkYearNumberBox.Value = DateTime.Now.Year;
 
-        // 현재 월에 따라 학기 설정 (3-8월: 1학기, 9-2월: 2학기)
-        int currentMonth = DateTime.Now.Month;
-        WorkSemesterComboBox.SelectedIndex = (currentMonth >= 3 && currentMonth <= 8) ? 0 : 1;
+        // 현재 월에 따라 학기 설정 (3-8월: 1학기, 9-2월: 2학기) — 규칙은 DateTimeHelper 한 곳에.
+        WorkSemesterComboBox.SelectedIndex = DateTimeHelper.SemesterOf(DateTime.Now) - 1;
 
         _isYearSemesterSet = true;
 

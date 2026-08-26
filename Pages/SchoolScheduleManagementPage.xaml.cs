@@ -46,6 +46,29 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
     private readonly ObservableCollection<SchoolScheduleViewModel> _schedules = new();
     private bool _isInitialized = false;
 
+    /// <summary>
+    /// 진행 중인 작업 수. 이 화면의 여섯 버튼이 진행 표시 하나(LoadingRing)를 함께 쓰는데,
+    /// 예전에는 각자 <c>IsActive</c> 를 켜고 껐다. NEIS 동기화(네트워크라 몇 초씩 걸린다)가
+    /// 도는 중에 조회나 삭제를 누르면 그쪽이 먼저 끝나면서 아직 진행 중인 동기화의 표시를
+    /// 꺼버렸다. 게다가 동기화는 끝나고 목록을 다시 읽으므로 그 사이의 삭제 결과와 섞였다.
+    /// 세어서 마지막 하나가 끝날 때만 끄고, 도는 동안에는 버튼을 함께 잠근다.
+    /// </summary>
+    private int _busyCount;
+
+    private void SetBusy(bool busy)
+    {
+        _busyCount = busy ? _busyCount + 1 : Math.Max(0, _busyCount - 1);
+        bool on = _busyCount > 0;
+
+        LoadingRing.IsActive = on;
+        BtnSearch.IsEnabled = !on;
+        BtnSyncNeis.IsEnabled = !on;
+        BtnAddManual.IsEnabled = !on;
+        BtnSaveSelected.IsEnabled = !on;
+        BtnDeleteSelected.IsEnabled = !on;
+        BtnExport.IsEnabled = !on;
+    }
+
     public SchoolScheduleManagementPage()
     {
         this.InitializeComponent();
@@ -119,7 +142,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
 
         try
         {
-            LoadingRing.IsActive = true;
+            SetBusy(true);
             TxtStatus.Text = "조회 중...";
             _schedules.Clear();
 
@@ -169,7 +192,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
         }
         finally
         {
-            LoadingRing.IsActive = false;
+            SetBusy(false);
         }
     }
 
@@ -230,7 +253,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
 
         try
         {
-            LoadingRing.IsActive = true;
+            SetBusy(true);
             TxtStatus.Text = "NEIS API 호출 중...";
 
             // Functions.GetSchoolSchedulesAsync() 호출
@@ -290,7 +313,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
         }
         finally
         {
-            LoadingRing.IsActive = false;
+            SetBusy(false);
             TxtStatus.Text = "";
         }
     }
@@ -371,7 +394,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
 
         try
         {
-            LoadingRing.IsActive = true;
+            SetBusy(true);
             TxtStatus.Text = $"저장 중... ({selected.Count}개)";
 
             int savedCount = 0;
@@ -418,7 +441,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
         }
         finally
         {
-            LoadingRing.IsActive = false;
+            SetBusy(false);
             TxtStatus.Text = "";
         }
     }
@@ -457,7 +480,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
 
         try
         {
-            LoadingRing.IsActive = true;
+            SetBusy(true);
             TxtStatus.Text = $"삭제 중... ({selected.Count}개)";
 
             var deleteList = selected
@@ -497,7 +520,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
         }
         finally
         {
-            LoadingRing.IsActive = false;
+            SetBusy(false);
             TxtStatus.Text = "";
         }
     }
@@ -540,7 +563,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
             if (file == null)
                 return;
 
-            LoadingRing.IsActive = true;
+            SetBusy(true);
             TxtStatus.Text = "Excel 내보내기 중...";
 
             // 내보내기용 데이터 변환 (Native AOT 호환: Dictionary + 문자열 값)
@@ -582,7 +605,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
         }
         finally
         {
-            LoadingRing.IsActive = false;
+            SetBusy(false);
             TxtStatus.Text = "";
         }
     }

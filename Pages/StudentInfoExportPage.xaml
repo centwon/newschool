@@ -55,7 +55,7 @@
                         <ColumnDefinition Width="40"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="기본" FontWeight="SemiBold" FontSize="12" Foreground="{ThemeResource SystemAccentColor}"
+                    <TextBlock Text="기본" FontWeight="SemiBold" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                VerticalAlignment="Top" Margin="0,4,0,0"/>
                     <VariableSizedWrapGrid Grid.Column="1" Orientation="Horizontal" ItemWidth="86" ItemHeight="28">
                         <CheckBox x:Name="ChkSex" Content="성별" Tag="Sex"/>
@@ -73,7 +73,7 @@
                         <ColumnDefinition Width="40"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="보호자" FontWeight="SemiBold" FontSize="12" Foreground="{ThemeResource SystemAccentColor}"
+                    <TextBlock Text="보호자" FontWeight="SemiBold" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                VerticalAlignment="Top" Margin="0,4,0,0"/>
                     <VariableSizedWrapGrid Grid.Column="1" Orientation="Horizontal" ItemWidth="86" ItemHeight="28">
                         <CheckBox x:Name="ChkGuardianName" Content="보호자" Tag="GuardianName"/>
@@ -97,7 +97,7 @@
                         <ColumnDefinition Width="40"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="특성" FontWeight="SemiBold" FontSize="12" Foreground="{ThemeResource SystemAccentColor}"
+                    <TextBlock Text="특성" FontWeight="SemiBold" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                VerticalAlignment="Top" Margin="0,4,0,0"/>
                     <VariableSizedWrapGrid Grid.Column="1" Orientation="Horizontal" ItemWidth="86" ItemHeight="28">
                         <CheckBox x:Name="ChkInterest" Content="흥미" Tag="Interest"/>
@@ -114,7 +114,7 @@
                         <ColumnDefinition Width="40"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="건강" FontWeight="SemiBold" FontSize="12" Foreground="{ThemeResource SystemAccentColor}"
+                    <TextBlock Text="건강" FontWeight="SemiBold" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                VerticalAlignment="Top" Margin="0,4,0,0"/>
                     <VariableSizedWrapGrid Grid.Column="1" Orientation="Horizontal" ItemWidth="86" ItemHeight="28">
                         <CheckBox x:Name="ChkHealthInfo" Content="건강" Tag="HealthInfo"/>

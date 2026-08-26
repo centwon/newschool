@@ -75,10 +75,12 @@ public sealed partial class MonthPicker : UserControl
         this.InitializeComponent();
 
         // 색상 초기화
+        // 배경은 테마를 따라간다 — 글씨가 테마 기본색이라 배경만 밝은 색으로 고정하면
+        // 다크에서 서로를 삼킨다(XAML 쪽 리소스도 같은 이유로 ThemeResource 로 바꿨다).
         _normalBrush = new SolidColorBrush(Colors.Transparent);
-        _hoverBrush = new SolidColorBrush(Color.FromArgb(255, 240, 249, 255));
-        _selectedBrush = new SolidColorBrush(Color.FromArgb(255, 230, 244, 255));
-        _accentBrush = new SolidColorBrush(Color.FromArgb(255, 0, 120, 212));
+        _hoverBrush = (SolidColorBrush)Application.Current.Resources["SubtleFillColorSecondaryBrush"];
+        _selectedBrush = (SolidColorBrush)Application.Current.Resources["AccentFillColorSelectedTextBackgroundBrush"];
+        _accentBrush = (SolidColorBrush)Application.Current.Resources["AccentFillColorDefaultBrush"];
 
         // 월 Border 컬렉션 초기화
         _monthBorders = new List<Border>
@@ -270,7 +272,11 @@ public sealed partial class MonthPicker : UserControl
 
                 if (border.Child is TextBlock text)
                 {
-                    text.Foreground = new SolidColorBrush(Colors.Black);
+                    // 검정을 박으면 다크 테마에서 어두운 배경에 묻혀 **선택되지 않은 달이 통째로
+                    // 보이지 않는다**(선택된 달만 강조색이라 살아남는다). 지정을 지워
+                    // 테마 기본 글자색을 상속하게 한다.
+                    // 같은 병을 BoolToVacationColorConverter 가 먼저 겪고 고쳤다.
+                    text.ClearValue(TextBlock.ForegroundProperty);
                     text.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
                 }
             }

@@ -6,7 +6,15 @@
     xmlns:controls="using:NewSchool.Board.Controls"
     xmlns:board="using:NewSchool.Board"
     xmlns:appcontrols="using:NewSchool.Controls"
+    xmlns:converters="using:NewSchool.Converters"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <!-- 목록(PostListPage)과 같은 형식으로 맞춘다. 컨버터 없이 DateTime 을 그대로 묶으면
+             ToString() 이 돌아 문화권 기본 형식("2026-08-26 오후 2:30:00")이 되어,
+             같은 글의 날짜가 목록과 상세에서 다르게 보였다. -->
+        <converters:DateTimeToStringConverter x:Key="DateTimeConverter"/>
+    </Page.Resources>
 
     <Grid Padding="12">
         <Grid.RowDefinitions>
@@ -82,7 +90,7 @@
                                   MinHeight="0"
                                   Visibility="{x:Bind ViewModel.IsMemoVisibility, Mode=OneWay}"
                                   IsChecked="{x:Bind ViewModel.IsCompleted, Mode=TwoWay}"/>
-                        <TextBlock Text="{x:Bind ViewModel.Post.DateTime, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.Post.DateTime, Mode=OneWay, Converter={StaticResource DateTimeConverter}}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <TextBlock Text="조회" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="{x:Bind ViewModel.Post.ReadCount, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
@@ -94,7 +102,7 @@
             </StackPanel>
         </Border>
 
-        <!-- 내용 (Jodit HTML 뷰어) - 남은 공간을 채우며 내부 스크롤 -->
+        <!-- 내용 (RichTextEditor 읽기 전용) - 남은 공간을 채우며 내부 스크롤 -->
         <Border Grid.Row="2"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -273,7 +281,7 @@
                                    Margin="0,0,8,0"/>
 
                                             <TextBlock Grid.Column="2"
-                                   Text="{x:Bind DateTime}"
+                                   Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                                             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4">

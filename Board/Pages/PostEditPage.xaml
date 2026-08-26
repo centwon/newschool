@@ -80,7 +80,7 @@
                  MaxLength="200"
                  Margin="0,0,0,6"/>
 
-        <!-- Row2: 내용 (Jodit HTML 에디터) -->
+        <!-- Row2: 내용 (RichTextEditor) -->
         <appcontrols:RichTextEditor x:Name="ContentEditor"
                                  Grid.Row="2"
                                  Mode="Full"/>

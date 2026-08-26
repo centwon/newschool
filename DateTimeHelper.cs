@@ -17,6 +17,21 @@ public static class DateTimeHelper
         => (int)((date.Date - startDate.Date).TotalDays / 7) + 1;
 
     /// <summary>
+    /// 그 날짜가 속한 학기(1 또는 2). **1학기 = 3~8월, 2학기 = 9~다음해 2월**.
+    ///
+    /// <para>규칙을 화면마다 적지 말 것 — 실제로 어긋나 있었다. 초기 설정 창은 이 규칙을
+    /// 그대로 썼는데 누가기록 입력 상자만 <c>Month &lt;= 6</c> 이라, <b>7·8월에 쓴 1학기
+    /// 기록이 2학기로, 1·2월에 쓴 2학기 기록이 1학기로</b> 기본 선택됐다. 기록 조회는 학기로
+    /// 거르므로 그렇게 저장된 기록은 제 학기 목록에서 사라진다.</para>
+    ///
+    /// <para>정본은 <see cref="Services.WeeklyHoursCalculator.DefaultSemesterRange"/> 다
+    /// (1학기 3월 시작·2학기 9월 시작을 테스트가 고정해 두었다). 여기서는 그 관례를
+    /// "날짜 → 학기" 방향으로만 쓴다. 실제 학기 구간은 학사일정에서 유추하는 쪽이 정확하므로,
+    /// 시수 계산처럼 구간이 필요한 곳은 <c>ResolveSemesterRange</c> 를 쓴다.</para>
+    /// </summary>
+    public static int SemesterOf(DateTime date) => date.Month is >= 3 and <= 8 ? 1 : 2;
+
+    /// <summary>
     /// 그 날짜가 속한 주의 월요일. 주 단위 시간표가 어느 주를 펼칠지 정하는 기준이다.
     /// (수업 홈의 내 시간표와 주간 시간표 화면이 각자 같은 코드를 들고 있었다 — 한 벌로 모은다.)
     /// </summary>

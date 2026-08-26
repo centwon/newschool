@@ -180,11 +180,19 @@ public sealed partial class UnifiedExportPage : Page
         }
     }
 
+    /// <summary>
+    /// 진행 중 표시. 이 상태를 건드리는 <b>모든</b> 버튼을 함께 잠근다.
+    ///
+    /// <para>예전에는 클립보드 복사가 빠져 있었다. 그 버튼도 <c>SetBusy</c> 를 쓰기 때문에,
+    /// 내보내기가 도는 중에 복사를 누르면 대개 복사가 먼저 끝나면서 <c>SetBusy(false)</c> 가
+    /// 아직 끝나지 않은 내보내기의 진행 표시를 끄고 [내보내기] 버튼까지 도로 켰다.</para>
+    /// </summary>
     private void SetBusy(bool busy, string status)
     {
         Busy.IsActive = busy;
         BtnExport.IsEnabled = !busy;
         BtnPreview.IsEnabled = !busy;
+        BtnCopyClipboard.IsEnabled = !busy;
         TxtStatus.Text = status;
     }
 

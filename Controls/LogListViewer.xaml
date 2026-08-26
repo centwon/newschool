@@ -151,7 +151,7 @@
 
                                     <!-- 학년도 -->
                                     <TextBlock Grid.Column="1"
-                                               Text="{x:Bind Year}"
+                                               Text="{x:Bind Year, Mode=OneWay}"
                                                Visibility="{x:Bind YearColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
@@ -159,7 +159,7 @@
 
                                     <!-- 학기 -->
                                     <TextBlock Grid.Column="2"
-                                               Text="{x:Bind Semester}"
+                                               Text="{x:Bind Semester, Mode=OneWay}"
                                                Visibility="{x:Bind SemesterColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
@@ -168,13 +168,13 @@
                                     <!-- 영역 (라벨만 표시) -->
                                     <Border Grid.Column="3"
                                             x:Name="CategoryLabelBorder"
-                                            Background="{x:Bind CategoryColor}"
+                                            Background="{x:Bind CategoryColor, Mode=OneWay}"
                                             CornerRadius="3"
                                             Padding="4,2"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            Visibility="{Binding ElementName=TxtCategoryHeader, Path=Visibility}">
-                                        <TextBlock Text="{x:Bind CategoryLabel}"
+                                            Visibility="{x:Bind CategoryColumnVisibility, Mode=OneWay}">
+                                        <TextBlock Text="{x:Bind CategoryLabel, Mode=OneWay}"
                                                    FontSize="9"
                                                    FontWeight="SemiBold"
                                                    Foreground="White"/>
@@ -182,8 +182,8 @@
 
                                     <!-- 과목 -->
                                     <TextBlock Grid.Column="4"
-                                               Text="{x:Bind SubjectName}"
-                                               Visibility="{Binding ElementName=TxtSubjectHeader, Path=Visibility}"
+                                               Text="{x:Bind SubjectName, Mode=OneWay}"
+                                               Visibility="{x:Bind SubjectColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="14"
@@ -193,7 +193,7 @@
                                     <!-- 학년 -->
                                     <TextBlock Grid.Column="5"
                                                Text="{x:Bind Grade}"
-                                               Visibility="{Binding ElementName=TxtGradeHeader, Path=Visibility}"
+                                               Visibility="{x:Bind GradeColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="14"/>
@@ -201,7 +201,7 @@
                                     <!-- 반 -->
                                     <TextBlock Grid.Column="6"
                                                Text="{x:Bind Class}"
-                                               Visibility="{Binding ElementName=TxtClassHeader, Path=Visibility}"
+                                               Visibility="{x:Bind ClassColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="14"/>
@@ -209,7 +209,7 @@
                                     <!-- 번호 -->
                                     <TextBlock Grid.Column="7"
                                                Text="{x:Bind Number}"
-                                               Visibility="{Binding ElementName=TxtNumberHeader, Path=Visibility}"
+                                               Visibility="{x:Bind NumberColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="14"/>
@@ -217,7 +217,7 @@
                                     <!-- 이름 -->
                                     <TextBlock Grid.Column="8"
                                                Text="{x:Bind Name}"
-                                               Visibility="{Binding ElementName=TxtNameHeader, Path=Visibility}"
+                                               Visibility="{x:Bind NameColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="14"
@@ -225,7 +225,7 @@
 
                                     <!-- 일시 -->
                                     <TextBlock Grid.Column="9"
-                                               Text="{x:Bind DateString}"
+                                               Text="{x:Bind DateString, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                FontSize="14"

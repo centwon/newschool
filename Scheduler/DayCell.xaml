@@ -9,19 +9,10 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- 색상 리소스 -->
-        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
-        <SolidColorBrush x:Key="HolidayColor" Color="#FF4444"/>
-        <SolidColorBrush x:Key="SaturdayColor" Color="#4444FF"/>
-        <SolidColorBrush x:Key="SundayColor" Color="#FF4444"/>
-        <SolidColorBrush x:Key="VacationColor" Color="#FFA500"/>
-        <SolidColorBrush x:Key="TaskHoverColor" Color="#E6F4FF"/>
-        <SolidColorBrush x:Key="TodayHighlightColor" Color="#DCEEFB"/>
-        <SolidColorBrush x:Key="TodayBorderColor" Color="#4285F4"/>
-        <SolidColorBrush x:Key="HoverHighlightColor" Color="#F0F0F0"/>
+        <!-- 색상 리소스는 전부 걷어냈다. 셀 배경·강조·배지는 ThemeResource 를 직접 쓰고
+             (고정 밝은 색은 다크 테마에서 글씨를 삼킨다), 요일·휴일 글자색은 코드가
+             인스턴스 브러시로 들고 있다. 여기 있던 아홉 개는 참조가 하나도 없었다. -->
         <!-- 컨버터 -->
-        <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <local:DayOfWeekToColorConverter x:Key="DayOfWeekToColorConverter"/>
         <local:StringNotEmptyToVisibilityConverter x:Key="StringNotEmptyToVisibilityConverter"/>
 
     </UserControl.Resources>
@@ -41,18 +32,21 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- 마우스 호버 효과 (배경 레이어) -->
+            <!-- 마우스 호버 효과 (배경 레이어)
+                 ⚠ 이 두 레이어는 셀 전체를 덮고 날짜 글씨가 그 위에 올라간다. 밝은 색을 고정하면
+                    다크 테마에서 "밝은 배경 + 밝은 글씨"가 되어 오늘·호버 칸의 날짜가 사라진다
+                    (글씨는 테마 기본색을 따르기 때문이다). 배경도 테마를 따라가야 짝이 맞는다. -->
             <Border x:Name="HoverHighlight"
                     Grid.RowSpan="2"
-                    Background="{StaticResource HoverHighlightColor}"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                     IsHitTestVisible="False"
                     Opacity="0"/>
 
             <!-- 오늘 날짜 강조 효과 (배경 레이어) -->
             <Border x:Name="TodayHighlight"
                     Grid.RowSpan="2"
-                    Background="{StaticResource TodayHighlightColor}"
-                    BorderBrush="{StaticResource TodayBorderColor}"
+                    Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
                     BorderThickness="2"
                     CornerRadius="4"
                     IsHitTestVisible="False"
@@ -86,7 +80,7 @@
                 <!-- 작업 개수 배지 -->
                 <Border x:Name="TaskCountBadge" 
                         Grid.Column="2"
-                        Background="{StaticResource TaskHoverColor}"
+                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                         CornerRadius="10"
                         Padding="6,2"
                         Visibility="Collapsed">

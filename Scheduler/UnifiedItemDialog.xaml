@@ -30,7 +30,9 @@
                      IsClosable="True"/>
 
             <!-- 유형 선택: 할 일 / 일정 (RadioButton 탭 스타일) -->
-            <Border Background="#F3F3F3" CornerRadius="8" Padding="4">
+            <!-- 밝은 회색(#F3F3F3) 고정이었다 — 라디오 버튼 글자는 테마 기본색이라
+                 다크 테마에서 [할 일]/[일정] 유형 선택이 보이지 않았다. -->
+            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8" Padding="4">
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <RadioButton x:Name="RbTypeTask"
                                  Content="✓  할 일"

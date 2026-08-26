@@ -1,4 +1,4 @@
-<!-- PostListPage.xaml - Post 목록 페이지 (개선 버전) -->
+﻿<!-- PostListPage.xaml - Post 목록 페이지 (개선 버전) -->
 <Page
     x:Class="NewSchool.Board.Pages.PostListPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -183,8 +183,11 @@
                                         CornerRadius="0"
                                         Tag="{x:Bind}">
                                     <Button.Resources>
-                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFF3F9FF"/>
-                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FFD9ECFF"/>
+                                        <!-- 호버·누름 배경은 WinUI 기본값(테마 대응)을 그대로 쓴다.
+                                             예전에는 거의 흰색(#FFF3F9FF)·연한 파랑(#FFD9ECFF)을 박아
+                                             두었는데, 행 안의 글자는 테마 기본색이라 다크 테마에서
+                                             마우스를 올린 행이 통째로 보이지 않았다.
+                                             테두리만 계속 지운다(행 사이 선은 Button 쪽에서 그린다). -->
                                         <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
                                         <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
                                     </Button.Resources>
@@ -235,7 +238,7 @@
                                             <FontIcon Glyph="&#xE8BD;"
                                                       FontSize="12"
                                                       Margin="8,0,0,0"
-                                                      Foreground="{ThemeResource SystemAccentColor}"
+                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                                       Visibility="{x:Bind CommentIconVisibility}"/>
 
                                             <FontIcon Glyph="&#xE723;"
@@ -340,7 +343,7 @@
                                             <FontIcon Glyph="&#xE787;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                             <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         </StackPanel>
-                                        <FontIcon Glyph="&#xE8BD;" FontSize="12" Foreground="{ThemeResource SystemAccentColor}" Visibility="{x:Bind CommentIconVisibility}"/>
+                                        <FontIcon Glyph="&#xE8BD;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{x:Bind CommentIconVisibility}"/>
                                         <FontIcon Glyph="&#xE723;" FontSize="12" Visibility="{x:Bind FileIconVisibility}"/>
                                     </StackPanel>
                                 </Grid>

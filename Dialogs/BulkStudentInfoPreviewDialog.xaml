@@ -12,7 +12,9 @@
 
     <StackPanel Spacing="12" MinWidth="500" MaxHeight="500">
         <!-- 요약 정보 -->
-        <Border Background="#F0F8FF" CornerRadius="6" Padding="12,8">
+        <!-- 밝은 하늘색(#F0F8FF) 고정이었다 — 안의 요약 문구는 테마 기본색이라
+             다크 테마에서 "몇 명이 바뀐다"는 핵심 안내가 통째로 묻혔다. -->
+        <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6" Padding="12,8">
             <TextBlock x:Name="TxtSummary"
                        FontSize="13"
                        TextWrapping="Wrap"/>

@@ -233,7 +233,8 @@ public sealed partial class DayCell : UserControl
     public event EventHandler? CellChanged;
 
     #region Fields
-    private readonly SolidColorBrush _normalBrush;
+    // 평일용 브러시(_normalBrush = 검정)는 없앴다 — 평일은 색을 걸지 않고 테마 기본 글자색을
+    // 그대로 쓴다(ApplyForeground 참고). 아래 색들은 요일·휴일 표시라 테마와 무관하게 고정이다.
     private readonly SolidColorBrush _holidayBrush;
     private readonly SolidColorBrush _saturdayBrush;
     private readonly SolidColorBrush _sundayBrush;
@@ -273,12 +274,13 @@ public sealed partial class DayCell : UserControl
         this.InitializeComponent();
 
         // 색상 초기화 (인스턴스 브러시 — DependencyObject로 static 불가)
-        _normalBrush = new SolidColorBrush(Colors.Black);
         _holidayBrush = new SolidColorBrush(Color.FromArgb(255, 255, 68, 68));
         _saturdayBrush = new SolidColorBrush(Color.FromArgb(255, 68, 68, 255));
         _sundayBrush = new SolidColorBrush(Color.FromArgb(255, 255, 68, 68));
         _vacationBrush = new SolidColorBrush(Color.FromArgb(255, 255, 165, 0));
-        _taskHoverBrush = new SolidColorBrush(Color.FromArgb(255, 230, 244, 255));
+        // 할 일 항목 호버 배경. 그 위 글씨는 테마 기본색이라 배경도 테마를 따라가야
+        // 다크에서 "밝은 배경 + 밝은 글씨"가 되지 않는다.
+        _taskHoverBrush = (SolidColorBrush)Application.Current.Resources["SubtleFillColorSecondaryBrush"];
         _transparentBrush = new SolidColorBrush(Colors.Transparent);
 
         // Loaded 이벤트에서 초기화
@@ -554,32 +556,45 @@ public sealed partial class DayCell : UserControl
         try
         {
             // 날짜 숫자: 공휴일(최우선) → 일요일 → 토요일 → 평일. 휴업일은 날짜 색에 영향 없음.
-            SolidColorBrush dateBrush;
+            //
+            // ⚠ 평일은 색을 **지정하지 않는다**(null → ClearValue). 예전에는 검정을 박았는데,
+            //    셀 배경은 ThemeResource(LayerFillColorDefaultBrush)라 테마를 따라가므로
+            //    **다크 테마에서 어두운 배경 위 검정 글씨가 되어 평일 날짜가 보이지 않았다**
+            //    (공휴일·토·일은 제 색이 있어 멀쩡하니 평일만 사라진다). 지정하지 않으면
+            //    TextBlock 이 테마 기본 글자색을 상속해 라이트·다크 모두 제대로 보인다.
+            SolidColorBrush? dateBrush;
             if (dayInfo.IsHoliday) dateBrush = _holidayBrush;
             else if (dayInfo.Date.DayOfWeek == DayOfWeek.Sunday) dateBrush = _sundayBrush;
             else if (dayInfo.Date.DayOfWeek == DayOfWeek.Saturday) dateBrush = _saturdayBrush;
-            else dateBrush = _normalBrush;
+            else dateBrush = null;
 
-            // 학사일정 텍스트: 휴일 → 휴업일 → 나머지(검정). 요일은 텍스트 색에 영향 없음.
-            SolidColorBrush scheduleBrush;
+            // 학사일정 텍스트: 휴일 → 휴업일 → 나머지(테마 기본색). 요일은 텍스트 색에 영향 없음.
+            SolidColorBrush? scheduleBrush;
             if (dayInfo.IsHoliday) scheduleBrush = _holidayBrush;
             else if (dayInfo.IsVacation) scheduleBrush = _vacationBrush;
-            else scheduleBrush = _normalBrush;
+            else scheduleBrush = null;
 
             // 색상 적용 (오늘 강조는 셀 테두리(TodayHighlight)가 담당하므로 날짜 색은 평소 규칙 그대로)
-            if (LbDate != null)
-            {
-                LbDate.Foreground = dateBrush;
-            }
-            if (TbDateName != null)
-            {
-                TbDateName.Foreground = scheduleBrush;
-            }
+            ApplyForeground(LbDate, dateBrush);
+            ApplyForeground(TbDateName, scheduleBrush);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[DayCell] UpdateColorDisplay 오류: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 글자색을 건다. <paramref name="brush"/> 가 null 이면 <b>되돌린다</b> —
+    /// 지정을 지워야 TextBlock 이 테마 기본 글자색을 상속한다(그냥 두면 이전에 걸어 둔
+    /// 빨강·주황이 남는다. 셀은 재활용되므로 어제 공휴일이던 칸이 오늘 평일이 될 수 있다).
+    /// </summary>
+    private static void ApplyForeground(TextBlock? target, SolidColorBrush? brush)
+    {
+        if (target == null) return;
+
+        if (brush == null) target.ClearValue(TextBlock.ForegroundProperty);
+        else target.Foreground = brush;
     }
 
     /// <summary>

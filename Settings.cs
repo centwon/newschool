@@ -592,7 +592,7 @@ public static class Settings
 
             var backupsRoot = BackupDirectory;
             Directory.CreateDirectory(backupsRoot);
-            var zipPath = Path.Combine(backupsRoot, $"backup_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
+            var zipPath = ReserveBackupPath(backupsRoot);
             System.IO.Compression.ZipFile.CreateFromDirectory(
                 staging, zipPath, System.IO.Compression.CompressionLevel.Optimal, includeBaseDirectory: false);
 
@@ -611,6 +611,26 @@ public static class Settings
         {
             try { if (Directory.Exists(staging)) Directory.Delete(staging, true); } catch { /* 임시 폴더 정리 실패 무시 */ }
         }
+    }
+
+    /// <summary>
+    /// 아직 쓰이지 않은 백업 ZIP 경로를 고른다.
+    ///
+    /// <para>파일명이 초 단위라 같은 초에 백업이 두 번 시작되면 뒤엣것이
+    /// <c>ZipFile.CreateFromDirectory</c> 에서 터져 "백업 중 오류" 로 끝난다. 버튼은 잠갔지만
+    /// 앱 시작 시 자동 백업은 백그라운드에서 따로 돌기 때문에 사용자의 수동 백업과 겹칠 수 있다.
+    /// 겹치면 <c>_2</c>, <c>_3</c> … 을 붙인다 — 접두사가 그대로라 <see cref="CleanupOldBackups"/>
+    /// 의 문자열 내림차순 정렬(= 최신순)도 그대로 성립한다.</para>
+    /// </summary>
+    private static string ReserveBackupPath(string backupsRoot)
+    {
+        var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var path = Path.Combine(backupsRoot, $"backup_{stamp}.zip");
+
+        for (int suffix = 2; File.Exists(path) && suffix <= 99; suffix++)
+            path = Path.Combine(backupsRoot, $"backup_{stamp}_{suffix}.zip");
+
+        return path;
     }
 
     /// <summary>

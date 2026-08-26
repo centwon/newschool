@@ -174,8 +174,12 @@
                               Visibility="Visible">
                     <StackPanel>
                         <!-- 헤더 -->
+                        <!-- ColumnSpacing 은 아래 행 Grid 와 반드시 같아야 한다. 없으면 열 너비가
+                             같아도 간격만큼(12 × 5칸 = 60px) 헤더와 값이 어긋나 오른쪽 열일수록
+                             밀린다 — 실제로 헤더에만 빠져 있었다. -->
                         <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                               Padding="16,12"
+                              ColumnSpacing="12"
                               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                               BorderThickness="0,0,0,1">
                             <Grid.ColumnDefinitions>

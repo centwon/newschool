@@ -57,7 +57,9 @@ namespace NewSchool.Controls
         private void InitializeDefaultValues()
         {
             NumYear.Value = DateTime.Today.Year;
-            CBoxSemester.SelectedIndex = DateTime.Today.Month <= 6 ? 0 : 1;
+            // 학기 규칙은 DateTimeHelper 한 곳에서만 정한다(여기 있던 `Month <= 6` 은
+            // 7·8월과 1·2월에 학기를 뒤집었다 — 3~8월이 1학기다).
+            CBoxSemester.SelectedIndex = DateTimeHelper.SemesterOf(DateTime.Today) - 1;
             DatePickerLog.Date = DateTimeOffset.Now;
             CBoxCategory.SelectedIndex = 0;
         }

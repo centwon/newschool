@@ -112,8 +112,23 @@ public sealed partial class AppSettingsPage : Page
             Settings.BackupRetentionCount.Set((int)args.NewValue);
     }
 
+    /// <summary>
+    /// 백업·복원이 도는 동안 두 버튼을 함께 잠근다.
+    ///
+    /// <para>둘 다 <c>Task.Run</c> 으로 백그라운드에 넘겨 창이 얼지 않는데, 그 말은 작업이
+    /// 도는 내내 버튼도 멀쩡히 눌린다는 뜻이다. 백업을 연타하면 두 번째가 같은 초의 파일명을
+    /// 노려 실패하고, 복원 도중 백업을 누르면 DB 파일이 갈리는 와중에 스냅샷을 뜬다.
+    /// 서로도 막아야 하므로 각자가 아니라 한 곳에서 함께 잠근다.</para>
+    /// </summary>
+    private void SetBackupBusy(bool busy)
+    {
+        BtnBackup.IsEnabled = !busy;
+        BtnRestore.IsEnabled = !busy;
+    }
+
     private async void OnBackupClick(object sender, RoutedEventArgs e)
     {
+        SetBackupBusy(true);
         try
         {
             // DB 스냅샷 + ZIP 압축은 데이터가 쌓이면 몇 초씩 걸린다. UI 스레드에서 부르면
@@ -131,10 +146,15 @@ public sealed partial class AppSettingsPage : Page
         {
             await MessageBox.ShowAsync(ex.Message, "백업 오류");
         }
+        finally
+        {
+            SetBackupBusy(false);
+        }
     }
 
     private async void OnRestoreClick(object sender, RoutedEventArgs e)
     {
+        SetBackupBusy(true);
         try
         {
             // 신규 백업은 ZIP 단일 파일. 구버전 폴더 백업은 폴더 안의 .db 를 선택하면 폴더째 복원.
@@ -185,6 +205,10 @@ public sealed partial class AppSettingsPage : Page
         catch (Exception ex)
         {
             await MessageBox.ShowAsync(ex.Message, "복원 오류");
+        }
+        finally
+        {
+            SetBackupBusy(false);
         }
     }
 

@@ -1,4 +1,4 @@
-<Page
+﻿<Page
     x:Class="NewSchool.Pages.ClassDiaryPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -60,7 +60,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Button x:Name="BtnDatePrev"
+                <Button x:Name="BtnDatePrev" ToolTipService.ToolTip="이전 날짜"
                         Grid.Column="0"
                         Click="BtnDatePrev_Click"
                         Background="Transparent"
@@ -75,7 +75,7 @@
                                     DateFormat="{}{year.full}년 {month.integer}월 {day.integer}일 {dayofweek.full}"
                                     DateChanged="DatePicker_DateChanged"/>
 
-                <Button x:Name="BtnDateNext"
+                <Button x:Name="BtnDateNext" ToolTipService.ToolTip="다음 날짜"
                         Grid.Column="2"
                         Click="BtnDateNext_Click"
                         Background="Transparent"

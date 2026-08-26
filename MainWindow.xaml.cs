@@ -424,12 +424,24 @@ public sealed partial class MainWindow : Window
         // ⚠ MessageBox.ShowDialogAsync 를 거친다. 예전에는 ContentDialog.ShowAsync 를 직접
         //    `_ =` 로 버려서 (1) 다른 대화상자가 열려 있으면 나는 예외가 미관측 태스크 예외가 되고
         //    (2) 대화상자 직렬화 게이트를 우회해 바로 뒤의 결과 대화상자와 충돌할 수 있었다.
-        _ = MessageBox.ShowDialogAsync(progressDialog).ContinueWith(
-            t => System.Diagnostics.Debug.WriteLine($"[MainWindow] 업데이트 진행 표시 실패: {t.Exception?.InnerException?.Message}"),
-            TaskContinuationOptions.OnlyOnFaulted);
+        //
+        // ⚠ 표시가 늦어질 수 있다는 것도 함께 다뤄야 한다. ShowDialogAsync 는 게이트를 먼저
+        //    기다리므로, 다른 대화상자가 열려 있으면 이 창은 아래 Hide() 보다 늦게 뜬다.
+        //    그러면 Hide() 가 헛돌아 "업데이트를 확인하고 있습니다..." 가 화면에 남고, 그것이
+        //    게이트를 문 채라 정작 결과 대화상자가 뜨지 못한다. 닫으라는 표시를 남겨 두고
+        //    Opened 에서 곧바로 닫는다.
+        bool progressDone = false;
+        progressDialog.Opened += (s, _) => { if (progressDone) s.Hide(); };
+
+        var showTask = MessageBox.ShowDialogAsync(progressDialog);
 
         var result = await checkTask;
+
+        progressDone = true;
         progressDialog.Hide();
+
+        // 게이트가 풀린 뒤에 결과 대화상자로 넘어간다(늦게 떴다 닫히는 경우까지 기다린다).
+        await showTask;
 
         // 결과 다이얼로그
         if (!result.IsSuccess)

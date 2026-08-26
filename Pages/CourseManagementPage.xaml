@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="NewSchool.Pages.CourseManagementPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -199,7 +199,7 @@
                                                         Click="OnEditClick"
                                                         Tag="{x:Bind}"/>
 
-                                                    <Button Click="OnDeleteClick" Tag="{x:Bind}">
+                                                    <Button Click="OnDeleteClick" Tag="{x:Bind}" ToolTipService.ToolTip="이 교과 삭제">
                                                         <FontIcon Glyph="&#xE74D;" FontSize="14"/>
                                                     </Button>
                                                 </StackPanel>

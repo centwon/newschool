@@ -664,7 +664,33 @@ public sealed partial class PageSeats : Page, IDisposable
             return;
         }
 
-        await ArrangeSeatAsync(demoMode: false);
+        await RunArrangeAsync(demoMode: false);
+    }
+
+    /// <summary>
+    /// 배정이 도는 동안인가. 흩뿌리기·정위치 애니메이션만 30명 기준 6초쯤 걸리는데
+    /// 그동안 UI 는 멀쩡히 살아 있어서 [자리 짜기] 를 또 누를 수 있다. 두 배정이 겹치면
+    /// 같은 카드의 좌표를 번갈아 옮겨 카드가 제자리에 앉지 못한다 — 학생들 앞에서 돌리는
+    /// 시연에서 특히 눈에 띈다. 왼쪽·오른쪽 클릭이 서로도 막도록 버튼이 아니라 상태로 잠근다.
+    /// </summary>
+    private bool _isArranging;
+
+    private async Task RunArrangeAsync(bool demoMode)
+    {
+        if (_isArranging) return;
+
+        _isArranging = true;
+        BtnArrange.IsEnabled = false;
+        try
+        {
+            await ArrangeSeatAsync(demoMode);
+        }
+        finally
+        {
+            _isArranging = false;
+            // 잠금 상태가 버튼의 원래 규칙이다(UpdateLockUI 와 같은 식).
+            BtnArrange.IsEnabled = !_isLocked;
+        }
     }
 
     /// <summary>
@@ -687,7 +713,7 @@ public sealed partial class PageSeats : Page, IDisposable
             return;
         }
 
-        await ArrangeSeatAsync(demoMode: true);
+        await RunArrangeAsync(demoMode: true);
     }
 
     private async Task ArrangeSeatAsync(bool demoMode)

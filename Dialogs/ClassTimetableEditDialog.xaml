@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <ContentDialog
     x:Class="NewSchool.Dialogs.ClassTimetableEditDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -157,6 +157,7 @@
 
                         <Button 
                             Grid.Column="4"
+                            ToolTipService.ToolTip="이 시간표 줄 삭제"
                             Click="OnRemoveClick"
                             Tag="{x:Bind Mode=OneTime}">
                             <FontIcon Glyph="&#xE74D;" FontSize="14"/>

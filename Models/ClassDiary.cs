@@ -330,9 +330,9 @@ namespace NewSchool.Models
             if (string.IsNullOrWhiteSpace(studentName))
                 return false;
 
-            return Absent?.Contains(studentName) == true ||
-                   Late?.Contains(studentName) == true ||
-                   LeaveEarly?.Contains(studentName) == true;
+            return Listed(Absent, studentName)
+                || Listed(Late, studentName)
+                || Listed(LeaveEarly, studentName);
         }
 
         /// <summary>
@@ -345,16 +345,38 @@ namespace NewSchool.Models
 
             var statuses = new List<string>();
 
-            if (Absent?.Contains(studentName) == true)
+            if (Listed(Absent, studentName))
                 statuses.Add(AttendanceStatus.Absent);
 
-            if (Late?.Contains(studentName) == true)
+            if (Listed(Late, studentName))
                 statuses.Add(AttendanceStatus.Tardy);
 
-            if (LeaveEarly?.Contains(studentName) == true)
+            if (Listed(LeaveEarly, studentName))
                 statuses.Add(AttendanceStatus.EarlyLeave);
 
             return statuses.Count > 0 ? string.Join(", ", statuses) : "정상";
+        }
+
+        /// <summary>
+        /// 쉼표로 이어 적은 이름 목록에 <paramref name="studentName"/> 이 <b>한 항목으로</b> 들어 있는가.
+        ///
+        /// <para>⚠ <c>Absent.Contains(name)</c> 로 검사하면 안 된다 — 이 칸들은 "김하늘, 박지민"
+        /// 처럼 이어 적은 <b>문자열</b>이라 부분 일치가 그대로 통과한다. 한국 이름은 서로의
+        /// 앞부분인 경우가 흔해서(김하 ⊂ 김하늘, 박지 ⊂ 박지민) 결석하지 않은 학생이
+        /// 결석으로 잡혔다. 같은 클래스의 <see cref="AttendanceIssueCount"/> 는 처음부터
+        /// <c>Split(',')</c> 로 제대로 갈랐는데 이 둘만 따라오지 않았다.</para>
+        /// </summary>
+        private static bool Listed(string? csv, string studentName)
+        {
+            if (string.IsNullOrWhiteSpace(csv)) return false;
+
+            foreach (var part in csv.Split(','))
+            {
+                if (string.Equals(part.Trim(), studentName.Trim(), StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>

@@ -33,7 +33,7 @@ public sealed partial class ClassDiaryBox : UserControl
         this.InitializeComponent();
         ViewModel = new ClassDiaryViewModel();
         
-        // JoditEditor TextChanged 이벤트 구독
+        // 알림장 편집기(RichTextEditor) TextChanged 이벤트 구독
         NoticeBox.TextChanged += NoticeBox_TextChanged;
 
         // ⚠ 저장 시점을 앞당기는 장치다.
@@ -179,7 +179,7 @@ public sealed partial class ClassDiaryBox : UserControl
     #region 이벤트 핸들러
 
     /// <summary>
-    /// 알림장 (JoditEditor) 텍스트 변경 - ReadOnly 모드에서는 호출되지 않음
+    /// 알림장 (RichTextEditor) 텍스트 변경 - ReadOnly 모드에서는 호출되지 않음
     /// </summary>
     private void NoticeBox_TextChanged(object? sender, string e)
     {
@@ -285,6 +285,13 @@ public sealed partial class ClassDiaryBox : UserControl
             ? BuildNoticeHeaderHtml() + current
             : current;
 
+        // ⚠ RichTextEditorWin.ShowDialogAsync 는 이름과 달리 모달이 아니다 — 창을 띄우고
+        //    닫힘을 기다릴 뿐이라 그동안 뒤의 일지 화면이 그대로 조작된다. 편집하는 사이에
+        //    날짜나 학급을 바꾸면 이 상자에는 이미 다른 일지가 올라와 있고, 그 위에 편집
+        //    결과를 얹으면 엉뚱한 날짜의 알림장이 되면서 원래 있던 알림장이 사라진다.
+        //    열 때의 대상을 적어 두고 돌아와서 같은지 본다.
+        var target = (ViewModel.Grade, ViewModel.Class, ViewModel.Date.Date);
+
         var editorWin = new RichTextEditorWin(
             "알림장 편집",
             initialHtml,
@@ -294,14 +301,23 @@ public sealed partial class ClassDiaryBox : UserControl
 
         bool result = await editorWin.ShowDialogAsync();
 
-        if (result)
+        if (!result) return;
+
+        if (target != (ViewModel.Grade, ViewModel.Class, ViewModel.Date.Date))
         {
-            // 편집 결과를 그대로 쓴다(헤더도 본문의 일부다)
-            NoticeBox.Text = editorWin.Text;
-            _isChanged = true;
-            UpdateNoticePreview();
-            RestartAutoSaveTimer();
+            await MessageBox.ShowAsync(
+                $"편집하는 사이에 화면이 {ViewModel.Grade}학년 {ViewModel.Class}반 " +
+                $"{ViewModel.Date:M월 d일} 일지로 바뀌어서, 고친 알림장을 적용하지 않았습니다.\n" +
+                $"{target.Item1}학년 {target.Item2}반 {target.Item3:M월 d일} 로 돌아가 다시 편집해 주세요.",
+                "알림장 적용 안 됨");
+            return;
         }
+
+        // 편집 결과를 그대로 쓴다(헤더도 본문의 일부다)
+        NoticeBox.Text = editorWin.Text;
+        _isChanged = true;
+        UpdateNoticePreview();
+        RestartAutoSaveTimer();
     }
 
     /// <summary>

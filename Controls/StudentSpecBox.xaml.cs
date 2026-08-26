@@ -158,7 +158,10 @@ public sealed partial class StudentSpecBox : UserControl
         TxtTitleInput.Text = "";
         _originalTitle = string.Empty;
         TxtByteInfo.Text = "0 / 1500 Byte (0자)";
-        TxtByteInfo.Foreground = new SolidColorBrush(Colors.Black);
+        // 아래 UpdateByteInfo 의 정상 경로와 같은 색을 쓴다. 검정을 박아 두면 다크 테마에서
+        // 비운 직후의 바이트 안내만 어두운 배경에 묻혔다가, 글자를 치는 순간 제 색으로
+        // 돌아오는 이상한 동작이 된다.
+        TxtByteInfo.Foreground = (SolidColorBrush)Application.Current.Resources["TextFillColorPrimaryBrush"];
         
         _originalContent = string.Empty;
         _isModified = false;

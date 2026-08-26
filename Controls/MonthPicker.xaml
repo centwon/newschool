@@ -10,10 +10,9 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <!-- 색상 정의 -->
-            <SolidColorBrush x:Key="AccentColor" Color="#0078D4"/>
-            <SolidColorBrush x:Key="HoverColor" Color="#F0F9FF"/>
-            <SolidColorBrush x:Key="SelectedColor" Color="#E6F4FF"/>
-            <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+            <!-- 고정색 정의를 걷어냈다. 여기 있던 밝은 하늘색·연회색은 다크 테마에서
+                 배경만 밝아지고 글씨는 테마 기본색(흰색)을 따라가 서로를 삼켰다.
+                 아래 사용처가 ThemeResource 를 직접 쓴다. -->
 
             <!-- 월 선택 박스 스타일 -->
             <Style x:Key="MonthBoxStyle" TargetType="Border">
@@ -59,7 +58,7 @@
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
                                                                                Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource HoverColor}"/>
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
@@ -67,7 +66,7 @@
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
                                                                                Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SelectedColor}"/>
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"/>
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
@@ -81,8 +80,9 @@
 
             <!-- 메인 버튼 스타일 -->
             <Style x:Key="MainButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="White"/>
-                <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                <!-- 흰색 고정이었다 — 글자는 테마 기본색이라 다크에서 흰 배경에 흰 글씨가 됐다 -->
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="MinHeight" Value="36"/>
@@ -120,11 +120,11 @@
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
                                                                                Storyboard.TargetProperty="BorderBrush">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource AccentColor}"/>
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
                                                 </ObjectAnimationUsingKeyFrames>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
                                                                                Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource HoverColor}"/>
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
@@ -132,7 +132,7 @@
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BackgroundBorder"
                                                                                Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SelectedColor}"/>
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"/>
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
@@ -159,7 +159,7 @@
                         <Style TargetType="FlyoutPresenter">
                             <Setter Property="CornerRadius" Value="12"/>
                             <Setter Property="BorderThickness" Value="0.5"/>
-                            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
                             <Setter Property="Padding" Value="0"/>
                         </Style>
                     </Flyout.FlyoutPresenterStyle>
@@ -187,6 +187,7 @@
 
                             <Button Grid.Column="0"
                                     x:Name="BtnPrevious"
+                                    ToolTipService.ToolTip="이전 해"
                                     Style="{StaticResource NavigationButtonStyle}"
                                     Click="BtnPrevious_Click">
                                 <FontIcon Glyph="&#xE76B;" FontSize="16"/>
@@ -201,6 +202,7 @@
 
                             <Button Grid.Column="2"
                                     x:Name="BtnNext"
+                                    ToolTipService.ToolTip="다음 해"
                                     Style="{StaticResource NavigationButtonStyle}"
                                     Click="BtnNext_Click">
                                 <FontIcon Glyph="&#xE76C;" FontSize="16"/>

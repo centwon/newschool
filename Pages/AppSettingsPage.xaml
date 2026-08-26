@@ -97,12 +97,14 @@
                                 </Grid.ColumnDefinitions>
 
                                 <Button
+                                    x:Name="BtnBackup"
                                     Grid.Column="0"
                                     Content="지금 백업"
                                     Click="OnBackupClick"
                                     HorizontalAlignment="Stretch"/>
 
                                 <Button
+                                    x:Name="BtnRestore"
                                     Grid.Column="1"
                                     Content="복원..."
                                     Click="OnRestoreClick"

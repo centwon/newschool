@@ -21,7 +21,12 @@ public sealed class GoogleSyncService : IDisposable
 {
     private readonly GoogleCalendarApiClient _apiClient;
     private readonly GoogleAuthService _authService;
-    private readonly SemaphoreSlim _syncLock = new(1, 1);
+    // ⚠ 반드시 static 이다. 인스턴스 필드로 두면 서로 다른 GoogleSyncService 가 서로를
+    // 막지 못한다 — 앱이 들고 도는 주기적 동기화(App._googleSyncService)와 설정 화면의
+    // [지금 동기화](CalendarSettingsDialog 가 그때그때 새로 만드는 인스턴스)가 겹치면
+    // 양쪽이 "GoogleId 없는 이벤트" 목록을 각각 읽어 각각 Insert 해, 같은 일정이 구글에
+    // 두 개 생기고 먼저 만든 쪽은 로컬과 연결이 끊겨 손으로 지워야 하는 고아가 된다.
+    private static readonly SemaphoreSlim _syncLock = new(1, 1);
     private PeriodicTimer? _periodicTimer;
     private CancellationTokenSource? _periodicCts;
     private bool _disposed;
@@ -69,6 +74,19 @@ public sealed class GoogleSyncService : IDisposable
         if (!Functions.IsNetworkAvailable())
         {
             totalResult.ErrorMessages.Add("네트워크에 연결되어 있지 않습니다.");
+            return totalResult;
+        }
+
+        // 겹침 판정은 캘린더별이 아니라 동기화 한 번에 대해 내린다. 캘린더마다 잡으면
+        // 상대가 도는 동안 캘린더 수만큼 5초씩 기다렸다 실패한다.
+        //
+        // 인증 없음·오프라인과 같은 자리에서 빠져나간다 — 겹친 것은 실패가 아니라
+        // "이번엔 건너뛴다" 이므로 SyncCompleted 를 내지 않고(InfoBar 오류 알림 방지),
+        // GoogleLastSyncTime 도 전진시키지 않아 다음 회차에 그대로 다시 시도된다.
+        if (!await _syncLock.WaitAsync(TimeSpan.FromSeconds(5)))
+        {
+            Debug.WriteLine("[GoogleSync] 다른 동기화가 진행 중 — 이번 회차 건너뜀");
+            totalResult.ErrorMessages.Add("다른 동기화가 진행 중입니다. 잠시 후 다시 시도하세요.");
             return totalResult;
         }
 
@@ -120,17 +138,20 @@ public sealed class GoogleSyncService : IDisposable
             totalResult.ErrorMessages.Add(ex.Message);
             Debug.WriteLine($"[GoogleSync] 전체 동기화 실패: {ex.Message}");
         }
+        finally
+        {
+            _syncLock.Release();
+        }
 
         SyncCompleted?.Invoke(this, totalResult);
         return totalResult;
     }
 
-    /// <summary>단일 캘린더 동기화</summary>
-    public async Task<SyncResult> SyncCalendarAsync(KCalendarList calendar)
+    /// <summary>
+    /// 단일 캘린더 동기화. 겹침 방지는 부르는 쪽(<see cref="SyncAllAsync"/>)이 이미 해 두었다.
+    /// </summary>
+    private async Task<SyncResult> SyncCalendarAsync(KCalendarList calendar)
     {
-        if (!await _syncLock.WaitAsync(TimeSpan.FromSeconds(5)))
-            return new SyncResult { ErrorMessages = { "동기화가 이미 진행 중입니다." } };
-
         var result = new SyncResult();
 
         // 이 동기화 회차에만 유효한 기억들 — 회차마다 새로 시작한다.
@@ -179,10 +200,6 @@ public sealed class GoogleSyncService : IDisposable
             result.Errors++;
             result.ErrorMessages.Add(ex.Message);
             Debug.WriteLine($"[GoogleSync] '{calendar.Title}' 동기화 실패: {ex.Message}");
-        }
-        finally
-        {
-            _syncLock.Release();
         }
 
         return result;
@@ -879,7 +896,7 @@ public sealed class GoogleSyncService : IDisposable
         if (!_disposed)
         {
             StopPeriodicSync();
-            _syncLock.Dispose();
+            // _syncLock 은 static 이라 여기서 버리지 않는다 — 살아 있는 다른 인스턴스가 계속 쓴다.
             _scheduleService?.Dispose();
             _disposed = true;
         }

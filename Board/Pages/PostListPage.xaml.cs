@@ -496,6 +496,29 @@ public sealed partial class PostListPage : Page
     /// </summary>
     private async void SearchButton_Click(object sender, RoutedEventArgs e)
     {
+        await RunSearchAsync();
+    }
+
+    /// <summary>
+    /// 검색 실행. 두 진입점(버튼·Enter)이 함께 쓴다.
+    ///
+    /// <para>[제목]·[내용] 을 <b>둘 다 끄면</b> 검색 조건이 SQL 에 아예 붙지 않아
+    /// (<c>PostRepository.GetPostsAsync</c> 의 검색 분기가 통째로 건너뛴다) 검색어를 넣어도
+    /// 전체 목록이 그대로 나온다. 오류도 안 나고 안내도 없어서 "검색이 안 된다"로만 보였다.
+    /// 기본값이 [제목]만 켜진 상태라 제목을 끄는 순간 이 상태가 된다.</para>
+    /// </summary>
+    private async Task RunSearchAsync()
+    {
+        if (!ViewModel.SearchInTitle && !ViewModel.SearchInContent &&
+            !string.IsNullOrWhiteSpace(ViewModel.SearchText))
+        {
+            await MessageBox.ShowAsync(
+                "[제목] 과 [내용] 이 모두 꺼져 있어 검색할 범위가 없습니다.\n" +
+                "둘 중 하나 이상을 선택한 뒤 다시 검색해 주세요.",
+                "검색 범위 없음");
+            return;
+        }
+
         await ViewModel.SearchPostsAsync();
     }
 
@@ -507,7 +530,7 @@ public sealed partial class PostListPage : Page
         if (e.Key == Windows.System.VirtualKey.Enter)
         {
             e.Handled = true;
-            await ViewModel.SearchPostsAsync();
+            await RunSearchAsync();
         }
     }
 
