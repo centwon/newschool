@@ -74,4 +74,63 @@ public sealed class DataLayoutTests : IDisposable
 
         Assert.True(Settings.IsPortableLayout(_dir));
     }
+
+    // ──────────────────────────────────────────────────────────────
+    // 실행 파일이 {app}\bin\ 아래로 내려간 배치 (자체 포함 게시본)
+    // ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void 루트에_표식이_있으면_bin_안의_exe_도_루트를_포터블_루트로_본다()
+    {
+        // 설치 폴더를 통째로 옮긴 경우. Data\ 는 루트에 그대로 있어야 하고,
+        // 부모를 보지 않으면 사용자가 Data\ 를 bin\ 안으로 밀어 넣어야 했다.
+        WriteFile(Settings.PortableMarkerFileName);
+        var binDir = Path.Combine(_dir, "bin");
+        Directory.CreateDirectory(binDir);
+
+        Assert.Equal(_dir, Settings.FindPortableRoot(binDir));
+    }
+
+    [Fact]
+    public void 루트의_옛_배치도_bin_안의_exe_에서_알아본다()
+    {
+        WriteFile(Path.Combine("Data", "Settings.db"));
+        var binDir = Path.Combine(_dir, "bin");
+        Directory.CreateDirectory(binDir);
+
+        Assert.Equal(_dir, Settings.FindPortableRoot(binDir));
+    }
+
+    [Fact]
+    public void exe_폴더의_표식이_부모보다_우선한다()
+    {
+        // 둘 다 있으면 가까운 쪽 — 기존 배치(실행 파일 옆에 데이터)의 동작을 그대로 지킨다.
+        WriteFile(Settings.PortableMarkerFileName);
+        var binDir = Path.Combine(_dir, "bin");
+        Directory.CreateDirectory(binDir);
+        File.WriteAllText(Path.Combine(binDir, Settings.PortableMarkerFileName), "x");
+
+        Assert.Equal(binDir, Settings.FindPortableRoot(binDir));
+    }
+
+    [Fact]
+    public void 표식이_어디에도_없으면_설치본()
+    {
+        var binDir = Path.Combine(_dir, "bin");
+        Directory.CreateDirectory(binDir);
+        File.WriteAllText(Path.Combine(binDir, "NewSchool.exe"), "x");
+
+        Assert.Null(Settings.FindPortableRoot(binDir));
+    }
+
+    [Fact]
+    public void 할아버지_폴더까지_거슬러_올라가지는_않는다()
+    {
+        // 한 단계만 본다 — 무한정 올라가면 엉뚱한 상위 폴더를 데이터 루트로 잡을 수 있다.
+        WriteFile(Settings.PortableMarkerFileName);
+        var deep = Path.Combine(_dir, "bin", "sub");
+        Directory.CreateDirectory(deep);
+
+        Assert.Null(Settings.FindPortableRoot(deep));
+    }
 }

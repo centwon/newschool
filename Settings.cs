@@ -117,10 +117,43 @@ public static class Settings
         var exeDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var userRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "NewSchool");
 
-        bool portable = IsPortableLayout(exeDir);
-        var root = portable ? exeDir : userRoot;
+        var portableRoot = FindPortableRoot(exeDir);
+        var root = portableRoot ?? userRoot;
 
-        return new DataLocation(root, Path.Combine(root, "Data"), portable);
+        return new DataLocation(root, Path.Combine(root, "Data"), portableRoot != null);
+    }
+
+    /// <summary>
+    /// 포터블 루트를 찾는다. 포터블이 아니면 null.
+    ///
+    /// <para>실행 파일 폴더를 먼저 보고, 없으면 <b>그 부모</b>까지 본다. 설치본이 실행 파일을
+    /// <c>{app}\bin\</c> 아래에 두기 때문이다 — 부모를 보지 않으면 설치 폴더를 통째로 옮겨도
+    /// (<c>{app}\Data\Settings.db</c> 가 있는데) 포터블로 알아보지 못하고, 사용자가 <c>Data\</c> 를
+    /// <c>bin\</c> 안으로 밀어 넣어야 해서 <b>데이터가 프로그램 파일 사이에 섞인다</b>
+    /// (<see cref="UserDataPath"/> 를 한 겹 내려 둔 이유가 무너진다).</para>
+    ///
+    /// <para>부모까지 봐도 안전하다 — 표식이 없으면 그냥 지나가고, <c>Program Files</c> 처럼
+    /// 쓸 수 없는 자리는 <see cref="IsPortableLayout"/> 의 쓰기 검사에서 걸러진다.
+    /// 실행 파일이 루트에 있던 기존 배치는 첫 번째 검사에서 그대로 걸린다.</para>
+    /// </summary>
+    internal static string? FindPortableRoot(string exeDir)
+    {
+        if (string.IsNullOrEmpty(exeDir)) return null;
+
+        exeDir = exeDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (IsPortableLayout(exeDir)) return exeDir;
+
+        try
+        {
+            var parent = Directory.GetParent(exeDir)?.FullName;
+            if (parent != null && IsPortableLayout(parent)) return parent;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] 상위 폴더 포터블 판정 실패: {ex.Message}");
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -2,11 +2,11 @@
 ; NewSchool Inno Setup Script
 ; ============================================================
 ; 사전 준비:
-;   1. 게시: dotnet publish -c Release -p:Platform=x64
-;      (win-x64.pubxml 이 자동 적용 — 출력 경로는 아래 PublishDir 과 맞춰 둘 것)
-;   2. prerequisites\ 폴더에 다음 파일 배치:
-;      - WindowsAppRuntimeInstall-x64.exe (Windows App SDK 런타임, 약 108MB — 설치 파일 크기의 대부분)
-;        다운로드: https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads
+;   게시: dotnet publish -c Release -p:Platform=x64
+;   (win-x64.pubxml 이 자동 적용 — 출력 경로는 아래 PublishDir 과 맞춰 둘 것)
+;
+; 런타임을 따로 챙길 필요가 없다. 1.0.0 부터 WinAppSDK 를 게시본에 함께 담으므로
+; (csproj 의 WindowsAppSDKSelfContained=true) prerequisites\ 폴더도 쓰지 않는다.
 ; ============================================================
 
 #define MyAppName "NewSchool"
@@ -14,11 +14,6 @@
 #define MyAppPublisher "Centwon"
 #define MyAppExeName "NewSchool.exe"
 #define MyAppURL "https://github.com/Centwons/NewSchool"
-
-; ⚠ 번들하는 런타임 버전 — csproj 의 Microsoft.WindowsAppSDK 버전과 반드시 같아야 한다.
-;   SDK 를 올리면 (1) 이 값 (2) prerequisites\WindowsAppRuntimeInstall-x64.exe 둘 다 갱신할 것.
-;   2.2 → 2.4 상향 때 프리레퀴지싯이 2.3 에 멈춰 있어 1.0.0 게시 직전에 잡혔다.
-#define RequiredRuntimeVersion "2.4.0.0"
 
 ; 게시 출력 폴더 (상대 경로) — win-x64.pubxml 의 PublishDir 과 일치해야 한다.
 ; 옛 VS 기본값(..\bin\Release\Publish)이 남아 있어 1.0.0 컴파일이 "Source file does not exist" 로 멎었다.
@@ -42,7 +37,7 @@ OutputDir=Output
 OutputBaseFilename=NewSchoolSetup_{#MyAppVersion}
 ; 아이콘
 SetupIconFile=..\newschool.ico
-UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayIcon={app}\bin\{#MyAppExeName}
 ; 압축
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -69,94 +64,41 @@ Name: "desktopicon"; Description: "바탕화면에 바로 가기 만들기"; Gro
 Name: "startupicon"; Description: "Windows 시작 시 자동 실행"; GroupDescription: "추가 작업:"; Flags: unchecked
 
 [Files]
-; === 메인 실행 파일 ===
-Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-
-; === DLL 및 런타임 파일 (dll, pri, winmd) ===
-; winmd 는 Native AOT 게시본에 없다(CleanPublishOutput 이 정리). 없으면 건너뛴다 —
-; 이 플래그가 없어서 "No files found matching *.winmd" 로 컴파일이 중단됐다.
-Source: "{#PublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\*.pri"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\*.winmd"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-
-; === Assets 폴더 (아이콘, Jodit, 도움말) ===
-Source: "{#PublishDir}\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs createallsubdirs
-
-; === Secrets (존재할 때만 — Google OAuth + NEIS API key) ===
-Source: "{#PublishDir}\secrets.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-
-; === 런타임 부트스트래퍼 (임시 폴더에 설치용으로만 복사) ===
-Source: "prerequisites\WindowsAppRuntimeInstall-x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
-
-; === 불필요 파일 명시적 제외 ===
-; *.xaml, *.pdb, app.manifest, .gitignore, Properties\ 는 포함하지 않음
-; (CleanPublishOutput 타겟이 이미 삭제하지만 이중 안전)
+; === 게시본 전체를 {app}\bin 아래에 통째로 넣는다 ===
+;
+; 자체 포함(WindowsAppSDKSelfContained=true) 게시본은 WinAppSDK 런타임까지 들어와
+; 파일이 50개 안팎이 된다. 그것을 설치 폴더 루트에 쏟으면 어지러우므로 한 겹 내린다
+; — 루트에는 bin\ 과 언인스톨러만 남는다.
+;
+; 확장자별로 나열하지 않는 이유: 자체 포함 게시본에는 RestartAgent.exe·workloads.*.json·
+; en-us\·ko-KR\·Microsoft.UI.Xaml\ 처럼 옛 목록(dll/pri/winmd)에 걸리지 않는 것들이 있어,
+; 하나라도 빠지면 실행이 깨진다. 불필요 파일은 CleanPublishOutput 타겟이 이미 걷어냈다.
+; (secrets.json 은 어셈블리에 내장되므로 게시 폴더에 없다 — 따로 복사하지 않는다.)
+Source: "{#PublishDir}\*"; DestDir: "{app}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\bin\{#MyAppExeName}"
 Name: "{group}\{#MyAppName} 제거"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: startupicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\bin\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\bin\{#MyAppExeName}"; Tasks: startupicon
 
 [Run]
 ; 설치 완료 후 앱 실행 옵션
-Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName} 실행"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\bin\{#MyAppExeName}"; Description: "{#MyAppName} 실행"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 ; 실행 중 생성된 파일 정리 (사용자 데이터는 건드리지 않음)
-Type: filesandordirs; Name: "{app}\Assets"
+Type: filesandordirs; Name: "{app}\bin"
 
 [Code]
-// Windows App SDK Runtime 설치 여부 확인
+// 런타임 설치 단계는 없다.
 //
-// ⚠ 이름만 보면 안 된다. 'Microsoft.WindowsAppRuntime.2' 는 2.2·2.3·2.4 가 공유하는
-//   이름이라, 예전에 2.2 만 깔린 PC 에서도 "이미 설치됨" 으로 보이고
-//   런타임 설치를 건너뛰어 앱이 시작도 못 하게 된다.
-//   개발 PC 에는 최신 런타임이 있어 이 결함은 로컬 테스트로 절대 드러나지 않는다.
-//   반드시 버전까지 비교한다.
-function IsWindowsAppSDKInstalled: Boolean;
-var
-  ResultCode: Integer;
-begin
-  Result := Exec('powershell.exe',
-    '-NoProfile -Command "$v = Get-AppxPackage -Name ''Microsoft.WindowsAppRuntime.2'' -ErrorAction SilentlyContinue | ' +
-    'Where-Object { [version]$_.Version -ge [version]''{#RequiredRuntimeVersion}'' }; if ($v) { exit 0 } else { exit 1 }"',
-    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
-end;
-
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  ResultCode: Integer;
-begin
-  if CurStep = ssPostInstall then
-  begin
-    // Windows App SDK Runtime 설치
-    //   실패해도 설치는 끝난다. 다만 그 PC 에서는 앱이 시작조차 못 하므로
-    //   조용히 넘어가지 않고 반드시 알린다 — 원인을 모른 채 "안 켜진다" 가 되는 게 최악이다.
-    if not IsWindowsAppSDKInstalled then
-    begin
-      if FileExists(ExpandConstant('{tmp}\WindowsAppRuntimeInstall-x64.exe')) then
-      begin
-        Log('Windows App SDK Runtime 설치 중...');
-        Exec(ExpandConstant('{tmp}\WindowsAppRuntimeInstall-x64.exe'),
-          '--quiet', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-        Log('Windows App SDK Runtime 설치 결과: ' + IntToStr(ResultCode));
-
-        if not IsWindowsAppSDKInstalled then
-          MsgBox('Windows App SDK 런타임 {#RequiredRuntimeVersion} 설치에 실패했습니다.' + #13#10 +
-                 '이 상태로는 NewSchool 이 실행되지 않습니다.' + #13#10#13#10 +
-                 '아래에서 런타임을 직접 설치한 뒤 다시 실행해 주세요.' + #13#10 +
-                 'https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads',
-                 mbError, MB_OK);
-      end
-      else
-        MsgBox('Windows App SDK 런타임 {#RequiredRuntimeVersion} 이 필요한데 설치 파일에 포함되어 있지 않습니다.' + #13#10 +
-               '이 상태로는 NewSchool 이 실행되지 않습니다.' + #13#10#13#10 +
-               '아래에서 런타임을 직접 설치한 뒤 다시 실행해 주세요.' + #13#10 +
-               'https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads',
-               mbError, MB_OK);
-    end
-    else
-      Log('Windows App SDK Runtime {#RequiredRuntimeVersion} 이상 이미 설치됨');
-  end;
-end;
+// 1.0.0 부터 WinAppSDK 런타임을 게시본에 함께 담는다(WindowsAppSDKSelfContained=true).
+// 예전에는 prerequisites\WindowsAppRuntimeInstall-x64.exe(약 107MB)를 설치 파일에 안고
+// 다니면서 설치 후 런타임 유무를 검사해 필요하면 깔았는데, 그 검사에는 함정이 있었다 —
+// 'Microsoft.WindowsAppRuntime.2' 라는 이름을 2.2·2.3·2.4 가 공유해서 버전까지 비교하지
+// 않으면 2.2 만 깔린 PC 도 "이미 설치됨" 으로 보였고, 앱은 시작조차 못 했다.
+// 개발 PC 에는 최신 런타임이 있어 이 부류는 로컬 테스트로 드러나지 않는다.
+//
+// 자체 포함으로 바꾸면서 그 함정이 통째로 사라졌고, 설치 파일도 122.8MB → 29MB 대로 줄었다.
+// 런타임 관련 코드를 남겨 두면 없는 파일을 찾아 헛돌므로 함께 걷어낸다.

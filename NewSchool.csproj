@@ -246,13 +246,18 @@
     <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
     <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
     <WindowsPackageType>None</WindowsPackageType>
-    <!-- WinAppSDK 는 프레임워크 의존으로 배포한다(기본값이지만 의도를 못박아 둔다).
-         런타임은 설치 프로그램의 prerequisites\WindowsAppRuntimeInstall-x64.exe 가 설치하고,
-         게시 폴더에는 앱 파일만 남는다(9개 / 44MB).
-         true 로 바꾸면 WinAppSDK 런타임 전체가 게시 폴더로 들어와 70개 / 97MB 가 된다.
+    <!-- WinAppSDK 를 게시본에 함께 담는다(자체 포함, 1.0.0 부터).
+         프레임워크 의존이던 때는 게시 폴더가 9개/44MB 로 작았지만, 설치 프로그램이
+         prerequisites\WindowsAppRuntimeInstall-x64.exe(106.9MB)를 함께 안고 다녀야 해서
+         **설치 파일이 122.8MB** 였고, 런타임이 없는 PC 에서는 설치 중 별도 단계가 하나 더 붙었다.
+         무엇보다 "번들 런타임 2.3 vs 앱 요구 2.4" 같은 불일치가 깨끗한 PC 에서 앱을 아예
+         띄우지 못하게 만든 적이 있다(1.0.0 게시가 한 번 막혔던 이유).
+         자체 포함으로 바꾸면 런타임이 게시 폴더로 들어와 파일 수는 늘지만
+         (CleanPublishOutput 이 ko/en 외 .mui 를 걷어내 70개 안팎),
+         **설치 파일은 29MB 대로 줄고 런타임 설치 단계가 통째로 사라진다.**
          전제: 메타패키지 Microsoft.WindowsAppSDK 참조 + 전이 참조들의 WinUI 하한선이
          메타패키지가 주는 WinUI(2.3.1 → 2.3.0)를 넘지 않을 것. -->
-    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest></ApplicationManifest>
     <ApplicationIcon>newschool.ico</ApplicationIcon>
