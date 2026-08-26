@@ -10,6 +10,20 @@
 | 작성일 | 2026-08-13 |
 | 조사 기준 | `main` 브랜치, 커밋 `dd2fb2a` |
 
+> ### ⚠ 이 문서는 **조사 시점(2026-08-13)의 기록**입니다 — 아래 권장사항은 이미 반영됐습니다
+>
+> 본문이 "…요청합니다 / …하지 않습니다" 처럼 현재형으로 적혀 있지만, 그것은 **조사 당시**의 코드
+> 상태입니다. 지금 코드는 다음과 같습니다(2026-08-26 확인).
+>
+> | 본문이 지적한 것 | 현재 상태 |
+> |---|---|
+> | 전체 권한 `auth/calendar` 스코프 1개만 요청 (1-2, 2장) | ✅ **세분화 3종으로 교체 완료** — `calendarlist.readonly` + `calendars` + `events` (`GoogleAuthService.cs` 의 `Scope` 상수) |
+> | 부여된 스코프를 전혀 확인하지 않음 (3장) | ✅ **부분 동의 검사 구현** — `RequiredScopes` 와 대조해 빠진 스코프를 찾고, `DescribeScope` 로 무엇이 안 되는지 알린다 |
+> | `calendar.app.created` 채택 여부 | ❌ **미채택으로 결론** — 로컬 "개인" 캘린더가 사용자 primary 에 매핑되므로 동작하지 않는다(재논의 대상 아님) |
+>
+> 개인정보처리방침도 이 결정에 맞춰 갱신돼 있습니다. **남은 일은 Google Cloud Console 등록·데모
+> 영상 촬영·심사 제출뿐입니다.**
+
 ---
 
 ## 1. 코드베이스 전수 조사 결과
@@ -226,7 +240,8 @@ Google Calendar API는 **restricted scope 목록에 포함되지 않습니다** 
     <li><strong>보관 기간:</strong> 이용자가 연동을 유지하는 동안 보관하며, 별도의 만료 기간을 두지 않습니다.</li>
     <li><strong>삭제 방법:</strong>
         <ol>
-            <li>프로그램 내 <em>설정 → 캘린더 → Google 연동 해제</em>를 실행하면 Google에 토큰 무효화(revoke)를
+            <li>프로그램의 <em>달력</em> 화면에서 상단 <em>⚙ 캘린더 설정</em> 버튼을 누른 뒤
+                <em>Google 연동 해제</em>를 실행하면, Google에 토큰 무효화(revoke)를
                 요청하고 PC에 저장된 토큰을 즉시 삭제합니다.</li>
             <li><a href="https://myaccount.google.com/permissions" target="_blank">Google 계정 권한 관리</a>에서
                 NewSchool의 접근 권한을 직접 철회할 수 있습니다.</li>
