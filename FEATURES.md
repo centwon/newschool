@@ -467,7 +467,7 @@
 
 | 과제 | 요약 | 상세 |
 |------|------|------|
-| ~~**테스트 확충**~~ ✅ 완료 | 테스트 25개 → 211개(0~4단계, 2026-07-12) → **477개**(2026-08-24 기준, 이후 회귀 테스트 누적). 리포지토리 CRUD·경계 → 서비스 로직·회귀 → 헬퍼·파서 → VM 변환. 잠재 버그 2건도 작성 중 발견·수정. 잔여(Settings 파서·Excel 헤더 탐지 등)는 ROI 낮아 보류 | [TEST_PLAN.md](TEST_PLAN.md) |
+| ~~**테스트 확충**~~ ✅ 완료 | 테스트 25개 → 211개(0~4단계, 2026-07-12) → **514개**(2026-08-26 기준, 이후 회귀 테스트 누적). 리포지토리 CRUD·경계 → 서비스 로직·회귀 → 헬퍼·파서 → VM 변환. 잠재 버그 2건도 작성 중 발견·수정. 잔여(Settings 파서·Excel 헤더 탐지 등)는 ROI 낮아 보류 | [TEST_PLAN.md](TEST_PLAN.md) |
 | **자체 포함 전환 + 실행 파일을 `bin\` 하위로** (다음 릴리스, 2026-08-24 결정) | 1.0.0 은 런타임 번들로 냈다(설치 파일 **122.8MB** = 런타임 설치기 106.9MB + 앱 15.9MB). 자체 포함으로 바꾸면 **설치 파일 29.1MB**(1/4)로 줄고 **런타임 설치 단계가 통째로 사라진다** — 1.0.0 게시를 막았던 "번들 2.3 vs 요구 2.4" 부류가 원천 소멸한다. 대가는 설치 폴더 8개·40MB → **53개·93MB**(정리 후). 지저분함은 **앱 전체를 `{app}\bin\` 하위에 넣어** 해결한다(루트엔 그 폴더와 언인스톨러만). ⚠ 포터블 판정이 exe 폴더 기준이라 `Data\` 가 `bin\` 아래로 들어간다 — 그 부분 조정 필요 | `NewSchool.csproj:255`, `Installer/NewSchoolSetup.iss` |
 | ~~`lib\` 로 DLL 격리~~ ❌ 불가 (2026-08-24 실측) | exe 는 페이로드 DLL 을 **정적 임포트하지 않아**(시스템 DLL 18개뿐) 가능해 보였다. PATH 는 .NET 이 `SetDefaultDllDirectories` 로 빼서 실패, `AddDllDirectory`+`SetDllImportResolver` 로 **DLL 로드까지는 성공**했으나 **WinRT 활성화에서 막힌다**(`Microsoft.UI.Xaml.Application` 팩토리 → COMException). 액티베이션 컨텍스트가 클래스→DLL 을 앱 디렉터리 기준으로 찾기 때문. 지원되는 구성이 아니고 SDK 업데이트마다 깨진다 → **재시도 금지**, 위 `bin\` 안으로 갈음 | — |
 | ~~게시 필터의 접두어 오탐~~ ✅ 처리 | `kok-IN`·`en-GB` 는 `CleanPublishOutput` 에서 명시적으로 제거한다. AI 계열(`Windows.Search`·`Widgets`·`PerceptiveStreaming`·`NPUDetect`·`Workloads`)도 이름으로 직접 지운다 | `NewSchool.csproj` `CleanPublishOutput` |
