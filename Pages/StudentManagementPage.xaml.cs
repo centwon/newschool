@@ -255,6 +255,11 @@ public sealed partial class StudentManagementPage : Page, IDisposable
         // 학년도·학년·반을 옮겼다면 지금 필터에서 빠져야 하므로 다시 읽는다.
         // 그대로면 그 행만 제자리에서 갱신한다(스크롤 위치와 선택이 살아 있다).
         await RefreshRowAsync(vm);
+
+        // 전출일 뒤에 이미 남은 기록이 있으면 알린다. 다이얼로그가 닫힌 뒤라야
+        // 띄울 수 있어서(대화상자를 겹칠 수 없다) 여기서 처리한다.
+        if (dialog.LeavingNotice != null)
+            await MessageBox.ShowAsync(dialog.LeavingNotice, "알림");
     }
 
     /// <summary>

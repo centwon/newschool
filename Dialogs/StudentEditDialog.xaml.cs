@@ -32,6 +32,14 @@ public sealed partial class StudentEditDialog : ContentDialog
     public bool Saved { get; private set; }
 
     /// <summary>
+    /// 저장한 뒤 사용자에게 알릴 것이 있으면 그 문구. 없으면 <c>null</c>.
+    ///
+    /// <para>지금은 "전출일 뒤에 이미 남아 있는 기록" 하나다. 다이얼로그가 닫힌 뒤에
+    /// 띄워야 해서(대화상자 위에 대화상자를 겹칠 수 없다) 호출한 쪽에 넘긴다.</para>
+    /// </summary>
+    public string? LeavingNotice { get; private set; }
+
+    /// <summary>
     /// 새 학생 추가. 필터에서 고른 학년도·학년·반을 기본값으로 채워 둔다.
     /// </summary>
     public StudentEditDialog(int year, int grade, int cls)
@@ -217,6 +225,11 @@ public sealed partial class StudentEditDialog : ContentDialog
         using var repo = new EnrollmentRepository(SchoolDatabase.DbPath);
         if (!await repo.UpdateAsync(_enrollment))
             return "학적이 저장되지 않았습니다.";
+
+        // 저장한 뒤에 알린다 — 막는 것이 아니라 알리는 것이므로 저장을 미룰 이유가 없다.
+        // 전출은 늦게 입력되는 쪽이 흔해서, 그 날짜 뒤에 이미 기록이 남아 있는 경우가 있다.
+        LeavingNotice = await EnrollmentGuard.DescribeExistingRecordsAfterAsync(
+            _enrollment.StudentID, _enrollment.Year, _enrollment.ChangeType, _enrollment.ChangeDate);
 
         return null;
     }

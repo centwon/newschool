@@ -167,7 +167,7 @@ enrollment.IsActive = EnrollmentChange.IsActive(enrollment.ChangeType);
 |---|---|---|
 | **1a** | `Semester`·`CreatedAt`·`UpdatedAt`·`IsDeleted` 제거, `Status`+날짜 6열 → `IsActive`·`ChangeType`·`ChangeDate` | ✅ 완료 (2026-08-28) |
 | **1b** | `Name`·`Sex`·`Photo` 제거 → `Student` JOIN 으로 전환 | ✅ 완료 (2026-08-28, 1a 와 함께) |
-| **2** | 전출 이후 기록 경고(`StudentLog`·`StudentSpecial`) | 대기 |
+| **2** | 전출 이후 기록 경고(`StudentLog`·`StudentSpecial`) | ✅ 완료 (2026-08-28) |
 | **3** | 배정 4개를 `EnrollmentNo` 로 (6장) | 대기 |
 
 1a 와 1b 는 나눠 낼 수 없었다 — 표를 다시 만드는 이관 한 번에 열이 함께 사라지므로,
@@ -202,6 +202,38 @@ FROM Enrollment e JOIN Student s ON s.StudentID = e.StudentID;
 
 옛 `Status` 는 `재학` 172 · `전학` 1 이었다. `재학`+1학년은 `입학` 으로, `전학` 은 전출 흔적이
 없어 `전입` 으로 옮겼다(둘 다 활성이라 명단에서 사라지는 학생은 없다).
+
+### 7.3 전출 이후 기록 경고 (2단계)
+
+판정은 `Services/EnrollmentGuard.cs` 한 곳에 있다. 부르는 화면이 여럿이라 조건을 화면마다
+적으면 값이 늘 때 어긋난다.
+
+**"떠났다" 로 보는 변동은 넷이다** — 전출·졸업·자퇴·퇴학. 비활성 전부가 아니다:
+휴학·유예·정원외는 학적이 살아 있어 그 사이에도 기록할 일이 있다.
+
+두 방향으로 본다.
+
+| 방향 | 언제 | 무엇을 |
+|---|---|---|
+| 앞 | 기록을 저장할 때 | 떠난 날 **뒤** 날짜면 묻는다 — 계속 / 취소 |
+| 뒤 | 학적 변동을 저장할 때 | 그 날 **뒤**에 이미 남은 기록을 센다 (지우지 않고 알리기만) |
+
+실제로는 **뒤 방향이 더 자주 걸린다** — 전출은 늦게 입력되는 쪽이 흔하다.
+
+**거는 자리와 덮는 범위:**
+
+| 자리 | 덮는 화면 |
+|---|---|
+| `Controls/LogListViewer.SaveChangedLogsAsync` | 학급일지 · 동아리활동 · 수업활동 · 학생정보 · 누가기록 (5) |
+| `Pages/StudentSpecPage` 저장 | 학생부 |
+| `Dialogs/StudentEditDialog` 저장 | 뒤 방향(변동 저장 시) |
+
+**⚠ 덮지 않는 곳** — `Dialogs/StudentLogDialog`(일괄 입력)과 `Pages/CourseSpecPage`.
+둘 다 학생을 **명부에서 고르는데 명부는 이미 재적만 준다**. 그래서 떠난 학생이 애초에
+목록에 없고, 경고가 울릴 일이 사실상 없다. 필요해지면 같은 함수를 부르면 된다.
+
+날짜 기준은 **떠난 당일까지는 우리 학생**이다(`recordDate > changeDate` 일 때만 운다).
+변동일자를 모르면 조용하다 — 근거가 없는데 경고를 띄우면 사람이 경고를 무시하는 법을 배운다.
 
 마이그레이션은 별도 기전을 두지 않고 **기존 DB 를 직접 고친다** — 사용자가 한 명이고
 배포본 다운로드가 0회다. 손대기 전 `Backups\` 에 사본을 뜬다.

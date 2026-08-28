@@ -108,6 +108,28 @@ public sealed partial class StudentSpecPage : Page, IDisposable
 
         try
         {
+            // 학교를 떠난 학생에게 그 뒤 날짜로 기록을 남기려는 것이면 먼저 알린다.
+            // 막지는 않는다 — 전출일을 뒤늦게 넣은 경우 이미 적어 둔 기록을 못 고치게 된다.
+            var notices = new List<string>();
+            var asked = new HashSet<string>();
+            foreach (var spec in selectedSpecs)
+            {
+                var sid = spec.Special.StudentID;
+                if (string.IsNullOrWhiteSpace(sid) || !asked.Add(sid)) continue;
+                if (!DateTime.TryParse(spec.Special.Date, out var recordDate)) continue;
+
+                var notice = await EnrollmentGuard.DescribeRecordAfterLeavingAsync(
+                    sid, spec.Special.Year, recordDate);
+                if (notice != null) notices.Add(notice);
+            }
+
+            if (notices.Count > 0 &&
+                !await MessageBox.ShowConfirmAsync(
+                    string.Join("\n\n", notices), "학적 확인", "계속", "취소"))
+            {
+                return;
+            }
+
             var confirmed = await MessageBox.ShowConfirmAsync(
                 $"{selectedSpecs.Count}개 항목을 저장하시겠습니까?",
                 "저장 확인", "저장", "취소");

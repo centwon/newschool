@@ -634,6 +634,12 @@ public sealed partial class LogListViewer : UserControl
         if (targets.Count == 0)
             return (0, 0);
 
+        // 학교를 떠난 학생에게 그 뒤 날짜로 기록을 남기려는 것이면 알린다.
+        // 막지는 않는다 — 전출일을 뒤늦게 넣은 경우 이미 적어 둔 기록을 못 고치게 된다.
+        // 이 컨트롤을 쓰는 화면 다섯 곳이 한꺼번에 이 검사를 받는다.
+        if (!await ConfirmRecordsAfterLeavingAsync(targets))
+            return (0, 0);
+
         using var logService = new Services.StudentLogService();
         int saved = 0;
 
@@ -659,6 +665,36 @@ public sealed partial class LogListViewer : UserControl
         }
 
         return (targets.Count, saved);
+    }
+
+    /// <summary>
+    /// 저장하려는 기록 중 <b>학교를 떠난 학생</b>의 것이 있으면 물어본다.
+    ///
+    /// <para>학생마다 따로 묻지 않고 한 번에 모아 묻는다 — 반 전체를 저장할 때 대화상자가
+    /// 연달아 뜨면 사람이 읽지 않고 넘긴다.</para>
+    /// </summary>
+    /// <returns>계속 저장해도 되면 true, 사용자가 취소했으면 false.</returns>
+    private static async System.Threading.Tasks.Task<bool> ConfirmRecordsAfterLeavingAsync(
+        System.Collections.Generic.List<StudentLogViewModel> targets)
+    {
+        var notices = new System.Collections.Generic.List<string>();
+        var asked = new System.Collections.Generic.HashSet<string>();
+
+        foreach (var log in targets)
+        {
+            var studentId = log.StudentLog.StudentID;
+            if (string.IsNullOrWhiteSpace(studentId) || !asked.Add(studentId)) continue;
+
+            var notice = await Services.EnrollmentGuard.DescribeRecordAfterLeavingAsync(
+                studentId, log.StudentLog.Year, log.StudentLog.Date);
+
+            if (notice != null) notices.Add(notice);
+        }
+
+        if (notices.Count == 0) return true;
+
+        return await MessageBox.ShowConfirmAsync(
+            string.Join("\n\n", notices), "학적 확인", "계속", "취소");
     }
 
     /// <summary>선택된 로그 삭제</summary>
