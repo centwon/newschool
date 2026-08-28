@@ -23,9 +23,9 @@ namespace NewSchool.Repositories
         {
             const string query = @"
                 INSERT INTO CourseEnrollment (
-                    StudentID, CourseNo, Status, Remark, Room, CreatedAt, UpdatedAt
+                    EnrollmentNo, CourseNo, Status, Remark, Room
                 ) VALUES (
-                    @StudentID, @CourseNo, @Status, @Remark, @Room, @CreatedAt, @UpdatedAt
+                    @EnrollmentNo, @CourseNo, @Status, @Remark, @Room
                 );
                 SELECT last_insert_rowid();";
 
@@ -58,9 +58,9 @@ namespace NewSchool.Repositories
 
             const string query = @"
                 INSERT INTO CourseEnrollment (
-                    StudentID, CourseNo, Status, Remark, Room, CreatedAt, UpdatedAt
+                    EnrollmentNo, CourseNo, Status, Remark, Room
                 ) VALUES (
-                    @StudentID, @CourseNo, @Status, @Remark, @Room, @CreatedAt, @UpdatedAt
+                    @EnrollmentNo, @CourseNo, @Status, @Remark, @Room
                 );
                 SELECT last_insert_rowid();";
 
@@ -69,24 +69,20 @@ namespace NewSchool.Repositories
                 BeginTransaction();
 
                 using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", string.Empty);
+                cmd.Parameters.AddWithValue("@EnrollmentNo", 0);
                 cmd.Parameters.AddWithValue("@CourseNo", 0);
                 cmd.Parameters.AddWithValue("@Status", string.Empty);
                 cmd.Parameters.AddWithValue("@Remark", string.Empty);
                 cmd.Parameters.AddWithValue("@Room", string.Empty);
-                cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
-                cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now);
 
                 int count = 0;
                 foreach (var enrollment in enrollments)
                 {
-                    cmd.Parameters["@StudentID"].Value = enrollment.StudentID ?? string.Empty;
+                    cmd.Parameters["@EnrollmentNo"].Value = enrollment.EnrollmentNo;
                     cmd.Parameters["@CourseNo"].Value = enrollment.CourseNo;
                     cmd.Parameters["@Status"].Value = enrollment.Status ?? CourseEnrollmentStatus.Active;
                     cmd.Parameters["@Remark"].Value = enrollment.Remark ?? string.Empty;
                     cmd.Parameters["@Room"].Value = enrollment.Room ?? string.Empty;
-                    cmd.Parameters["@CreatedAt"].Value = enrollment.CreatedAt;
-                    cmd.Parameters["@UpdatedAt"].Value = enrollment.UpdatedAt;
 
                     var result = await cmd.ExecuteScalarAsync();
                     enrollment.No = Convert.ToInt32(result);
@@ -112,7 +108,7 @@ namespace NewSchool.Repositories
         /// </summary>
         public async Task<CourseEnrollment?> GetByIdAsync(int no)
         {
-            const string query = "SELECT * FROM CourseEnrollment WHERE No = @No";
+            const string query = "SELECT * FROM CourseEnrollmentFull WHERE No = @No";
 
             try
             {
@@ -137,14 +133,19 @@ namespace NewSchool.Repositories
         }
 
         /// <summary>
-        /// 과목별 수강 학생 목록 조회
+        /// 과목별 수강 학생 목록 조회.
         /// </summary>
-        public async Task<List<CourseEnrollment>> GetByCourseAsync(int courseNo)
+        /// <param name="includeInactive">
+        /// 전출·졸업으로 명단에서 빠진 학생까지 포함할지. 기본은 아니오다 —
+        /// 배정이 학적을 가리키게 되면서 재적 여부가 여기까지 따라온다.
+        /// </param>
+        public async Task<List<CourseEnrollment>> GetByCourseAsync(int courseNo, bool includeInactive = false)
         {
-            const string query = @"
-                SELECT * FROM CourseEnrollment 
+            string query = $@"
+                SELECT * FROM CourseEnrollmentFull
                 WHERE CourseNo = @CourseNo
-                ORDER BY StudentID";
+                  {(includeInactive ? string.Empty : "AND IsActive = 1")}
+                ORDER BY Grade, Class, Number";
 
             try
             {
@@ -174,10 +175,13 @@ namespace NewSchool.Repositories
         /// </summary>
         public async Task<List<CourseEnrollment>> GetByStudentAsync(string studentId)
         {
+            // 뷰가 학적을 거쳐 StudentID 를 내주므로 학생 ID 로 묻는 이 질문은 그대로 된다.
+            // 여러 학년도 배정이 함께 나오는데, 그게 "이 학생이 그동안 들은 수업" 이라는
+            // 이 메서드의 뜻에 맞다.
             const string query = @"
-                SELECT * FROM CourseEnrollment 
+                SELECT * FROM CourseEnrollmentFull
                 WHERE StudentID = @StudentID
-                ORDER BY CourseNo";
+                ORDER BY Year DESC, CourseNo";
 
             try
             {
@@ -219,12 +223,11 @@ namespace NewSchool.Repositories
         {
             const string query = @"
                 UPDATE CourseEnrollment SET
-                    StudentID = @StudentID,
+                    EnrollmentNo = @EnrollmentNo,
                     CourseNo = @CourseNo,
                     Status = @Status,
                     Remark = @Remark,
-                    Room = @Room,
-                    UpdatedAt = @UpdatedAt
+                    Room = @Room
                 WHERE No = @No";
 
             try
@@ -340,14 +343,14 @@ namespace NewSchool.Repositories
 
         private void AddEnrollmentParameters(SqliteCommand cmd, CourseEnrollment enrollment)
         {
+            // StudentID·Name·IsActive 는 넣지 않는다 — 이 표의 컬럼이 아니라
+            // CourseEnrollmentFull 뷰가 학적을 거쳐 읽어 오는 값이다.
             cmd.Parameters.AddWithValue("@No", enrollment.No);
-            cmd.Parameters.AddWithValue("@StudentID", enrollment.StudentID ?? string.Empty);
+            cmd.Parameters.AddWithValue("@EnrollmentNo", enrollment.EnrollmentNo);
             cmd.Parameters.AddWithValue("@CourseNo", enrollment.CourseNo);
             cmd.Parameters.AddWithValue("@Status", enrollment.Status ?? CourseEnrollmentStatus.Active);
             cmd.Parameters.AddWithValue("@Remark", enrollment.Remark ?? string.Empty);
             cmd.Parameters.AddWithValue("@Room", enrollment.Room ?? string.Empty);
-            cmd.Parameters.AddWithValue("@CreatedAt", enrollment.CreatedAt);
-            cmd.Parameters.AddWithValue("@UpdatedAt", enrollment.UpdatedAt);
         }
 
         private CourseEnrollment MapEnrollment(SqliteDataReader reader, ReaderColumnCache cache)
@@ -355,12 +358,14 @@ namespace NewSchool.Repositories
             var enrollment = new CourseEnrollment
             {
                 No = reader.GetInt32(cache.GetOrdinal("No")),
-                StudentID = reader.GetString(cache.GetOrdinal("StudentID")),
+                EnrollmentNo = reader.GetInt32(cache.GetOrdinal("EnrollmentNo")),
                 CourseNo = reader.GetInt32(cache.GetOrdinal("CourseNo")),
                 Status = reader.GetString(cache.GetOrdinal("Status")),
                 Remark = reader.GetString(cache.GetOrdinal("Remark")),
-                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt")))
+                // 학적을 거쳐 온 값
+                StudentID = reader.GetString(cache.GetOrdinal("StudentID")),
+                Name = reader.GetString(cache.GetOrdinal("Name")),
+                IsActive = reader.GetInt32(cache.GetOrdinal("IsActive")) == 1,
             };
 
             // Room 컬럼 (기존 DB 호환)

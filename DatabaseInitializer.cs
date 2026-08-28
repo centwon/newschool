@@ -306,19 +306,30 @@ namespace NewSchool.Database
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS CourseEnrollment (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    StudentID TEXT NOT NULL,
+                    EnrollmentNo INTEGER NOT NULL,
                     CourseNo INTEGER NOT NULL,
                     Status TEXT DEFAULT '수강중',
                     Remark TEXT,
                     Room TEXT,
-                    CreatedAt TEXT NOT NULL,
-                    UpdatedAt TEXT NOT NULL,
-                    FOREIGN KEY (StudentID) REFERENCES Student(StudentID) ON DELETE CASCADE,
+                    FOREIGN KEY (EnrollmentNo) REFERENCES Enrollment(No) ON DELETE CASCADE,
                     FOREIGN KEY (CourseNo) REFERENCES Course(No) ON DELETE CASCADE,
-                    UNIQUE(StudentID, CourseNo)
+                    UNIQUE(EnrollmentNo, CourseNo)
                 );";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] CourseEnrollment 테이블 생성 완료");
+
+            // 배정은 학적을 가리키지만 화면은 학생 이름으로 읽는다. 그 JOIN 을 뷰에 모은다.
+            // IsActive 가 함께 나오므로 "전출한 학생을 명단에서 뺀다" 가 조회 한 줄로 된다.
+            cmd.CommandText = @"
+                DROP VIEW IF EXISTS CourseEnrollmentFull;
+                CREATE VIEW CourseEnrollmentFull AS
+                SELECT ce.No, ce.EnrollmentNo, ce.CourseNo, ce.Status, ce.Remark, ce.Room,
+                       e.StudentID, e.Year, e.Grade, e.Class, e.Number, e.IsActive,
+                       s.Name, s.Sex, s.Photo
+                FROM CourseEnrollment ce
+                JOIN Enrollment e ON e.No = ce.EnrollmentNo
+                JOIN Student s    ON s.StudentID = e.StudentID;";
+            await cmd.ExecuteNonQueryAsync();
 
             // ==========================================
             // 14. StudentLog 테이블 (학생 기록부) - ⭐ 확장 버전
@@ -418,18 +429,27 @@ namespace NewSchool.Database
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS ClubEnrollment (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    StudentID TEXT NOT NULL,
+                    EnrollmentNo INTEGER NOT NULL,
                     ClubNo INTEGER NOT NULL,
                     Status TEXT DEFAULT '활동중',
                     Remark TEXT,
-                    CreatedAt TEXT NOT NULL,
-                    UpdatedAt TEXT NOT NULL,
-                    FOREIGN KEY (StudentID) REFERENCES Student(StudentID) ON DELETE CASCADE,
+                    FOREIGN KEY (EnrollmentNo) REFERENCES Enrollment(No) ON DELETE CASCADE,
                     FOREIGN KEY (ClubNo) REFERENCES Club(No) ON DELETE CASCADE,
-                    UNIQUE(StudentID, ClubNo)
+                    UNIQUE(EnrollmentNo, ClubNo)
                 );";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] ClubEnrollment 테이블 생성 완료");
+
+            cmd.CommandText = @"
+                DROP VIEW IF EXISTS ClubEnrollmentFull;
+                CREATE VIEW ClubEnrollmentFull AS
+                SELECT ce.No, ce.EnrollmentNo, ce.ClubNo, ce.Status, ce.Remark,
+                       e.StudentID, e.Year, e.Grade, e.Class, e.Number, e.IsActive,
+                       s.Name, s.Sex, s.Photo
+                FROM ClubEnrollment ce
+                JOIN Enrollment e ON e.No = ce.EnrollmentNo
+                JOIN Student s    ON s.StudentID = e.StudentID;";
+            await cmd.ExecuteNonQueryAsync();
 
             // ==========================================
             // 18. ClassDiary 테이블 (학급 일지) - ⭐ 개선 버전
@@ -663,7 +683,7 @@ namespace NewSchool.Database
                 CREATE INDEX IF NOT EXISTS idx_classtimetable_time ON ClassTimetable(DayOfWeek, Period);
 
                 -- CourseEnrollment 인덱스
-                CREATE INDEX IF NOT EXISTS idx_courseenrollment_student ON CourseEnrollment(StudentID);
+                CREATE INDEX IF NOT EXISTS idx_courseenrollment_student ON CourseEnrollment(EnrollmentNo);
                 CREATE INDEX IF NOT EXISTS idx_courseenrollment_course ON CourseEnrollment(CourseNo);
                 CREATE INDEX IF NOT EXISTS idx_courseenrollment_status ON CourseEnrollment(Status);
 
@@ -696,7 +716,7 @@ namespace NewSchool.Database
                 CREATE INDEX IF NOT EXISTS idx_club_deleted ON Club(IsDeleted);
 
                 -- ClubEnrollment 인덱스
-                CREATE INDEX IF NOT EXISTS idx_clubenrollment_student ON ClubEnrollment(StudentID);
+                CREATE INDEX IF NOT EXISTS idx_clubenrollment_student ON ClubEnrollment(EnrollmentNo);
                 CREATE INDEX IF NOT EXISTS idx_clubenrollment_club ON ClubEnrollment(ClubNo);
                 CREATE INDEX IF NOT EXISTS idx_clubenrollment_status ON ClubEnrollment(Status);
 
@@ -810,14 +830,14 @@ namespace NewSchool.Database
                 DELETE FROM Enrollment WHERE StudentID NOT IN (SELECT StudentID FROM Student);
                 DELETE FROM Course WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);
                 DELETE FROM CourseEnrollment
-                    WHERE StudentID NOT IN (SELECT StudentID FROM Student)
+                    WHERE EnrollmentNo NOT IN (SELECT No FROM Enrollment)
                        OR CourseNo NOT IN (SELECT No FROM Course);
                 DELETE FROM Lesson WHERE Course NOT IN (SELECT No FROM Course);
                 DELETE FROM StudentLog WHERE StudentID NOT IN (SELECT StudentID FROM Student);
                 DELETE FROM StudentSpecial WHERE StudentID NOT IN (SELECT StudentID FROM Student);
                 DELETE FROM Club WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);
                 DELETE FROM ClubEnrollment
-                    WHERE StudentID NOT IN (SELECT StudentID FROM Student)
+                    WHERE EnrollmentNo NOT IN (SELECT No FROM Enrollment)
                        OR ClubNo NOT IN (SELECT No FROM Club);
                 DELETE FROM SeatAssignment WHERE ArrangementNo NOT IN (SELECT No FROM SeatArrangement);
 

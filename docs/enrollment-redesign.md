@@ -168,7 +168,35 @@ enrollment.IsActive = EnrollmentChange.IsActive(enrollment.ChangeType);
 | **1a** | `Semester`·`CreatedAt`·`UpdatedAt`·`IsDeleted` 제거, `Status`+날짜 6열 → `IsActive`·`ChangeType`·`ChangeDate` | ✅ 완료 (2026-08-28) |
 | **1b** | `Name`·`Sex`·`Photo` 제거 → `Student` JOIN 으로 전환 | ✅ 완료 (2026-08-28, 1a 와 함께) |
 | **2** | 전출 이후 기록 경고(`StudentLog`·`StudentSpecial`) | ✅ 완료 (2026-08-28) |
-| **3** | 배정 4개를 `EnrollmentNo` 로 (6장) | 대기 |
+| **3a** | `CourseEnrollment` · `ClubEnrollment` 를 `EnrollmentNo` 로 | ✅ 완료 (2026-08-28) |
+| **3b** | `SeatAssignment` · `SeatPosHistory` | 보류 — 아래 참고 |
+
+### 7.4 배정이 학적을 가리킨다 (3a)
+
+`CourseEnrollment`·`ClubEnrollment` 의 `StudentID` 를 `EnrollmentNo` 로 바꿨다. 백필은
+`Course.Year`·`Club.Year` 로 학년도를 잡아 풀었고, **짝을 못 찾는 행이 0** 이었다
+(344 + 9 행 전부 유일하게 대응).
+
+읽기는 `CourseEnrollmentFull`·`ClubEnrollmentFull` 뷰가 맡는다. 학적을 거쳐 `StudentID`·
+`Name` 과 함께 **`IsActive` 를 함께 내주므로**, "전출한 학생을 명단에서 뺀다" 가 조회
+한 줄(`AND IsActive = 1`)이 됐다. `GetByCourseAsync`·`GetByClubAsync` 의 기본값이 그것이고,
+`includeInactive: true` 로 그 해에 실제로 들었던 기록까지 볼 수 있다.
+
+`ON DELETE CASCADE` 라 학적을 지우면 그 해 배정도 함께 사라진다 — 예전에는 고아가 됐다.
+
+**⚠ 조용히 깨질 뻔한 곳** — `StudentID` 는 모델에 속성으로 남아 있어
+`new ClubEnrollment { StudentID = ... }` 가 **컴파일은 된다.** 저장은 안 되고 FK 위반이
+날 뿐이다. 두 배정 다이얼로그가 그렇게 되어 있어 고쳤다. 배정을 만드는 코드를 새로
+쓸 때는 반드시 `EnrollmentNo` 를 넣을 것.
+
+### 7.5 좌석은 왜 미뤘나 (3b)
+
+`SeatAssignment` 는 `ArrangementNo` 로 `SeatArrangement` 를 가리키고, 그 표가 이미
+`SchoolCode`·`Year`·`Grade`·`Class` 를 들고 있다. **학년도 범위가 이미 잡혀 있어서**
+수업·동아리와 사정이 다르다. `SeatPosHistory` 도 자기 안에 그 넷을 다 들고 있다.
+
+즉 3b 는 "고쳐야 할 문제" 가 아니라 "일관성 정리" 다. 좌석 축(테이블 넷)을 통째로
+손볼 때 함께 보는 편이 낫다.
 
 1a 와 1b 는 나눠 낼 수 없었다 — 표를 다시 만드는 이관 한 번에 열이 함께 사라지므로,
 사본 3열만 남겨 두려면 이관을 두 번 해야 했다.

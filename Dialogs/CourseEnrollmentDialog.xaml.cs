@@ -536,11 +536,19 @@ namespace NewSchool.Dialogs
                 try
                 {
                     // 1. 새로 등록 (Room 포함)
+                    //
+                    // 수강 배정은 학생이 아니라 그 해 학적을 가리킨다. 후보 목록(_allStudents)이
+                    // 이미 학적이라 거기서 번호를 찾는다 — 못 찾으면 그 학생은 이 학년도 명부에
+                    // 없다는 뜻이므로 저장하지 않고 알린다.
                     foreach (var kvp in _toAdd)
                     {
+                        var target = _allStudents.FirstOrDefault(s => s.StudentID == kvp.Key);
+                        if (target == null || target.No <= 0)
+                            throw new InvalidOperationException($"학생 {kvp.Key} 의 학적을 찾지 못했습니다.");
+
                         var enrollment = new CourseEnrollment
                         {
-                            StudentID = kvp.Key,
+                            EnrollmentNo = target.No,
                             CourseNo = _course.No,
                             Status = CourseEnrollmentStatus.Active,
                             Room = kvp.Value
@@ -570,7 +578,6 @@ namespace NewSchool.Dialogs
                             if (newRoom != (original.Room ?? string.Empty))
                             {
                                 original.Room = newRoom;
-                                original.UpdatedAt = DateTime.Now;
                                 if (!await repo.UpdateAsync(original))
                                     throw new InvalidOperationException(
                                         $"학생 {original.StudentID} 강의실 변경이 반영되지 않았습니다.");

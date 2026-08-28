@@ -351,11 +351,19 @@ namespace NewSchool.Dialogs
                 try
                 {
                     // 1. 새로 등록
+                    //
+                    // 동아리 배정은 학생이 아니라 그 해 학적을 가리킨다. 후보 목록
+                    // (_allStudents)이 이미 학적이라 거기서 번호를 찾는다 — 못 찾으면 그
+                    // 학생은 이 학년도 명부에 없다는 뜻이므로 저장하지 않고 알린다.
                     foreach (var studentId in _toAdd)
                     {
+                        var target = _allStudents.FirstOrDefault(s => s.StudentID == studentId);
+                        if (target == null || target.No <= 0)
+                            throw new InvalidOperationException($"학생 {studentId} 의 학적을 찾지 못했습니다.");
+
                         var enrollment = new ClubEnrollment
                         {
-                            StudentID = studentId,
+                            EnrollmentNo = target.No,
                             ClubNo = _club.No,
                             Status = ClubEnrollmentStatus.Active
                         };
