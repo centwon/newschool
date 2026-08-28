@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="NewSchool.Dialogs.StudentEditDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="학생 정보"
+    PrimaryButtonText="저장"
+    CloseButtonText="취소"
+    DefaultButton="Primary"
+    PrimaryButtonClick="OnPrimaryButtonClick">
+
+    <ScrollViewer MaxHeight="560">
+        <StackPanel Spacing="14" Padding="4" MinWidth="420">
+
+            <!-- 에러 메시지 컨테이너 -->
+            <StackPanel x:Name="ErrorContainer"/>
+
+            <!-- 학생 ID (수정 시에만) -->
+            <TextBlock x:Name="TxtStudentId"
+                       Visibility="Collapsed"
+                       FontFamily="Consolas"
+                       FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+            <!-- 이름 · 성별 -->
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="110"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBox Grid.Column="0"
+                         x:Name="TxtName"
+                         Header="이름 *"
+                         MaxLength="30"/>
+
+                <ComboBox Grid.Column="1"
+                          x:Name="CBoxSex"
+                          Header="성별 *"
+                          PlaceholderText="선택"
+                          HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="남" Tag="남"/>
+                    <ComboBoxItem Content="여" Tag="여"/>
+                </ComboBox>
+            </Grid>
+
+            <!-- 학년도 · 학년 · 반 · 번호 -->
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <NumberBox Grid.Column="0" x:Name="NumYear"   Header="학년도 *" Minimum="1900" Maximum="2200" SpinButtonPlacementMode="Hidden"/>
+                <NumberBox Grid.Column="1" x:Name="NumGrade"  Header="학년 *"   Minimum="1"    Maximum="12"   SpinButtonPlacementMode="Compact"/>
+                <NumberBox Grid.Column="2" x:Name="NumClass"  Header="반 *"     Minimum="1"    Maximum="99"   SpinButtonPlacementMode="Compact"/>
+                <NumberBox Grid.Column="3" x:Name="NumNumber" Header="번호 *"   Minimum="1"    Maximum="99"   SpinButtonPlacementMode="Compact"/>
+            </Grid>
+
+            <!-- 학적 상태 -->
+            <ComboBox x:Name="CBoxStatus"
+                      Header="학적 상태"
+                      HorizontalAlignment="Stretch"
+                      SelectionChanged="OnStatusSelectionChanged">
+                <!-- "전학" 하나였던 것을 전입/전출로 갈랐다. 둘은 명부에 남는지가 정반대다 —
+                     전입은 지금 이 학교 학생이고, 전출은 아니다. -->
+                <ComboBoxItem Content="재학" Tag="재학"/>
+                <ComboBoxItem Content="전입 (이 학교로 옴 — 재적)" Tag="전입"/>
+                <ComboBoxItem Content="휴학" Tag="휴학"/>
+                <ComboBoxItem Content="전출 (다른 학교로 감 — 명부에서 빠짐)" Tag="전출"/>
+                <ComboBoxItem Content="졸업" Tag="졸업"/>
+                <ComboBoxItem Content="자퇴" Tag="자퇴"/>
+                <ComboBoxItem Content="퇴학" Tag="퇴학"/>
+            </ComboBox>
+
+            <!-- 학적 변동 (전입·전출) -->
+            <Expander x:Name="ExpTransfer"
+                      Header="학적 변동 (전입 · 전출)"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch">
+                <StackPanel Spacing="12" Padding="0,8,0,4">
+
+                    <TextBlock Text="전입"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <CalendarDatePicker Grid.Column="0" x:Name="DateTransferIn"
+                                            Header="전입일" PlaceholderText="날짜 선택"
+                                            HorizontalAlignment="Stretch"/>
+                        <TextBox Grid.Column="1" x:Name="TxtTransferInSchool"
+                                 Header="전 학교명" MaxLength="50"
+                                 PlaceholderText="어느 학교에서 왔는지"/>
+                    </Grid>
+
+                    <TextBlock Text="전출"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Margin="0,4,0,0"/>
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <CalendarDatePicker Grid.Column="0" x:Name="DateTransferOut"
+                                            Header="전출일" PlaceholderText="날짜 선택"
+                                            HorizontalAlignment="Stretch"/>
+                        <TextBox Grid.Column="1" x:Name="TxtTransferOutSchool"
+                                 Header="간 학교명" MaxLength="50"
+                                 PlaceholderText="어느 학교로 갔는지"/>
+                    </Grid>
+
+                    <HyperlinkButton x:Name="BtnClearTransfer"
+                                     Content="전입 · 전출 기록 지우기"
+                                     Click="OnClearTransferClick"
+                                     Padding="0,4"/>
+                </StackPanel>
+            </Expander>
+
+            <!-- 비고 -->
+            <TextBox x:Name="TxtMemo"
+                     Header="비고"
+                     PlaceholderText="메모"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     Height="80"/>
+
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

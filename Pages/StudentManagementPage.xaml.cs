@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Collections;
+using NewSchool.Dialogs;
 using NewSchool.Models;
 using NewSchool.Services;
 using NewSchool.Repositories;
@@ -17,13 +18,17 @@ namespace NewSchool.Pages;
 
 /// <summary>
 /// 학생 관리 페이지 (WinUI3)
-/// 학생 목록 조회, 수정, 삭제 기능 제공
-/// 
+///
+/// <para>이 페이지는 <b>목록만</b> 맡는다. 고치는 일은 행을 눌러 여는
+/// <see cref="Dialogs.StudentEditDialog"/> 가 한다 — 예전에는 행마다 TextBox 를 깔고
+/// 상단 저장 버튼으로 한꺼번에 커밋했는데, 저장하지 않은 편집이 화면에 쌓이는 구조라
+/// 다른 반을 조회하는 순간 통째로 사라졌다.</para>
+///
 /// 주요 기능:
 /// 1. 학년도/학년/반별 학생 목록 조회
-/// 2. 학생 정보 직접 수정 (인라인 편집)
-/// 3. 선택한 학생들 일괄 삭제
-/// 4. 학생 추가 페이지로 이동
+/// 2. 행 클릭 → 편집 다이얼로그(학적 상태·전입·전출 포함)
+/// 3. 학생 한 명 추가(다이얼로그) / 엑셀 일괄 추가(AddStudentsPage)
+/// 4. 선택한 학생들 일괄 삭제
 /// 5. 전체 선택/해제 기능
 /// </summary>
 public sealed partial class StudentManagementPage : Page, IDisposable
@@ -58,7 +63,35 @@ public sealed partial class StudentManagementPage : Page, IDisposable
 
     private void StudentManagementPage_Loaded(object sender, RoutedEventArgs e)
     {
+        ShowCurrentSchool();
         CheckDatabaseInitialization();
+    }
+
+    /// <summary>
+    /// 어느 학교의 명부인지 필터 줄에 밝힌다.
+    ///
+    /// <para>조회는 <c>Settings.SchoolCode</c> 하나로만 걸리는데(학교는 Student 가 아니라
+    /// Enrollment.SchoolCode 에 붙어 있다), 화면에는 그 사실이 어디에도 없어서 목록이
+    /// 비어 있을 때 "학생이 없는 것" 인지 "학교가 안 잡힌 것" 인지 구분할 수 없었다.</para>
+    /// </summary>
+    private void ShowCurrentSchool()
+    {
+        string name = Settings.SchoolName?.Value ?? string.Empty;
+        string code = Settings.SchoolCode?.Value ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            TxtSchoolName.Text = name;
+        }
+        else if (!string.IsNullOrWhiteSpace(code))
+        {
+            // 이름을 못 받아온 경우 — 코드만이라도 보여 준다.
+            TxtSchoolName.Text = $"학교 코드 {code}";
+        }
+        else
+        {
+            TxtSchoolName.Text = "학교가 설정되지 않았습니다";
+        }
     }
 
     /// <summary>
@@ -120,14 +153,6 @@ public sealed partial class StudentManagementPage : Page, IDisposable
     }
 
     /// <summary>
-    /// 저장 버튼 클릭
-    /// </summary>
-    private async void OnSaveClick(object sender, RoutedEventArgs e)
-    {
-        await SaveStudentsAsync();
-    }
-
-    /// <summary>
     /// 삭제 버튼 클릭
     /// </summary>
     private async void OnDeleteClick(object sender, RoutedEventArgs e)
@@ -136,14 +161,145 @@ public sealed partial class StudentManagementPage : Page, IDisposable
     }
 
     /// <summary>
-    /// 학생 추가 버튼 클릭
+    /// 학생 한 명 추가 — 다이얼로그로 받는다.
+    /// 필터에 골라 둔 학년도·학년·반을 기본값으로 넘겨, 같은 반을 이어 넣을 때 덜 치게 한다.
     /// </summary>
-    private void OnAddStudentClick(object sender, RoutedEventArgs e)
+    private async void OnAddOneClick(object sender, RoutedEventArgs e)
     {
-        // AddStudentsPage로 이동
+        var dialog = new StudentEditDialog(
+            YearSemPicker.Year, ClassFilter.Grade, ClassFilter.ClassNum)
+        {
+            XamlRoot = this.XamlRoot
+        };
+
+        // ⚠ dialog.ShowAsync() 를 직접 부르지 말 것. 이 앱의 대화상자는 모두
+        // MessageBox.ShowDialogAsync 의 세마포어(_dialogGate)를 거친다. 직접 부르면
+        // 다른 대화상자와 겹칠 때 예외가 나고, async void 라 그 예외가 조용히 사라져
+        // "눌러도 아무 반응이 없다" 로 나타난다.
+        await MessageBox.ShowDialogAsync(dialog);
+        if (!dialog.Saved) return;
+
+        // 추가한 학생이 지금 필터에 걸리는지는 알 수 없으므로(다른 반으로 넣었을 수 있다)
+        // 목록을 통째로 다시 읽는다.
+        await LoadStudentsAsync();
+    }
+
+    /// <summary>
+    /// 엑셀로 일괄 추가 — 여러 명은 지금처럼 전용 페이지에서 받는다.
+    /// </summary>
+    private void OnAddBulkClick(object sender, RoutedEventArgs e)
+    {
         if (this.Frame != null)
         {
             this.Frame.Navigate(typeof(AddStudentsPage));
+        }
+    }
+
+    /// <summary>
+    /// 위쪽 "수정" 버튼 — 체크한 학생 한 명을 연다.
+    /// (행을 눌러도 같은 다이얼로그가 열리지만, 버튼으로도 갈 수 있어야 한다.)
+    /// </summary>
+    private async void OnEditSelectedClick(object sender, RoutedEventArgs e)
+    {
+        var selected = Students.Where(s => s.IsSelected).ToList();
+
+        if (selected.Count == 0)
+        {
+            await MessageBox.ShowAsync("수정할 학생을 선택하세요.\n(행을 눌러 바로 열 수도 있습니다)", "알림");
+            return;
+        }
+
+        if (selected.Count > 1)
+        {
+            await MessageBox.ShowAsync("한 번에 한 명만 수정할 수 있습니다.", "알림");
+            return;
+        }
+
+        await OpenEditDialogAsync(selected[0]);
+    }
+
+    /// <summary>
+    /// 행 클릭 — 학생 정보 편집 다이얼로그를 연다.
+    /// (위쪽 "수정" 버튼도 같은 <see cref="OpenEditDialogAsync"/> 로 들어온다.)
+    /// </summary>
+    private async void OnStudentRowClick(object sender, RoutedEventArgs e)
+    {
+        // DataContext 가 아니라 Tag 를 본다 — ItemsRepeater 는 실체화한 요소에
+        // DataContext 를 채워 주지 않는다(템플릿의 XAML 주석 참고).
+        if ((sender as FrameworkElement)?.Tag is not StudentManagementViewModel vm) return;
+
+        await OpenEditDialogAsync(vm);
+    }
+
+    /// <summary>
+    /// 편집 다이얼로그를 열고, 저장됐으면 목록에 반영한다.
+    /// </summary>
+    private async Task OpenEditDialogAsync(StudentManagementViewModel vm)
+    {
+        var dialog = new StudentEditDialog(vm.EnrollmentNo, vm.StudentID)
+        {
+            XamlRoot = this.XamlRoot
+        };
+
+        // 불러오기는 띄우기 전에 끝낸다 — 실패한 다이얼로그를 빈 채로 띄우지 않는다.
+        string? loadFailure = await dialog.LoadAsync();
+        if (loadFailure != null)
+        {
+            await MessageBox.ShowAsync(loadFailure, "오류");
+            return;
+        }
+
+        // 위 OnAddOneClick 의 주석 참고 — 반드시 이 경로로 띄운다.
+        await MessageBox.ShowDialogAsync(dialog);
+        if (!dialog.Saved) return;
+
+        // 학년도·학년·반을 옮겼다면 지금 필터에서 빠져야 하므로 다시 읽는다.
+        // 그대로면 그 행만 제자리에서 갱신한다(스크롤 위치와 선택이 살아 있다).
+        await RefreshRowAsync(vm);
+    }
+
+    /// <summary>
+    /// 편집한 행 하나를 DB 에서 다시 읽어 반영한다.
+    /// 학급이 바뀌어 현재 필터에서 벗어났으면 목록 전체를 다시 읽는다.
+    /// </summary>
+    private async Task RefreshRowAsync(StudentManagementViewModel vm)
+    {
+        try
+        {
+            using var repo = new EnrollmentRepository(SchoolDatabase.DbPath);
+            var updated = await repo.GetByIdAsync(vm.EnrollmentNo);
+
+            if (updated == null)
+            {
+                await LoadStudentsAsync();
+                return;
+            }
+
+            int grade = ClassFilter.Grade;      // 0 = 전체
+            int classNo = ClassFilter.ClassNum; // 0 = 전체
+
+            bool stillInFilter = updated.Year == YearSemPicker.Year
+                && (grade == 0 || updated.Grade == grade)
+                && (classNo == 0 || updated.Class == classNo);
+
+            if (!stillInFilter)
+            {
+                await LoadStudentsAsync();
+                return;
+            }
+
+            vm.Year = updated.Year;
+            vm.Grade = updated.Grade;
+            vm.Class = updated.Class;
+            vm.Number = updated.Number;
+            vm.Name = updated.Name;
+            vm.Status = updated.Status;
+            vm.Memo = updated.Memo;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[StudentManagement] 행 갱신 실패: {ex.Message}");
+            await LoadStudentsAsync();
         }
     }
 
@@ -171,11 +327,13 @@ public sealed partial class StudentManagementPage : Page, IDisposable
     /// </summary>
     private void OnStudentCheckBoxClick(object sender, RoutedEventArgs e)
     {
-        if (sender is CheckBox checkBox && checkBox.DataContext is StudentManagementViewModel vm)
-        {
-            vm.IsSelected = checkBox.IsChecked == true;
-            UpdateSelectAllCheckBoxState();
-        }
+        // Tag 로 항목을 받는다. 예전에는 DataContext 를 봤는데 ItemsRepeater 에서는 늘
+        // null 이라 이 핸들러가 통째로 헛돌았고, 그래서 개별 체크를 해도 위쪽 전체 선택
+        // 체크박스가 중간 상태로 바뀌지 않았다(체크 자체는 x:Bind TwoWay 가 해 준다).
+        if ((sender as FrameworkElement)?.Tag is not StudentManagementViewModel vm) return;
+
+        vm.IsSelected = (sender as CheckBox)?.IsChecked == true;
+        UpdateSelectAllCheckBoxState();
     }
 
     /// <summary>
@@ -202,18 +360,6 @@ public sealed partial class StudentManagementPage : Page, IDisposable
         else
         {
             ChkSelectAll.IsChecked = null; // Indeterminate
-        }
-    }
-
-    /// <summary>
-    /// 학생 데이터 변경 이벤트
-    /// </summary>
-    private void OnStudentDataChanged(object sender, TextChangedEventArgs e)
-    {
-        // 변경사항 표시 (선택적)
-        if (sender is TextBox textBox && textBox.DataContext is StudentManagementViewModel vm)
-        {
-            vm.IsModified = true;
         }
     }
 
@@ -250,8 +396,11 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             //  · 학급 조회는 학기를 무시했으며,
             //  · 전체·학년 조회는 Memo 를 빈 값으로 채워 넣어서, 그 상태로 저장하면
             //    Enrollment.Memo 가 통째로 지워졌다(저장이 vm.Memo 를 그대로 덮어쓴다).
+            // includeNotOnRoll: true — 전출·졸업·자퇴한 학생까지 본다.
+            // 앱에서 유일하게 그러는 화면이다. 다른 곳(명렬표·좌석·수업·동아리)은
+            // 기본값대로 재적만 받는다.
             var enrollments = await _enrollmentService.GetEnrollmentsAsync(
-                Settings.SchoolCode.Value, year, grade, classNo);
+                Settings.SchoolCode.Value, year, grade, classNo, includeNotOnRoll: true);
 
             var students = enrollments.Select(e => new StudentManagementViewModel
             {
@@ -264,8 +413,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                 Name = e.Name,
                 Status = e.Status,
                 Memo = e.Memo,
-                IsSelected = false,
-                IsModified = false
+                IsSelected = false
             }).ToList();
 
             // ViewModel로 변환
@@ -292,99 +440,6 @@ public sealed partial class StudentManagementPage : Page, IDisposable
     #endregion
 
     #region 저장 및 삭제
-
-    /// <summary>
-    /// 선택된 학생 정보 저장
-    /// </summary>
-    private async Task SaveStudentsAsync()
-    {
-        try
-        {
-            // 편집(IsModified)했거나 체크(IsSelected)한 학생을 저장 대상으로
-            var targetStudents = Students.Where(s => s.IsModified || s.IsSelected).ToList();
-
-            if (targetStudents.Count == 0)
-            {
-                await MessageBox.ShowAsync("저장할 변경 사항이 없습니다.\n(수정하거나 학생을 선택하세요)", "알림");
-                return;
-            }
-
-            int successCount = 0;
-            // ⭐ SchoolDatabase.DbPath 사용
-            using var repo = new EnrollmentRepository(SchoolDatabase.DbPath);
-            using var studentService = new StudentService(SchoolDatabase.DbPath);
-
-            foreach (var vm in targetStudents)
-            {
-                try
-                {
-                    // Enrollment 조회
-                    var enrollment = await repo.GetByIdAsync(vm.EnrollmentNo);
-                    if (enrollment == null) continue;
-
-                    // 이름이 바뀌었으면 정본(Student)을 통해 갱신
-                    // → UpdateBasicInfoAsync 가 Enrollment.Name 까지 자동 동기화
-                    if (enrollment.Name != vm.Name)
-                    {
-                        var student = await studentService.GetBasicInfoAsync(vm.StudentID);
-                        if (student != null)
-                        {
-                            student.Name = vm.Name;
-
-                            // 결과를 확인한다 — 예전에는 버려서, 정본(Student)은 옛 이름인데
-                            // 학적(Enrollment)만 새 이름이 되어 화면마다 이름이 달라질 수 있었다.
-                            if (!await studentService.UpdateBasicInfoAsync(student))
-                                throw new InvalidOperationException("이름 갱신이 반영되지 않았습니다.");
-                        }
-                    }
-
-                    // 학적(Enrollment) 데이터 반영
-                    enrollment.Year = vm.Year;
-                    enrollment.Grade = vm.Grade;
-                    enrollment.Class = vm.Class;
-                    enrollment.Number = vm.Number;
-                    enrollment.Name = vm.Name;
-                    enrollment.Memo = vm.Memo;
-                    enrollment.UpdatedAt = DateTime.Now;
-
-                    // DB 업데이트
-                    bool success = await repo.UpdateAsync(enrollment);
-                    if (success)
-                    {
-                        successCount++;
-                        vm.IsModified = false;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[StudentManagement] 저장 실패 - {vm.Name}: {ex.Message}");
-                }
-            }
-
-            if (successCount == targetStudents.Count)
-            {
-                await MessageBox.ShowAsync($"{successCount}명의 학생 정보가 저장되었습니다.", "완료");
-            }
-            else
-            {
-                await MessageBox.ShowAsync(
-                    $"{targetStudents.Count}명 중 {successCount}명만 저장되었습니다.\n" +
-                    "저장되지 않은 학생은 수정 표시가 남아 있습니다.", "저장 실패");
-            }
-
-            // 선택 해제
-            ChkSelectAll.IsChecked = false;
-            foreach (var student in Students)
-            {
-                student.IsSelected = false;
-            }
-        }
-        catch (Exception ex)
-        {
-            await MessageBox.ShowAsync($"저장 중 오류가 발생했습니다.\n{ex.Message}", "오류");
-        }
-    }
 
     /// <summary>
     /// 선택된 학생 삭제
@@ -470,7 +525,13 @@ public sealed partial class StudentManagementPage : Page, IDisposable
         EmptyState.Visibility = hasStudents ? Visibility.Collapsed : Visibility.Visible;
         StudentListContainer.Visibility = hasStudents ? Visibility.Visible : Visibility.Collapsed;
 
-        TxtStudentCount.Text = $"총 {Students.Count}명";
+        // 전출·졸업·자퇴·퇴학은 명부에 남아 있어도 지금 이 학교 학생이 아니다.
+        // 그 수가 있을 때만 따로 밝힌다 — 늘 붙여 두면 대부분의 반에서 군더더기다.
+        int onRoll = Students.Count(s => s.IsOnRoll);
+
+        TxtStudentCount.Text = onRoll == Students.Count
+            ? $"총 {Students.Count}명"
+            : $"총 {Students.Count}명 (재적 {onRoll} · 전출 등 {Students.Count - onRoll})";
     }
 
     #endregion
@@ -492,7 +553,6 @@ public class StudentManagementViewModel : NotifyPropertyChangedBase
     private string _status = string.Empty;
     private string _memo = string.Empty;
     private bool _isSelected;
-    private bool _isModified;
 
     public int EnrollmentNo
     {
@@ -539,8 +599,23 @@ public class StudentManagementViewModel : NotifyPropertyChangedBase
     public string Status
     {
         get => _status;
-        set => SetProperty(ref _status, value);
+        set
+        {
+            if (SetProperty(ref _status, value))
+            {
+                // 파생 값도 함께 알린다 — 안 하면 다이얼로그에서 전출로 바꿔도
+                // 행이 흐려지지 않는다.
+                OnPropertyChanged(nameof(IsOnRoll));
+                OnPropertyChanged(nameof(RowOpacity));
+            }
+        }
     }
+
+    /// <summary>지금 이 학교 명부에 있는가(재학·전입·휴학).</summary>
+    public bool IsOnRoll => EnrollmentStatus.IsOnRoll(Status);
+
+    /// <summary>명부에서 빠진 학생은 흐리게 — 목록에서 한눈에 갈라 보이게 한다.</summary>
+    public double RowOpacity => IsOnRoll ? 1.0 : 0.5;
 
     public string Memo
     {
@@ -554,11 +629,8 @@ public class StudentManagementViewModel : NotifyPropertyChangedBase
         set => SetProperty(ref _isSelected, value);
     }
 
-    public bool IsModified
-    {
-        get => _isModified;
-        set => SetProperty(ref _isModified, value);
-    }
+    // IsModified 는 인라인 편집이 있던 시절의 것이다. 편집이 다이얼로그로 옮겨가면서
+    // "저장하지 않은 변경" 이라는 상태 자체가 없어져 함께 지웠다.
 
     public string ClassInfo => $"{Year}학년도 {Grade}학년 {Class}반 {Number}번";
 }

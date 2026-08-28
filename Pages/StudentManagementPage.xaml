@@ -8,95 +8,114 @@
     xmlns:controls="using:NewSchool.Controls"
     mc:Ignorable="d">
 
-    <Grid Padding="24">
+    <!-- 목록에 한 명이라도 더 보이도록 머리 부분을 눌러 두었다. 제목은 필터 줄에 얹고,
+         페이지 여백·카드 여백·버튼 여백을 모두 줄였다. -->
+    <Grid Padding="16,12,16,16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 헤더 -->
-        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
-            <TextBlock 
-                Text="학생 관리" 
-                Style="{StaticResource TitleTextBlockStyle}"/>
-            <TextBlock 
-                Text="학생 목록을 조회, 수정, 삭제할 수 있습니다."
-                Style="{StaticResource BodyTextBlockStyle}"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </StackPanel>
-
-        <!-- 필터 및 버튼 영역 -->
-        <Grid Grid.Row="1" 
-              Padding="16"
+        <!-- 제목 · 필터 · 버튼 영역 -->
+        <Grid Grid.Row="0"
+              Padding="12,10"
               Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
               BorderThickness="1"
               CornerRadius="8"
-              Margin="0,0,0,16">
+              Margin="0,0,0,10">
 
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 첫 번째 행: 필터 -->
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+            <!-- 첫 번째 행: 제목 + 필터 -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="학생 관리"
+                           Style="{StaticResource SubtitleTextBlockStyle}"
+                           VerticalAlignment="Center"/>
+
+                <!-- 어느 학교의 명부를 보고 있는지 밝힌다. 학교는 Student 가 아니라
+                     Enrollment.SchoolCode 에 붙어 있고, 조회는 Settings.SchoolCode 하나로
+                     건다 — 여기 이름이 곧 그 필터다. -->
+                <TextBlock x:Name="TxtSchoolName"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0"
+                           FontSize="13"
+                           TextTrimming="CharacterEllipsis"
+                           MaxWidth="220"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
                 <!-- 학기 콤보는 두지 않는다 — 명부는 학년 단위다
                      (EnrollmentService.GetEnrollmentsAsync 주석 참고) -->
                 <controls:YearSemesterPicker
                     x:Name="YearSemPicker"
                     ShowSemester="False"
+                    VerticalAlignment="Center"
                     YearSemesterChanged="YearSemPicker_YearSemesterChanged"/>
                 <controls:ClassPicker
                     x:Name="ClassFilter"
                     IncludeAllGrade="True"
                     IncludeAllClass="True"
+                    VerticalAlignment="Center"
                     AutoLoad="False"/>
 
-                <Button x:Name="BtnLookUp" 
-                        Content="조회" 
-                        Padding="20,6"
+                <Button x:Name="BtnLookUp"
+                        Content="조회"
+                        Padding="16,4"
                         Click="OnLookUpClick"
                         VerticalAlignment="Center"
                         Style="{StaticResource AccentButtonStyle}"/>
             </StackPanel>
 
             <!-- 두 번째 행: 액션 버튼 -->
-            <StackPanel Grid.Row="1" 
-                        Orientation="Horizontal" 
-                        Spacing="8" 
-                        Margin="0,12,0,0">
-                <Button x:Name="BtnSave" 
-                        Content="저장" 
-                        Padding="20,6"
-                        Click="OnSaveClick">
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
-                    </Button.KeyboardAccelerators>
-                </Button>
+            <StackPanel Grid.Row="1"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        Margin="0,8,0,0">
+                <!-- 저장 버튼은 없다. 편집이 다이얼로그로 옮겨가면서 확인을 누르는 순간
+                     그 학생만 커밋되므로, 저장하지 않은 편집이 쌓일 자리가 사라졌다.
 
-                <Button x:Name="BtnDelete" 
-                        Content="삭제" 
-                        Padding="20,6"
+                     차례는 "지금 보고 있는 목록에 하는 일"(수정·삭제)이 앞,
+                     "목록을 늘리는 일"(추가)이 뒤다. -->
+                <Button x:Name="BtnEditSelected"
+                        Content="수정"
+                        Padding="16,4"
+                        Click="OnEditSelectedClick"/>
+
+                <Button x:Name="BtnDelete"
+                        Content="선택 삭제"
+                        Padding="16,4"
                         Click="OnDeleteClick"/>
 
-                <Button x:Name="BtnAddStudent" 
-                        Content="학생 추가" 
-                        Padding="20,6"
-                        Click="OnAddStudentClick"
+                <Button x:Name="BtnAddOne"
+                        Content="학생 추가"
+                        Padding="16,4"
+                        Click="OnAddOneClick"
                         Style="{StaticResource AccentButtonStyle}"/>
+
+                <Button x:Name="BtnAddBulk"
+                        Content="엑셀로 일괄 추가"
+                        Padding="16,4"
+                        Click="OnAddBulkClick"/>
 
                 <TextBlock x:Name="TxtStudentCount"
                            Text="총 0명"
                            VerticalAlignment="Center"
-                           Margin="16,0,0,0"
+                           Margin="12,0,0,0"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <TextBlock Text="행을 누르면 수정합니다"
+                           VerticalAlignment="Center"
+                           Margin="8,0,0,0"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
             </StackPanel>
         </Grid>
 
         <!-- 학생 목록 영역 -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
@@ -174,72 +193,90 @@
 
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="local:StudentManagementViewModel">
+                                    <!-- 목록은 보여 주기만 한다. 고치는 일은 행을 눌러 여는
+                                         StudentEditDialog 가 맡는다.
+
+                                         체크박스를 행 버튼 안에 넣지 않고 옆에 둔 이유 —
+                                         버튼 안에 두면 체크하려던 클릭이 행 열기까지 같이
+                                         일으킨다. 선택과 열기를 물리적으로 갈라 둔다. -->
                                     <Border Background="Transparent"
+                                            Opacity="{x:Bind RowOpacity, Mode=OneWay}"
                                             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                                             BorderThickness="0,0,0,1">
-                                        <Grid Padding="12,8">
+                                        <!-- 가로 여백 12 는 머리글 Grid 의 Padding="12,8" 과 같은 값이다.
+                                                 이 값이 어긋나면 칸이 머리글과 어긋나 보인다. -->
+                                        <Grid Padding="12,0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="50"/>
-                                                <ColumnDefinition Width="140"/>
-                                                <ColumnDefinition Width="80"/>
-                                                <ColumnDefinition Width="60"/>
-                                                <ColumnDefinition Width="60"/>
-                                                <ColumnDefinition Width="60"/>
-                                                <ColumnDefinition Width="120"/>
-                                                <ColumnDefinition Width="80"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <CheckBox Grid.Column="0" 
+                                            <!-- Tag="{x:Bind}" 로 항목을 실어 보낸다.
+                                                 ItemsRepeater 는 ListView 와 달리 실체화한
+                                                 요소에 DataContext 를 채워 주지 않아,
+                                                 핸들러에서 DataContext 를 보면 늘 null 이다
+                                                 (행을 눌러도 아무 일이 없던 원인). -->
+                                            <CheckBox Grid.Column="0"
+                                                      Tag="{x:Bind}"
                                                       IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
                                                       Click="OnStudentCheckBoxClick"
+                                                      MinWidth="0"
                                                       HorizontalAlignment="Left"
                                                       VerticalAlignment="Center"/>
 
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="{x:Bind StudentID}" 
-                                                       VerticalAlignment="Center"
-                                                       FontFamily="Consolas"
-                                                       FontSize="12"/>
+                                            <!-- 가로 여백을 0 으로 두어야 아래 칸이 머리글과 맞는다. -->
+                                            <Button Grid.Column="1"
+                                                    Tag="{x:Bind}"
+                                                    Click="OnStudentRowClick"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    CornerRadius="0"
+                                                    Padding="0,6"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    ToolTipService.ToolTip="누르면 학생 정보를 고칩니다">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="140"/>
+                                                        <ColumnDefinition Width="80"/>
+                                                        <ColumnDefinition Width="60"/>
+                                                        <ColumnDefinition Width="60"/>
+                                                        <ColumnDefinition Width="60"/>
+                                                        <ColumnDefinition Width="120"/>
+                                                        <ColumnDefinition Width="80"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
 
-                                            <TextBox Grid.Column="2" 
-                                                     Text="{x:Bind Year, Mode=TwoWay}"
-                                                     VerticalAlignment="Center"
-                                                     TextChanged="OnStudentDataChanged"
-                                                     InputScope="Number"/>
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{x:Bind StudentID}"
+                                                               VerticalAlignment="Center"
+                                                               FontFamily="Consolas"
+                                                               FontSize="12"/>
 
-                                            <TextBox Grid.Column="3" 
-                                                     Text="{x:Bind Grade, Mode=TwoWay}"
-                                                     VerticalAlignment="Center"
-                                                     TextChanged="OnStudentDataChanged"
-                                                     InputScope="Number"/>
+                                                    <!-- Mode=OneWay 를 반드시 붙인다 — x:Bind 는 Mode 를 빼면
+                                                         OneTime 이라, 다이얼로그로 고친 뒤 목록을 제자리에서
+                                                         갱신해도 화면이 옛 값 그대로 남는다. -->
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind Year, Mode=OneWay}"   VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{x:Bind Grade, Mode=OneWay}"  VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="3" Text="{x:Bind Class, Mode=OneWay}"  VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="4" Text="{x:Bind Number, Mode=OneWay}" VerticalAlignment="Center"/>
 
-                                            <TextBox Grid.Column="4" 
-                                                     Text="{x:Bind Class, Mode=TwoWay}"
-                                                     VerticalAlignment="Center"
-                                                     TextChanged="OnStudentDataChanged"
-                                                     InputScope="Number"/>
+                                                    <TextBlock Grid.Column="5"
+                                                               Text="{x:Bind Name, Mode=OneWay}"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"/>
 
-                                            <TextBox Grid.Column="5" 
-                                                     Text="{x:Bind Number, Mode=TwoWay}"
-                                                     VerticalAlignment="Center"
-                                                     TextChanged="OnStudentDataChanged"
-                                                     InputScope="Number"/>
+                                                    <TextBlock Grid.Column="6"
+                                                               Text="{x:Bind Status, Mode=OneWay}"
+                                                               VerticalAlignment="Center"/>
 
-                                            <TextBox Grid.Column="6" 
-                                                     Text="{x:Bind Name, Mode=TwoWay}"
-                                                     VerticalAlignment="Center"
-                                                     TextChanged="OnStudentDataChanged"/>
-
-                                            <TextBlock Grid.Column="7" 
-                                                       Text="{x:Bind Status}" 
-                                                       VerticalAlignment="Center"/>
-
-                                            <TextBox Grid.Column="8" 
-                                                     Text="{x:Bind Memo, Mode=TwoWay}"
-                                                     VerticalAlignment="Center"
-                                                     TextChanged="OnStudentDataChanged"
-                                                     PlaceholderText="비고"/>
+                                                    <TextBlock Grid.Column="7"
+                                                               Text="{x:Bind Memo, Mode=OneWay}"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                </Grid>
+                                            </Button>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

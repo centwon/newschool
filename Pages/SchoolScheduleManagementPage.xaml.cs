@@ -87,8 +87,26 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
 
     #region 초기화
 
+    /// <summary>
+    /// 어느 학교의 학사일정인지 머리글에 밝힌다.
+    /// 조회는 <c>Settings.SchoolCode</c> 하나로만 걸린다.
+    /// </summary>
+    private void ShowCurrentSchool()
+    {
+        string name = Settings.SchoolName?.Value ?? string.Empty;
+        string code = Settings.SchoolCode?.Value ?? string.Empty;
+
+        TxtSchoolName.Text = !string.IsNullOrWhiteSpace(name)
+            ? $"{name} 의 NEIS 학사일정을 조회하고 관리합니다."
+            : !string.IsNullOrWhiteSpace(code)
+                ? $"학교 코드 {code} 의 NEIS 학사일정을 조회하고 관리합니다."
+                : "학교가 설정되지 않았습니다. 설정에서 학교를 먼저 지정해 주세요.";
+    }
+
     private void OnPageLoaded(object sender, RoutedEventArgs e)
     {
+        ShowCurrentSchool();
+
         if (!_isInitialized)
         {
             InitializeFilters();

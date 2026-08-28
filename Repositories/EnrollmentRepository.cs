@@ -605,12 +605,14 @@ namespace NewSchool.Repositories
                 SET Status = @Status,
                     UpdatedAt = @UpdatedAt";
 
-            // 상태에 따라 날짜 필드 업데이트
-            if (status == "졸업" && changeDate.HasValue)
+            // 상태에 따라 날짜 필드 업데이트.
+            // "전학" 을 전입/전출로 가르면서 이 분기도 전출로 맞췄다 —
+            // 옛 조건(status.Contains("전학"))은 새 값 어디에도 걸리지 않는다.
+            if (status == EnrollmentStatus.Graduated && changeDate.HasValue)
             {
                 query += ", GraduationDate = @ChangeDate";
             }
-            else if (status.Contains("전학") && changeDate.HasValue)
+            else if (status == EnrollmentStatus.TransferredOut && changeDate.HasValue)
             {
                 query += ", TransferOutDate = @ChangeDate";
             }

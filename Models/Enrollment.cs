@@ -152,14 +152,27 @@ namespace NewSchool.Models
         #region Properties - 학적 상태
 
         /// <summary>
-        /// 학적 상태
-        /// 재학/휴학/전학(전출)/전학(전입)/졸업/자퇴/퇴학
+        /// 학적 상태. 재학/전입/휴학 · 전출/졸업/자퇴/퇴학
+        /// (1.0 이전 데이터에는 전입·전출을 가르지 않은 "전학" 이 남아 있다)
+        ///
+        /// <para>이 값을 직접 비교하지 말고 <see cref="IsOnRoll"/> 를 쓸 것.</para>
         /// </summary>
         public string Status
         {
             get => _status;
-            set => SetProperty(ref _status, value);
+            set
+            {
+                if (SetProperty(ref _status, value)) OnPropertyChanged(nameof(IsOnRoll));
+            }
         }
+
+        /// <summary>
+        /// 지금 이 학교 명부에 있는가(재적).
+        ///
+        /// <para>명단·좌석·수업·동아리처럼 "지금 이 반 학생" 을 묻는 곳은 모두 이것으로 거른다.
+        /// 상태 문자열을 직접 비교하지 말 것.</para>
+        /// </summary>
+        public bool IsOnRoll => EnrollmentStatus.IsOnRoll(Status);
 
         /// <summary>담임교사 ID(FK: Teacher.TeacherID)</summary>
         public string TeacherID

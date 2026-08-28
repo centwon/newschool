@@ -67,11 +67,26 @@ public sealed class EnrollmentService : IDisposable
     /// ⚠ 학기 인자를 다시 만들지 말 것. 학기별 기록은 <c>StudentLog.Semester</c> 처럼
     /// 기록 쪽에서 구분한다 — 명부(누가 이 반에 있는가)는 학년 단위다.
     /// </summary>
+    /// <param name="includeNotOnRoll">
+    /// 전출·졸업·자퇴·퇴학처럼 <b>명부에서 빠진 학생까지</b> 포함할지.
+    ///
+    /// <para>기본값은 <c>false</c> — "지금 이 반에 누가 있나" 가 거의 모든 호출처의 질문이다.
+    /// 예전에는 상태를 아예 보지 않아 전출한 학생이 명렬표·좌석표·수업 배정·동아리 배정에
+    /// 그대로 섞여 들어왔다. 참으로 켜는 곳은 <b>설정 → 학생 관리</b> 하나뿐이며,
+    /// 거기서만 빠진 학생을 흐리게 보여 준다.</para>
+    /// </param>
     public async Task<List<Enrollment>> GetEnrollmentsAsync(
-        string schoolCode, int year = 0, int grade = 0, int classNum = 0)
+        string schoolCode, int year = 0, int grade = 0, int classNum = 0,
+        bool includeNotOnRoll = false)
     {
         var enrollments = await _enrollmentRepo.GetEnrollmentsAsync(
             schoolCode: schoolCode, year: year, grade: grade, classNum: classNum);
+
+        // 거르기를 SQL 이 아니라 여기서 하는 이유 — 판정은 Enrollment.IsOnRoll 한 곳에만
+        // 두어야 한다. 상태 목록을 WHERE 절에 또 적으면 값이 늘 때마다 두 곳이 어긋난다.
+        // 학급 명부는 수십 행이라 걸러 버리는 비용도 무시할 만하다.
+        if (!includeNotOnRoll)
+            enrollments = enrollments.Where(e => e.IsOnRoll).ToList();
 
         return DedupeByYear(enrollments);
     }
@@ -80,9 +95,10 @@ public sealed class EnrollmentService : IDisposable
     /// 학급 명부 조회. <see cref="GetEnrollmentsAsync"/> 와 같은 규칙이며 번호순으로 돌려준다.
     /// </summary>
     public async Task<List<Enrollment>> GetClassRosterAsync(
-        string schoolCode, int year, int grade, int classNo)
+        string schoolCode, int year, int grade, int classNo,
+        bool includeNotOnRoll = false)
     {
-        var enrollments = await GetEnrollmentsAsync(schoolCode, year, grade, classNo);
+        var enrollments = await GetEnrollmentsAsync(schoolCode, year, grade, classNo, includeNotOnRoll);
         return enrollments.OrderBy(e => e.Number).ToList();
     }
 
