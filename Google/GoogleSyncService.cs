@@ -334,7 +334,10 @@ public sealed class GoogleSyncService : IDisposable
         var titles = new HashSet<string>(StringComparer.Ordinal);
         try
         {
-            _scheduleService ??= new Services.SchoolScheduleService(Settings.SchoolDB.Value);
+            // SchoolDatabase.DbPath — Settings.SchoolDB.Value 는 "school.db" 라는 파일 이름뿐이라
+            // 실행 파일 옆의 빈 DB 를 새로 만들어 읽는다. 그러면 학사일정 제목이 늘 비어서 중복
+            // 판정이 전부 "겹치지 않음" 이 되고, 이미 올린 학사일정이 구글에 다시 쌓인다.
+            _scheduleService ??= new Services.SchoolScheduleService(SchoolDatabase.DbPath);
             // GetSchedulesByDataRangeAsync 는 [start, end) 반개구간이라 하루만 보려면 end=date+1일
             var result = await _scheduleService.GetSchedulesByDataRangeAsync(
                 Settings.SchoolCode, date, date.AddDays(1));

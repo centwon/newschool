@@ -178,7 +178,11 @@ public sealed partial class Kcalendar : Page
                     {
                         // ✅ DB에서 비동기로 로드
                         Debug.WriteLine($"[Kcalendar] DB에서 로드: {calendarStart:yyyy-MM-dd} + 42일");
-                        using var scheduleService = new SchoolScheduleService(Settings.SchoolDB.Value);
+                        // SchoolDatabase.DbPath 를 쓴다 — Settings.SchoolDB.Value 는 "school.db" 라는
+                        // 파일 이름뿐이라 상대 경로가 되고, SQLite 가 그것을 프로세스 작업 폴더(실행 파일
+                        // 옆)에서 찾다가 없으면 빈 DB 를 새로 만든다. 달력에 학사일정이 하나도 안 뜨고
+                        // 실행 파일 옆에 school.db 가 생기던 원인이다. 다른 호출처 6곳은 모두 DbPath 를 썼다.
+                        using var scheduleService = new SchoolScheduleService(SchoolDatabase.DbPath);
                         var schedules = await scheduleService.GetSchedulesByDataRangeAsync(Settings.SchoolCode, calendarStart, calendarEnd);
                         if (schedules.Success)
                         {
@@ -195,7 +199,8 @@ public sealed partial class Kcalendar : Page
                     {
                         // API에서 로드
                         Debug.WriteLine($"[Kcalendar] NEIS API에서 로드");
-                        using var scheduleService = new SchoolScheduleService(Settings.SchoolDB.Value);
+                        // 위와 같은 이유로 DbPath — 내려받은 학사일정을 저장하는 자리도 여기다.
+                        using var scheduleService = new SchoolScheduleService(SchoolDatabase.DbPath);
                         var downloads = await scheduleService.DownloadFromNeisAsync(schoolCode: Settings.SchoolCode,
                                                                                    provinceCode: Settings.ProvinceCode,
                                                                                    year: _basedate.Year,
