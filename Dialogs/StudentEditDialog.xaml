@@ -62,73 +62,49 @@
                 <NumberBox Grid.Column="3" x:Name="NumNumber" Header="번호 *"   Minimum="1"    Maximum="99"   SpinButtonPlacementMode="Compact"/>
             </Grid>
 
-            <!-- 학적 상태 -->
-            <ComboBox x:Name="CBoxStatus"
-                      Header="학적 상태"
-                      HorizontalAlignment="Stretch"
-                      SelectionChanged="OnStatusSelectionChanged">
-                <!-- "전학" 하나였던 것을 전입/전출로 갈랐다. 둘은 명부에 남는지가 정반대다 —
-                     전입은 지금 이 학교 학생이고, 전출은 아니다. -->
-                <ComboBoxItem Content="재학" Tag="재학"/>
-                <ComboBoxItem Content="전입 (이 학교로 옴 — 재적)" Tag="전입"/>
-                <ComboBoxItem Content="휴학" Tag="휴학"/>
-                <ComboBoxItem Content="전출 (다른 학교로 감 — 명부에서 빠짐)" Tag="전출"/>
-                <ComboBoxItem Content="졸업" Tag="졸업"/>
-                <ComboBoxItem Content="자퇴" Tag="자퇴"/>
-                <ComboBoxItem Content="퇴학" Tag="퇴학"/>
-            </ComboBox>
+            <!-- 학적 변동 · 변동일자 -->
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="180"/>
+                </Grid.ColumnDefinitions>
 
-            <!-- 학적 변동 (전입·전출) -->
-            <Expander x:Name="ExpTransfer"
-                      Header="학적 변동 (전입 · 전출)"
-                      HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch">
-                <StackPanel Spacing="12" Padding="0,8,0,4">
+                <!-- 유형이 명단 포함 여부를 정한다. 괄호 안에 결과를 적어 두어야
+                     고르는 사람이 "이걸 고르면 명단에서 빠지는구나" 를 안다. -->
+                <ComboBox Grid.Column="0"
+                          x:Name="CBoxChange"
+                          Header="학적 변동"
+                          HorizontalAlignment="Stretch"
+                          SelectionChanged="OnChangeTypeSelectionChanged">
+                    <ComboBoxItem Content="입학" Tag="입학"/>
+                    <ComboBoxItem Content="진급" Tag="진급"/>
+                    <ComboBoxItem Content="전입" Tag="전입"/>
+                    <ComboBoxItem Content="전출 — 명단에서 빠짐" Tag="전출"/>
+                    <ComboBoxItem Content="졸업 — 명단에서 빠짐" Tag="졸업"/>
+                    <ComboBoxItem Content="휴학 — 명단에서 빠짐" Tag="휴학"/>
+                    <ComboBoxItem Content="유예 — 명단에서 빠짐" Tag="유예"/>
+                    <ComboBoxItem Content="정원외 — 명단에서 빠짐" Tag="정원외"/>
+                    <ComboBoxItem Content="자퇴 — 명단에서 빠짐" Tag="자퇴"/>
+                    <ComboBoxItem Content="퇴학 — 명단에서 빠짐" Tag="퇴학"/>
+                </ComboBox>
 
-                    <TextBlock Text="전입"
-                               FontWeight="SemiBold"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="180"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <CalendarDatePicker Grid.Column="0" x:Name="DateTransferIn"
-                                            Header="전입일" PlaceholderText="날짜 선택"
-                                            HorizontalAlignment="Stretch"/>
-                        <TextBox Grid.Column="1" x:Name="TxtTransferInSchool"
-                                 Header="전 학교명" MaxLength="50"
-                                 PlaceholderText="어느 학교에서 왔는지"/>
-                    </Grid>
+                <CalendarDatePicker Grid.Column="1"
+                                    x:Name="DateChange"
+                                    Header="변동일자"
+                                    PlaceholderText="날짜 선택"
+                                    HorizontalAlignment="Stretch"/>
+            </Grid>
 
-                    <TextBlock Text="전출"
-                               FontWeight="SemiBold"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               Margin="0,4,0,0"/>
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="180"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <CalendarDatePicker Grid.Column="0" x:Name="DateTransferOut"
-                                            Header="전출일" PlaceholderText="날짜 선택"
-                                            HorizontalAlignment="Stretch"/>
-                        <TextBox Grid.Column="1" x:Name="TxtTransferOutSchool"
-                                 Header="간 학교명" MaxLength="50"
-                                 PlaceholderText="어느 학교로 갔는지"/>
-                    </Grid>
-
-                    <HyperlinkButton x:Name="BtnClearTransfer"
-                                     Content="전입 · 전출 기록 지우기"
-                                     Click="OnClearTransferClick"
-                                     Padding="0,4"/>
-                </StackPanel>
-            </Expander>
+            <!-- 고른 값이 무엇을 뜻하는지 한 줄로 되비쳐 준다. -->
+            <TextBlock x:Name="TxtChangeHint"
+                       TextWrapping="Wrap"
+                       FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
             <!-- 비고 -->
             <TextBox x:Name="TxtMemo"
                      Header="비고"
-                     PlaceholderText="메모"
+                     PlaceholderText="전입·전출 학교명이나 사유를 적는 자리이기도 합니다"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"
                      Height="80"/>

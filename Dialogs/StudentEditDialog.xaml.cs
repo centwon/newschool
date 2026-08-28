@@ -48,7 +48,9 @@ public sealed partial class StudentEditDialog : ContentDialog
         NumClass.Value = cls > 0 ? cls : 1;
         NumNumber.Value = double.NaN;
 
-        SelectByTag(CBoxStatus, EnrollmentStatus.Enrolled);
+        // 학년이 기본 변동을 정한다 — 1학년은 입학, 그 위는 진급.
+        SelectByTag(CBoxChange, EnrollmentChange.DefaultFor(grade > 0 ? grade : 1));
+        DateChange.Date = DateTimeOffset.Now;
     }
 
     /// <summary>
@@ -95,20 +97,9 @@ public sealed partial class StudentEditDialog : ContentDialog
 
             // 목록에 없는 값(빈 값, 옛 "전학")이면 아무것도 안 잡힌다. 그대로 저장하면
             // '재학' 으로 채워지므로, 그런 행은 한 번 열었다 저장하는 것으로 정리된다.
-            SelectByTag(CBoxStatus, _enrollment.Status);
-
-            DateTransferIn.Date = ParseDate(_enrollment.TransferInDate);
-            TxtTransferInSchool.Text = _enrollment.TransferInSchool ?? string.Empty;
-            DateTransferOut.Date = ParseDate(_enrollment.TransferOutDate);
-            TxtTransferOutSchool.Text = _enrollment.TransferOutSchool ?? string.Empty;
-
+            SelectByTag(CBoxChange, _enrollment.ChangeType);
+            DateChange.Date = ParseDate(_enrollment.ChangeDate);
             TxtMemo.Text = _enrollment.Memo ?? string.Empty;
-
-            // 전입·전출에 값이 있으면 접힌 채로 두지 않는다 — 있는 줄 모르고 지나칠 자리다.
-            ExpTransfer.IsExpanded =
-                DateTransferIn.Date != null || DateTransferOut.Date != null ||
-                !string.IsNullOrWhiteSpace(_enrollment.TransferInSchool) ||
-                !string.IsNullOrWhiteSpace(_enrollment.TransferOutSchool);
 
             return null;
         }
@@ -211,21 +202,17 @@ public sealed partial class StudentEditDialog : ContentDialog
             }
         }
 
-        // 2) 학적(Enrollment). 위에서 동기화된 이름·성별을 여기서도 같은 값으로 덮어써야
-        //    한다 — 우리가 들고 있는 _enrollment 는 불러온 시점의 옛 값이기 때문이다.
-        _enrollment.Name = name;
-        _enrollment.Sex = sex;
+        // 2) 학적(Enrollment). 이름·성별은 넣지 않는다 — 이 표의 컬럼이 아니다.
         _enrollment.Year = year;
         _enrollment.Grade = grade;
         _enrollment.Class = cls;
         _enrollment.Number = number;
-        _enrollment.Status = TagOf(CBoxStatus) ?? EnrollmentStatus.Enrolled;
-        _enrollment.TransferInDate = FormatDate(DateTransferIn.Date);
-        _enrollment.TransferInSchool = TxtTransferInSchool.Text.Trim();
-        _enrollment.TransferOutDate = FormatDate(DateTransferOut.Date);
-        _enrollment.TransferOutSchool = TxtTransferOutSchool.Text.Trim();
         _enrollment.Memo = TxtMemo.Text.Trim();
-        _enrollment.UpdatedAt = DateTime.Now;
+
+        // ApplyChange 가 IsActive 까지 함께 맞춘다. 세 값을 따로 넣지 말 것.
+        _enrollment.ApplyChange(
+            TagOf(CBoxChange) ?? EnrollmentChange.DefaultFor(grade),
+            FormatDate(DateChange.Date));
 
         using var repo = new EnrollmentRepository(SchoolDatabase.DbPath);
         if (!await repo.UpdateAsync(_enrollment))
@@ -255,31 +242,27 @@ public sealed partial class StudentEditDialog : ContentDialog
             studentId, name, sex, year, grade, cls, number);
         if (failure != null) return failure;
 
-        // 만들기는 '재학' 으로 고정이라, 상태나 전입·전출·비고를 손댔으면 한 번 더 반영한다.
-        await ApplyExtrasToNewAsync(studentId);
+        // 만들기는 학년 기본값(입학/진급)으로 고정이라, 변동·일자·비고를 손댔으면
+        // 한 번 더 반영한다.
+        await ApplyExtrasToNewAsync(studentId, grade);
         return null;
     }
 
     /// <summary>
-    /// 갓 만든 학적에 상태·전입·전출·비고를 반영한다.
+    /// 갓 만든 학적에 변동 유형·일자·비고를 반영한다.
     ///
     /// <para>학생은 이미 저장됐으므로 여기서 실패해도 추가 자체는 되돌리지 않는다 —
     /// 되돌리면 "저장에 실패했다" 는 말과 달리 학생이 사라져 더 혼란스럽다.
     /// 못 담은 값은 곧바로 다시 열어 고칠 수 있다.</para>
     /// </summary>
-    private async Task ApplyExtrasToNewAsync(string studentId)
+    private async Task ApplyExtrasToNewAsync(string studentId, int grade)
     {
-        string status = TagOf(CBoxStatus) ?? EnrollmentStatus.Enrolled;
-        string transferInDate = FormatDate(DateTransferIn.Date);
-        string transferInSchool = TxtTransferInSchool.Text.Trim();
-        string transferOutDate = FormatDate(DateTransferOut.Date);
-        string transferOutSchool = TxtTransferOutSchool.Text.Trim();
+        string changeType = TagOf(CBoxChange) ?? EnrollmentChange.DefaultFor(grade);
+        string changeDate = FormatDate(DateChange.Date);
         string memo = TxtMemo.Text.Trim();
 
-        bool nothingExtra = status == EnrollmentStatus.Enrolled
-            && transferInDate.Length == 0 && transferInSchool.Length == 0
-            && transferOutDate.Length == 0 && transferOutSchool.Length == 0
-            && memo.Length == 0;
+        bool nothingExtra = changeType == EnrollmentChange.DefaultFor(grade)
+            && changeDate.Length == 0 && memo.Length == 0;
         if (nothingExtra) return;
 
         try
@@ -288,13 +271,8 @@ public sealed partial class StudentEditDialog : ContentDialog
             var created = await repo.GetCurrentByStudentIdAsync(studentId);
             if (created == null) return;
 
-            created.Status = status;
-            created.TransferInDate = transferInDate;
-            created.TransferInSchool = transferInSchool;
-            created.TransferOutDate = transferOutDate;
-            created.TransferOutSchool = transferOutSchool;
             created.Memo = memo;
-            created.UpdatedAt = DateTime.Now;
+            created.ApplyChange(changeType, changeDate);
 
             await repo.UpdateAsync(created);
         }
@@ -308,22 +286,22 @@ public sealed partial class StudentEditDialog : ContentDialog
 
     #region UI 보조
 
-    private void OnStatusSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void OnChangeTypeSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        // 전입·전출을 고르면 그 칸을 펼쳐 준다 — 고르고도 날짜를 안 남기면
-        // 나중에 언제 어느 학교로 옮겼는지 알 길이 없다.
-        if (ExpTransfer == null) return;
+        if (TxtChangeHint == null) return;
 
-        if (TagOf(CBoxStatus) is EnrollmentStatus.TransferredIn or EnrollmentStatus.TransferredOut)
-            ExpTransfer.IsExpanded = true;
-    }
+        string? type = TagOf(CBoxChange);
+        if (type == null) { TxtChangeHint.Text = string.Empty; return; }
 
-    private void OnClearTransferClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
-    {
-        DateTransferIn.Date = null;
-        DateTransferOut.Date = null;
-        TxtTransferInSchool.Text = string.Empty;
-        TxtTransferOutSchool.Text = string.Empty;
+        TxtChangeHint.Text = EnrollmentChange.IsActive(type)
+            ? $"'{type}' — 이 학생은 명렬표·좌석표·수업·동아리 명단에 들어갑니다."
+            : $"'{type}' — 이 학생은 명단에서 빠집니다. 기록은 그대로 남고, 변동일자 뒤에 " +
+              "새 기록을 남기려 하면 알려 드립니다.";
+
+        // 날짜가 비어 있으면 오늘로 채워 준다 — 변동을 고르고도 날짜를 안 남기면
+        // 언제 그렇게 됐는지 알 길이 없다.
+        if (DateChange != null && DateChange.Date == null)
+            DateChange.Date = DateTimeOffset.Now;
     }
 
     private static void SelectByTag(ComboBox box, string? tag)

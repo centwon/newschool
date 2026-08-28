@@ -114,8 +114,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             try
             {
                 // 간단한 쿼리로 테이블 존재 확인
-                await repo.GetCountAsync(Settings.SchoolCode.Value,
-                    Settings.WorkYear.Value, Settings.WorkSemester.Value);
+                await repo.GetCountAsync(Settings.SchoolCode.Value, Settings.WorkYear.Value);
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("no such table"))
             {
@@ -293,7 +292,8 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             vm.Class = updated.Class;
             vm.Number = updated.Number;
             vm.Name = updated.Name;
-            vm.Status = updated.Status;
+            vm.ChangeType = updated.ChangeType;
+            vm.ChangeDate = updated.ChangeDate;
             vm.Memo = updated.Memo;
         }
         catch (Exception ex)
@@ -411,7 +411,8 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                 Class = e.Class,
                 Number = e.Number,
                 Name = e.Name,
-                Status = e.Status,
+                ChangeType = e.ChangeType,
+                ChangeDate = e.ChangeDate,
                 Memo = e.Memo,
                 IsSelected = false
             }).ToList();
@@ -527,7 +528,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
 
         // 전출·졸업·자퇴·퇴학은 명부에 남아 있어도 지금 이 학교 학생이 아니다.
         // 그 수가 있을 때만 따로 밝힌다 — 늘 붙여 두면 대부분의 반에서 군더더기다.
-        int onRoll = Students.Count(s => s.IsOnRoll);
+        int onRoll = Students.Count(s => s.IsActive);
 
         TxtStudentCount.Text = onRoll == Students.Count
             ? $"총 {Students.Count}명"
@@ -550,7 +551,8 @@ public class StudentManagementViewModel : NotifyPropertyChangedBase
     private int _class;
     private int _number;
     private string _name = string.Empty;
-    private string _status = string.Empty;
+    private string _changeType = EnrollmentChange.Admitted;
+    private string _changeDate = string.Empty;
     private string _memo = string.Empty;
     private bool _isSelected;
 
@@ -596,26 +598,34 @@ public class StudentManagementViewModel : NotifyPropertyChangedBase
         set => SetProperty(ref _name, value);
     }
 
-    public string Status
+    /// <summary>학적 변동 — 입학·진급·전입·전출·졸업·휴학·유예·정원외·자퇴·퇴학</summary>
+    public string ChangeType
     {
-        get => _status;
+        get => _changeType;
         set
         {
-            if (SetProperty(ref _status, value))
+            if (SetProperty(ref _changeType, value))
             {
                 // 파생 값도 함께 알린다 — 안 하면 다이얼로그에서 전출로 바꿔도
                 // 행이 흐려지지 않는다.
-                OnPropertyChanged(nameof(IsOnRoll));
+                OnPropertyChanged(nameof(IsActive));
                 OnPropertyChanged(nameof(RowOpacity));
             }
         }
     }
 
-    /// <summary>지금 이 학교 명부에 있는가(재학·전입·휴학).</summary>
-    public bool IsOnRoll => EnrollmentStatus.IsOnRoll(Status);
+    /// <summary>변동 일자 (yyyy-MM-dd)</summary>
+    public string ChangeDate
+    {
+        get => _changeDate;
+        set => SetProperty(ref _changeDate, value);
+    }
 
-    /// <summary>명부에서 빠진 학생은 흐리게 — 목록에서 한눈에 갈라 보이게 한다.</summary>
-    public double RowOpacity => IsOnRoll ? 1.0 : 0.5;
+    /// <summary>지금 명단에 들어가는가(입학·진급·전입).</summary>
+    public bool IsActive => EnrollmentChange.IsActive(ChangeType);
+
+    /// <summary>명단에서 빠진 학생은 흐리게 — 목록에서 한눈에 갈라 보이게 한다.</summary>
+    public double RowOpacity => IsActive ? 1.0 : 0.5;
 
     public string Memo
     {

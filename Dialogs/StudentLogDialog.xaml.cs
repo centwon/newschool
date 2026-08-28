@@ -618,7 +618,8 @@ public sealed partial class StudentLogDialog : Window
                 StudentID = enrollment.StudentID,
                 TeacherID = teacherId,
                 Year = enrollment.Year > 0 ? enrollment.Year : _year,
-                Semester = enrollment.Semester > 0 ? enrollment.Semester : _semester,
+                // 학기는 기록 쪽에만 있다 — 학적(Enrollment)은 학년 단위라 학기를 들고 있지 않다.
+                Semester = _semester,
                 Date = templateLog.Date,
                 Category = templateLog.Category,
                 CourseNo = courseNo,

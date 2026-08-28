@@ -79,14 +79,12 @@ public sealed class EnrollmentService : IDisposable
         string schoolCode, int year = 0, int grade = 0, int classNum = 0,
         bool includeNotOnRoll = false)
     {
+        // 거르기는 SQL(WHERE IsActive = 1)이 한다. 상태 목록을 WHERE 절에 나열하던 시절과
+        // 달리 조건이 불리언 하나라 안정적이고, IsActive 는 ChangeType 에서만 채워지므로
+        // 판정 규칙은 여전히 한 곳(EnrollmentChange.IsActive)에만 있다.
         var enrollments = await _enrollmentRepo.GetEnrollmentsAsync(
-            schoolCode: schoolCode, year: year, grade: grade, classNum: classNum);
-
-        // 거르기를 SQL 이 아니라 여기서 하는 이유 — 판정은 Enrollment.IsOnRoll 한 곳에만
-        // 두어야 한다. 상태 목록을 WHERE 절에 또 적으면 값이 늘 때마다 두 곳이 어긋난다.
-        // 학급 명부는 수십 행이라 걸러 버리는 비용도 무시할 만하다.
-        if (!includeNotOnRoll)
-            enrollments = enrollments.Where(e => e.IsOnRoll).ToList();
+            schoolCode: schoolCode, year: year, grade: grade, classNum: classNum,
+            includeInactive: includeNotOnRoll);
 
         return DedupeByYear(enrollments);
     }
@@ -103,14 +101,17 @@ public sealed class EnrollmentService : IDisposable
     }
 
     /// <summary>
-    /// 학생당 <b>학년도별</b> 한 건만 남긴다(같은 학년도에 1·2학기 행이 모두 있으면 최신 학기).
-    /// 여러 학년도를 한꺼번에 조회하는 곳이 있으므로 학년도까지 묶어야 한다 —
-    /// StudentID 로만 묶으면 과거 학년도 학적이 사라진다.
+    /// 학생당 <b>학년도별</b> 한 건만 남긴다.
+    ///
+    /// <para>학적은 <c>UNIQUE(StudentID, SchoolCode, Year)</c> 라 원래 학년도당 한 줄이지만,
+    /// 여러 학교를 함께 읽는 조회가 있어 그때 겹치는 것을 걸러 준다. 여러 학년도를
+    /// 한꺼번에 조회하는 곳이 있으므로 학년도까지 묶어야 한다 — <c>StudentID</c> 로만
+    /// 묶으면 과거 학년도 학적이 사라진다.</para>
     /// </summary>
     private static List<Enrollment> DedupeByYear(List<Enrollment> enrollments) =>
         enrollments
             .GroupBy(e => (e.StudentID, e.Year))
-            .Select(g => g.OrderByDescending(e => e.Semester).First())
+            .Select(g => g.First())
             .OrderBy(e => e.Year).ThenBy(e => e.Grade).ThenBy(e => e.Class).ThenBy(e => e.Number)
             .ToList();
 

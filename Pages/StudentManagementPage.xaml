@@ -267,7 +267,7 @@
                                                                TextTrimming="CharacterEllipsis"/>
 
                                                     <TextBlock Grid.Column="6"
-                                                               Text="{x:Bind Status, Mode=OneWay}"
+                                                               Text="{x:Bind ChangeType, Mode=OneWay}"
                                                                VerticalAlignment="Center"/>
 
                                                     <TextBlock Grid.Column="7"

@@ -167,32 +167,35 @@ public static class TestData
         IsManual = isManual,
     };
 
+    /// <remarks>
+    /// 이름·성별은 <c>Enrollment</c> 의 컬럼이 아니다(정본은 <c>Student</c>). 여기서 넣는 값은
+    /// 조회 결과 비교용으로만 쓰이며 저장되지 않는다 — 실제 이름은 같은 학생의
+    /// <c>Student</c> 행에서 온다.
+    /// </remarks>
     public static Enrollment NewEnrollment(
         string studentId,
         string name = "홍길동",
         int year = Year,
-        int semester = 1,
         int grade = 1,
         int classNum = 1,
         int number = 1,
-        string status = "재학") => new()
+        string? changeType = null)
     {
-        StudentID = studentId,
-        Name = name,
-        Sex = "남",
-        Photo = string.Empty,
-        SchoolCode = SchoolCode,
-        Year = year,
-        Semester = semester,
-        Grade = grade,
-        Class = classNum,
-        Number = number,
-        Status = status,
-        TeacherID = TeacherId,
-        AdmissionDate = $"{year}-03-01",
-        Memo = string.Empty,
-        CreatedAt = DateTime.Now,
-        UpdatedAt = DateTime.Now,
-        IsDeleted = false,
-    };
+        var enrollment = new Enrollment
+        {
+            StudentID = studentId,
+            Name = name,
+            Sex = "남",
+            SchoolCode = SchoolCode,
+            Year = year,
+            Grade = grade,
+            Class = classNum,
+            Number = number,
+            TeacherID = TeacherId,
+            Memo = string.Empty,
+        };
+
+        enrollment.ApplyChange(changeType ?? EnrollmentChange.DefaultFor(grade), $"{year}-03-01");
+        return enrollment;
+    }
 }

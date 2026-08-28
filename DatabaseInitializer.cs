@@ -218,34 +218,37 @@ namespace NewSchool.Database
                 CREATE TABLE IF NOT EXISTS Enrollment (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     StudentID TEXT NOT NULL,
-                    Name TEXT NOT NULL DEFAULT '',
-                    Sex TEXT DEFAULT '',
-                    Photo TEXT DEFAULT '',
                     SchoolCode TEXT NOT NULL,
                     Year INTEGER NOT NULL,
-                    Semester INTEGER NOT NULL,
                     Grade INTEGER NOT NULL,
                     Class INTEGER NOT NULL,
                     Number INTEGER NOT NULL,
-                    Status TEXT DEFAULT '재학',
-                    TeacherID TEXT NULL,
-                    AdmissionDate TEXT,
-                    GraduationDate TEXT,
-                    TransferOutDate TEXT,
-                    TransferOutSchool TEXT,
-                    TransferInDate TEXT,
-                    TransferInSchool TEXT,
+                    IsActive INTEGER NOT NULL DEFAULT 1,
+                    ChangeType TEXT NOT NULL DEFAULT '입학',
+                    ChangeDate TEXT,
                     Memo TEXT,
-                    CreatedAt TEXT NOT NULL,
-                    UpdatedAt TEXT NOT NULL,
-                    IsDeleted INTEGER DEFAULT 0,
+                    TeacherID TEXT NULL,
                     FOREIGN KEY (StudentID) REFERENCES Student(StudentID) ON DELETE CASCADE,
                     FOREIGN KEY (SchoolCode) REFERENCES School(SchoolCode),
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL,
-                    UNIQUE(StudentID, SchoolCode, Year, Semester)
+                    UNIQUE(StudentID, SchoolCode, Year)
                 );";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] Enrollment 테이블 생성 완료");
+
+            // 조회는 모두 이 뷰를 지난다. 이름·성별·사진은 Student 가 정본이고, 학적 쪽에
+            // 사본을 두던 시절에는 학생을 고칠 때마다 따라 고쳐야 했다(동기화 사고의 원인).
+            // JOIN 을 열 곳에 되풀이하지 않도록 여기 한 번만 적는다.
+            cmd.CommandText = @"
+                DROP VIEW IF EXISTS EnrollmentFull;
+                CREATE VIEW EnrollmentFull AS
+                SELECT e.No, e.StudentID, e.SchoolCode, e.Year, e.Grade, e.Class, e.Number,
+                       e.IsActive, e.ChangeType, e.ChangeDate, e.Memo, e.TeacherID,
+                       s.Name, s.Sex, s.Photo
+                FROM Enrollment e
+                JOIN Student s ON s.StudentID = e.StudentID;";
+            await cmd.ExecuteNonQueryAsync();
+            Debug.WriteLine("[DatabaseInitializer] EnrollmentFull 뷰 생성 완료");
 
             // 7. Subject 테이블(교과목)은 만들지 않는다 — 읽고 쓰는 코드가 한 줄도 없었다.
             //    과목명은 Course.Subject 에 문자열로 들어간다.
@@ -643,8 +646,9 @@ namespace NewSchool.Database
                 -- Enrollment 인덱스 (핵심!)
                 CREATE INDEX IF NOT EXISTS idx_enrollment_student ON Enrollment(StudentID);
                 CREATE INDEX IF NOT EXISTS idx_enrollment_school ON Enrollment(SchoolCode);
-                CREATE INDEX IF NOT EXISTS idx_enrollment_year ON Enrollment(Year, Semester);
-                CREATE INDEX IF NOT EXISTS idx_enrollment_class ON Enrollment(SchoolCode, Year, Semester, Grade, Class);
+                CREATE INDEX IF NOT EXISTS idx_enrollment_year ON Enrollment(Year);
+                -- 명단 조회의 주력 인덱스. IsActive 를 끝에 붙여 '이 반의 재적자' 를 그대로 탄다.
+                CREATE INDEX IF NOT EXISTS idx_enrollment_class ON Enrollment(SchoolCode, Year, Grade, Class, IsActive);
                 CREATE INDEX IF NOT EXISTS idx_enrollment_teacher ON Enrollment(TeacherID);
 
                 -- Course 인덱스 (재설계)

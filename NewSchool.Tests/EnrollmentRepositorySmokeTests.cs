@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Tests.Infrastructure;
 using Xunit;
@@ -30,7 +31,8 @@ public class EnrollmentRepositorySmokeTests : IClassFixture<SqliteTestFixture>
         Assert.Equal("김철수", loaded!.Name);
         Assert.Equal(7, loaded.Number);
         Assert.Equal(TestData.SchoolCode, loaded.SchoolCode);
-        Assert.Equal("재학", loaded.Status);
+        Assert.Equal(EnrollmentChange.Admitted, loaded.ChangeType);
+        Assert.True(loaded.IsActive);
 
         loaded.Number = 8;
         loaded.Memo = "자리 변경";

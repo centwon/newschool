@@ -17,18 +17,12 @@ namespace NewSchool.Services;
 /// </summary>
 public static class StudentCreationService
 {
-    /// <summary>
-    /// 새 학적에 넣을 학기 값.
-    ///
-    /// <para><b>학적은 학년 단위로 다룬다(2026-07-30 확정).</b> 조회는 어디서도 학기를 걸지
-    /// 않으므로(<c>EnrollmentService.GetEnrollmentsAsync</c> 참고) 이 값은 사실상
-    /// 자리표시자이고, 1 로 고정해 두면 <c>UNIQUE(StudentID, SchoolCode, Year, Semester)</c>
-    /// 가 "한 학년도에 학적 한 건" 을 그대로 강제해 준다.</para>
-    ///
-    /// ⚠ 예전에는 <c>Settings.WorkSemester</c> 를 넣었다. 그래서 2학기에 등록하면 학기로
-    /// 거르던 화면들에서 그 학생이 통째로 사라졌다. 다시 현재 학기를 넣지 말 것.
-    /// </summary>
-    public const int EnrollmentSemester = 1;
+    // 학기 컬럼은 없앴다(2026-08-28). 학적은 학년 단위로 다루고
+    // UNIQUE(StudentID, SchoolCode, Year) 가 "한 학년도에 학적 한 건" 을 강제한다.
+    //
+    // ⚠ 학기를 되살리지 말 것. 예전에는 등록 시점의 학기를 넣었고, 학기로 거르던 화면들에서
+    // 1학기에 등록한 학생이 2학기에 통째로 사라졌다. 학기가 필요한 것은 명부가 아니라
+    // 기록 쪽이며(StudentLog.Semester 등) 거기에는 이미 있다.
 
     private static readonly Random _random = new();
 
@@ -97,7 +91,10 @@ public static class StudentCreationService
             var classStudents = await enrollmentRepo.GetByClassAsync(
                 Settings.SchoolCode.Value, year, grade, cls);
 
-            return classStudents.Any(e => e.Number == number && !e.IsDeleted);
+            // 전출·졸업한 학적까지 센다(GetByClassAsync 는 재적으로 거르지 않는다).
+            // 그 학생이 명단에 안 보여도 행은 남아 있으므로, 같은 번호를 새로 넣으면
+            // 한 반에 같은 번호가 두 줄이 된다.
+            return classStudents.Any(e => e.Number == number);
         }
         catch (Exception ex)
         {
@@ -142,27 +139,25 @@ public static class StudentCreationService
 
                 await studentRepo.CreateAsync(student);
 
+                // 이름·성별은 Enrollment 에 넣지 않는다 — Student 가 정본이고 조회는
+                // EnrollmentFull 뷰가 JOIN 으로 읽는다.
                 var enrollment = new Enrollment
                 {
                     StudentID = studentId,
-                    Name = name,
-                    Sex = sex,
-                    Photo = string.Empty,
                     SchoolCode = Settings.SchoolCode.Value,
                     Year = year,
-                    Semester = EnrollmentSemester,
                     Grade = grade,
                     Class = cls,
                     Number = number,
-                    Status = EnrollmentStatus.Enrolled,
                     // 담임이 비어 있으면 Teacher FK 위반이 되므로 리포지토리가 NULL 로 바꿔 넣는다.
                     TeacherID = Settings.User.Value ?? string.Empty,
-                    AdmissionDate = DateTime.Now.ToString("yyyy-MM-dd"),
                     Memo = string.Empty,
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now,
-                    IsDeleted = false
                 };
+
+                // 학년이 기본 변동을 정한다 — 1학년은 입학, 그 위는 진급.
+                // ApplyChange 가 IsActive 까지 함께 맞춘다.
+                enrollment.ApplyChange(EnrollmentChange.DefaultFor(grade),
+                                       DateTime.Now.ToString("yyyy-MM-dd"));
 
                 if (await enrollmentRepo.CreateAsync(enrollment) <= 0)
                     throw new InvalidOperationException("학적이 저장되지 않았습니다.");

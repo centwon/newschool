@@ -1,0 +1,207 @@
+# NewSchool — 학적(Enrollment) 재설계 노트
+
+| 항목 | 값 |
+|---|---|
+| 대상 | `school.db` 의 `Enrollment` 및 학적 축 |
+| 작성일 | 2026-08-28 |
+| 조사 기준 | `main` 브랜치, 커밋 `f7155ef`, 실제 DB(`Data\school.db`) 실측 |
+| 상태 | 설계 확정. 1단계 착수 |
+
+---
+
+## 1. 왜 손대는가
+
+`Enrollment` 는 23열이고 세 가지를 겸하고 있었다.
+
+1. **배정** — 학년·반·번호
+2. **상태** — 재적 여부와 학적 변동
+3. **`Student` 의 사본** — `Name` · `Sex` · `Photo`
+
+3번 때문에 정본이 둘이 되어, `StudentRepository.UpdateAsync` 가 `Enrollment` 를 따라 고쳐 줘야 한다.
+2026-08-28 에 그 동기화를 빠뜨려 한 번 물렸다(이름만 바뀌고 학적은 옛 이름).
+
+그리고 원설계의 야심 중 상당수가 **실현되지 않은 채 컬럼만 남아 있었다**(3장).
+
+---
+
+## 2. 원설계 의도 (추정 아님 — 흔적이 남아 있다)
+
+`Models/Base.cs` 의 `#region Core Models` 에 **구설계 모델이 그대로 있다.**
+
+```csharp
+class ClassAssignment  { No, Year, Grade, Class, Number, Student, Name }   // 7열
+class CourseAssignment { No, Student, Course, Remark }
+class Subject          { No, Curriculum, Name, Unit, Remark }
+```
+
+`Enrollment.cs:10` 이 스스로 밝힌다 — **"기존 `ClassAssignment` 대체 — A안의 핵심 테이블!"**
+(`EnrollmentRepository.cs:12` 도 "A안의 핵심!"). 즉 A안/B안을 놓고 고른 결과가 `Enrollment` 다.
+이 세 클래스는 지금 전부 죽은 코드다(참조 0건, `Subject` 테이블은 2026-08-28 에 DROP).
+
+`ClassAssignment` 7열 → `Enrollment` 23열. **더한 16열이 의도를 드러낸다.**
+
+| 더한 것 | 의도 |
+|---|---|
+| `SchoolCode` · `TeacherID` | 다학교 · 다교사 |
+| `Semester` | 학기 단위 학적 |
+| `Status` · 날짜 4열 · 학교명 2열 | NEIS 식 학적 이력(입학~졸업 전 과정) |
+| `Name` · `Sex` · `Photo` | 명렬표 성능(주석이 "denormalize" 라고 명시) |
+| `Memo` · `CreatedAt` · `UpdatedAt` · `IsDeleted` | 감사 · 논리삭제 |
+
+`Enrollment.cs:5` 의 **"학적 정보 (NEIS 표준)"** 이 열쇠다 — NEIS 학적 테이블을 옮겨오려 했다.
+
+---
+
+## 3. 실현되지 않은 의도 (실측)
+
+| 의도 | 실제 | 판단 |
+|---|---|---|
+| 학기 단위 | `Semester` 173행 전부 `1`. **2학기 행을 만드는 경로가 앱에 없다** | 제거 |
+| 학적 이력 | 날짜 6열이 전부 빈 채. 값을 넣을 화면이 2026-08-28 까지 없었다 | 2열로 접음 |
+| 명렬표 denormalize | 동작하나 동기화 부담만 남음. 173행에 JOIN 은 공짜 | 제거 |
+| 감사 | `CreatedAt`·`UpdatedAt` 을 **읽는 코드가 0건**(쓰기만 함) | 제거 |
+| 논리삭제 | `IsDeleted=1` 인 행 **0건**, 복원 경로 없음. 그런데 삭제 확인 문구는 "되돌릴 수 없습니다" | 제거 |
+| 다학교 | `School` 1행이지만 `TeacherSchoolHistory`(전근 이력)가 실재 | **유지** |
+| 다교사 | `Teacher` 1행이지만 다중 사용자 대비 | **유지** |
+
+`SchoolCode` 와 `TeacherID` 만 살아남는다. 전근과 다중 사용자는 실제로 올 수 있는 미래다.
+
+---
+
+## 4. 확정 스키마 — 23열 → 12열
+
+```
+No · StudentID · SchoolCode · Year · Grade · Class · Number
+IsActive · ChangeType · ChangeDate · Memo · TeacherID
+```
+
+`UNIQUE(StudentID, SchoolCode, Year)` — 학기가 빠진다.
+
+### 4.1 학적 변동(`ChangeType`)
+
+| `IsActive` | 값 |
+|---|---|
+| `1` | 입학 · 진급 · 전입 |
+| `0` | 전출 · 졸업 · 휴학 · 유예 · 정원외 · 자퇴 · 퇴학 |
+
+기본값은 학년이 정한다 — **1학년 → 입학, 그 외 → 진급.** 전입은 손으로 고른다.
+`유예`(취학유예)는 1학년, `정원외`(정원외 관리)는 학년 무관.
+
+### 4.2 `IsActive` 를 저장하는 이유
+
+파생 가능한 값이지만 **컬럼으로 둔다.** 이유는 계산 비용이 아니라(173행 문자열 비교는
+측정 불가 수준) **SQL 에서 거를 수 있기 때문**이다.
+
+```sql
+WHERE SchoolCode=? AND Year=? AND Grade=? AND Class=? AND IsActive=1
+```
+
+상태 목록을 `WHERE` 절에 적으면 값이 늘 때마다 두 곳이 어긋나지만, 불리언 하나는 안정적이고
+인덱스도 탄다.
+
+**어긋남은 쓰는 곳을 하나로 묶어 막는다.**
+
+```csharp
+// 저장 경로에서만 계산해 넣는다. IsActive 를 인자로 받는 함수는 만들지 않는다.
+enrollment.IsActive = EnrollmentChange.IsActive(enrollment.ChangeType);
+```
+
+불변식 `IsActive == IsActive(ChangeType)` 은 테스트로 고정한다.
+
+### 4.3 `ChangeDate` 의 소비자
+
+날짜 6열이 그동안 빈 채였던 것은 **읽는 코드가 없어서**였다. 이제 생겼다 —
+**"전출한 뒤에는 그 학생 기록을 중단한다."**
+
+```
+경고 조건 = IsActive = 0 AND ChangeType = 전출 AND 기록일 > ChangeDate
+```
+
+거는 자리는 `Date` 를 가진 학생별 기록 둘 — `StudentLog`(누가기록) · `StudentSpecial`(학생부).
+`ClassDiary` 는 학급 단위라 해당 없다.
+
+**막지 않고 경고만 한다.** 막으면 전출일을 뒤늦게 입력했을 때 이미 적어 둔 기록을 못 고친다.
+
+---
+
+## 5. 알려진 한계
+
+**같은 학년도에 변동이 두 번 일어나면 앞의 것이 덮어써진다.**
+
+```
+3월 전입 → 9월 전출     ChangeType 은 하나뿐이라 전입 기록이 사라진다
+```
+
+"전출 이후 기록 경고"에는 지장이 없다(전출이 마지막 변동이므로). 잃는 것은 "전입 이전에는
+기록 못 하게" 와 전입 사실 자체이며, 전입 정보는 `Memo` 에 적을 수 있다.
+
+정확히 담으려면 이력 테이블(`EnrollmentChange`)을 따로 두거나 시작/종료를 두 쌍으로
+가져야 하는데, **둘 다 지금 줄이려는 방향과 반대**라 택하지 않았다. 필요해지면 그때 붙인다.
+
+---
+
+## 6. 배정 축 (다음 단계)
+
+`CourseEnrollment` · `ClubEnrollment` · `SeatAssignment` · `SeatPosHistory` 가 전부
+`StudentID` 를 직접 가리켜, **"학적에 있는 학생만"이 구조적으로 보장되지 않는다.**
+지금은 조회 필터로만 막고 있다.
+
+원칙: **"그 해의 배정"은 `Enrollment` 를, "사람의 기록"은 `Student` 를 가리킨다.**
+
+| 테이블 | 성격 | 가리킬 곳 |
+|---|---|---|
+| `StudentDetail` · `StudentLog` · `StudentSpecial` | 사람의 속성 · 이력 | `StudentID` 유지 |
+| `CourseEnrollment` · `ClubEnrollment` · `SeatAssignment` · `SeatPosHistory` | 그 해 배정 | **`EnrollmentNo`** |
+
+**지금이 가장 싼 시점이다.** `Year` 가 2026 하나뿐이고 `Student : Enrollment` 가 173:173 이라
+백필 대응이 유일하다. 내년에 2학년 학적이 생기면 "이 동아리 배정은 어느 해 것인가" 가
+추측이 되고, 그때는 되돌릴 수 없다.
+
+---
+
+## 7. 진행 순서
+
+각 단계마다 빌드·테스트가 통과하는 상태로 멈출 수 있게 쪼갠다.
+
+| 단계 | 내용 | 상태 |
+|---|---|---|
+| **1a** | `Semester`·`CreatedAt`·`UpdatedAt`·`IsDeleted` 제거, `Status`+날짜 6열 → `IsActive`·`ChangeType`·`ChangeDate` | ✅ 완료 (2026-08-28) |
+| **1b** | `Name`·`Sex`·`Photo` 제거 → `Student` JOIN 으로 전환 | ✅ 완료 (2026-08-28, 1a 와 함께) |
+| **2** | 전출 이후 기록 경고(`StudentLog`·`StudentSpecial`) | 대기 |
+| **3** | 배정 4개를 `EnrollmentNo` 로 (6장) | 대기 |
+
+1a 와 1b 는 나눠 낼 수 없었다 — 표를 다시 만드는 이관 한 번에 열이 함께 사라지므로,
+사본 3열만 남겨 두려면 이관을 두 번 해야 했다.
+
+### 7.1 `EnrollmentFull` 뷰
+
+조회가 열 곳이라 JOIN 을 되풀이하지 않도록 뷰를 하나 두었다.
+
+```sql
+CREATE VIEW EnrollmentFull AS
+SELECT e.No, e.StudentID, e.SchoolCode, e.Year, e.Grade, e.Class, e.Number,
+       e.IsActive, e.ChangeType, e.ChangeDate, e.Memo, e.TeacherID,
+       s.Name, s.Sex, s.Photo
+FROM Enrollment e JOIN Student s ON s.StudentID = e.StudentID;
+```
+
+**읽기는 뷰, 쓰기는 표.** `INSERT`·`UPDATE`·`DELETE` 는 `Enrollment` 를 그대로 겨냥한다.
+모델의 `Name`·`Sex`·`Photo` 속성은 남아 있지만 **컬럼이 아니라 뷰가 채워 주는 값**이라,
+거기에 값을 넣어도 저장되지 않는다(테스트로 고정).
+
+### 7.2 이관 결과 (실측)
+
+| | 값 |
+|---|---|
+| `Enrollment` 열 | 23 → **12** |
+| 행 | 173 유지 |
+| `ChangeType` | 입학 172 · 전입 1 |
+| `IsActive` 와 `ChangeType` 이 어긋난 행 | **0** |
+| `ChangeDate` 가 빈 행 | **0** |
+| `integrity_check` · 외래키 위반 | ok · 0 |
+
+옛 `Status` 는 `재학` 172 · `전학` 1 이었다. `재학`+1학년은 `입학` 으로, `전학` 은 전출 흔적이
+없어 `전입` 으로 옮겼다(둘 다 활성이라 명단에서 사라지는 학생은 없다).
+
+마이그레이션은 별도 기전을 두지 않고 **기존 DB 를 직접 고친다** — 사용자가 한 명이고
+배포본 다운로드가 0회다. 손대기 전 `Backups\` 에 사본을 뜬다.

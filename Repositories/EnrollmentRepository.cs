@@ -32,15 +32,11 @@ namespace NewSchool.Repositories
         {
             const string query = @"
                 INSERT INTO Enrollment (
-                    StudentID, Name, Sex, Photo, SchoolCode, Year, Semester, Grade, Class, Number,
-                    Status, TeacherID, AdmissionDate, GraduationDate,
-                    TransferOutDate, TransferOutSchool, TransferInDate, TransferInSchool,
-                    Memo, CreatedAt, UpdatedAt, IsDeleted
+                    StudentID, SchoolCode, Year, Grade, Class, Number,
+                    IsActive, ChangeType, ChangeDate, Memo, TeacherID
                 ) VALUES (
-                    @StudentID, @Name, @Sex, @Photo, @SchoolCode, @Year, @Semester, @Grade, @Class, @Number,
-                    @Status, @TeacherID, @AdmissionDate, @GraduationDate,
-                    @TransferOutDate, @TransferOutSchool, @TransferInDate, @TransferInSchool,
-                    @Memo, @CreatedAt, @UpdatedAt, @IsDeleted
+                    @StudentID, @SchoolCode, @Year, @Grade, @Class, @Number,
+                    @IsActive, @ChangeType, @ChangeDate, @Memo, @TeacherID
                 );
                 SELECT last_insert_rowid();";
 
@@ -71,8 +67,8 @@ namespace NewSchool.Repositories
         public async Task<List<int>> GetEnrollmentYearsAsync(string? schoolcode=null)
         {    // WHERE 절을 동적으로 구성
             string whereClause = string.IsNullOrWhiteSpace(schoolcode)
-                ? "WHERE IsDeleted = 0"
-                : "WHERE SchoolCode = @SchoolCode AND IsDeleted = 0";
+                ? string.Empty
+                : "WHERE SchoolCode = @SchoolCode";
             string query = $@"
         SELECT DISTINCT Year 
         FROM Enrollment
@@ -111,7 +107,7 @@ namespace NewSchool.Repositories
         public async Task<List<int>> GetGradesByYearAsync(string? schoolcode = null, int? year = null)
         {
             // WHERE 절을 동적으로 구성
-            var whereConditions = new List<string> { "IsDeleted = 0" };
+            var whereConditions = new List<string>();
             if (!string.IsNullOrWhiteSpace(schoolcode))
             {
                 whereConditions.Add("SchoolCode = @SchoolCode");
@@ -120,7 +116,9 @@ namespace NewSchool.Repositories
             {
                 whereConditions.Add("Year = @Year");
             }
-            string whereClause = "WHERE " + string.Join(" AND ", whereConditions);
+            string whereClause = whereConditions.Count == 0
+                ? string.Empty
+                : "WHERE " + string.Join(" AND ", whereConditions);
             string query = $@"
                 SELECT DISTINCT Grade 
                 FROM Enrollment
@@ -161,7 +159,7 @@ namespace NewSchool.Repositories
         /// </summary>
         public async Task<Enrollment?> GetByIdAsync(int no)
         {
-            const string query = "SELECT * FROM Enrollment WHERE No = @No AND IsDeleted = 0";
+            const string query = "SELECT * FROM EnrollmentFull WHERE No = @No";
 
             try
             {
@@ -191,10 +189,9 @@ namespace NewSchool.Repositories
         public async Task<Enrollment?> GetCurrentByStudentIdAsync(string studentId)
         {
             const string query = @"
-                SELECT * FROM Enrollment 
-                WHERE StudentID = @StudentID 
-                  AND IsDeleted = 0
-                ORDER BY Year DESC, Semester DESC 
+                SELECT * FROM EnrollmentFull
+                WHERE StudentID = @StudentID
+                ORDER BY Year DESC
                 LIMIT 1";
 
             try
@@ -230,10 +227,9 @@ namespace NewSchool.Repositories
 
             var placeholders = string.Join(",", studentIds.Select((_, i) => $"@id{i}"));
             var query = $@"
-                SELECT * FROM Enrollment
+                SELECT * FROM EnrollmentFull
                 WHERE StudentID IN ({placeholders})
-                  AND IsDeleted = 0
-                ORDER BY StudentID, Year DESC, Semester DESC";
+                ORDER BY StudentID, Year DESC";
 
             try
             {
@@ -270,10 +266,9 @@ namespace NewSchool.Repositories
         public async Task<List<Enrollment>> GetHistoryByStudentIdAsync(string studentId)
         {
             const string query = @"
-                SELECT * FROM Enrollment 
-                WHERE StudentID = @StudentID 
-                  AND IsDeleted = 0
-                ORDER BY Year DESC, Semester DESC";
+                SELECT * FROM EnrollmentFull
+                WHERE StudentID = @StudentID
+                ORDER BY Year DESC";
 
             var enrollments = new List<Enrollment>();
 
@@ -301,16 +296,12 @@ namespace NewSchool.Repositories
         /// <summary>
         /// 특정 학교의 특정 학년도/학기 학생 목록
         /// </summary>
-        public async Task<List<Enrollment>> GetBySchoolAndYearAsync(string schoolCode, int year, int semester=0)
+        public async Task<List<Enrollment>> GetBySchoolAndYearAsync(string schoolCode, int year)
         {
-            var semisterstring = semester == 0 || semester > 2 ? string.Empty : "AND Semester = @Semester";
-
-            string query = @$"
-                SELECT * FROM Enrollment 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                 {semisterstring}
-                  AND IsDeleted = 0
+            const string query = @"
+                SELECT * FROM EnrollmentFull
+                WHERE SchoolCode = @SchoolCode
+                  AND Year = @Year
                 ORDER BY Grade, Class, Number";
 
             var enrollments = new List<Enrollment>();
@@ -320,7 +311,6 @@ namespace NewSchool.Repositories
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
                 cmd.Parameters.AddWithValue("@Year", year);
-                if (semester ==1 || semester==2) cmd.Parameters.AddWithValue("@Semester", semester);
 
                 // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
                 enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
@@ -341,12 +331,11 @@ namespace NewSchool.Repositories
         public async Task<List<Enrollment>> GetByClassAsync(string schoolCode, int year, int grade, int classNum)
         {
             const string query = @"
-                SELECT * FROM Enrollment 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Grade = @Grade 
-                  AND Class = @Class 
-                  AND IsDeleted = 0
+                SELECT * FROM EnrollmentFull
+                WHERE SchoolCode = @SchoolCode
+                  AND Year = @Year
+                  AND Grade = @Grade
+                  AND Class = @Class
                 ORDER BY Number";
 
             var enrollments = new List<Enrollment>();
@@ -377,17 +366,28 @@ namespace NewSchool.Repositories
         /// 주석 참고) 앱이 2학기 학적을 만들지 않으므로, 학기로 거르면 1학기에 등록한 학생이
         /// 2학기에 통째로 사라진다. 예전에 실제로 그랬다 — 인자를 다시 만들지 말 것.
         /// </remarks>
-        public async Task<List<Enrollment>> GetEnrollmentsAsync(string? schoolCode, int year=0, int grade=0, int classNum=0)
+        /// <param name="includeInactive">
+        /// 전출·졸업·자퇴처럼 <b>명단에서 빠진 학적</b>까지 포함할지. 기본은 아니오다 —
+        /// "지금 이 반에 누가 있나" 가 거의 모든 호출처의 질문이기 때문이다.
+        /// 참으로 켜는 곳은 설정의 학생 관리 하나뿐이다.
+        /// </param>
+        public async Task<List<Enrollment>> GetEnrollmentsAsync(string? schoolCode, int year=0, int grade=0, int classNum=0,
+                                                                bool includeInactive=false)
         {
-            var conditions = new List<string> { "IsDeleted = 0" };
+            var conditions = new List<string>();
+            if (!includeInactive) conditions.Add("IsActive = 1");
             if (!string.IsNullOrWhiteSpace(schoolCode))
                 conditions.Add("SchoolCode = @SchoolCode");
             if (year > 0) conditions.Add("Year = @Year");
             if (grade > 0) conditions.Add("Grade = @Grade");
             if (classNum > 0) conditions.Add("Class = @Class");
 
-            string query = $@"SELECT * FROM Enrollment
-                WHERE {string.Join(" AND ", conditions)}
+            string whereClause = conditions.Count == 0
+                ? string.Empty
+                : "WHERE " + string.Join(" AND ", conditions);
+
+            string query = $@"SELECT * FROM EnrollmentFull
+                {whereClause}
                 ORDER BY Year, Grade, Class, Number";
 
             var enrollments = new List<Enrollment>();
@@ -420,10 +420,10 @@ namespace NewSchool.Repositories
         public async Task<List<Enrollment>> GetByTeacherAsync(string teacherId, int year)
         {
             const string query = @"
-                SELECT * FROM Enrollment 
-                WHERE TeacherID = @TeacherID 
-                  AND IsDeleted = 0
+                SELECT * FROM EnrollmentFull
+                WHERE TeacherID = @TeacherID
                   AND Year = @Year
+                  AND IsActive = 1
                 ORDER BY Grade, Class, Number";
 
             var enrollments = new List<Enrollment>();
@@ -450,21 +450,19 @@ namespace NewSchool.Repositories
         /// <summary>
         /// 학생 수 조회
         /// </summary>
-        public async Task<int> GetCountAsync(string schoolCode, int year, int semester)
+        public async Task<int> GetCountAsync(string schoolCode, int year)
         {
             const string query = @"
-                SELECT COUNT(*) FROM Enrollment 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester 
-                  AND IsDeleted = 0";
+                SELECT COUNT(*) FROM Enrollment
+                WHERE SchoolCode = @SchoolCode
+                  AND Year = @Year
+                  AND IsActive = 1";
 
             try
             {
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
                 cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
 
                 var result = await cmd.ExecuteScalarAsync();
                 return Convert.ToInt32(result);
@@ -487,7 +485,7 @@ namespace NewSchool.Repositories
         public async Task<List<int>> GetClassListByGradeAsync(
             string? schoolCode, int year, int grade)
         {
-            var whereConditions = new List<string> { "IsDeleted = 0" };
+            var whereConditions = new List<string> { "IsActive = 1" };
             if (!string.IsNullOrWhiteSpace(schoolCode))
                 whereConditions.Add("SchoolCode = @SchoolCode");
             if (year > 0)
@@ -547,25 +545,16 @@ namespace NewSchool.Repositories
             const string query = @"
                 UPDATE Enrollment SET
                     StudentID = @StudentID,
-                    Name = @Name,
-                    Sex = @Sex,
-                    Photo = @Photo,
                     SchoolCode = @SchoolCode,
                     Year = @Year,
-                    Semester = @Semester,
                     Grade = @Grade,
                     Class = @Class,
                     Number = @Number,
-                    Status = @Status,
-                    TeacherID = @TeacherID,
-                    AdmissionDate = @AdmissionDate,
-                    GraduationDate = @GraduationDate,
-                    TransferOutDate = @TransferOutDate,
-                    TransferOutSchool = @TransferOutSchool,
-                    TransferInDate = @TransferInDate,
-                    TransferInSchool = @TransferInSchool,
+                    IsActive = @IsActive,
+                    ChangeType = @ChangeType,
+                    ChangeDate = @ChangeDate,
                     Memo = @Memo,
-                    UpdatedAt = @UpdatedAt
+                    TeacherID = @TeacherID
                 WHERE No = @No";
 
             try
@@ -598,46 +587,37 @@ namespace NewSchool.Repositories
         /// <summary>
         /// 학적 상태 변경 (재학 → 휴학/졸업/자퇴 등)
         /// </summary>
-        public async Task<bool> UpdateStatusAsync(int no, string status, DateTime? changeDate = null)
+        /// <summary>
+        /// 학적 변동을 기록한다 — 변동 유형·일자와 재적 여부를 한 번에 맞춘다.
+        ///
+        /// <para><c>IsActive</c> 는 인자로 받지 않는다. 변동 유형에서만 나오므로 바깥에서
+        /// 넣을 길을 아예 두지 않아야 두 값이 갈라지지 않는다.</para>
+        /// </summary>
+        public async Task<bool> ApplyChangeAsync(int no, string changeType, DateTime? changeDate = null)
         {
-            string query = @"
-                UPDATE Enrollment 
-                SET Status = @Status,
-                    UpdatedAt = @UpdatedAt";
-
-            // 상태에 따라 날짜 필드 업데이트.
-            // "전학" 을 전입/전출로 가르면서 이 분기도 전출로 맞췄다 —
-            // 옛 조건(status.Contains("전학"))은 새 값 어디에도 걸리지 않는다.
-            if (status == EnrollmentStatus.Graduated && changeDate.HasValue)
-            {
-                query += ", GraduationDate = @ChangeDate";
-            }
-            else if (status == EnrollmentStatus.TransferredOut && changeDate.HasValue)
-            {
-                query += ", TransferOutDate = @ChangeDate";
-            }
-
-            query += " WHERE No = @No";
+            const string query = @"
+                UPDATE Enrollment
+                SET ChangeType = @ChangeType,
+                    IsActive   = @IsActive,
+                    ChangeDate = COALESCE(@ChangeDate, ChangeDate)
+                WHERE No = @No";
 
             try
             {
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@No", no);
-                cmd.Parameters.AddWithValue("@Status", status);
-                cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                if (changeDate.HasValue)
-                {
-                    cmd.Parameters.AddWithValue("@ChangeDate", changeDate.Value.ToString("yyyy-MM-dd"));
-                }
+                cmd.Parameters.AddWithValue("@ChangeType", changeType);
+                cmd.Parameters.AddWithValue("@IsActive", EnrollmentChange.IsActive(changeType) ? 1 : 0);
+                cmd.Parameters.AddWithValue("@ChangeDate",
+                    changeDate.HasValue ? changeDate.Value.ToString("yyyy-MM-dd") : (object)DBNull.Value);
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                LogInfo($"학적 상태 변경: No={no}, Status={status}");
+                LogInfo($"학적 변동 기록: No={no}, ChangeType={changeType}");
                 return rowsAffected > 0;
             }
             catch (Exception ex)
             {
-                LogError($"학적 상태 변경 실패: No={no}", ex);
+                LogError($"학적 변동 기록 실패: No={no}", ex);
                 throw;
             }
         }
@@ -650,27 +630,30 @@ namespace NewSchool.Repositories
         #region Delete
 
         /// <summary>
-        /// 학적 논리 삭제
+        /// 학적 삭제 — 행을 실제로 지운다.
+        ///
+        /// <para>예전에는 <c>IsDeleted</c> 를 세우는 논리 삭제였는데, 삭제 확인 문구는
+        /// "이 작업은 되돌릴 수 없습니다" 라고 말하면서 행은 남기고 있었다. 되살리는 경로도
+        /// 없어서 그 플래그의 유일한 값이 쓰이지 못했다. 안전망은 ZIP 백업이 맡는다.</para>
+        ///
+        /// <para>⚠ 전출·졸업과 혼동하지 말 것. 그것들은 <see cref="ApplyChangeAsync"/> 로
+        /// 남기는 <b>사실</b>이고, 삭제는 <b>잘못 만든 행</b>을 없애는 일이다.</para>
         /// </summary>
         public async Task<bool> DeleteAsync(int no)
         {
-            const string query = @"
-                UPDATE Enrollment 
-                SET IsDeleted = 1, UpdatedAt = @UpdatedAt 
-                WHERE No = @No";
+            const string query = "DELETE FROM Enrollment WHERE No = @No";
 
             try
             {
                 using var cmd = CreateCommand(query);
                 cmd.Parameters.AddWithValue("@No", no);
-                cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
 
                 int rowsAffected = await cmd.ExecuteNonQueryAsync();
                 bool success = rowsAffected > 0;
 
                 if (success)
                 {
-                    LogInfo($"학적 논리 삭제 완료: No={no}");
+                    LogInfo($"학적 삭제 완료: No={no}");
                 }
                 else
                 {
@@ -686,46 +669,13 @@ namespace NewSchool.Repositories
             }
         }
 
-        // 물리 삭제(HardDeleteAsync)는 호출부가 없어 지웠다(39차).
-        // 학적 삭제는 IsDeleted 를 세우는 soft-delete 하나로 통일돼 있다.
-
         #endregion
 
         #region Sync Student Info
 
-        /// <summary>
-        /// 특정 학생의 모든 Enrollment 레코드에 Student 정보 동기화
-        /// Student.Name, Sex, Photo 변경 시 호출
-        /// </summary>
-        public async Task<int> SyncStudentInfoAsync(string studentId, string name, string sex, string photo)
-        {
-            const string query = @"
-                UPDATE Enrollment 
-                SET Name = @Name, 
-                    Sex = @Sex, 
-                    Photo = @Photo, 
-                    UpdatedAt = @UpdatedAt 
-                WHERE StudentID = @StudentID";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-                cmd.Parameters.AddWithValue("@Name", name ?? string.Empty);
-                cmd.Parameters.AddWithValue("@Sex", sex ?? string.Empty);
-                cmd.Parameters.AddWithValue("@Photo", photo ?? string.Empty);
-                cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                LogInfo($"학생 정보 동기화 완료: StudentID={studentId}, Rows={rowsAffected}");
-                return rowsAffected;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 정보 동기화 실패: StudentID={studentId}", ex);
-                throw;
-            }
-        }
+        // SyncStudentInfoAsync 는 없앴다. 이름·성별·사진이 Enrollment 의 컬럼이던 시절,
+        // Student 를 고칠 때마다 학적 쪽 사본을 따라 고쳐 주던 메서드다. 사본을 없애고
+        // EnrollmentFull 뷰가 JOIN 으로 읽게 되면서 동기화할 것이 남지 않았다.
 
         #endregion
 
@@ -736,30 +686,24 @@ namespace NewSchool.Repositories
         /// </summary>
         private void AddEnrollmentParameters(SqliteCommand cmd, Enrollment enrollment)
         {
+            // Name·Sex·Photo 는 넣지 않는다 — 이 표의 컬럼이 아니라 Student 에서 JOIN 으로
+            // 읽어 오는 값이다(Enrollment 모델 주석 참고).
             cmd.Parameters.AddWithValue("@StudentID", enrollment.StudentID);
-            cmd.Parameters.AddWithValue("@Name", enrollment.Name ?? string.Empty);
-            cmd.Parameters.AddWithValue("@Sex", enrollment.Sex ?? string.Empty);
-            cmd.Parameters.AddWithValue("@Photo", enrollment.Photo ?? string.Empty);
             cmd.Parameters.AddWithValue("@SchoolCode", enrollment.SchoolCode);
             cmd.Parameters.AddWithValue("@Year", enrollment.Year);
-            cmd.Parameters.AddWithValue("@Semester", enrollment.Semester);
             cmd.Parameters.AddWithValue("@Grade", enrollment.Grade);
             cmd.Parameters.AddWithValue("@Class", enrollment.Class);
             cmd.Parameters.AddWithValue("@Number", enrollment.Number);
-            cmd.Parameters.AddWithValue("@Status", enrollment.Status);
+            // IsActive 는 ChangeType 에서만 나온다. 바깥에서 받은 값을 그대로 쓰지 않는 것이
+            // 두 값이 갈라지지 않게 하는 유일한 장치다.
+            cmd.Parameters.AddWithValue("@IsActive", EnrollmentChange.IsActive(enrollment.ChangeType) ? 1 : 0);
+            cmd.Parameters.AddWithValue("@ChangeType", enrollment.ChangeType);
+            cmd.Parameters.AddWithValue("@ChangeDate",
+                string.IsNullOrEmpty(enrollment.ChangeDate) ? (object)DBNull.Value : enrollment.ChangeDate);
+            cmd.Parameters.AddWithValue("@Memo", enrollment.Memo ?? (object)DBNull.Value);
             // TeacherID 는 FK(Teacher.TeacherID) — 빈 문자열로 저장하면 FK 위반이므로 NULL 로 기록
             cmd.Parameters.AddWithValue("@TeacherID",
                 string.IsNullOrEmpty(enrollment.TeacherID) ? (object)DBNull.Value : enrollment.TeacherID);
-            cmd.Parameters.AddWithValue("@AdmissionDate", enrollment.AdmissionDate ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@GraduationDate", enrollment.GraduationDate ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@TransferOutDate", enrollment.TransferOutDate ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@TransferOutSchool", enrollment.TransferOutSchool ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@TransferInDate", enrollment.TransferInDate ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@TransferInSchool", enrollment.TransferInSchool ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@Memo", enrollment.Memo ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@CreatedAt", enrollment.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-            cmd.Parameters.AddWithValue("@UpdatedAt", enrollment.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-            cmd.Parameters.AddWithValue("@IsDeleted", enrollment.IsDeleted ? 1 : 0);
         }
 
         // 미사용 오버로드 제거 (2026-08-19): MapEnrollment(reader) —
@@ -769,54 +713,43 @@ namespace NewSchool.Repositories
         {
             var noIdx = cache.GetOrdinal("No");
             var studentIdIdx = cache.GetOrdinal("StudentID");
-            var nameIdx = cache.GetOrdinal("Name");
-            var sexIdx = cache.GetOrdinal("Sex");
-            var photoIdx = cache.GetOrdinal("Photo");
             var schoolCodeIdx = cache.GetOrdinal("SchoolCode");
             var yearIdx = cache.GetOrdinal("Year");
-            var semesterIdx = cache.GetOrdinal("Semester");
             var gradeIdx = cache.GetOrdinal("Grade");
             var classIdx = cache.GetOrdinal("Class");
             var numberIdx = cache.GetOrdinal("Number");
-            var statusIdx = cache.GetOrdinal("Status");
-            var teacherIdIdx = cache.GetOrdinal("TeacherID");
-            var admissionDateIdx = cache.GetOrdinal("AdmissionDate");
-            var graduationDateIdx = cache.GetOrdinal("GraduationDate");
-            var transferOutDateIdx = cache.GetOrdinal("TransferOutDate");
-            var transferOutSchoolIdx = cache.GetOrdinal("TransferOutSchool");
-            var transferInDateIdx = cache.GetOrdinal("TransferInDate");
-            var transferInSchoolIdx = cache.GetOrdinal("TransferInSchool");
+            var changeTypeIdx = cache.GetOrdinal("ChangeType");
+            var changeDateIdx = cache.GetOrdinal("ChangeDate");
             var memoIdx = cache.GetOrdinal("Memo");
-            var createdAtIdx = cache.GetOrdinal("CreatedAt");
-            var updatedAtIdx = cache.GetOrdinal("UpdatedAt");
-            var isDeletedIdx = cache.GetOrdinal("IsDeleted");
+            var teacherIdIdx = cache.GetOrdinal("TeacherID");
 
-            return new Enrollment
+            // Student 에서 JOIN 으로 온 값. 조회 SQL 이 SelectEnrollment 를 쓰면 항상 있다.
+            var nameIdx = cache.GetOrdinal("Name");
+            var sexIdx = cache.GetOrdinal("Sex");
+            var photoIdx = cache.GetOrdinal("Photo");
+
+            var enrollment = new Enrollment
             {
                 No = reader.GetInt32(noIdx),
                 StudentID = reader.GetString(studentIdIdx),
-                Name = reader.IsDBNull(nameIdx) ? string.Empty : reader.GetString(nameIdx),
-                Sex = reader.IsDBNull(sexIdx) ? string.Empty : reader.GetString(sexIdx),
-                Photo = reader.IsDBNull(photoIdx) ? string.Empty : reader.GetString(photoIdx),
                 SchoolCode = reader.GetString(schoolCodeIdx),
                 Year = reader.GetInt32(yearIdx),
-                Semester = reader.GetInt32(semesterIdx),
                 Grade = reader.GetInt32(gradeIdx),
                 Class = reader.GetInt32(classIdx),
                 Number = reader.GetInt32(numberIdx),
-                Status = reader.GetString(statusIdx),
-                TeacherID = reader.IsDBNull(teacherIdIdx) ? string.Empty : reader.GetString(teacherIdIdx),
-                AdmissionDate = reader.IsDBNull(admissionDateIdx) ? string.Empty : reader.GetString(admissionDateIdx),
-                GraduationDate = reader.IsDBNull(graduationDateIdx) ? string.Empty : reader.GetString(graduationDateIdx),
-                TransferOutDate = reader.IsDBNull(transferOutDateIdx) ? string.Empty : reader.GetString(transferOutDateIdx),
-                TransferOutSchool = reader.IsDBNull(transferOutSchoolIdx) ? string.Empty : reader.GetString(transferOutSchoolIdx),
-                TransferInDate = reader.IsDBNull(transferInDateIdx) ? string.Empty : reader.GetString(transferInDateIdx),
-                TransferInSchool = reader.IsDBNull(transferInSchoolIdx) ? string.Empty : reader.GetString(transferInSchoolIdx),
+                ChangeDate = reader.IsDBNull(changeDateIdx) ? string.Empty : reader.GetString(changeDateIdx),
                 Memo = reader.IsDBNull(memoIdx) ? string.Empty : reader.GetString(memoIdx),
-                CreatedAt = DateTime.Parse(reader.GetString(createdAtIdx)),
-                UpdatedAt = DateTime.Parse(reader.GetString(updatedAtIdx)),
-                IsDeleted = reader.GetInt32(isDeletedIdx) == 1
+                TeacherID = reader.IsDBNull(teacherIdIdx) ? string.Empty : reader.GetString(teacherIdIdx),
+                Name = reader.IsDBNull(nameIdx) ? string.Empty : reader.GetString(nameIdx),
+                Sex = reader.IsDBNull(sexIdx) ? string.Empty : reader.GetString(sexIdx),
+                Photo = reader.IsDBNull(photoIdx) ? string.Empty : reader.GetString(photoIdx),
             };
+
+            // ChangeType 대입이 IsActive 를 함께 맞춘다. DB 의 IsActive 컬럼은 읽지 않는다 —
+            // 어긋난 행이 있어도 규칙 쪽을 믿는다.
+            enrollment.ChangeType = reader.GetString(changeTypeIdx);
+
+            return enrollment;
         }
 
         #endregion

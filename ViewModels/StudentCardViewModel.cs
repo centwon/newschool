@@ -473,10 +473,10 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
             Detail.Memo = string.Empty;
         }
 
-        // 학적 상태는 재학으로
+        // 학적 변동은 기본값(1학년은 입학, 그 위는 진급)으로 되돌린다.
         if (Enrollment != null)
         {
-            Enrollment.Status = "재학";
+            Enrollment.ApplyChange(EnrollmentChange.DefaultFor(Enrollment.Grade));
         }
 
         PhotoImage = null;

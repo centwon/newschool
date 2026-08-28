@@ -14,42 +14,60 @@ public static class CategoryNames
 }
 
 /// <summary>
-/// 학적 상태
+/// 학적 변동. <c>Enrollment.ChangeType</c> 에 들어가는 값이다.
+///
+/// <para>학적이 <b>왜</b> 지금 모양이 됐는지를 말한다. 그 학생이 명단에 들어가는지는
+/// <see cref="IsActive"/> 가 정한다 — 값 목록을 직접 비교하지 말 것.</para>
+///
+/// <para>설계 근거는 <c>docs/enrollment-redesign.md</c>.</para>
 /// </summary>
-public static class EnrollmentStatus
+public static class EnrollmentChange
 {
-    public const string Enrolled = "재학";
-    public const string OnLeave = "휴학";
-    public const string Graduated = "졸업";
-
-    /// <summary>전입 — 다른 학교에서 왔다. <b>지금 이 학교 학생이다.</b></summary>
+    // ── 활성: 지금 이 학교 학생이다 ──
+    /// <summary>입학 — 1학년의 기본값.</summary>
+    public const string Admitted = "입학";
+    /// <summary>진급 — 2학년 이상의 기본값.</summary>
+    public const string Promoted = "진급";
+    /// <summary>전입 — 다른 학교에서 왔다.</summary>
     public const string TransferredIn = "전입";
 
-    /// <summary>전출 — 다른 학교로 갔다. <b>더는 이 학교 학생이 아니다.</b></summary>
+    // ── 비활성: 더는 명단에 넣지 않는다 ──
+    /// <summary>전출 — 다른 학교로 갔다. 이 날짜 뒤의 기록은 경고한다.</summary>
     public const string TransferredOut = "전출";
-
+    public const string Graduated = "졸업";
+    public const string OnLeave = "휴학";
+    /// <summary>유예 — 취학유예. 1학년에만 해당한다.</summary>
+    public const string Deferred = "유예";
+    /// <summary>정원외 — 정원외 관리. 학년과 무관하다.</summary>
+    public const string OutOfQuota = "정원외";
     public const string Withdrawn = "자퇴";
     public const string Expelled = "퇴학";
 
-    /// <summary>
-    /// 1.0 이전 값. 전입과 전출을 가르지 않던 시절의 것으로, 새로 쓰지 않는다.
-    /// 남아 있는 행은 <see cref="IsOnRoll"/> 이 재적으로 보며(안 보이게 숨기지 않는다),
-    /// 학생 관리에서 열어 전입·전출 중 하나로 고쳐 주면 사라진다.
-    /// </summary>
-    public const string Transferred = "전학";
+    /// <summary>고르는 차례대로 — 화면의 목록도 이 순서를 따른다.</summary>
+    public static readonly string[] All =
+    [
+        Admitted, Promoted, TransferredIn,
+        TransferredOut, Graduated, OnLeave, Deferred, OutOfQuota, Withdrawn, Expelled
+    ];
 
     /// <summary>
-    /// <b>코드가 상태를 두고 묻는 유일한 질문</b> — 지금 이 학교 명부에 있는가(재적).
+    /// 이 변동을 겪은 학적이 <b>명단에 들어가는가</b>.
     ///
-    /// <para>명단·좌석·수업·동아리처럼 "지금 이 반 학생" 을 묻는 곳은 모두 이것만 본다.
-    /// 상태 문자열을 직접 비교하지 말 것 — 값이 늘어날 때마다 비교하는 곳이 다 틀어진다.</para>
+    /// <para><c>Enrollment.IsActive</c> 컬럼은 이 함수로만 채운다. <c>IsActive</c> 를 인자로
+    /// 받는 함수를 만들지 말 것 — 그 순간 두 값이 갈라질 길이 생긴다.</para>
     ///
-    /// <para>빠지는 넷만 거짓이고 나머지는 전부 참이다. 빈 값과 옛 "전학" 도 참으로 본다 —
-    /// 판단이 안 서는 행을 거짓으로 보면 멀쩡한 학생이 명부에서 사라지는데,
-    /// 그 손해가 반대쪽보다 크다.</para>
+    /// <para>모르는 값과 빈 값은 <b>참</b>으로 본다. 판단이 안 서는 행을 숨겨 멀쩡한 학생이
+    /// 명단에서 사라지는 손해가, 남겨서 생기는 손해보다 크다.</para>
     /// </summary>
-    public static bool IsOnRoll(string? status) =>
-        status is not (TransferredOut or Graduated or Withdrawn or Expelled);
+    public static bool IsActive(string? changeType) =>
+        changeType is not (TransferredOut or Graduated or OnLeave
+                        or Deferred or OutOfQuota or Withdrawn or Expelled);
+
+    /// <summary>
+    /// 학년으로 정하는 기본 변동 — 1학년은 입학, 그 위는 진급.
+    /// 전입은 사람이 골라야 알 수 있으므로 기본값이 될 수 없다.
+    /// </summary>
+    public static string DefaultFor(int grade) => grade <= 1 ? Admitted : Promoted;
 }
 
 /// <summary>

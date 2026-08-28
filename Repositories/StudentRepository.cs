@@ -244,17 +244,10 @@ namespace NewSchool.Repositories
                 if (success)
                 {
                     LogInfo($"학생 수정 완료: No={student.No}");
-                    
-                    // Enrollment 동기화: Name, Sex, Photo
-                    // 이 리포지토리와 같은 DB(_dbPath)로 동기화 — 정적 SchoolDatabase.DbPath 를
-                    // 쓰면 비표준 경로(테스트 등)에서 다른 DB 로 흘러가므로 _dbPath 사용
-                    using var enrollmentRepo = new EnrollmentRepository(_dbPath);
-                    await enrollmentRepo.SyncStudentInfoAsync(
-                        student.StudentID,
-                        student.Name,
-                        student.Sex,
-                        student.Photo
-                    );
+
+                    // Enrollment 로 이름·성별·사진을 동기화하던 코드는 없앴다 —
+                    // 그쪽 사본을 지우고 EnrollmentFull 뷰가 여기서 JOIN 으로 읽어 가므로
+                    // 이 표만 고치면 학적 쪽 표시가 저절로 따라온다.
                 }
                 else
                 {

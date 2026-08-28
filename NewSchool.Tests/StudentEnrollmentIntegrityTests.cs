@@ -1,5 +1,7 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Tests.Infrastructure;
 using Xunit;
@@ -38,31 +40,32 @@ public class StudentEnrollmentIntegrityTests : IClassFixture<SqliteTestFixture>
     }
 
     [Fact]
-    public async Task 같은_학년도_학기_학적은_한_건만_생성된다()
+    public async Task 같은_학년도_학적은_한_건만_생성된다()
     {
-        // UNIQUE(StudentID, SchoolCode, Year, Semester)
+        // UNIQUE(StudentID, SchoolCode, Year) — 학기 컬럼을 없애면서 키가 좁아졌다.
         var sid = await _db.NewStudentInDbAsync("학적중복");
         using var repo = new EnrollmentRepository(_db.DbPath);
 
-        await repo.CreateAsync(TestData.NewEnrollment(sid, semester: 1, number: 1));
+        await repo.CreateAsync(TestData.NewEnrollment(sid, number: 1));
 
         await Assert.ThrowsAsync<SqliteException>(
-            () => repo.CreateAsync(TestData.NewEnrollment(sid, semester: 1, number: 2)));
+            () => repo.CreateAsync(TestData.NewEnrollment(sid, number: 2)));
     }
 
     [Fact]
-    public async Task 같은_학생이라도_학기가_다르면_학적은_따로_생성된다()
+    public async Task 학년도가_다르면_학적은_따로_생성된다()
     {
-        // 학적은 (학년도, 학기) 단위 행이다. 그래서 등록 화면이 학기를 정확히 지정해야 하고,
-        // 번호 중복 검사도 학기별로 해야 한다(예전에는 학기를 안 봐서 1학기 번호 때문에
-        // 같은 학년도 2학기 등록이 막혔다).
-        var sid = await _db.NewStudentInDbAsync("학기별학적");
+        // 학적은 학년도 단위 행이다. 학년이 올라가면 새 행이 생기고, 이력은 그 나열이 된다.
+        var sid = await _db.NewStudentInDbAsync("학년도별학적");
         using var repo = new EnrollmentRepository(_db.DbPath);
 
-        await repo.CreateAsync(TestData.NewEnrollment(sid, semester: 1, number: 3));
-        await repo.CreateAsync(TestData.NewEnrollment(sid, semester: 2, number: 3));
+        await repo.CreateAsync(TestData.NewEnrollment(sid, year: TestData.Year, grade: 1, number: 3));
+        await repo.CreateAsync(TestData.NewEnrollment(sid, year: TestData.Year + 1, grade: 2, number: 3));
 
         var history = await repo.GetHistoryByStudentIdAsync(sid);
         Assert.Equal(2, history.Count);
+
+        // 2학년 행의 기본 변동은 진급이다.
+        Assert.Equal(EnrollmentChange.Promoted, history.First(e => e.Grade == 2).ChangeType);
     }
 }

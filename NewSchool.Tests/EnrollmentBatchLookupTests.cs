@@ -53,18 +53,17 @@ public class EnrollmentBatchLookupTests : IClassFixture<SqliteTestFixture>
     }
 
     [Fact]
-    public async Task 학적이_여러건이면_최신_학년도_학기가_선택되고_학생당_1건만_나온다()
+    public async Task 학적이_여러_학년도면_최신_학년도가_선택되고_학생당_1건만_나온다()
     {
         using var repo = new EnrollmentRepository(_db.DbPath);
         var id = await _db.NewStudentInDbAsync("다년도");
 
-        // 일부러 오래된 것부터 넣어 삽입 순서가 결과에 영향을 주지 않음을 확인
+        // 일부러 오래된 것부터 넣어 삽입 순서가 결과에 영향을 주지 않음을 확인.
+        // 학기 행은 만들지 않는다 — UNIQUE(StudentID, SchoolCode, Year) 라 학년도당 한 줄이다.
         await repo.CreateAsync(TestData.NewEnrollment(
-            id, "다년도", year: TestData.Year - 1, semester: 1, grade: 1, classNum: 1, number: 1));
+            id, "다년도", year: TestData.Year - 1, grade: 1, classNum: 1, number: 1));
         await repo.CreateAsync(TestData.NewEnrollment(
-            id, "다년도", year: TestData.Year, semester: 1, grade: 2, classNum: 4, number: 7));
-        await repo.CreateAsync(TestData.NewEnrollment(
-            id, "다년도", year: TestData.Year, semester: 2, grade: 2, classNum: 5, number: 9));
+            id, "다년도", year: TestData.Year, grade: 2, classNum: 5, number: 9));
 
         var single = await repo.GetCurrentByStudentIdAsync(id);
         var batch = await repo.GetCurrentByStudentIdsAsync(new List<string> { id });
@@ -72,13 +71,13 @@ public class EnrollmentBatchLookupTests : IClassFixture<SqliteTestFixture>
         // 학생당 정확히 1건
         Assert.Single(batch);
 
-        // 최신(Year DESC, Semester DESC) = 2학기 행
-        Assert.Equal(2, single!.Semester);
+        // 최신(Year DESC) = 올해 행
+        Assert.Equal(TestData.Year, single!.Year);
         Assert.Equal(5, single.Class);
 
         // 그리고 배치도 같은 행을 골라야 한다
         Assert.Equal(single.No, batch[0].No);
-        Assert.Equal(single.Semester, batch[0].Semester);
+        Assert.Equal(single.Year, batch[0].Year);
         Assert.Equal(single.Class, batch[0].Class);
     }
 
