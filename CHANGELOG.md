@@ -37,6 +37,30 @@
 > 아래 **개발 이력**은 그 기간의 작업 기록이며, 내용은 손대지 않고 그대로 보존한다.
 > 괄호 안의 "구 vX.Y.Z" 는 되돌리기 전에 쓰던 번호다.
 
+### 아무도 읽지 않던 테이블 아홉 개를 걷어냈다 (2026-08-28)
+모델을 손보기 전에 실측부터 했다. `school.db` 에 테이블이 **34개**였는데 그중 9개가
+**행도 0이고 읽고 쓰는 코드도 한 줄 없었다.** 모델 클래스조차 없는, 옛 스키마의 잔해다.
+
+| 걷어낸 것 | 행 |
+|---|---|
+| `Subject` · `CourseSchedule` · `Evaluation` · `Attachment` | 0 |
+| `SubjectYearPlan` · `WeeklyUnitPlan` · `WeeklyLessonHours` | 0 |
+| `ScheduleUnitMap` | 4 |
+| `UndoHistory` | 3 |
+
+- **34개 → 25개.** `integrity_check` 통과, 외래키 위반 0, `Enrollment` 173행·`StudentLog`
+  552행 그대로. 지우기 전 `Backups\school_before_table_cleanup_20260828.db` 로 떠 두었다
+- `ScheduleUnitMap`·`UndoHistory` 만 행이 있었는데 둘 다 2026-07-30 자 시간표 실험의
+  잔해이고, 읽는 코드가 없어 앱에서 닿을 수 없는 값이었다
+- `CourseWeeklyHours` 는 행이 0이어도 **남겼다** — `CourseHoursView` 가 실제로 쓴다.
+  "비었으니 죽었다" 로 판단하면 안 되는 자리다
+- 초기화 코드에서 `Subject`·`CourseSchedule` 생성문과 `CourseSchedule` 인덱스·고아 정리
+  구문을 함께 지웠다. 안 지우면 다음 실행에 되살아나거나, 없는 테이블에 인덱스를 걸다
+  초기화가 멎는다(실제로 테스트 90개가 `no such table: CourseSchedule` 로 무너져 드러났다)
+
+남은 25개도 겹치는 축이 있다 — 좌석 하나에 테이블이 넷(`SeatArrangement`·`SeatAssignment`·
+`SeatHistory`·`SeatPosHistory`), 수업/시수/계획 축도 값이 실린 것은 셋뿐이다. 그건 다음 순서다.
+
 ### 학생 관리를 목록 전용으로, 전출한 학생은 명단에서 빠지게 (2026-08-28)
 학생 관리 페이지가 행마다 `TextBox` 를 깔고 상단 저장 버튼으로 한꺼번에 커밋하는
 구조였다. 저장하지 않은 편집이 화면에 쌓이다가 다른 반을 조회하는 순간 통째로 사라졌다.

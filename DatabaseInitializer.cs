@@ -11,7 +11,12 @@ namespace NewSchool.Database
     /// 데이터베이스 초기화 클래스
     /// NEIS 표준 구조로 전면 재작성
     /// ⭐ 외래키 문제 해결: TeacherID NULL 허용 + ON DELETE SET NULL
-    /// ⭐ 시간표 시스템 재설계: Course, CourseSchedule, ClassTimetable 분리
+    /// ⭐ 시간표 시스템 재설계: Course, ClassTimetable 분리
+    ///
+    /// <para>여기서 만들지 않는 테이블이 있어도 놀라지 말 것 — 읽고 쓰는 코드가 없던
+    /// 테이블 아홉 개를 2026-08-28 에 걷어냈다(Subject·CourseSchedule·Evaluation·
+    /// Attachment·SubjectYearPlan·WeeklyUnitPlan·WeeklyLessonHours·ScheduleUnitMap·
+    /// UndoHistory). 되살리려면 쓰는 코드부터 있어야 한다.</para>
     /// </summary>
     public sealed class DatabaseInitializer : IDisposable
     {
@@ -242,19 +247,8 @@ namespace NewSchool.Database
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] Enrollment 테이블 생성 완료");
 
-            // ==========================================
-            // 7. Subject 테이블 (교과목)
-            // ==========================================
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS Subject (
-                    No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Curriculum TEXT,
-                    Name TEXT NOT NULL,
-                    Unit INTEGER,
-                    Remark TEXT
-                );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Subject 테이블 생성 완료");
+            // 7. Subject 테이블(교과목)은 만들지 않는다 — 읽고 쓰는 코드가 한 줄도 없었다.
+            //    과목명은 Course.Subject 에 문자열로 들어간다.
 
             // ==========================================
             // 8. Course 테이블 (수업 개설) - ⭐ 재설계
@@ -278,21 +272,8 @@ namespace NewSchool.Database
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] Course 테이블 생성 완료");
 
-            // ==========================================
-            // 9. CourseSchedule 테이블 (교사 시간표) - ⭐ 신규
-            // ==========================================
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS CourseSchedule (
-                    No INTEGER PRIMARY KEY AUTOINCREMENT,
-                    CourseNo INTEGER NOT NULL,
-                    DayOfWeek INTEGER NOT NULL,
-                    Period INTEGER NOT NULL,
-                    Room TEXT NOT NULL,
-                    FOREIGN KEY (CourseNo) REFERENCES Course(No) ON DELETE CASCADE,
-                    UNIQUE(CourseNo, DayOfWeek, Period)
-                );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] CourseSchedule 테이블 생성 완료");
+            // 9. CourseSchedule 테이블(교사 시간표)은 만들지 않는다 — 읽고 쓰는 코드가 없었다.
+            //    교사 시간표는 Schedule 이, 학급 시간표는 ClassTimetable 이 맡는다.
 
             // ==========================================
             // 10. ClassTimetable 테이블 (학급 시간표) - ⭐ 신규
@@ -670,9 +651,8 @@ namespace NewSchool.Database
                 CREATE INDEX IF NOT EXISTS idx_course_teacher ON Course(TeacherID, Year, Semester);
                 CREATE INDEX IF NOT EXISTS idx_course_grade ON Course(Year, Semester, Grade);
 
-                -- CourseSchedule 인덱스 (신규)
-                CREATE INDEX IF NOT EXISTS idx_courseschedule_course ON CourseSchedule(CourseNo);
-                CREATE INDEX IF NOT EXISTS idx_courseschedule_time ON CourseSchedule(DayOfWeek, Period);
+                -- CourseSchedule 인덱스는 테이블과 함께 걷어냈다.
+                -- (없는 테이블에 CREATE INDEX 를 걸면 no such table 오류로 초기화가 멎는다)
 
                 -- ClassTimetable 인덱스 (신규)
                 CREATE INDEX IF NOT EXISTS idx_classtimetable_class ON ClassTimetable(Year, Semester, Grade, Class);
@@ -825,7 +805,6 @@ namespace NewSchool.Database
                 DELETE FROM TeacherSchoolHistory WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);
                 DELETE FROM Enrollment WHERE StudentID NOT IN (SELECT StudentID FROM Student);
                 DELETE FROM Course WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);
-                DELETE FROM CourseSchedule WHERE CourseNo NOT IN (SELECT No FROM Course);
                 DELETE FROM CourseEnrollment
                     WHERE StudentID NOT IN (SELECT StudentID FROM Student)
                        OR CourseNo NOT IN (SELECT No FROM Course);
