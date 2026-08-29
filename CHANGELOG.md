@@ -37,6 +37,41 @@
 > 아래 **개발 이력**은 그 기간의 작업 기록이며, 내용은 손대지 않고 그대로 보존한다.
 > 괄호 안의 "구 vX.Y.Z" 는 되돌리기 전에 쓰던 번호다.
 
+### 트랜잭션을 겹쳐 열면 던진다 — 조용한 롤백을 막는다 (2026-08-30)
+리포지토리 계층 검토. 이 계층은 상태가 좋았다(SQL 주입 0, 학년도 필터 누락 0,
+미참조 공개 멤버 2개뿐, 연결 수명 119곳 중 96이 `using`). 대신 **한 자리가 위험했다.**
+
+```csharp
+public void BeginTransaction()
+{
+    Transaction?.Dispose();          // ← 커밋도 롤백도 없이 버린다
+    Transaction = Connection.BeginTransaction();
+}
+```
+
+`SqliteTransaction` 은 커밋되지 않은 채 `Dispose` 되면 **조용히 롤백된다.** 오류도 경고도
+없이 앞선 작업이 사라지므로, 무엇이 왜 저장되지 않았는지 알아낼 방법이 없다.
+
+- 특히 위험한 조합은 **`UnitOfWork`** 다. 공유 트랜잭션 하나를 여러 리포지토리에
+  `SetTransaction` 으로 나눠 주는데, 그중 하나가 자기 트랜잭션을 열면 **나머지의 작업까지
+  함께 버려지고** UnitOfWork 는 이미 Dispose 된 것을 계속 들고 있게 된다
+- **지금은 닿지 않는다.** 세 경로를 다 확인했다 — `Scheduler/UnitOfWork.Schedules` 는
+  아무도 안 쓰고, 게시판 리포지토리는 protected `ExecuteInTransactionAsync` 를 쓰지 않으며,
+  `CourseSectionRepository` 는 UnitOfWork 에 들어가지 않는다. **지뢰이지 폭발이 아니다**
+- 그래도 막아 두는 이유는 실패 방식이 조용한 데이터 손실이기 때문이다. 이제 던진다
+
+**곁들여 충돌 경로 하나를 아예 없앴다.** `Scheduler/UnitOfWork.Schedules` 를 걷어냈다 —
+아무도 안 쓰는데 `SchoolScheduleRepository` 는 스스로 `ExecuteInTransactionAsync` 를 쓰므로,
+쓰지도 않는 속성이 위험한 조합을 열어 두고 있었다.
+
+**`BaseRepository` 두 벌은 합치지 않고 각각 고쳤다.** 지금은 갈라지지 않았지만(PRAGMA·
+`Dispose`·`_ownsConnection` 동일) 이 결함은 양쪽에 다 있었다. 그래서 두 파일 주석에
+"같은 결함이 저쪽에도 있었고 함께 고쳤다 — 고칠 때 양쪽을 같이 볼 것" 을 서로 가리키게 적었다.
+
+**테스트 3건.** 던지는 것뿐 아니라 **정상 흐름을 막지 않는 것**도 함께 고정했다 —
+열고 닫기를 되풀이하는 것은 겹쳐 여는 것이 아니고, 가드가 거기까지 막으면 일괄 저장 화면이
+통째로 멎는다. 옛 동작으로 되돌려 두 테스트가 실제로 실패하는 것을 확인하고 원복했다.
+
 ### 뷰모델의 INPC 를 기반 클래스 하나로 모은다 (2026-08-30)
 뷰모델 검토 마지막. 열 개 중 **여덟이** `PropertyChanged`·`OnPropertyChanged`·
 `SetProperty` 를 저마다 손으로 들고 있었다. 모델 계층은 거의 전부

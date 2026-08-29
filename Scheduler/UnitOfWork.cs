@@ -19,22 +19,18 @@ public sealed class UnitOfWork : IDisposable
     private SqliteTransaction? _transaction;
     private bool _disposed;
 
-    private SchoolScheduleRepository?  _schedules;
     private KEventRepository?          _kevents;
 
-    public SchoolScheduleRepository Schedules
-    {
-        get
-        {
-            if (_schedules == null)
-            {
-                _schedules = new SchoolScheduleRepository(EnsureConnection());
-                if (_transaction != null)
-                    _schedules.SetTransaction(_transaction);
-            }
-            return _schedules;
-        }
-    }
+    // 학사일정 리포지토리(Schedules)는 여기서 걷어냈다(2026-08-30).
+    //
+    // 아무도 이 속성을 쓰지 않았다. 그런데 SchoolScheduleRepository 는 스스로
+    // ExecuteInTransactionAsync 를 쓰므로(CreateBulkAsync/DeleteBulkAsync), 여기 두면
+    // "UnitOfWork 의 공유 트랜잭션 안에서 리포지토리가 자기 트랜잭션을 여는" 조합이
+    // 만들어진다. 그건 앞선 작업을 조용히 버리는 길이다
+    // (BaseRepository.BeginTransaction 주석 참고). 쓰지도 않는 속성으로 그 길을 열어
+    // 둘 이유가 없다.
+    //
+    // 학사일정은 SchoolScheduleService 가 자기 리포지토리로 직접 다룬다.
 
     public KEventRepository KEvents
     {
@@ -82,7 +78,7 @@ public sealed class UnitOfWork : IDisposable
     }
 
     /// <summary>
-    /// 단일 트랜잭션 시작 — 모든 Repository 가 공유 연결을 쓰므로 Schedules·KEvents 에 원자적으로 적용.
+    /// 단일 트랜잭션 시작 — 모든 Repository 가 공유 연결을 쓰므로 KEvents 에 원자적으로 적용.
     /// </summary>
     public void BeginTransaction()
     {
@@ -90,7 +86,6 @@ public sealed class UnitOfWork : IDisposable
         _transaction?.Dispose();
         _transaction = conn.BeginTransaction();
 
-        _schedules?.SetTransaction(_transaction);
         _kevents?.SetTransaction(_transaction);
     }
 
@@ -133,7 +128,6 @@ public sealed class UnitOfWork : IDisposable
     {
         _transaction?.Dispose();
         _transaction = null;
-        _schedules?.SetTransaction(null);
         _kevents?.SetTransaction(null);
     }
 
@@ -180,7 +174,6 @@ public sealed class UnitOfWork : IDisposable
         {
             _transaction?.Dispose();
 
-            _schedules?.Dispose();
             _kevents?.Dispose();
 
             _connection?.Close();

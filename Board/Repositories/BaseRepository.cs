@@ -89,9 +89,27 @@ public abstract class BaseRepository : IDisposable
     /// </summary>
     public void BeginTransaction()
     {
+        // ⚠ 이미 트랜잭션이 있으면 **버리지 말고 던진다**.
+        //
+        // 예전에는 여기서 Transaction?.Dispose() 를 했는데, SqliteTransaction 은 커밋되지
+        // 않은 채 Dispose 되면 **조용히 롤백된다**. 앞선 작업이 오류도 경고도 없이 사라진다.
+        //
+        // 게시판 쪽이 특히 걸리는 이유는 UnitOfWork 다 — Post·Comment·PostFile 이 공유
+        // 트랜잭션 하나를 SetTransaction 으로 나눠 갖는데, 그중 하나가 자기 트랜잭션을 열면
+        // 나머지 둘의 작업까지 함께 버려진다.
+        //
+        // ⚠ 같은 결함이 Repositories/BaseRepository.cs 에도 있었고 함께 고쳤다. 두 파일은
+        //    일부러 따로 둔다(합치지 않는다) — 고칠 때 양쪽을 같이 봐야 한다.
+        if (Transaction != null)
+        {
+            throw new InvalidOperationException(
+                $"{GetType().Name}: 이미 트랜잭션이 열려 있습니다. " +
+                "겹쳐 열면 앞선 트랜잭션이 조용히 롤백됩니다 — " +
+                "먼저 Commit()/Rollback() 하거나, 공유 트랜잭션이면 그 안에서 그대로 쓰세요.");
+        }
+
         try
         {
-            Transaction?.Dispose();
             Transaction = Connection.BeginTransaction();
             LogDebug("트랜잭션 시작");
         }
