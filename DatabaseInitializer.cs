@@ -5,86 +5,86 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
 
-namespace NewSchool.Database
+namespace NewSchool.Database;
+
+/// <summary>
+/// 데이터베이스 초기화 클래스
+/// NEIS 표준 구조로 전면 재작성
+/// ⭐ 외래키 문제 해결: TeacherID NULL 허용 + ON DELETE SET NULL
+/// ⭐ 시간표 시스템 재설계: Course, ClassTimetable 분리
+///
+/// <para>여기서 만들지 않는 테이블이 있어도 놀라지 말 것 — 읽고 쓰는 코드가 없던
+/// 테이블 아홉 개를 2026-08-28 에 걷어냈다(Subject·CourseSchedule·Evaluation·
+/// Attachment·SubjectYearPlan·WeeklyUnitPlan·WeeklyLessonHours·ScheduleUnitMap·
+/// UndoHistory). 되살리려면 쓰는 코드부터 있어야 한다.</para>
+/// </summary>
+public sealed class DatabaseInitializer : IDisposable
 {
     /// <summary>
-    /// 데이터베이스 초기화 클래스
-    /// NEIS 표준 구조로 전면 재작성
-    /// ⭐ 외래키 문제 해결: TeacherID NULL 허용 + ON DELETE SET NULL
-    /// ⭐ 시간표 시스템 재설계: Course, ClassTimetable 분리
+    /// 현재 스키마 세대 번호(<c>PRAGMA user_version</c>).
     ///
-    /// <para>여기서 만들지 않는 테이블이 있어도 놀라지 말 것 — 읽고 쓰는 코드가 없던
-    /// 테이블 아홉 개를 2026-08-28 에 걷어냈다(Subject·CourseSchedule·Evaluation·
-    /// Attachment·SubjectYearPlan·WeeklyUnitPlan·WeeklyLessonHours·ScheduleUnitMap·
-    /// UndoHistory). 되살리려면 쓰는 코드부터 있어야 한다.</para>
+    /// <b>1 = v1.0.0 출시 스키마.</b> 1.0 을 첫 배포로 잡으면서 그 이전의 컬럼 추가·
+    /// 테이블 재작성 마이그레이션은 모두 <c>CREATE TABLE</c> 정의에 접어 넣고 제거했다
+    /// (배포된 적 없는 스키마를 위한 코드였다).
+    ///
+    /// 이 상수와 기록 자체는 남긴다 — 1.0 이 나간 뒤 스키마를 바꾸려면
+    /// "이 파일이 어느 세대인지" 알아야 하기 때문이다. 앞으로 스키마를 바꿀 때마다
+    /// 이 값을 올리고 <see cref="MigrateSchemaAsync"/> 에 변환 한 덩이를 더한다.
+    ///
+    /// <b>2 = 수업 일지 일원화.</b> 수업 일지를 게시판(board.db) 한 곳으로 모으면서
+    /// 쓰이지 않게 된 <c>LessonLog</c> 테이블을 버렸다.
     /// </summary>
-    public sealed class DatabaseInitializer : IDisposable
+    public const int SchemaVersion = 2;
+
+    private readonly string _dbPath;
+    private SqliteConnection? _connection;
+    private bool _disposed;
+
+    public DatabaseInitializer(string dbPath)
     {
-        /// <summary>
-        /// 현재 스키마 세대 번호(<c>PRAGMA user_version</c>).
-        ///
-        /// <b>1 = v1.0.0 출시 스키마.</b> 1.0 을 첫 배포로 잡으면서 그 이전의 컬럼 추가·
-        /// 테이블 재작성 마이그레이션은 모두 <c>CREATE TABLE</c> 정의에 접어 넣고 제거했다
-        /// (배포된 적 없는 스키마를 위한 코드였다).
-        ///
-        /// 이 상수와 기록 자체는 남긴다 — 1.0 이 나간 뒤 스키마를 바꾸려면
-        /// "이 파일이 어느 세대인지" 알아야 하기 때문이다. 앞으로 스키마를 바꿀 때마다
-        /// 이 값을 올리고 <see cref="MigrateSchemaAsync"/> 에 변환 한 덩이를 더한다.
-        ///
-        /// <b>2 = 수업 일지 일원화.</b> 수업 일지를 게시판(board.db) 한 곳으로 모으면서
-        /// 쓰이지 않게 된 <c>LessonLog</c> 테이블을 버렸다.
-        /// </summary>
-        public const int SchemaVersion = 2;
+        _dbPath = dbPath;
+    }
 
-        private readonly string _dbPath;
-        private SqliteConnection? _connection;
-        private bool _disposed;
-
-        public DatabaseInitializer(string dbPath)
+    /// <summary>
+    /// 데이터베이스 초기화 (테이블 생성 + 인덱스)
+    /// </summary>
+    public async Task<bool> InitializeAsync()
+    {
+        try
         {
-            _dbPath = dbPath;
+            _connection = new SqliteConnection($"Data Source={_dbPath}");
+            await _connection.OpenAsync();
+
+            Debug.WriteLine("[DatabaseInitializer] 데이터베이스 연결 완료");
+
+            await MigrateSchemaAsync();
+            await CreateTablesAsync();
+            await CreateIndexesAsync();
+            await CleanupOrphansAsync();
+            await StampSchemaVersionAsync();
+
+            Debug.WriteLine("[DatabaseInitializer] 데이터베이스 초기화 완료");
+            return true;
         }
-
-        /// <summary>
-        /// 데이터베이스 초기화 (테이블 생성 + 인덱스)
-        /// </summary>
-        public async Task<bool> InitializeAsync()
+        catch (Exception ex)
         {
-            try
-            {
-                _connection = new SqliteConnection($"Data Source={_dbPath}");
-                await _connection.OpenAsync();
-
-                Debug.WriteLine("[DatabaseInitializer] 데이터베이스 연결 완료");
-
-                await MigrateSchemaAsync();
-                await CreateTablesAsync();
-                await CreateIndexesAsync();
-                await CleanupOrphansAsync();
-                await StampSchemaVersionAsync();
-
-                Debug.WriteLine("[DatabaseInitializer] 데이터베이스 초기화 완료");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[DatabaseInitializer] 초기화 실패: {ex.Message}");
-                throw;
-            }
+            Debug.WriteLine($"[DatabaseInitializer] 초기화 실패: {ex.Message}");
+            throw;
         }
+    }
 
-        private async Task CreateTablesAsync()
-        {
-            if (_connection == null) return;
+    private async Task CreateTablesAsync()
+    {
+        if (_connection == null) return;
 
-            using var cmd = _connection.CreateCommand();
+        using var cmd = _connection.CreateCommand();
 
-            Debug.WriteLine("[DatabaseInitializer] 테이블 생성 시작...");
+        Debug.WriteLine("[DatabaseInitializer] 테이블 생성 시작...");
 
-            // ==========================================
-            // 1. School 테이블 (학교 정보 - NEIS 표준)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 1. School 테이블 (학교 정보 - NEIS 표준)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS School (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     SchoolCode TEXT UNIQUE NOT NULL,
@@ -104,13 +104,13 @@ namespace NewSchool.Database
                     UpdatedAt TEXT NOT NULL,
                     IsDeleted INTEGER DEFAULT 0
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] School 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] School 테이블 생성 완료");
 
-            // ==========================================
-            // 2. Student 테이블 (학생 기본 정보)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 2. Student 테이블 (학생 기본 정보)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS Student (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     StudentID TEXT UNIQUE NOT NULL,
@@ -127,13 +127,13 @@ namespace NewSchool.Database
                     UpdatedAt TEXT NOT NULL,
                     IsDeleted INTEGER DEFAULT 0
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Student 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] Student 테이블 생성 완료");
 
-            // ==========================================
-            // 3. StudentDetail 테이블 (학생 상세 정보)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 3. StudentDetail 테이블 (학생 상세 정보)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS StudentDetail (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     StudentID TEXT UNIQUE NOT NULL,
@@ -159,13 +159,13 @@ namespace NewSchool.Database
                     UpdatedAt TEXT NOT NULL,
                     FOREIGN KEY (StudentID) REFERENCES Student(StudentID) ON DELETE CASCADE
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] StudentDetail 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] StudentDetail 테이블 생성 완료");
 
-            // ==========================================
-            // 4. Teacher 테이블 (교사 정보)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 4. Teacher 테이블 (교사 정보)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS Teacher (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     TeacherID TEXT UNIQUE NOT NULL,
@@ -185,13 +185,13 @@ namespace NewSchool.Database
                     LastLoginAt TEXT,
                     IsDeleted INTEGER DEFAULT 0
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Teacher 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] Teacher 테이블 생성 완료");
 
-            // ==========================================
-            // 5. TeacherSchoolHistory 테이블 (교사 근무 이력)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 5. TeacherSchoolHistory 테이블 (교사 근무 이력)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS TeacherSchoolHistory (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     TeacherID TEXT NOT NULL,
@@ -207,14 +207,14 @@ namespace NewSchool.Database
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE CASCADE,
                     FOREIGN KEY (SchoolCode) REFERENCES School(SchoolCode)
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] TeacherSchoolHistory 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] TeacherSchoolHistory 테이블 생성 완료");
 
-            // ==========================================
-            // 6. Enrollment 테이블 (학적 정보 - 핵심!)
-            // ⭐ TeacherID NULL 허용 + ON DELETE SET NULL 추가
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 6. Enrollment 테이블 (학적 정보 - 핵심!)
+        // ⭐ TeacherID NULL 허용 + ON DELETE SET NULL 추가
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS Enrollment (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     StudentID TEXT NOT NULL,
@@ -233,13 +233,13 @@ namespace NewSchool.Database
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL,
                     UNIQUE(StudentID, SchoolCode, Year)
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Enrollment 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] Enrollment 테이블 생성 완료");
 
-            // 조회는 모두 이 뷰를 지난다. 이름·성별·사진은 Student 가 정본이고, 학적 쪽에
-            // 사본을 두던 시절에는 학생을 고칠 때마다 따라 고쳐야 했다(동기화 사고의 원인).
-            // JOIN 을 열 곳에 되풀이하지 않도록 여기 한 번만 적는다.
-            cmd.CommandText = @"
+        // 조회는 모두 이 뷰를 지난다. 이름·성별·사진은 Student 가 정본이고, 학적 쪽에
+        // 사본을 두던 시절에는 학생을 고칠 때마다 따라 고쳐야 했다(동기화 사고의 원인).
+        // JOIN 을 열 곳에 되풀이하지 않도록 여기 한 번만 적는다.
+        cmd.CommandText = @"
                 DROP VIEW IF EXISTS EnrollmentFull;
                 CREATE VIEW EnrollmentFull AS
                 SELECT e.No, e.StudentID, e.SchoolCode, e.Year, e.Grade, e.Class, e.Number,
@@ -247,16 +247,16 @@ namespace NewSchool.Database
                        s.Name, s.Sex, s.Photo
                 FROM Enrollment e
                 JOIN Student s ON s.StudentID = e.StudentID;";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] EnrollmentFull 뷰 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] EnrollmentFull 뷰 생성 완료");
 
-            // 7. Subject 테이블(교과목)은 만들지 않는다 — 읽고 쓰는 코드가 한 줄도 없었다.
-            //    과목명은 Course.Subject 에 문자열로 들어간다.
+        // 7. Subject 테이블(교과목)은 만들지 않는다 — 읽고 쓰는 코드가 한 줄도 없었다.
+        //    과목명은 Course.Subject 에 문자열로 들어간다.
 
-            // ==========================================
-            // 8. Course 테이블 (수업 개설) - ⭐ 재설계
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 8. Course 테이블 (수업 개설) - ⭐ 재설계
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS Course (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     SchoolCode TEXT NOT NULL,
@@ -272,16 +272,16 @@ namespace NewSchool.Database
                     FOREIGN KEY (SchoolCode) REFERENCES School(SchoolCode),
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE CASCADE
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Course 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] Course 테이블 생성 완료");
 
-            // 9. CourseSchedule 테이블(교사 시간표)은 만들지 않는다 — 읽고 쓰는 코드가 없었다.
-            //    교사 시간표는 Schedule 이, 학급 시간표는 ClassTimetable 이 맡는다.
+        // 9. CourseSchedule 테이블(교사 시간표)은 만들지 않는다 — 읽고 쓰는 코드가 없었다.
+        //    교사 시간표는 Schedule 이, 학급 시간표는 ClassTimetable 이 맡는다.
 
-            // ==========================================
-            // 10. ClassTimetable 테이블 (학급 시간표) - ⭐ 신규
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 10. ClassTimetable 테이블 (학급 시간표) - ⭐ 신규
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS ClassTimetable (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     SchoolCode TEXT NOT NULL,
@@ -297,13 +297,13 @@ namespace NewSchool.Database
                     FOREIGN KEY (SchoolCode) REFERENCES School(SchoolCode),
                     UNIQUE(SchoolCode, Year, Semester, Grade, Class, DayOfWeek, Period)
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] ClassTimetable 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] ClassTimetable 테이블 생성 완료");
 
-            // ==========================================
-            // 11. CourseEnrollment 테이블 (수강 신청)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 11. CourseEnrollment 테이블 (수강 신청)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS CourseEnrollment (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     EnrollmentNo INTEGER NOT NULL,
@@ -315,12 +315,12 @@ namespace NewSchool.Database
                     FOREIGN KEY (CourseNo) REFERENCES Course(No) ON DELETE CASCADE,
                     UNIQUE(EnrollmentNo, CourseNo)
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] CourseEnrollment 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] CourseEnrollment 테이블 생성 완료");
 
-            // 배정은 학적을 가리키지만 화면은 학생 이름으로 읽는다. 그 JOIN 을 뷰에 모은다.
-            // IsActive 가 함께 나오므로 "전출한 학생을 명단에서 뺀다" 가 조회 한 줄로 된다.
-            cmd.CommandText = @"
+        // 배정은 학적을 가리키지만 화면은 학생 이름으로 읽는다. 그 JOIN 을 뷰에 모은다.
+        // IsActive 가 함께 나오므로 "전출한 학생을 명단에서 뺀다" 가 조회 한 줄로 된다.
+        cmd.CommandText = @"
                 DROP VIEW IF EXISTS CourseEnrollmentFull;
                 CREATE VIEW CourseEnrollmentFull AS
                 SELECT ce.No, ce.EnrollmentNo, ce.CourseNo, ce.Status, ce.Remark, ce.Room,
@@ -329,14 +329,14 @@ namespace NewSchool.Database
                 FROM CourseEnrollment ce
                 JOIN Enrollment e ON e.No = ce.EnrollmentNo
                 JOIN Student s    ON s.StudentID = e.StudentID;";
-            await cmd.ExecuteNonQueryAsync();
+        await cmd.ExecuteNonQueryAsync();
 
-            // ==========================================
-            // 14. StudentLog 테이블 (학생 기록부) - ⭐ 확장 버전
-            // Category: INTEGER (LogCategory enum 값)
-            // 구조화된 활동 기록 필드 추가
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 14. StudentLog 테이블 (학생 기록부) - ⭐ 확장 버전
+        // Category: INTEGER (LogCategory enum 값)
+        // 구조화된 활동 기록 필드 추가
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS StudentLog (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     StudentID TEXT NOT NULL,
@@ -363,13 +363,13 @@ namespace NewSchool.Database
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL,
                     FOREIGN KEY (CourseNo) REFERENCES Course(No) ON DELETE SET NULL
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] StudentLog 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] StudentLog 테이블 생성 완료");
 
-            // ==========================================
-            // 15. StudentSpecial 테이블 (학생 특이사항) - ⭐ 수정
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 15. StudentSpecial 테이블 (학생 특이사항) - ⭐ 수정
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS StudentSpecial (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     StudentID TEXT NOT NULL,
@@ -390,22 +390,22 @@ namespace NewSchool.Database
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL,
                     FOREIGN KEY (CourseNo) REFERENCES Course(No) ON DELETE SET NULL
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] StudentSpecial 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] StudentSpecial 테이블 생성 완료");
 
-            // ==========================================
-            // 기존 테이블들 (유지)
-            // ==========================================
+        // ==========================================
+        // 기존 테이블들 (유지)
+        // ==========================================
 
-            // Lesson 테이블 — 정의는 LessonRepository.SchemaSql 하나뿐(이중 정의 제거)
-            cmd.CommandText = Repositories.LessonRepository.SchemaSql;
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Lesson 테이블 생성 완료");
+        // Lesson 테이블 — 정의는 LessonRepository.SchemaSql 하나뿐(이중 정의 제거)
+        cmd.CommandText = Repositories.LessonRepository.SchemaSql;
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] Lesson 테이블 생성 완료");
 
-            // ==========================================
-            // 16. Club 테이블 (동아리 정보)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 16. Club 테이블 (동아리 정보)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS Club (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     SchoolCode TEXT NOT NULL,
@@ -420,13 +420,13 @@ namespace NewSchool.Database
                     FOREIGN KEY (SchoolCode) REFERENCES School(SchoolCode),
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE CASCADE
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] Club 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] Club 테이블 생성 완료");
 
-            // ==========================================
-            // 17. ClubEnrollment 테이블 (동아리 배정)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 17. ClubEnrollment 테이블 (동아리 배정)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS ClubEnrollment (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     EnrollmentNo INTEGER NOT NULL,
@@ -437,10 +437,10 @@ namespace NewSchool.Database
                     FOREIGN KEY (ClubNo) REFERENCES Club(No) ON DELETE CASCADE,
                     UNIQUE(EnrollmentNo, ClubNo)
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] ClubEnrollment 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] ClubEnrollment 테이블 생성 완료");
 
-            cmd.CommandText = @"
+        cmd.CommandText = @"
                 DROP VIEW IF EXISTS ClubEnrollmentFull;
                 CREATE VIEW ClubEnrollmentFull AS
                 SELECT ce.No, ce.EnrollmentNo, ce.ClubNo, ce.Status, ce.Remark,
@@ -449,12 +449,12 @@ namespace NewSchool.Database
                 FROM ClubEnrollment ce
                 JOIN Enrollment e ON e.No = ce.EnrollmentNo
                 JOIN Student s    ON s.StudentID = e.StudentID;";
-            await cmd.ExecuteNonQueryAsync();
+        await cmd.ExecuteNonQueryAsync();
 
-            // ==========================================
-            // 18. ClassDiary 테이블 (학급 일지) - ⭐ 개선 버전
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // 18. ClassDiary 테이블 (학급 일지) - ⭐ 개선 버전
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS ClassDiary (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     SchoolCode TEXT NOT NULL,
@@ -476,11 +476,11 @@ namespace NewSchool.Database
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE SET NULL,
                     UNIQUE(SchoolCode, Year, Semester, Grade, Class, Date)
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("[DatabaseInitializer] ClassDiary 테이블 생성 완료");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] ClassDiary 테이블 생성 완료");
 
-            // SchoolSchedule 테이블 (학사일정 - NEIS API + 수동 입력)
-            cmd.CommandText = @"
+        // SchoolSchedule 테이블 (학사일정 - NEIS API + 수동 입력)
+        cmd.CommandText = @"
     CREATE TABLE IF NOT EXISTS SchoolSchedule (
         No INTEGER PRIMARY KEY AUTOINCREMENT,
         SCHUL_NM TEXT DEFAULT '',
@@ -503,14 +503,14 @@ namespace NewSchool.Database
         UpdatedAt TEXT NOT NULL,
         IsDeleted INTEGER DEFAULT 0
     )";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("  ✓ SchoolSchedule 테이블 생성");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("  ✓ SchoolSchedule 테이블 생성");
 
-            // ==========================================
-            // SeatArrangement 테이블 (학급별 좌석 배치 메타)
-            // 저장/복원/출력을 위한 레이아웃 정보
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // SeatArrangement 테이블 (학급별 좌석 배치 메타)
+        // 저장/복원/출력을 위한 레이아웃 정보
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS SeatArrangement (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     SchoolCode TEXT NOT NULL,
@@ -528,14 +528,14 @@ namespace NewSchool.Database
                     UpdatedAt TEXT NOT NULL,
                     UNIQUE(SchoolCode, Year, Grade, Class)
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("  ✓ SeatArrangement 테이블 생성");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("  ✓ SeatArrangement 테이블 생성");
 
-            // ==========================================
-            // SeatAssignment 테이블 (좌석별 학생 배정)
-            // Row/Col 좌표마다 한 학생 또는 미사용 플래그
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // SeatAssignment 테이블 (좌석별 학생 배정)
+        // Row/Col 좌표마다 한 학생 또는 미사용 플래그
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS SeatAssignment (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     ArrangementNo INTEGER NOT NULL,
@@ -548,14 +548,14 @@ namespace NewSchool.Database
                     FOREIGN KEY (ArrangementNo) REFERENCES SeatArrangement(No) ON DELETE CASCADE,
                     UNIQUE(ArrangementNo, Row, Col)
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("  ✓ SeatAssignment 테이블 생성");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("  ✓ SeatAssignment 테이블 생성");
 
-            // ==========================================
-            // SeatHistory 테이블 (짝 이력 — 지난 짝 배제용)
-            // 저장 시점마다 짝(인접 좌석) 관계를 기록
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // SeatHistory 테이블 (짝 이력 — 지난 짝 배제용)
+        // 저장 시점마다 짝(인접 좌석) 관계를 기록
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS SeatHistory (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     SchoolCode TEXT NOT NULL,
@@ -568,13 +568,13 @@ namespace NewSchool.Database
                     Kind TEXT NOT NULL DEFAULT 'Pair',
                     SavedAt TEXT NOT NULL
                 );";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("  ✓ SeatHistory 테이블 생성");
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("  ✓ SeatHistory 테이블 생성");
 
-            // ==========================================
-            // SeatPosHistory 테이블 (좌석 위치 이력 — 지난 자리 배제용)
-            // ==========================================
-            cmd.CommandText = @"
+        // ==========================================
+        // SeatPosHistory 테이블 (좌석 위치 이력 — 지난 자리 배제용)
+        // ==========================================
+        cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS SeatPosHistory (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     SchoolCode TEXT NOT NULL,
@@ -587,55 +587,55 @@ namespace NewSchool.Database
                     Round INTEGER NOT NULL,
                     SavedAt TEXT NOT NULL
                 );";
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("  ✓ SeatPosHistory 테이블 생성");
+
+        await CreateRepositoryOwnedTablesAsync(cmd);
+
+        Debug.WriteLine("[DatabaseInitializer] 모든 테이블 생성 완료");
+    }
+
+    /// <summary>
+    /// 정의를 각 리포지토리가 들고 있는 테이블들을 초기화 시점에 미리 만든다.
+    ///
+    /// 예전에는 해당 리포지토리 생성자가 처음 호출될 때만 만들어졌는데,
+    /// 이 중 <c>CourseSection</c> 은 다른 테이블의
+    /// FK 부모다. <c>foreign_keys=ON</c> 에서 부모 테이블이 없으면 자식 테이블에 대한
+    /// INSERT/UPDATE 가 준비 단계에서 <c>no such table</c> 로 실패한다
+    /// 지금까지는 화면들이 우연히 부모 리포지토리를 먼저 열어서 가려져 있었을 뿐이므로,
+    /// 순서 의존을 없애기 위해 여기서 한 번에 만든다.
+    ///
+    /// 전부 <c>CREATE TABLE IF NOT EXISTS</c> 라 기존 DB 에는 아무 영향이 없다.
+    /// 각 리포지토리의 컬럼 추가·재작성 마이그레이션은 종전대로 생성자에서 돈다.
+    /// 순서는 FK 부모 → 자식.
+    /// </summary>
+    private static async Task CreateRepositoryOwnedTablesAsync(SqliteCommand cmd)
+    {
+        var schemas = new (string Name, string Sql)[]
+        {
+            ("CourseSection",      Repositories.CourseSectionRepository.SchemaSql),
+            ("LessonProgress",     Repositories.LessonProgressRepository.SchemaSql),
+            ("CourseWeeklyHours",  Repositories.CourseWeeklyHoursRepository.SchemaSql),
+            ("LessonChange",       Repositories.LessonChangeRepository.SchemaSql),
+        };
+
+        foreach (var (name, sql) in schemas)
+        {
+            cmd.CommandText = sql;
             await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("  ✓ SeatPosHistory 테이블 생성");
-
-            await CreateRepositoryOwnedTablesAsync(cmd);
-
-            Debug.WriteLine("[DatabaseInitializer] 모든 테이블 생성 완료");
+            Debug.WriteLine($"  ✓ {name} 테이블 생성(리포지토리 정의)");
         }
+    }
 
-        /// <summary>
-        /// 정의를 각 리포지토리가 들고 있는 테이블들을 초기화 시점에 미리 만든다.
-        ///
-        /// 예전에는 해당 리포지토리 생성자가 처음 호출될 때만 만들어졌는데,
-        /// 이 중 <c>CourseSection</c> 은 다른 테이블의
-        /// FK 부모다. <c>foreign_keys=ON</c> 에서 부모 테이블이 없으면 자식 테이블에 대한
-        /// INSERT/UPDATE 가 준비 단계에서 <c>no such table</c> 로 실패한다
-        /// 지금까지는 화면들이 우연히 부모 리포지토리를 먼저 열어서 가려져 있었을 뿐이므로,
-        /// 순서 의존을 없애기 위해 여기서 한 번에 만든다.
-        ///
-        /// 전부 <c>CREATE TABLE IF NOT EXISTS</c> 라 기존 DB 에는 아무 영향이 없다.
-        /// 각 리포지토리의 컬럼 추가·재작성 마이그레이션은 종전대로 생성자에서 돈다.
-        /// 순서는 FK 부모 → 자식.
-        /// </summary>
-        private static async Task CreateRepositoryOwnedTablesAsync(SqliteCommand cmd)
-        {
-            var schemas = new (string Name, string Sql)[]
-            {
-                ("CourseSection",      Repositories.CourseSectionRepository.SchemaSql),
-                ("LessonProgress",     Repositories.LessonProgressRepository.SchemaSql),
-                ("CourseWeeklyHours",  Repositories.CourseWeeklyHoursRepository.SchemaSql),
-                ("LessonChange",       Repositories.LessonChangeRepository.SchemaSql),
-            };
+    private async Task CreateIndexesAsync()
+    {
+        if (_connection == null) return;
 
-            foreach (var (name, sql) in schemas)
-            {
-                cmd.CommandText = sql;
-                await cmd.ExecuteNonQueryAsync();
-                Debug.WriteLine($"  ✓ {name} 테이블 생성(리포지토리 정의)");
-            }
-        }
+        using var cmd = _connection.CreateCommand();
 
-        private async Task CreateIndexesAsync()
-        {
-            if (_connection == null) return;
+        Debug.WriteLine("[DatabaseInitializer] 인덱스 생성 시작...");
 
-            using var cmd = _connection.CreateCommand();
-
-            Debug.WriteLine("[DatabaseInitializer] 인덱스 생성 시작...");
-
-            cmd.CommandText = @"
+        cmd.CommandText = @"
                 -- School 인덱스
                 CREATE INDEX IF NOT EXISTS idx_school_code ON School(SchoolCode);
                 CREATE INDEX IF NOT EXISTS idx_school_active ON School(IsActive, IsDeleted);
@@ -708,7 +708,9 @@ namespace NewSchool.Database
 
                 -- 기존 테이블 인덱스
                 CREATE INDEX IF NOT EXISTS idx_lesson_teacher ON Lesson(Teacher, Year, Semester);
-                CREATE INDEX IF NOT EXISTS idx_lesson_date ON Lesson(Date, Period);
+                -- Lesson(Date, Period) 인덱스는 Date 열과 함께 걷어냈다(2026-08-29).
+                -- 없는 열에 CREATE INDEX 를 걸면 새 DB 의 초기화가 통째로 멎는다
+                -- (CourseSchedule 인덱스를 지울 때와 같은 자리다).
 
                 -- Club 인덱스
                 CREATE INDEX IF NOT EXISTS idx_club_school ON Club(SchoolCode, Year);
@@ -753,66 +755,66 @@ namespace NewSchool.Database
                     ON SeatPosHistory(SchoolCode, Year, Grade, Class, Round, StudentID);
             ";
 
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("  ✓ SchoolSchedule 인덱스 생성");
+
+        Debug.WriteLine("[DatabaseInitializer] 인덱스 생성 완료");
+    }
+
+    /// <summary>
+    /// 세대 변환. <see cref="SchemaVersion"/> 을 올릴 때마다 <c>if (version &lt; N) { …변환… }</c>
+    /// 한 덩이를 여기에 더한다. 테이블 생성보다 <b>먼저</b> 돈다 — 버릴 테이블을 지운 뒤에
+    /// 남길 테이블을 만들어야 순서가 꼬이지 않는다. 새 번호는 초기화 끝에
+    /// <see cref="StampSchemaVersionAsync"/> 가 찍는다.
+    /// </summary>
+    private async Task MigrateSchemaAsync()
+    {
+        if (_connection == null) return;
+
+        using var cmd = _connection.CreateCommand();
+
+        cmd.CommandText = "PRAGMA user_version;";
+        int version = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+
+        // 새 DB 는 0 으로 시작해 아래를 모두 훑지만, 전부 IF EXISTS 라 실질적으로 no-op 이다.
+        if (version < 2)
+        {
+            // 수업 일지가 게시판 한 곳으로 모이면서 읽는 코드가 사라졌다.
+            cmd.CommandText = "DROP TABLE IF EXISTS LessonLog;";
             await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine("  ✓ SchoolSchedule 인덱스 생성");
-
-            Debug.WriteLine("[DatabaseInitializer] 인덱스 생성 완료");
+            Debug.WriteLine("[DatabaseInitializer] 마이그레이션 2: LessonLog 테이블 제거");
         }
+    }
 
-        /// <summary>
-        /// 세대 변환. <see cref="SchemaVersion"/> 을 올릴 때마다 <c>if (version &lt; N) { …변환… }</c>
-        /// 한 덩이를 여기에 더한다. 테이블 생성보다 <b>먼저</b> 돈다 — 버릴 테이블을 지운 뒤에
-        /// 남길 테이블을 만들어야 순서가 꼬이지 않는다. 새 번호는 초기화 끝에
-        /// <see cref="StampSchemaVersionAsync"/> 가 찍는다.
-        /// </summary>
-        private async Task MigrateSchemaAsync()
-        {
-            if (_connection == null) return;
+    /// <summary>
+    /// 스키마 세대 번호를 <c>PRAGMA user_version</c> 에 기록한다.
+    /// 이미 같은 값이 찍혀 있으면 실질적으로 no-op. (PRAGMA 는 파라미터 바인딩을
+    /// 지원하지 않지만 <see cref="SchemaVersion"/> 은 코드 내 int 상수라 주입 위험이 없다.)
+    /// </summary>
+    private async Task StampSchemaVersionAsync()
+    {
+        if (_connection == null) return;
 
-            using var cmd = _connection.CreateCommand();
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = $"PRAGMA user_version = {SchemaVersion};";
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine($"[DatabaseInitializer] 스키마 버전 기록: {SchemaVersion}");
+    }
 
-            cmd.CommandText = "PRAGMA user_version;";
-            int version = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+    /// <summary>
+    /// 외래키(PRAGMA foreign_keys)가 꺼진 채 운영되던 시기에 쌓였을 수 있는 고아 행 정리.
+    /// BaseRepository 가 연결마다 foreign_keys=ON 을 켜므로, 기존 위반 데이터를 남겨두면
+    /// 이후 UPDATE 시 FK 위반으로 실패한다. 스키마의 CASCADE/SET NULL 의도대로 일괄 보정한다.
+    /// </summary>
+    private async Task CleanupOrphansAsync()
+    {
+        if (_connection == null) return;
 
-            // 새 DB 는 0 으로 시작해 아래를 모두 훑지만, 전부 IF EXISTS 라 실질적으로 no-op 이다.
-            if (version < 2)
-            {
-                // 수업 일지가 게시판 한 곳으로 모이면서 읽는 코드가 사라졌다.
-                cmd.CommandText = "DROP TABLE IF EXISTS LessonLog;";
-                await cmd.ExecuteNonQueryAsync();
-                Debug.WriteLine("[DatabaseInitializer] 마이그레이션 2: LessonLog 테이블 제거");
-            }
-        }
+        using var cmd = _connection.CreateCommand();
 
-        /// <summary>
-        /// 스키마 세대 번호를 <c>PRAGMA user_version</c> 에 기록한다.
-        /// 이미 같은 값이 찍혀 있으면 실질적으로 no-op. (PRAGMA 는 파라미터 바인딩을
-        /// 지원하지 않지만 <see cref="SchemaVersion"/> 은 코드 내 int 상수라 주입 위험이 없다.)
-        /// </summary>
-        private async Task StampSchemaVersionAsync()
-        {
-            if (_connection == null) return;
-
-            using var cmd = _connection.CreateCommand();
-            cmd.CommandText = $"PRAGMA user_version = {SchemaVersion};";
-            await cmd.ExecuteNonQueryAsync();
-            Debug.WriteLine($"[DatabaseInitializer] 스키마 버전 기록: {SchemaVersion}");
-        }
-
-        /// <summary>
-        /// 외래키(PRAGMA foreign_keys)가 꺼진 채 운영되던 시기에 쌓였을 수 있는 고아 행 정리.
-        /// BaseRepository 가 연결마다 foreign_keys=ON 을 켜므로, 기존 위반 데이터를 남겨두면
-        /// 이후 UPDATE 시 FK 위반으로 실패한다. 스키마의 CASCADE/SET NULL 의도대로 일괄 보정한다.
-        /// </summary>
-        private async Task CleanupOrphansAsync()
-        {
-            if (_connection == null) return;
-
-            using var cmd = _connection.CreateCommand();
-
-            // 자식 행이 참조하는 SchoolCode 가 School 에 없으면 이후 해당 행 수정이 FK 위반으로 막히므로
-            // 최소 정보의 School 행을 만들어 참조를 살린다 (초기 설정 누락 등 방어)
-            cmd.CommandText = @"
+        // 자식 행이 참조하는 SchoolCode 가 School 에 없으면 이후 해당 행 수정이 FK 위반으로 막히므로
+        // 최소 정보의 School 행을 만들어 참조를 살린다 (초기 설정 누락 등 방어)
+        cmd.CommandText = @"
                 INSERT INTO School (SchoolCode, SchoolName, CreatedAt, UpdatedAt)
                 SELECT DISTINCT SchoolCode, SchoolCode, @Now, @Now FROM (
                     SELECT SchoolCode FROM Enrollment
@@ -841,6 +843,25 @@ namespace NewSchool.Database
                        OR ClubNo NOT IN (SELECT No FROM Club);
                 DELETE FROM SeatAssignment WHERE ArrangementNo NOT IN (SELECT No FROM SeatArrangement);
 
+                -- 좌석 셋은 StudentID 를 직접 들고 있으면서 FK 가 없다(설계 근거는
+                -- docs/enrollment-redesign.md 7.5). FK 가 없으니 학생을 지워도 아무것도
+                -- 따라 지워지지 않아, 없는 학생을 가리키는 행이 영영 쌓인다.
+                --
+                -- 좌석은 NULL 로 비운다 — 그 행에는 미사용·숨김·고정 같은 배치 상태도 함께
+                -- 들어 있어서, 지우면 자리 모양이 무너진다. 화면도 짝이 없는 StudentID 는
+                -- 빈 자리로 그리므로(PageSeats 의 복원 루프) 결과가 같다.
+                UPDATE SeatAssignment SET StudentID = NULL
+                    WHERE StudentID IS NOT NULL
+                      AND StudentID NOT IN (SELECT StudentID FROM Student);
+
+                -- 이력 둘은 지운다. 배치 상태를 함께 들고 있지 않아 남길 것이 없고,
+                -- 없는 학생의 지난 짝·지난 자리는 다음 배치에서 쓸 일이 없다.
+                DELETE FROM SeatHistory
+                    WHERE StudentID_A NOT IN (SELECT StudentID FROM Student)
+                       OR StudentID_B NOT IN (SELECT StudentID FROM Student);
+                DELETE FROM SeatPosHistory
+                    WHERE StudentID NOT IN (SELECT StudentID FROM Student);
+
                 -- SET NULL 관계: 부모가 사라진 참조는 NULL 로 보정
                 UPDATE Enrollment SET TeacherID = NULL
                     WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
@@ -855,20 +876,19 @@ namespace NewSchool.Database
                 UPDATE ClassDiary SET TeacherID = NULL
                     WHERE TeacherID IS NOT NULL AND TeacherID NOT IN (SELECT TeacherID FROM Teacher);
             ";
-            cmd.Parameters.AddWithValue("@Now", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
+        cmd.Parameters.AddWithValue("@Now", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
 
-            int affected = await cmd.ExecuteNonQueryAsync();
-            if (affected > 0)
-                Debug.WriteLine($"[DatabaseInitializer] 고아 행 정리: {affected}행 보정");
-        }
+        int affected = await cmd.ExecuteNonQueryAsync();
+        if (affected > 0)
+            Debug.WriteLine($"[DatabaseInitializer] 고아 행 정리: {affected}행 보정");
+    }
 
-        public void Dispose()
+    public void Dispose()
+    {
+        if (!_disposed)
         {
-            if (!_disposed)
-            {
-                _connection?.Dispose();
-                _disposed = true;
-            }
+            _connection?.Dispose();
+            _disposed = true;
         }
     }
 }
