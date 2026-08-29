@@ -72,8 +72,10 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     {
         base.OnNavigatedTo(e);
 
+        // ViewModel 의 PropertyChanged 를 구독하던 줄은 지웠다(2026-08-30) —
+        // 핸들러 본문이 비어 있어, 구독·해제만 하고 아무 일도 하지 않았다.
+        // 화면은 x:Bind 로 ViewModel 을 직접 읽는다.
         ViewModel = new TodayPageViewModel(DispatcherQueue);
-        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -84,7 +86,6 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
         if (ViewModel != null)
         {
-            ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
             ViewModel.SchoolEvents.Clear();
             ViewModel.Tasks.Clear();
             ViewModel.Meals = null;
@@ -92,8 +93,6 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
         ViewModel = null;
     }
-
-    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e) { }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {

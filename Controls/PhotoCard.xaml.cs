@@ -102,14 +102,12 @@ public sealed partial class PhotoCard : UserControl
     public double CardWidth
     {
         get => this.Width;
-        set => SetSize(value, null);
+        set => SetSize(value);
     }
 
-    public double CardHeight
-    {
-        get => this.Height;
-        set => SetSize(null, value);
-    }
+    // 높이로 크기를 정하는 CardHeight 는 지웠다(2026-08-30) — 읽는 곳도 넣는 곳도 없었다.
+    // 좌석은 늘 너비로 정한다(PageSeats 가 CardWidth 만 넣는다). 높이는 사진 비율(3:4)과
+    // 이름칸에서 따라 나오므로, 둘 다 열어 두면 어느 쪽이 기준인지 흐려진다.
 
     #endregion
 
@@ -240,7 +238,7 @@ public sealed partial class PhotoCard : UserControl
         {
             PhotoControl.Visibility = Visibility.Visible;
             RowPhoto.Height = GridLength.Auto;
-            SetSize(this.Width, null);
+            SetSize(this.Width);
 
             if (_studentData != null && !string.IsNullOrEmpty(_studentData.PhotoPath))
             {
@@ -256,7 +254,7 @@ public sealed partial class PhotoCard : UserControl
         {
             PhotoControl.Visibility = Visibility.Collapsed;
             RowPhoto.Height = new GridLength(0);
-            SetSize(this.Width, null);
+            SetSize(this.Width);
         }
     }
 
@@ -323,27 +321,20 @@ public sealed partial class PhotoCard : UserControl
 
     #region Methods - Size Management
 
-    private void SetSize(double? width, double? height)
+    /// <summary>
+    /// 너비를 정하면 나머지가 따라 나온다 — 사진은 3:4, 이름칸은 너비의 1/3.
+    ///
+    /// <para>예전에는 높이로도 정할 수 있었다(<c>SetSize(null, height)</c>). 그 갈래는
+    /// <c>CardHeight</c> 하나만 쓰던 길인데 그것도 부르는 곳이 없어 함께 걷었다.
+    /// 기준이 하나면 둘이 어긋날 일도 없다.</para>
+    /// </summary>
+    private void SetSize(double width)
     {
-        if (width is not null)
-        {
-            this.Width = (double)width;
-            PhotoControl.Width = this.Width - 2;
-            PhotoControl.Height = IsShowPhoto ? PhotoControl.Width / 3 * 4 : 0;
-            NameBox.Height = PhotoControl.Width / 3;
-            this.Height = PhotoControl.Height + 2 + NameBox.Height;
-            return;
-        }
-
-        if (height is not null)
-        {
-            this.Height = (double)height;
-            PhotoControl.Height = (this.Height - 2) / 5 * 4;
-            NameBox.Height = PhotoControl.Height / 4;
-            PhotoControl.Width = PhotoControl.Height / 4 * 3;
-            this.Width = PhotoControl.Width + 2;
-            return;
-        }
+        this.Width = width;
+        PhotoControl.Width = this.Width - 2;
+        PhotoControl.Height = IsShowPhoto ? PhotoControl.Width / 3 * 4 : 0;
+        NameBox.Height = PhotoControl.Width / 3;
+        this.Height = PhotoControl.Height + 2 + NameBox.Height;
     }
 
     #endregion
