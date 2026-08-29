@@ -99,16 +99,12 @@ public static class CourseTypes
     public const string Club = "Club";
 }
 
-/// <summary>
-/// 출결 상태
-/// </summary>
-public static class AttendanceStatus
-{
-    public const string Present = "출석";
-    public const string Tardy = "지각";
-    public const string EarlyLeave = "조퇴";
-    public const string Absent = "결석";
-    public const string Excused = "결과";
-    public const string Illness = "질병";
-    public const string Other = "기타";
-}
+// 출결 상태 상수(AttendanceStatus — 출석·지각·조퇴·결석·결과·질병·기타)는 지웠다(2026-08-30).
+//
+// 쓰던 곳은 ClassDiary.GetAttendanceStatus 하나뿐이었는데, 학급일지의 출결 칸이 **교사가
+// 손으로 적는 메모**로 확정되면서 그 메서드가 함께 사라졌다. 메모칸에는 상태 목록이라는
+// 것이 없다 — 교사가 뭐라고 적든 그대로다.
+//
+// 학생별 출결을 제대로 기록하게 되면 그때 다시 만들 것. 그 표는 학적(Enrollment)을
+// 가리켜야 하고, 상태 목록도 그 표의 설계와 함께 정해야 한다(NEIS 는 결석 사유를
+// 질병·미인정·기타·인정으로 가른다 — 위 목록은 그것과도 맞지 않았다).
