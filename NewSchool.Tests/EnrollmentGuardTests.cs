@@ -20,7 +20,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
 
     public EnrollmentGuardTests(SqliteTestFixture db) => _db = db;
 
-    private async Task<string> LeftStudentAsync(string changeType, string changeDate,
+    private async Task<string> LeftStudentAsync(string changeType, DateTime changeDate,
                                                 int year, int number)
     {
         var sid = await _db.NewStudentInDbAsync("떠난학생");
@@ -28,7 +28,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
 
         int no = await repo.CreateAsync(
             TestData.NewEnrollment(sid, "떠난학생", year: year, number: number));
-        await repo.ApplyChangeAsync(no, changeType, DateTime.Parse(changeDate));
+        await repo.ApplyChangeAsync(no, changeType, changeDate);
 
         return sid;
     }
@@ -43,7 +43,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
     public async Task 떠난_뒤_날짜면_알린다(string changeType)
     {
         int year = TestData.Year + 30;
-        var sid = await LeftStudentAsync(changeType, $"{year}-05-10", year, 1);
+        var sid = await LeftStudentAsync(changeType, new DateTime(year, 5, 10), year, 1);
 
         var notice = await EnrollmentGuard.DescribeRecordAfterLeavingAsync(
             sid, year, new DateTime(year, 5, 20), _db.DbPath, TestData.SchoolCode);
@@ -58,7 +58,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
     public async Task 떠나기_전_날짜면_알리지_않는다()
     {
         int year = TestData.Year + 31;
-        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, $"{year}-05-10", year, 2);
+        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, new DateTime(year, 5, 10), year, 2);
 
         Assert.Null(await EnrollmentGuard.DescribeRecordAfterLeavingAsync(
             sid, year, new DateTime(year, 5, 1), _db.DbPath, TestData.SchoolCode));
@@ -69,7 +69,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
     {
         // 전출일 당일까지는 우리 학생이었다.
         int year = TestData.Year + 32;
-        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, $"{year}-05-10", year, 3);
+        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, new DateTime(year, 5, 10), year, 3);
 
         Assert.Null(await EnrollmentGuard.DescribeRecordAfterLeavingAsync(
             sid, year, new DateTime(year, 5, 10), _db.DbPath, TestData.SchoolCode));
@@ -83,7 +83,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
     {
         // 명단에는 안 나오지만 학적은 살아 있어 그 사이에도 기록할 일이 있다.
         int year = TestData.Year + 33;
-        var sid = await LeftStudentAsync(changeType, $"{year}-05-10", year, 4);
+        var sid = await LeftStudentAsync(changeType, new DateTime(year, 5, 10), year, 4);
 
         Assert.Null(await EnrollmentGuard.DescribeRecordAfterLeavingAsync(
             sid, year, new DateTime(year, 9, 1), _db.DbPath, TestData.SchoolCode));
@@ -128,7 +128,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
     public async Task 그_학년도_학적이_없으면_알리지_않는다()
     {
         int year = TestData.Year + 36;
-        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, $"{year}-05-10", year, 7);
+        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, new DateTime(year, 5, 10), year, 7);
 
         // 다른 학년도로 물으면 근거가 없다.
         Assert.Null(await EnrollmentGuard.DescribeRecordAfterLeavingAsync(
@@ -148,7 +148,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
     public async Task 전출일_뒤에_남은_누가기록을_센다()
     {
         int year = TestData.Year + 37;
-        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, $"{year}-05-10", year, 8);
+        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, new DateTime(year, 5, 10), year, 8);
 
         using var logRepo = new StudentLogRepository(_db.DbPath);
         await logRepo.CreateAsync(TestData.NewStudentLog(sid, year: year, date: new DateTime(year, 5, 1)));
@@ -156,7 +156,7 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
         await logRepo.CreateAsync(TestData.NewStudentLog(sid, year: year, date: new DateTime(year, 7, 1)));
 
         var notice = await EnrollmentGuard.DescribeExistingRecordsAfterAsync(
-            sid, year, EnrollmentChange.TransferredOut, $"{year}-05-10", _db.DbPath);
+            sid, year, EnrollmentChange.TransferredOut, new DateTime(year, 5, 10), _db.DbPath);
 
         Assert.NotNull(notice);
         Assert.Contains("2건", notice);   // 6월·7월만. 5월 1일은 전출 전이다
@@ -166,13 +166,13 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
     public async Task 뒤에_남은_기록이_없으면_알리지_않는다()
     {
         int year = TestData.Year + 38;
-        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, $"{year}-05-10", year, 9);
+        var sid = await LeftStudentAsync(EnrollmentChange.TransferredOut, new DateTime(year, 5, 10), year, 9);
 
         using var logRepo = new StudentLogRepository(_db.DbPath);
         await logRepo.CreateAsync(TestData.NewStudentLog(sid, year: year, date: new DateTime(year, 3, 1)));
 
         Assert.Null(await EnrollmentGuard.DescribeExistingRecordsAfterAsync(
-            sid, year, EnrollmentChange.TransferredOut, $"{year}-05-10", _db.DbPath));
+            sid, year, EnrollmentChange.TransferredOut, new DateTime(year, 5, 10), _db.DbPath));
     }
 
     [Fact]
@@ -182,6 +182,6 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
         var sid = await _db.NewStudentInDbAsync("진급생");
 
         Assert.Null(await EnrollmentGuard.DescribeExistingRecordsAfterAsync(
-            sid, year, EnrollmentChange.Promoted, $"{year}-03-02", _db.DbPath));
+            sid, year, EnrollmentChange.Promoted, new DateTime(year, 3, 2), _db.DbPath));
     }
 }

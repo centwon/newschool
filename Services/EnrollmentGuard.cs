@@ -56,7 +56,7 @@ public static class EnrollmentGuard
 
             if (!HasLeft(enrollment.ChangeType)) return null;
 
-            var left = ParseDate(enrollment.ChangeDate);
+            var left = enrollment.ChangeDate;
             if (left == null) return null;                  // 날짜를 모르면 기준이 없다
             if (recordDate.Date <= left.Value.Date) return null;
 
@@ -82,12 +82,12 @@ public static class EnrollmentGuard
     /// </summary>
     /// <returns>알릴 것이 없으면 <c>null</c>.</returns>
     public static async Task<string?> DescribeExistingRecordsAfterAsync(
-        string studentId, int year, string changeType, string? changeDate,
+        string studentId, int year, string changeType, DateTime? changeDate,
         string? dbPath = null)
     {
         if (!HasLeft(changeType)) return null;
 
-        var left = ParseDate(changeDate);
+        var left = changeDate;
         if (left == null) return null;
 
         try

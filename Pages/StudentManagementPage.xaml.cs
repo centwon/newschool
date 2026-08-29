@@ -1,18 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Collections;
-using NewSchool.Dialogs;
-using NewSchool.Models;
-using NewSchool.Services;
-using NewSchool.Repositories;
-using NewSchool.Helpers;
-using System.Diagnostics;
 using NewSchool.Controls;
+using NewSchool.Dialogs;
+using NewSchool.Helpers;
+using NewSchool.Models;
+using NewSchool.Repositories;
+using NewSchool.Services;
 
 namespace NewSchool.Pages;
 
@@ -298,7 +299,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             vm.Number = updated.Number;
             vm.Name = updated.Name;
             vm.ChangeType = updated.ChangeType;
-            vm.ChangeDate = updated.ChangeDate;
+            vm.ChangeDate = FormatChangeDate(updated.ChangeDate);
             vm.Memo = updated.Memo;
         }
         catch (Exception ex)
@@ -417,7 +418,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                 Number = e.Number,
                 Name = e.Name,
                 ChangeType = e.ChangeType,
-                ChangeDate = e.ChangeDate,
+                ChangeDate = FormatChangeDate(e.ChangeDate),
                 Memo = e.Memo,
                 IsSelected = false
             }).ToList();
@@ -540,6 +541,13 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             : $"총 {Students.Count}명 (재적 {onRoll} · 전출 등 {Students.Count - onRoll})";
     }
 
+    /// <summary>
+    /// 모델의 변동 일자를 목록에 찍을 글자로. 날짜가 없으면 <b>빈 칸</b>이다 —
+    /// "1-1-0001" 같은 기본값을 찍으면 날짜를 넣은 것처럼 보인다.
+    /// </summary>
+    private static string FormatChangeDate(DateTime? value) =>
+        value?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty;
+
     #endregion
 }
 #region ViewModel
@@ -619,7 +627,11 @@ public class StudentManagementViewModel : NotifyPropertyChangedBase
         }
     }
 
-    /// <summary>변동 일자 (yyyy-MM-dd)</summary>
+    /// <summary>
+    /// 변동 일자 (yyyy-MM-dd). <b>표시용이라 문자열이 맞다</b> — 목록에 글자로 찍을 뿐이다.
+    /// 모델(<c>Enrollment.ChangeDate</c>)은 <c>DateTime?</c> 이고, 이 값은
+    /// <c>FormatChangeDate</c> 로 만든다(날짜가 없으면 빈 칸).
+    /// </summary>
     public string ChangeDate
     {
         get => _changeDate;

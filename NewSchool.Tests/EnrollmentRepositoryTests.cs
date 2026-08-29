@@ -63,7 +63,7 @@ public class EnrollmentRepositoryTests : IClassFixture<SqliteTestFixture>
 
         var loaded = await repo.GetByIdAsync(no);
         Assert.Equal(EnrollmentChange.Graduated, loaded!.ChangeType);
-        Assert.StartsWith($"{TestData.Year + 1}-02", loaded.ChangeDate);
+        Assert.Equal(gradDate.Date, loaded.ChangeDate);
 
         // 졸업생은 명단에서 빠진다 — 이것이 어긋나면 명렬표에 계속 남는다.
         Assert.False(loaded.IsActive);
@@ -88,5 +88,70 @@ public class EnrollmentRepositoryTests : IClassFixture<SqliteTestFixture>
         Assert.Single(roster);
         Assert.Equal(staying, roster[0].StudentID);
         Assert.Equal(2, everyone.Count);
+    }
+
+    // ── 변동 일자는 DateTime? 다 (2026-08-30) ────────────────────────────
+    //
+    // 컬럼은 TEXT("yyyy-MM-dd")이고 모델은 DateTime? 다. 그 경계가 이 리포지토리 하나뿐이라
+    // 여기서 못박는다. 특히 **null 이 진짜 상태**라는 것 — DateTime.MinValue 같은 특수값으로
+    // 바꿔 놓으면 EnrollmentGuard 가 "아주 오래전에 떠났다" 로 읽어 늘 경고를 띄운다.
+
+    [Fact]
+    public async Task 변동_일자가_왕복한다()
+    {
+        int year = TestData.Year + 70;
+        using var repo = new EnrollmentRepository(_db.DbPath);
+        var sid = await _db.NewStudentInDbAsync("날짜있는학생");
+
+        var e = TestData.NewEnrollment(sid, year: year);
+        e.ApplyChange(EnrollmentChange.TransferredOut, new DateTime(year, 5, 10));
+        int no = await repo.CreateAsync(e);
+
+        var loaded = await repo.GetByIdAsync(no);
+        Assert.Equal(new DateTime(year, 5, 10), loaded!.ChangeDate);
+    }
+
+    [Fact]
+    public async Task 변동_일자가_없으면_null_로_돌아온다()
+    {
+        int year = TestData.Year + 71;
+        using var repo = new EnrollmentRepository(_db.DbPath);
+        var sid = await _db.NewStudentInDbAsync("날짜없는학생");
+
+        var e = TestData.NewEnrollment(sid, year: year);
+        e.ChangeDate = null;
+        int no = await repo.CreateAsync(e);
+
+        var loaded = await repo.GetByIdAsync(no);
+        Assert.Null(loaded!.ChangeDate);
+    }
+
+    /// <summary>
+    /// ⚠ 형식이 어긋난 글자가 들어 있어도 <b>던지지 않는다</b>.
+    ///
+    /// <para>이 매퍼는 명렬표 조회가 모두 지나는 길목이라, 여기서 터지면 날짜 하나가 아니라
+    /// <b>학생 목록이 통째로 안 뜬다.</b> 문자열이던 시절에 아무 글자나 들어갈 수 있었으므로
+    /// 옛 DB 에 그런 행이 남아 있을 수 있다.</para>
+    /// </summary>
+    [Fact]
+    public async Task 깨진_날짜_글자는_null_로_읽고_터지지_않는다()
+    {
+        int year = TestData.Year + 72;
+        using var repo = new EnrollmentRepository(_db.DbPath);
+        var sid = await _db.NewStudentInDbAsync("깨진날짜학생");
+        int no = await repo.CreateAsync(TestData.NewEnrollment(sid, year: year));
+
+        using (var con = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_db.DbPath}"))
+        {
+            await con.OpenAsync();
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = "UPDATE Enrollment SET ChangeDate = '날짜아님' WHERE No = @no";
+            cmd.Parameters.AddWithValue("@no", no);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var loaded = await repo.GetByIdAsync(no);   // 던지면 여기서 실패한다
+        Assert.NotNull(loaded);
+        Assert.Null(loaded!.ChangeDate);
     }
 }

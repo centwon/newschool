@@ -1,4 +1,5 @@
-﻿using NewSchool.Models;
+﻿using System;
+using NewSchool.Models;
 using Xunit;
 
 namespace NewSchool.Tests;
@@ -111,10 +112,10 @@ public sealed class EnrollmentChangeTests
     {
         var e = new Enrollment();
 
-        e.ApplyChange(EnrollmentChange.TransferredOut, "2026-05-10");
+        e.ApplyChange(EnrollmentChange.TransferredOut, new DateTime(2026, 5, 10));
 
         Assert.Equal(EnrollmentChange.TransferredOut, e.ChangeType);
-        Assert.Equal("2026-05-10", e.ChangeDate);
+        Assert.Equal(new DateTime(2026, 5, 10), e.ChangeDate);
         Assert.False(e.IsActive);
     }
 
@@ -122,11 +123,11 @@ public sealed class EnrollmentChangeTests
     public void ApplyChange_에_날짜를_안_주면_옛_날짜를_지키지_않고_그대로_둔다()
     {
         var e = new Enrollment();
-        e.ApplyChange(EnrollmentChange.Admitted, "2026-03-02");
+        e.ApplyChange(EnrollmentChange.Admitted, new DateTime(2026, 3, 2));
 
         e.ApplyChange(EnrollmentChange.Promoted);   // 날짜 생략
 
         Assert.Equal(EnrollmentChange.Promoted, e.ChangeType);
-        Assert.Equal("2026-03-02", e.ChangeDate);
+        Assert.Equal(new DateTime(2026, 3, 2), e.ChangeDate);
     }
 }
