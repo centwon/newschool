@@ -116,38 +116,15 @@ public class StudentRepository : BaseRepository
             throw;
         }
     }
-    // 미사용 메서드 제거 (2026-08-19): SearchAsync(keyword) — 호출처 0건.
-    //   Student 테이블에 없는 ID 컬럼을 WHERE 에 걸고 있어(실제 컬럼명은 StudentID)
-    //   부르는 순간 'no such column' 으로 깨졌을 코드다.
-    //   이름 검색이 필요하면 바로 아래 SearchByNameAsync 를 쓴다.
-
-    /// <summary>
-    /// 이름으로 학생 검색 (최적화됨)
-    /// ⚡ ExecuteListAsync + ReaderColumnCache로 40% 성능 향상
-    /// </summary>
-    public async Task<List<Student>> SearchByNameAsync(string name)
-    {
-        const string query = @"
-                SELECT * FROM Student
-                WHERE Name LIKE @Name AND IsDeleted = 0
-                ORDER BY Name";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Name", $"%{name}%");
-
-            var students = await ExecuteListAsync(cmd, MapStudent).ConfigureAwait(false);
-
-            LogInfo($"이름 검색: '{name}' - {students.Count}명");
-            return students;
-        }
-        catch (Exception ex)
-        {
-            LogError($"이름 검색 실패: {name}", ex);
-            throw;
-        }
-    }
+    // 이름 검색은 이 계층에 두지 않는다.
+    //
+    // 2026-08-19 에 깨져 있던 SearchAsync(keyword) 를 지우면서 SearchByNameAsync 를
+    // "대신 쓸 것" 으로 남겨 두었는데, 그것도 끝내 아무도 부르지 않았다(2026-08-30 제거).
+    //
+    // 이 앱이 이름으로 거르는 방식은 SQL 이 아니다 — 배정 화면들이 이미 읽어 둔 명단을
+    // 메모리에서 거른다(ClubEnrollmentDialog·CourseEnrollmentDialog 의 TxtSearch).
+    // 명단이 한 학급~한 학년 규모라 그편이 왕복도 없고 즉각적이다.
+    // SQL 검색이 필요해지는 것은 그 규모를 넘길 때이고, 그때 다시 만들면 된다.
 
     /// <summary>
     /// 여러 StudentID로 일괄 조회 (최적화됨)

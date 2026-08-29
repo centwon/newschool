@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using NewSchool.Models;
 using NewSchool.Repositories;
@@ -153,5 +154,40 @@ public class EnrollmentRepositoryTests : IClassFixture<SqliteTestFixture>
         var loaded = await repo.GetByIdAsync(no);   // 던지면 여기서 실패한다
         Assert.NotNull(loaded);
         Assert.Null(loaded!.ChangeDate);
+    }
+
+    /// <summary>
+    /// <c>GetBySchoolAndYearAsync</c> 를 지우면서 "<c>GetEnrollmentsAsync</c> 가 같은 일을
+    /// 한다" 고 적었다(2026-08-30). 그 말이 사실인지 여기서 못박는다.
+    ///
+    /// <para>학교·학년도로 좁히는 것은 물론이고, <c>includeInactive: true</c> 를 주면
+    /// 전출·졸업까지 포함하는 것도 같아야 한다 — 지운 쪽은 <c>IsActive</c> 를 아예 보지
+    /// 않았으므로, 그 동작을 대신하려면 이 인자가 그 자리를 채워야 한다.</para>
+    /// </summary>
+    [Fact]
+    public async Task 학교_학년도_조회는_GetEnrollmentsAsync_가_대신한다()
+    {
+        int year = TestData.Year + 73;
+        using var repo = new EnrollmentRepository(_db.DbPath);
+
+        var staying = await _db.NewStudentInDbAsync("남는학생");
+        var leaving = await _db.NewStudentInDbAsync("전출학생");
+        await repo.CreateAsync(TestData.NewEnrollment(staying, year: year, number: 1));
+        int leftNo = await repo.CreateAsync(TestData.NewEnrollment(leaving, year: year, number: 2));
+        await repo.ApplyChangeAsync(leftNo, EnrollmentChange.TransferredOut, new DateTime(year, 5, 10));
+
+        // 기본: 재적자만
+        var onRoll = await repo.GetEnrollmentsAsync(TestData.SchoolCode, year);
+        Assert.Contains(onRoll, e => e.StudentID == staying);
+        Assert.DoesNotContain(onRoll, e => e.StudentID == leaving);
+
+        // includeInactive: 지운 메서드처럼 전출까지 포함
+        var everyone = await repo.GetEnrollmentsAsync(TestData.SchoolCode, year, includeInactive: true);
+        Assert.Contains(everyone, e => e.StudentID == staying);
+        Assert.Contains(everyone, e => e.StudentID == leaving);
+
+        // 다른 학년도는 섞이지 않는다
+        Assert.All(everyone.Where(e => e.StudentID == staying || e.StudentID == leaving),
+                   e => Assert.Equal(year, e.Year));
     }
 }

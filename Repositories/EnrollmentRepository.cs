@@ -292,39 +292,13 @@ public class EnrollmentRepository : BaseRepository
     }
 
     // 학년도를 가리지 않는 전체 조회(GetAllBySchoolAsync)는 호출부가 없어 지웠다(39차).
-    // 학적은 늘 학년도로 좁혀 읽는다(GetBySchoolAndYearAsync).
-
-    /// <summary>
-    /// 특정 학교의 특정 학년도/학기 학생 목록
-    /// </summary>
-    public async Task<List<Enrollment>> GetBySchoolAndYearAsync(string schoolCode, int year)
-    {
-        const string query = @"
-                SELECT * FROM EnrollmentFull
-                WHERE SchoolCode = @SchoolCode
-                  AND Year = @Year
-                ORDER BY Grade, Class, Number";
-
-        var enrollments = new List<Enrollment>();
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-            cmd.Parameters.AddWithValue("@Year", year);
-
-            // ReaderColumnCache 기반 매퍼로 GetOrdinal 반복 호출 제거 (다건 조회 성능)
-            enrollments = await ExecuteListAsync(cmd, MapEnrollment).ConfigureAwait(false);
-
-            LogInfo($"학교별 학적 조회 완료: SchoolCode={schoolCode}, Count={enrollments.Count}");
-            return enrollments;
-        }
-        catch (Exception ex)
-        {
-            LogError($"학교별 학적 조회 실패: SchoolCode={schoolCode}", ex);
-            throw;
-        }
-    }
+    // 학적은 늘 학년도로 좁혀 읽는다.
+    //
+    // 그때 "대신 쓸 것" 으로 가리켰던 GetBySchoolAndYearAsync 도 지웠다(2026-08-30).
+    // 호출부가 없었고, 무엇보다 GetEnrollmentsAsync 와 겹쳤다 —
+    // GetEnrollmentsAsync(schoolCode, year) 가 같은 조회이고,
+    // includeInactive: true 를 주면 전출·졸업까지 포함하는 것도 같다.
+    // 학년·반으로 더 좁히는 것도 그쪽이 인자로 받는다.
 
     /// <summary>
     /// 특정 반의 학생 목록 조회
