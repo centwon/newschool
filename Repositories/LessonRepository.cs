@@ -28,6 +28,13 @@ public class LessonRepository : BaseRepository
     /// 먼저 실행한 쪽에 따라 제약(DayOfWeek NOT NULL, Class 기본값, FK CASCADE)이 갈렸다.
     /// 정의를 이곳 하나로 모으고 초기화기가 이 상수를 실행한다.
     /// </summary>
+    // 여섯 열(Date·Class·Topic·IsRecurring·IsCompleted·IsCancelled)을 뺐다(2026-08-29).
+    // 채우는 코드가 없어 만들어진 뒤로 줄곧 기본값이었고, 그 일들은 각각 게시판 일지와
+    // LessonChange 가 이미 하고 있다 — 근거는 Models/Lesson.cs 머리 주석.
+    //
+    // ⚠ 마이그레이션은 두지 않았다. 이미 만들어진 DB 는 그 여섯 열을 그대로 안고 가되,
+    // 읽지도 쓰지도 않으므로 값이 없는 채로 남는다(전부 NULL 허용이거나 DEFAULT 가 있어
+    // 이 INSERT 는 옛 DB 에서도 그대로 통한다). 새로 만드는 DB 에만 열이 없다.
     internal const string SchemaSql = @"
             CREATE TABLE IF NOT EXISTS Lesson (
                 No INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,23 +42,16 @@ public class LessonRepository : BaseRepository
                 Teacher TEXT NOT NULL,
                 Year INTEGER NOT NULL,
                 Semester INTEGER NOT NULL,
-                Date TEXT,
                 DayOfWeek INTEGER NOT NULL,
                 Period INTEGER NOT NULL,
                 Grade INTEGER,
-                Class INTEGER DEFAULT 0,
                 Room TEXT,
-                Topic TEXT,
-                IsRecurring INTEGER DEFAULT 1,
-                IsCompleted INTEGER DEFAULT 0,
-                IsCancelled INTEGER DEFAULT 0,
                 FOREIGN KEY (Course) REFERENCES Course(No) ON DELETE CASCADE
             );
-            
+
             CREATE INDEX IF NOT EXISTS idx_lesson_course ON Lesson(Course);
             CREATE INDEX IF NOT EXISTS idx_lesson_teacher_year ON Lesson(Teacher, Year, Semester);
             CREATE INDEX IF NOT EXISTS idx_lesson_schedule ON Lesson(DayOfWeek, Period);
-            CREATE INDEX IF NOT EXISTS idx_lesson_date ON Lesson(Date);
         ";
 
     private void EnsureTableExists()
@@ -80,11 +80,9 @@ public class LessonRepository : BaseRepository
     {
         const string query = @"
             INSERT INTO Lesson (
-                Course, Teacher, Year, Semester, Date, DayOfWeek, Period,
-                Grade, Class, Room, Topic, IsRecurring, IsCompleted, IsCancelled
+                Course, Teacher, Year, Semester, DayOfWeek, Period, Grade, Room
             ) VALUES (
-                @Course, @Teacher, @Year, @Semester, @Date, @DayOfWeek, @Period,
-                @Grade, @Class, @Room, @Topic, @IsRecurring, @IsCompleted, @IsCancelled
+                @Course, @Teacher, @Year, @Semester, @DayOfWeek, @Period, @Grade, @Room
             );
             SELECT last_insert_rowid();";
 
@@ -107,39 +105,16 @@ public class LessonRepository : BaseRepository
     }
 
     // 정기 시간표 일괄 생성(CreateFromSchedulesAsync)은 이를 부르던
-    // LessonService.CreateScheduleFromCourseAsync 와 함께 지웠다(39차) — 둘 다 호출부가 없었다.
+    // TeacherTimetableService.CreateScheduleFromCourseAsync 와 함께 지웠다(39차)
+    // — 둘 다 호출부가 없었다. (그때 그 서비스의 이름은 LessonService 였다.)
 
     #endregion
 
     #region Read
 
-    /// <summary>
-    /// No로 수업 조회
-    /// </summary>
-    public async Task<Lesson?> GetByIdAsync(int no)
-    {
-        const string query = "SELECT * FROM Lesson WHERE No = @No";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@No", no);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            var cache = new ReaderColumnCache();
-            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-            if (await reader.ReadAsync())
-            {
-                return MapLesson(reader, cache);
-            }
-            return null;
-        }
-        catch (Exception ex)
-        {
-            LogError($"수업 조회 실패: No={no}", ex);
-            throw;
-        }
-    }
+    // No 하나로 읽는 조회(GetByIdAsync)는 지웠다 — 유일한 호출자가 TeacherTimetableService 의
+    // 통과 래퍼였고 그것도 부르는 곳이 없었다. 시간표 화면들은 언제나 묶음으로 읽는다
+    // (교사별·과목별·날짜별). 한 줄만 필요해지면 그때 되살리면 된다.
 
     /// <summary>
     /// 과목(Course)별 수업 조회
@@ -170,18 +145,18 @@ public class LessonRepository : BaseRepository
     // (N+1 을 없애려고 만든 것이었는데, 그 유일한 호출부가 사라졌다.)
 
     /// <summary>
-    /// 교사 시간표 조회 (정기 수업만)
+    /// 교사 시간표 조회
     /// </summary>
     public async Task<List<Lesson>> GetTeacherScheduleAsync(
         string teacherId, int year, int semester)
     {
+        // IsRecurring=1·IsCancelled=0 조건은 그 열들과 함께 걷어냈다 — 두 값이 늘 기본값이라
+        // 아무것도 거르지 않던 조건이다. 휴강은 LessonChange 가 따로 얹는다.
         const string query = @"
-            SELECT * FROM Lesson 
-            WHERE Teacher = @Teacher 
-              AND Year = @Year 
+            SELECT * FROM Lesson
+            WHERE Teacher = @Teacher
+              AND Year = @Year
               AND Semester = @Semester
-              AND IsRecurring = 1
-              AND IsCancelled = 0
             ORDER BY DayOfWeek, Period";
 
         try
@@ -200,62 +175,46 @@ public class LessonRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 학급 시간표 조회 (정기 수업만)
-    /// </summary>
-    public async Task<List<Lesson>> GetClassScheduleAsync(
-        int year, int semester, int grade, int classNum)
-    {
-        const string query = @"
-            SELECT * FROM Lesson 
-            WHERE Year = @Year 
-              AND Semester = @Semester
-              AND Grade = @Grade
-              AND Class = @Class
-              AND IsRecurring = 1
-              AND IsCancelled = 0
-            ORDER BY DayOfWeek, Period";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Year", year);
-            cmd.Parameters.AddWithValue("@Semester", semester);
-            cmd.Parameters.AddWithValue("@Grade", grade);
-            cmd.Parameters.AddWithValue("@Class", classNum);
-
-            return await ExecuteQueryAsync(cmd);
-        }
-        catch (Exception ex)
-        {
-            LogError($"학급 시간표 조회 실패: {grade}-{classNum}", ex);
-            throw;
-        }
-    }
+    // 학급 시간표 조회(GetClassScheduleAsync)는 지웠다 — 호출부가 없었고, **있었다면 늘 빈
+    // 목록을 돌려줬다.** 조건에 `Class = @Class` 가 있는데 Lesson.Class 를 채우는 코드가 한
+    // 곳도 없어(유일한 생성 지점인 CourseTimetableBoard 가 Grade 만 넣는다) 항상 0 이었다.
+    //
+    // 이름이 "학급 시간표" 라 다음에 그게 필요한 사람이 반드시 집어 들 자리였고, 그러면
+    // 아무것도 안 나오는 이유를 한참 찾게 된다. 학급 시간표는 ClassTimetable 이 맡는다 —
+    // Lesson 은 교사 관점(내 수업이 언제 어디)이라 애초에 다른 표다.
 
     /// <summary>
-    /// 특정 날짜의 수업 조회 (정기 + 비정기)
+    /// 그 날 요일에 있는 수업 조회.
+    ///
+    /// <para><b>학년도·학기로 반드시 거른다.</b> 예전에는 교사와 요일만 봐서, 학년도가 바뀌면
+    /// <b>작년 같은 요일 수업이 "오늘의 수업" 에 섞였다.</b> 과목 목록은 올해 것만이라 과목명이
+    /// 빈 유령 행으로 뜨고 "N시간 중 M건" 의 N 도 함께 부풀려진다. 배포 첫 해라 아직 드러나지
+    /// 않았을 뿐, 첫 학년도 롤오버에 바로 나타날 자리였다.</para>
+    ///
+    /// <para>비정기 수업 갈래(<c>IsRecurring=0 AND Date=…</c>)는 없앴다 — 그 두 열을 채우는
+    /// 코드가 없어 한 번도 타지 않는 가지였다. 날짜 하나짜리 수업(보강)은 <c>LessonChange</c>
+    /// 가 맡는다.</para>
     /// </summary>
-    public async Task<List<Lesson>> GetByDateAsync(string teacherId, DateTime date)
+    public async Task<List<Lesson>> GetByDateAsync(
+        string teacherId, DateTime date, int year, int semester)
     {
         int dayOfWeek = ((int)date.DayOfWeek == 0) ? 7 : (int)date.DayOfWeek; // 일=7, 월=1...
-        string dateStr = date.ToString("yyyy-MM-dd");
 
         const string query = @"
-            SELECT * FROM Lesson 
+            SELECT * FROM Lesson
             WHERE Teacher = @Teacher
-              AND (
-                  (IsRecurring = 1 AND DayOfWeek = @DayOfWeek AND IsCancelled = 0)
-                  OR (IsRecurring = 0 AND Date = @Date AND IsCancelled = 0)
-              )
+              AND Year = @Year
+              AND Semester = @Semester
+              AND DayOfWeek = @DayOfWeek
             ORDER BY Period";
 
         try
         {
             using var cmd = CreateCommand(query);
             cmd.Parameters.AddWithValue("@Teacher", teacherId);
+            cmd.Parameters.AddWithValue("@Year", year);
+            cmd.Parameters.AddWithValue("@Semester", semester);
             cmd.Parameters.AddWithValue("@DayOfWeek", dayOfWeek);
-            cmd.Parameters.AddWithValue("@Date", dateStr);
 
             return await ExecuteQueryAsync(cmd);
         }
@@ -266,8 +225,8 @@ public class LessonRepository : BaseRepository
         }
     }
 
-    // 시간대 수업 조회(GetBySlotAsync)는 이를 쓰던 LessonService.HasConflictAsync 와 함께
-    // 지웠다(39차).
+    // 시간대 수업 조회(GetBySlotAsync)는 이를 쓰던 TeacherTimetableService.HasConflictAsync
+    // 와 함께 지웠다(39차. 그때 그 서비스의 이름은 LessonService 였다).
 
     #endregion
 
@@ -284,16 +243,10 @@ public class LessonRepository : BaseRepository
                 Teacher = @Teacher,
                 Year = @Year,
                 Semester = @Semester,
-                Date = @Date,
                 DayOfWeek = @DayOfWeek,
                 Period = @Period,
                 Grade = @Grade,
-                Class = @Class,
-                Room = @Room,
-                Topic = @Topic,
-                IsRecurring = @IsRecurring,
-                IsCompleted = @IsCompleted,
-                IsCancelled = @IsCancelled
+                Room = @Room
             WHERE No = @No";
 
         try
@@ -316,49 +269,13 @@ public class LessonRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 수업 완료 처리
-    /// </summary>
-    public async Task<bool> MarkCompletedAsync(int no, bool isCompleted = true)
-    {
-        const string query = "UPDATE Lesson SET IsCompleted = @IsCompleted WHERE No = @No";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@No", no);
-            cmd.Parameters.AddWithValue("@IsCompleted", isCompleted ? 1 : 0);
-
-            return await cmd.ExecuteNonQueryAsync() > 0;
-        }
-        catch (Exception ex)
-        {
-            LogError($"수업 완료 처리 실패: No={no}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 수업 취소 처리
-    /// </summary>
-    public async Task<bool> MarkCancelledAsync(int no, bool isCancelled = true)
-    {
-        const string query = "UPDATE Lesson SET IsCancelled = @IsCancelled WHERE No = @No";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@No", no);
-            cmd.Parameters.AddWithValue("@IsCancelled", isCancelled ? 1 : 0);
-
-            return await cmd.ExecuteNonQueryAsync() > 0;
-        }
-        catch (Exception ex)
-        {
-            LogError($"수업 취소 처리 실패: No={no}", ex);
-            throw;
-        }
-    }
+    // 완료·취소 처리(MarkCompletedAsync·MarkCancelledAsync)는 지웠다 — 부르는 곳이 한 곳도
+    // 없었다. 그래서 Lesson.IsCompleted·IsCancelled 는 테이블이 생긴 뒤로 줄곧 0 이고,
+    // 그 둘로 거르는 조회들은 조건이 없는 것과 같이 돈다.
+    //
+    // ⚠ 되살리기 전에 읽을 것 — 휴강을 IsCancelled 로 하면 안 된다. Lesson 은 정기 시간표라
+    // 행 하나가 "매주 그 교시" 를 뜻하므로, 취소를 세우면 그 수업이 **매주** 사라진다.
+    // 특정 날짜 한 교시만 바꾸는 일은 LessonChange 가 맡는다(Models/LessonChange.cs 머리 주석).
 
     #endregion
 
@@ -426,16 +343,10 @@ public class LessonRepository : BaseRepository
         cmd.Parameters.AddWithValue("@Teacher", lesson.Teacher);
         cmd.Parameters.AddWithValue("@Year", lesson.Year);
         cmd.Parameters.AddWithValue("@Semester", lesson.Semester);
-        cmd.Parameters.AddWithValue("@Date", lesson.Date ?? string.Empty);
         cmd.Parameters.AddWithValue("@DayOfWeek", lesson.DayOfWeek);
         cmd.Parameters.AddWithValue("@Period", lesson.Period);
         cmd.Parameters.AddWithValue("@Grade", lesson.Grade);
-        cmd.Parameters.AddWithValue("@Class", lesson.Class);
         cmd.Parameters.AddWithValue("@Room", lesson.Room ?? string.Empty);
-        cmd.Parameters.AddWithValue("@Topic", lesson.Topic ?? string.Empty);
-        cmd.Parameters.AddWithValue("@IsRecurring", lesson.IsRecurring ? 1 : 0);
-        cmd.Parameters.AddWithValue("@IsCompleted", lesson.IsCompleted ? 1 : 0);
-        cmd.Parameters.AddWithValue("@IsCancelled", lesson.IsCancelled ? 1 : 0);
     }
 
     private async Task<List<Lesson>> ExecuteQueryAsync(SqliteCommand cmd)
@@ -460,17 +371,13 @@ public class LessonRepository : BaseRepository
             Teacher = reader.GetString(cache.GetOrdinal("Teacher")),
             Year = reader.GetInt32(cache.GetOrdinal("Year")),
             Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
-            Date = reader.IsDBNull(cache.GetOrdinal("Date")) ? string.Empty : reader.GetString(cache.GetOrdinal("Date")),
             DayOfWeek = reader.IsDBNull(cache.GetOrdinal("DayOfWeek")) ? 0 : reader.GetInt32(cache.GetOrdinal("DayOfWeek")),
             Period = reader.GetInt32(cache.GetOrdinal("Period")),
             Grade = reader.IsDBNull(cache.GetOrdinal("Grade")) ? 0 : reader.GetInt32(cache.GetOrdinal("Grade")),
-            Class = reader.IsDBNull(cache.GetOrdinal("Class")) ? 0 : reader.GetInt32(cache.GetOrdinal("Class")),
-            Room = reader.IsDBNull(cache.GetOrdinal("Room")) ? string.Empty : reader.GetString(cache.GetOrdinal("Room")),
-            Topic = reader.IsDBNull(cache.GetOrdinal("Topic")) ? string.Empty : reader.GetString(cache.GetOrdinal("Topic")),
-            IsRecurring = reader.GetInt32(cache.GetOrdinal("IsRecurring")) == 1,
-            IsCompleted = reader.GetInt32(cache.GetOrdinal("IsCompleted")) == 1,
-            IsCancelled = reader.GetInt32(cache.GetOrdinal("IsCancelled")) == 1
+            Room = reader.IsDBNull(cache.GetOrdinal("Room")) ? string.Empty : reader.GetString(cache.GetOrdinal("Room"))
         };
+        // 걷어낸 여섯 열은 여기서도 읽지 않는다. 이미 만들어진 DB 에는 그 열이 남아 있지만
+        // SELECT * 로 딸려 올 뿐이고, 아무도 보지 않는다.
     }
 
     #endregion

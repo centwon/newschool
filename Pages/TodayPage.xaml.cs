@@ -344,7 +344,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         var teacherSlots = new List<TimetableItemViewModel>();
         if (dow != 0)
         {
-            using var svc = new LessonService();
+            using var svc = new TeacherTimetableService();
             var tvm = await svc.GetTeacherTimetableViewModelAsync(
                 Settings.User.Value, Settings.WorkYear.Value, Settings.WorkSemester.Value);
             teacherSlots = tvm.Items

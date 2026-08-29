@@ -8,9 +8,11 @@ namespace NewSchool.Models;
 /// 정기 시간표(<see cref="Lesson"/>)는 건드리지 않는다. 그래서 변경을 아무리 넣어도
 /// 교사 시간표·시수 계산 같은 "평소" 기준은 흔들리지 않는다.
 ///
-/// ⚠ <c>Lesson.IsCancelled</c> 로는 이 일을 할 수 없다 — 그건 행 단위 플래그라
-/// 정기 수업에 걸면 그 수업이 <b>매주</b> 사라진다
-/// (<c>LessonRepository.GetByDateAsync</c> 의 조건이 날짜를 가리지 않는다).
+/// ⚠ <b><see cref="Lesson"/> 에 "취소" 플래그를 두어 이 일을 하려 하지 말 것.</b>
+/// <c>Lesson</c> 행 하나는 "매주 그 요일 그 교시" 를 뜻하므로, 거기에 취소를 세우면
+/// 그 수업이 <b>매주</b> 사라진다 — 날짜 하나만 빠뜨릴 방법이 없다.
+/// (실제로 <c>Lesson.IsCancelled</c> 열이 있었는데 아무도 세우지 않았고, 2026-08-29 에
+/// 걷어냈다. 휴강은 처음부터 여기서만 났다.)
 ///
 /// 한 장으로 네 가지를 덮는다:
 /// <list type="bullet">
@@ -79,8 +81,7 @@ public class LessonChange : NotifyPropertyChangedBase
         get => _date;
         set
         {
-            if (SetProperty(ref _date, value))
-                OnPropertyChanged(nameof(DateDisplay));
+            if (SetProperty(ref _date, value)) Notify(nameof(DateDisplay));
         }
     }
 
@@ -90,8 +91,7 @@ public class LessonChange : NotifyPropertyChangedBase
         get => _period;
         set
         {
-            if (SetProperty(ref _period, value))
-                OnPropertyChanged(nameof(PeriodDisplay));
+            if (SetProperty(ref _period, value)) Notify(nameof(PeriodDisplay));
         }
     }
 
@@ -102,12 +102,8 @@ public class LessonChange : NotifyPropertyChangedBase
         set
         {
             if (SetProperty(ref _courseNo, value))
-            {
-                OnPropertyChanged(nameof(IsCancellation));
-                OnPropertyChanged(nameof(IsSubstitute));
-                OnPropertyChanged(nameof(Subject));
-                OnPropertyChanged(nameof(ContentDisplay));
-            }
+                Notify(nameof(HasCourse), nameof(IsCancellation), nameof(IsSubstitute),
+                       nameof(Subject), nameof(ContentDisplay));
         }
     }
 
@@ -121,12 +117,8 @@ public class LessonChange : NotifyPropertyChangedBase
         set
         {
             if (SetProperty(ref _subjectText, value))
-            {
-                OnPropertyChanged(nameof(IsCancellation));
-                OnPropertyChanged(nameof(IsSubstitute));
-                OnPropertyChanged(nameof(Subject));
-                OnPropertyChanged(nameof(ContentDisplay));
-            }
+                Notify(nameof(IsCancellation), nameof(IsSubstitute),
+                       nameof(Subject), nameof(ContentDisplay));
         }
     }
 
@@ -136,8 +128,7 @@ public class LessonChange : NotifyPropertyChangedBase
         get => _room;
         set
         {
-            if (SetProperty(ref _room, value))
-                OnPropertyChanged(nameof(ContentDisplay));
+            if (SetProperty(ref _room, value)) Notify(nameof(ContentDisplay));
         }
     }
 
@@ -157,10 +148,7 @@ public class LessonChange : NotifyPropertyChangedBase
         set
         {
             if (SetProperty(ref _courseSubject, value))
-            {
-                OnPropertyChanged(nameof(Subject));
-                OnPropertyChanged(nameof(ContentDisplay));
-            }
+                Notify(nameof(Subject), nameof(ContentDisplay));
         }
     }
 

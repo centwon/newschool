@@ -151,8 +151,9 @@ public sealed partial class CourseHoursView : UserControl
         {
             using (var lessonRepo = new LessonRepository(SchoolDatabase.DbPath))
             {
-                var all = await lessonRepo.GetByCourseAsync(_selectedCourse.No);
-                _lessons = all.Where(l => l.IsRecurring && !l.IsCancelled).ToList();
+                // IsRecurring·IsCancelled 로 거르던 조건은 그 열들과 함께 없앴다 —
+                // 둘 다 늘 기본값이라 한 줄도 걸러 내지 않던 필터다.
+                _lessons = await lessonRepo.GetByCourseAsync(_selectedCourse.No);
             }
 
             using (var hoursRepo = new CourseWeeklyHoursRepository(SchoolDatabase.DbPath))

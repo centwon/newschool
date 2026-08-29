@@ -20,7 +20,7 @@ public class WeeklyHoursCalculatorTests
 
     /// <summary>월=1 … 금=5</summary>
     private static Lesson Lesson(int dayOfWeek, int period, string room = "1-1") =>
-        new() { Course = 1, DayOfWeek = dayOfWeek, Period = period, Room = room, IsRecurring = true };
+        new() { Course = 1, DayOfWeek = dayOfWeek, Period = period, Room = room };
 
     private static SchoolSchedule Holiday(DateTime date, string category = "휴업일") =>
         new() { AA_YMD = date, SBTR_DD_SC_NM = category, EVENT_NM = "재량휴업일" };

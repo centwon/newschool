@@ -113,7 +113,7 @@ public sealed partial class LessonHomePage : Page
         try
         {
             // 1. 오늘 예정된 수업 (시간표 기반)
-            using var lessonSvc = new LessonService();
+            using var lessonSvc = new TeacherTimetableService();
             var todayLessons = await lessonSvc.GetTodayLessonsAsync();
 
             // 2. 과목 정보 (Subject 매핑)
@@ -131,10 +131,10 @@ public sealed partial class LessonHomePage : Page
 
             // 5. TodayLessonItem 빌드
             _todayLessons.Clear();
+            // 휴강 건너뛰기(lesson.IsCancelled)는 그 열과 함께 없앴다 — 한 번도 참이 된 적이
+            // 없는 조건이었다. 진짜 휴강은 LessonChange 가 들고 있다.
             foreach (var lesson in todayLessons.OrderBy(l => l.Period))
             {
-                if (lesson.IsCancelled) continue;
-
                 var subject = courseDict.TryGetValue(lesson.Course, out var course)
                     ? course.Subject : "";
 
@@ -429,7 +429,10 @@ internal sealed class TodayLessonItem
 
     // 바인딩용 프로퍼티
     public string PeriodText => $"{Lesson.Period}교시";
-    public string ClassDisplay => Lesson.ClassDisplay;
+
+    /// <summary>강의실/학급 (예: "5-1", "음악실"). 예전에는 <c>Lesson.ClassDisplay</c> 를
+    /// 거쳤는데, 그 삼항이 늘 <c>Room</c> 쪽만 타서 직접 읽는다.</summary>
+    public string ClassDisplay => Lesson.Room;
 
     /// <summary>일지 본문 첫 줄 — 머리 정보 다이얼로그가 심어 둔 단원이 대개 여기 걸린다.</summary>
     public string TopicText => LessonJournalListHelpers.Summary(ExistingPost?.PlainText);
