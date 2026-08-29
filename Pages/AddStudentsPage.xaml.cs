@@ -6,13 +6,13 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Windows.Storage;
-using Windows.Storage.Pickers;
-using NewSchool.Models;
+using NewSchool.Controls;
 using NewSchool.Helpers;
+using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Services;
-using NewSchool.Controls;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 
 namespace NewSchool.Pages;
 
@@ -234,11 +234,13 @@ public sealed partial class AddStudentsPage : Page
             if (sexCol != -1)
                 sex = NormalizeSex(sheetData[row, sexCol]);
 
-            // 학년 ("1학년", "1" 등 처리)
+            // 학년 ("1학년", "1" 등 처리). 중·고등학교라 1~3 밖은 받지 않고 사람에게 묻는다 —
+            // 잘못 들어온 학년은 그대로 학적이 되고, 학년 선택기들이 명부에서 목록을 만들기
+            // 때문에 그 순간부터 있지도 않은 학년이 화면마다 뜬다.
             int grade = defaultGrade;
             if (gradeCol != -1)
             {
-                if (TryParseNumberFromText(sheetData[row, gradeCol], out int g) && g >= 1 && g <= 6)
+                if (TryParseNumberFromText(sheetData[row, gradeCol], out int g) && g is >= 1 and <= 3)
                     grade = g;
                 else if (defaultGrade == 0)
                     grade = await GetGradeInputAsync($"학생 '{name}'의 학년 정보를 입력하세요.");
@@ -310,10 +312,11 @@ public sealed partial class AddStudentsPage : Page
             return;
         }
 
-        // 상한 6 - 엑셀 가져오기는 1~6 을 받는데 여기만 3 이라 초등 4~6학년은 수동 추가가 막혀 있었다
-        if (!int.TryParse(TxtGrade.Text, out int grade) || grade < 1 || grade > 6)
+        // 중·고등학교라 상한은 3 이다. 엑셀 가져오기·학년 입력 상자와 같은 범위로 둔다 —
+        // 세 곳이 어긋나면 한 경로로는 들어오는 학년이 다른 경로로는 막힌다.
+        if (!int.TryParse(TxtGrade.Text, out int grade) || grade < 1 || grade > 3)
         {
-            await MessageBox.ShowAsync("학년은 1~6 사이의 숫자로 입력하세요.", "오류");
+            await MessageBox.ShowAsync("학년은 1~3 사이의 숫자로 입력하세요.", "오류");
             TxtGrade.Focus(FocusState.Programmatic);
             return;
         }
@@ -691,8 +694,7 @@ public sealed partial class AddStudentsPage : Page
     private async Task<int> GetGradeInputAsync(string message)
     {
         // UI 작업이므로 반드시 UI 스레드에서 실행되어야 함
-        // 초등학교는 6학년까지다 — 1~3 으로 막아 두어 4~6학년 명단을 엑셀로 등록할 수 없었다.
-        var inputBox = new TextBox { PlaceholderText = "1~6" };
+        var inputBox = new TextBox { PlaceholderText = "1~3" };
         var stackPanel = new StackPanel();
         stackPanel.Children.Add(new TextBlock
         {
@@ -713,7 +715,7 @@ public sealed partial class AddStudentsPage : Page
 
         if (await MessageBox.ShowDialogAsync(dialog) == ContentDialogResult.Primary)
         {
-            if (int.TryParse(inputBox.Text, out int grade) && grade >= 1 && grade <= 6)
+            if (int.TryParse(inputBox.Text, out int grade) && grade is >= 1 and <= 3)
                 return grade;
         }
 
