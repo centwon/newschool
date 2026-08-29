@@ -10,8 +10,7 @@ namespace NewSchool.Models;
 /// 특정 학년도/학기에 개설되는 수업 정보 관리
 /// ⭐ 재설계: 시간표 정보는 CourseSchedule로 분리
 /// </summary>
-[Microsoft.UI.Xaml.Data.Bindable]
-public partial class Course : NotifyPropertyChangedBase
+public class Course : NotifyPropertyChangedBase
 {
     #region Fields
 
@@ -23,7 +22,7 @@ public partial class Course : NotifyPropertyChangedBase
     private int _grade = 1;
     private string _subject = string.Empty;
     private int _unit = 0;
-    private string _type = "Class";
+    private string _type = CourseTypes.Class;
     private string _rooms = string.Empty;
     private string _remark = string.Empty;
 
@@ -74,14 +73,14 @@ public partial class Course : NotifyPropertyChangedBase
     public int Grade
     {
         get => _grade;
-        set => SetProperty(ref _grade, value);
+        set { if (SetProperty(ref _grade, value)) Notify(nameof(DisplayName)); }
     }
 
     /// <summary>과목명 (예: "국어", "수학")</summary>
     public string Subject
     {
         get => _subject;
-        set => SetProperty(ref _subject, value);
+        set { if (SetProperty(ref _subject, value)) Notify(nameof(DisplayName)); }
     }
 
     /// <summary>주당 시수</summary>
@@ -98,7 +97,11 @@ public partial class Course : NotifyPropertyChangedBase
     public string Type
     {
         get => _type;
-        set => SetProperty(ref _type, value);
+        set
+        {
+            if (SetProperty(ref _type, value))
+                Notify(nameof(EffectiveType), nameof(IsClassType), nameof(TypeDisplay));
+        }
     }
 
     /// <summary>
@@ -109,7 +112,11 @@ public partial class Course : NotifyPropertyChangedBase
     public string Rooms
     {
         get => _rooms;
-        set => SetProperty(ref _rooms, value);
+        set
+        {
+            if (SetProperty(ref _rooms, value))
+                Notify(nameof(RoomList), nameof(RoomListDisplay));
+        }
     }
 
     #endregion
@@ -157,19 +164,24 @@ public partial class Course : NotifyPropertyChangedBase
     /// "음악실,미술실" → ["음악실", "미술실"]
     /// "과학실1,과학실2" → ["과학실1", "과학실2"]
     /// </summary>
-    public List<string> RoomList
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(Rooms))
-                return new List<string>();
+    public List<string> RoomList => ParseRooms(Rooms);
 
-            return Rooms
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(r => r.Trim())
-                .Where(r => !string.IsNullOrEmpty(r))
-                .ToList();
-        }
+    /// <summary>
+    /// <see cref="RoomList"/> 의 규칙을 <c>Course</c> 인스턴스 없이 쓰는 자리.
+    ///
+    /// <para>미리보기와 초기화 판정이 "고치는 중인 텍스트" 를 다뤄야 하는데, 그때마다
+    /// <c>new Course { Rooms = … }.RoomList</c> 를 만들면 규칙이 두 벌로 갈릴 길이 생긴다.</para>
+    /// </summary>
+    public static List<string> ParseRooms(string? rooms)
+    {
+        if (string.IsNullOrWhiteSpace(rooms))
+            return new List<string>();
+
+        return rooms
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(r => r.Trim())
+            .Where(r => !string.IsNullOrEmpty(r))
+            .ToList();
     }
 
     /// <summary>

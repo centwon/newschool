@@ -489,7 +489,6 @@ public class PostListViewModel : INotifyPropertyChanged
 /// <summary>
 /// UI 바인딩용 Post 래퍼 - 댓글 개수 포함
 /// </summary>
-[Microsoft.UI.Xaml.Data.Bindable]
 public class PostItemViewModel : INotifyPropertyChanged
 {
     private readonly Post _post;

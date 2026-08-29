@@ -10,7 +10,6 @@ namespace NewSchool.ViewModels;
 /// ListStudent 컨트롤에서 사용
 /// WinUI3 x:Bind를 위한 Bindable 특성 추가
 /// </summary>
-[Microsoft.UI.Xaml.Data.Bindable]
 public class StudentListItemViewModel : INotifyPropertyChanged
 {
     #region Fields

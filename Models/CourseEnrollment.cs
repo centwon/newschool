@@ -11,7 +11,7 @@ namespace NewSchool.Models;
 ///
 /// <para>설계 근거는 <c>docs/enrollment-redesign.md</c> 6장.</para>
 /// </summary>
-public partial class CourseEnrollment : NotifyPropertyChangedBase
+public class CourseEnrollment : NotifyPropertyChangedBase
 {
     #region Fields
 

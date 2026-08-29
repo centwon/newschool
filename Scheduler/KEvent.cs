@@ -10,7 +10,6 @@ namespace NewSchool.Scheduler;
 /// INotifyPropertyChanged 구현으로 UI 바인딩 지원
 /// ✅ Ktask 통합: ItemType="task"인 경우 할 일로 동작
 /// </summary>
-[WinRT.GeneratedBindableCustomProperty]
 public partial class KEvent : INotifyPropertyChanged
 {
     #region Fields
