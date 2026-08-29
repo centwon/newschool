@@ -361,6 +361,11 @@ public sealed partial class ClassDiaryBox : UserControl
         {
             await SaveDiaryAsync();
         }
+
+        // ⚠ 저장이 끝난 뒤에 놓아준다 — SaveDiaryAsync 가 그 서비스를 쓴다.
+        //    ViewModel 이 IDisposable 인데 부르는 곳이 없어, 이 칸을 열 때마다 서비스가
+        //    쥔 SQLite 연결이 풀로 돌아가지 못하고 GC 를 기다렸다.
+        ViewModel.Dispose();
     }
 
     #endregion

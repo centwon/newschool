@@ -58,12 +58,19 @@ public sealed partial class StudentCard : UserControl
 
     #region Constructor
 
+    /// <summary>
+    /// 이 컨트롤이 ViewModel 을 <b>만들었는가</b>. 만들었으면 언로드될 때 놓아준다.
+    /// DI 생성자로 받은 것은 수명이 준 쪽 것이라 건드리지 않는다.
+    /// </summary>
+    private readonly bool _ownsViewModel;
+
     public StudentCard()
     {
         this.InitializeComponent();
 
         // ViewModel 초기화
         ViewModel = new StudentCardViewModel();
+        _ownsViewModel = true;
 
         // PropertyChanged 이벤트 구독
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -122,12 +129,18 @@ public sealed partial class StudentCard : UserControl
         // 대기 중인 디바운스 저장은 아래에서 바로 처리하므로 타이머는 멈춘다
         _autoSaveTimer.Stop();
 
-        // 자동 저장 시도
+        // 자동 저장 시도.
+        // ⚠ 저장이 끝난 뒤에 ViewModel 을 놓아준다 — SaveChangedAsync 가 그 서비스를 쓴다.
+        //   여기서 바로 Dispose 하면 저장과 경합한다.
         _ = SaveChangedAsync().ContinueWith(t =>
         {
             if (t.IsFaulted)
                 System.Diagnostics.Debug.WriteLine($"[StudentCard] {t.Exception?.InnerException?.Message}");
-        }, TaskContinuationOptions.OnlyOnFaulted);
+
+            // 우리가 만든 ViewModel 만 놓아준다. DI 생성자로 받은 것은 준 쪽 것이다.
+            // 서비스가 지연 생성이라, 이 컨트롤이 다시 붙어 쓰이면 그때 다시 만들어진다.
+            if (_ownsViewModel) ViewModel?.Dispose();
+        });
 
         // 이벤트 구독 해제 (메모리 누수 방지)
         if (ViewModel != null)

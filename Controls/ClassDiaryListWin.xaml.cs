@@ -23,8 +23,23 @@ public sealed partial class ClassDiaryListWin : Window, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        DisposeRows();
         _diaryService?.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// 줄 하나하나가 <c>IDisposable</c> 인 ViewModel 이다. 목록을 비우거나 창을 닫을 때
+    /// 놓아준다.
+    ///
+    /// <para>지금은 목록용 ViewModel 이 서비스를 만들지 않으므로(<c>ClassDiaryViewModel</c> 의
+    /// 지연 생성) 실질적으로 할 일이 없다. 그래도 부르는 이유는, 예전에 <b>줄마다 열린
+    /// SQLite 연결이 새로고침할 때마다 쌓였던</b> 자리가 바로 여기이기 때문이다 — 나중에
+    /// 그 ViewModel 이 다시 무언가를 쥐게 되면 이 호출이 받아 준다.</para>
+    /// </summary>
+    private void DisposeRows()
+    {
+        foreach (var vm in _diaries) vm.Dispose();
     }
 
     #region Fields
@@ -135,6 +150,7 @@ public sealed partial class ClassDiaryListWin : Window, IDisposable
             
             // 벌크 로딩: ItemsSource 해제 → 데이터 변경 → 재연결 (N번 레이아웃 방지)
             DiaryItemsRepeater.ItemsSource = null;
+            DisposeRows();          // 버리기 전에 놓아준다 — Clear() 는 그냥 버린다
             _diaries.Clear();
             foreach (var diary in diaries.OrderByDescending(d => d.Date))
             {

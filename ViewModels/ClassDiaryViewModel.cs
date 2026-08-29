@@ -21,7 +21,19 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
 {
     #region Fields
 
-    private readonly ClassDiaryService _diaryService;
+    /// <summary>
+    /// ⚠ <b>미리 만들지 않는다.</b> <c>ClassDiaryService</c> 는 리포지토리를 만들고,
+    /// <c>BaseRepository</c> 는 <b>생성자에서 SQLite 연결을 연다</b>.
+    ///
+    /// <para>예전에는 두 생성자가 이걸 바로 만들었다. 그래서 일지 목록이
+    /// <c>ClassDiaryListWin</c> 에서 <b>행마다 연결을 하나씩 열었고</b>, 목록은 표시용 속성만
+    /// 읽으므로 그 연결을 <b>쓰지도 않았다</b>. 게다가 아무도 Dispose 하지 않아
+    /// <b>새로고침할 때마다 쌓였다</b>(<c>_diaries.Clear()</c> 는 그냥 버린다).</para>
+    ///
+    /// <para>이제 <see cref="Service"/> 를 처음 부를 때 만든다 — 그건 일지를 읽고 쓰는
+    /// <c>ClassDiaryBox</c> 경로뿐이다.</para>
+    /// </summary>
+    private ClassDiaryService? _diaryService;
     private bool _isSelected;
     private ClassDiary _diary;
 
@@ -35,7 +47,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     public ClassDiaryViewModel()
     {
-        _diaryService = new ClassDiaryService(SchoolDatabase.DbPath);
         _diary = new ClassDiary();
         StudentLogs = new OptimizedObservableCollection<StudentLogViewModel>();
     }
@@ -46,10 +57,16 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     public ClassDiaryViewModel(ClassDiary diary)
     {
-        _diaryService = new ClassDiaryService(SchoolDatabase.DbPath);
         _diary = diary ?? new ClassDiary();
         StudentLogs = new OptimizedObservableCollection<StudentLogViewModel>();
     }
+
+    /// <summary>
+    /// 일지를 읽고 쓰는 서비스. <b>처음 부를 때 만든다</b> — 그 순간 DB 연결이 열린다.
+    /// 목록에 줄만 그리는 경로는 여기 닿지 않으므로 연결도 열지 않는다.
+    /// </summary>
+    private ClassDiaryService Service =>
+        _diaryService ??= new ClassDiaryService(SchoolDatabase.DbPath);
 
     #endregion
 
@@ -448,7 +465,7 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     {
         // 조회 + 없으면 빈 일지 만들기는 서비스가 한다 — 예전에는 같은 로직을 여기에
         // 복사해 두어, 서비스의 GetOrCreateDiaryAsync 는 아무도 부르지 않는 채로 남아 있었다.
-        Diary = await _diaryService.GetOrCreateDiaryAsync(
+        Diary = await Service.GetOrCreateDiaryAsync(
             Settings.SchoolCode.Value,
             Settings.WorkYear,      // 작업 학년도로 통일
             Settings.WorkSemester,  // 작업 학기도 사용
@@ -466,7 +483,7 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     public async Task SaveDiaryAsync()
     {
         if (_diary == null) return;
-        await _diaryService.CreateOrUpdateAsync(_diary);
+        await Service.CreateOrUpdateAsync(_diary);
     }
 
     #endregion
@@ -479,7 +496,7 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     public async Task<List<StudentLogViewModel>> LoadStudentLogsAsync()
     {
         StudentLogs.Clear();
-        var logs = await _diaryService.GetStudentLogsByDateAsync(_diary.Grade, _diary.Class, _diary.Date);
+        var logs = await Service.GetStudentLogsByDateAsync(_diary.Grade, _diary.Class, _diary.Date);
         foreach (var log in logs)
         {
             StudentLogs.Add(log);

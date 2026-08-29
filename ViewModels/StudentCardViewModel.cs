@@ -23,10 +23,31 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
     private bool _isLoading = false;
 
     // Services
-    private readonly StudentService _studentService;
-    private readonly StudentDetailService _studentDetailService;
-    private readonly EnrollmentService _enrollmentService;
-    private readonly PhotoService _photoService;
+    // ⚠ 미리 만들지 않는다. 이 서비스 셋은 저마다 리포지토리를 만들고,
+    //   BaseRepository 는 생성자에서 SQLite 연결을 연다.
+    //
+    //   예전에는 인자 없는 생성자가 넷을 바로 만들었다. 그런데 이 ViewModel 은
+    //   내보내기·인쇄 경로에서 **학급 인원수만큼 루프로** 만들어지고
+    //   (StudentCardPrintService.LoadClassStudentsAsync·UnifiedExportService·
+    //   PageStudentLog), 그 경로들은 LoadFromModels 로 이미 읽어 둔 모델을 넣어 주므로
+    //   **서비스를 쓰지도 않는다**. 30명이면 연결 90개가 열렸다 닫히지 않았다.
+    //
+    //   이제 아래 접근자를 처음 부를 때 만든다 — 카드 화면에서 직접 읽고 쓸 때뿐이다.
+    private StudentService? _studentService;
+    private StudentDetailService? _studentDetailService;
+    private EnrollmentService? _enrollmentService;
+    private PhotoService? _photoService;
+
+    /// <summary>
+    /// 서비스를 <b>바깥에서 받았는가</b>. 받았다면 수명은 준 쪽 것이므로 여기서 놓아주지 않는다.
+    /// 인자 없는 생성자로 만들었을 때만 이 ViewModel 이 주인이다.
+    /// </summary>
+    private readonly bool _ownsServices;
+
+    private StudentService StudentSvc => _studentService ??= new StudentService(SchoolDatabase.DbPath);
+    private StudentDetailService DetailSvc => _studentDetailService ??= new StudentDetailService(SchoolDatabase.DbPath);
+    private EnrollmentService EnrollmentSvc => _enrollmentService ??= new EnrollmentService();
+    private PhotoService PhotoSvc => _photoService ??= new PhotoService();
 
     #endregion
 
@@ -34,10 +55,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
 
     public StudentCardViewModel()
     {
-        _studentService = new StudentService(SchoolDatabase.DbPath);
-        _studentDetailService = new StudentDetailService(SchoolDatabase.DbPath);
-        _enrollmentService = new EnrollmentService();
-        _photoService = new PhotoService();
+        _ownsServices = true;   // 필요해질 때 만들고, 다 쓰면 여기서 놓아준다
 
         // ✅ 바인딩 오류 방지를 위해 빈 객체로 초기화
         _student = new Student();
@@ -243,12 +261,12 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
             Detail = await StudentDetailService.GetByStudentIdAsync(studentId);
 
             // 3. Enrollment 로드 (현재 학기)
-            Enrollment = await _enrollmentService.GetCurrentEnrollmentAsync(studentId);
+            Enrollment = await EnrollmentSvc.GetCurrentEnrollmentAsync(studentId);
 
             // 4. 사진 로드
             if (Student != null)
             {
-                PhotoImage = await _photoService.LoadPhotoAsync(Student.Photo);
+                PhotoImage = await PhotoSvc.LoadPhotoAsync(Student.Photo);
             }
 
             IsChanged = false;
@@ -294,7 +312,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
             // 1. Student 업데이트 — 0행 갱신(정본 없음)은 실패로 취급해야
             //    IsChanged 를 유지하고 호출부가 사용자에게 알릴 수 있다.
             Student.UpdatedAt = DateTime.Now;
-            if (!await _studentService.UpdateBasicInfoAsync(Student))
+            if (!await StudentSvc.UpdateBasicInfoAsync(Student))
             {
                 System.Diagnostics.Debug.WriteLine(
                     $"[StudentCardViewModel] 기본정보 갱신 0행: StudentID={Student.StudentID}, No={Student.No}");
@@ -307,13 +325,13 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
                 Detail.UpdatedAt = DateTime.Now;
 
                 // 기존 레코드 확인
-                var existing = await _studentDetailService.GetByStudentIdAsync(Student.StudentID);
+                var existing = await DetailSvc.GetByStudentIdAsync(Student.StudentID);
 
                 if (existing != null)
                 {
                     // 업데이트
                     Detail.No = existing.No; // PK 유지
-                    if (!await _studentDetailService.UpdateAsync(Detail))
+                    if (!await DetailSvc.UpdateAsync(Detail))
                     {
                         System.Diagnostics.Debug.WriteLine(
                             $"[StudentCardViewModel] 상세정보 갱신 0행: No={Detail.No}");
@@ -324,7 +342,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
                 {
                     // 신규 생성
                     Detail.StudentID = Student.StudentID;
-                    await _studentDetailService.CreateAsync(Detail);
+                    await DetailSvc.CreateAsync(Detail);
                 }
             }
 
@@ -356,12 +374,12 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
 
         try
         {
-            var photoPath = await _photoService.PickAndSavePhotoAsync(Student.StudentID);
+            var photoPath = await PhotoSvc.PickAndSavePhotoAsync(Student.StudentID);
 
             if (!string.IsNullOrEmpty(photoPath))
             {
                 Student.Photo = photoPath;
-                PhotoImage = await _photoService.LoadPhotoAsync(photoPath);
+                PhotoImage = await PhotoSvc.LoadPhotoAsync(photoPath);
                 IsChanged = true;
                 return true;
             }
@@ -385,7 +403,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
 
         try
         {
-            await _photoService.DeletePhotoAsync(Student.Photo);
+            await PhotoSvc.DeletePhotoAsync(Student.Photo);
 
             Student.Photo = string.Empty;
             PhotoImage = null;
@@ -417,7 +435,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
             // 사진 삭제
             if (!string.IsNullOrEmpty(Student.Photo))
             {
-                await _photoService.DeletePhotoAsync(Student.Photo);
+                await PhotoSvc.DeletePhotoAsync(Student.Photo);
             }
 
             // 모든 정보 초기화
@@ -601,7 +619,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
             return;
         }
 
-        PhotoImage = await _photoService.LoadPhotoAsync(Student.Photo);
+        PhotoImage = await PhotoSvc.LoadPhotoAsync(Student.Photo);
     }
 
     #endregion
@@ -618,10 +636,18 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
         if (Enrollment != null)
             Enrollment.PropertyChanged -= OnModelPropertyChanged;
 
-        // 서비스 정리
+        // 서비스 정리 — 바깥에서 받은 것은 건드리지 않는다(수명은 준 쪽 것이다).
+        // 지연 생성이라 한 번도 안 쓴 ViewModel 은 여기서 놓아줄 것도 없다.
+        if (!_ownsServices) return;
+
         _studentService?.Dispose();
         _studentDetailService?.Dispose();
         _enrollmentService?.Dispose();
+
+        _studentService = null;
+        _studentDetailService = null;
+        _enrollmentService = null;
+        _photoService = null;
     }
 
     #endregion
