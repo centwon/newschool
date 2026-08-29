@@ -326,9 +326,6 @@ public sealed class StudentLogViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(SkillDeveloped));
                 OnPropertyChanged(nameof(StrengthShown));
                 OnPropertyChanged(nameof(ResultOrOutcome));
-                //OnPropertyChanged(nameof(LogByteCount));
-                //OnPropertyChanged(nameof(LogCharCount));
-                //OnPropertyChanged(nameof(LogByteInfo));
                 OnPropertyChanged(nameof(DateString));
             }
         }
@@ -474,9 +471,6 @@ public sealed class StudentLogViewModel : INotifyPropertyChanged
             {
                 _studentlog.Log = value;
                 OnPropertyChanged(nameof(Log));
-                //OnPropertyChanged(nameof(LogByteCount));
-                //OnPropertyChanged(nameof(LogCharCount));
-                //OnPropertyChanged(nameof(LogByteInfo));
             }
         }
     }

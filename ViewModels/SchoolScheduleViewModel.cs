@@ -173,16 +173,6 @@ public class SchoolScheduleViewModel : INotifyPropertyChanged
     public bool IsHoliday => Schedule.IsHoliday;
 
     /// <summary>
-    /// 휴업일 여부
-    /// </summary>
-    public bool IsClosedDay => Schedule.SBTR_DD_SC_NM == "휴업일";
-
-    /// <summary>
-    /// 공휴일 여부
-    /// </summary>
-    public bool IsPublicHoliday => Schedule.SBTR_DD_SC_NM == "공휴일";
-
-    /// <summary>
     /// 수동 입력 여부 아이콘
     /// </summary>
     public string ManualIcon => Schedule.IsManual ? "✏️" : "";
@@ -243,8 +233,6 @@ public class SchoolScheduleViewModel : INotifyPropertyChanged
                 Schedule.SBTR_DD_SC_NM = newValue;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsHoliday));
-                OnPropertyChanged(nameof(IsClosedDay));
-                OnPropertyChanged(nameof(IsPublicHoliday));
                 CheckIfModified(nameof(SBTR_DD_SC_NM)); // 수정 여부 확인
             }
             catch (Exception ex)

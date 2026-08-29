@@ -37,13 +37,12 @@ public class PostListViewModel : INotifyPropertyChanged
         {
             _posts = value;
             OnPropertyChanged();
-            //OnPropertyChanged(nameof(IsEmpty));
         }
     }
 
     /// <summary>외부에서 카테고리·주제를 한 번에 설정하고 확정적으로 한 번만 새로고침할 때,
     /// 두 setter 의 자동 새로고침과 중복 로드되지 않도록 억제하는 플래그.
-    /// <see cref="SetSubjectAndRefreshAsync"/>·<see cref="SetScopeWithoutReload"/> 참고.</summary>
+    /// <see cref="SetScopeWithoutReload"/> 참고.</summary>
     private bool _suppressAutoReload;
 
     public string SelectedCategory
@@ -108,34 +107,18 @@ public class PostListViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>
-    /// 주제를 설정하고 정확히 한 번만 새로고침한다 (외부 호출용 — 이중 로드 방지).
-    /// </summary>
-    public async Task SetSubjectAndRefreshAsync(string subject)
-    {
-        _suppressAutoReload = true;
-        try
-        {
-            SelectedSubject = subject;
-        }
-        finally
-        {
-            _suppressAutoReload = false;
-        }
-
-        await RefreshAsync();
-    }
+    // 주제 설정 + 새로고침을 한 번에 하던 SetSubjectAndRefreshAsync 는 지웠다 —
+    // 호출부가 없었다. 이중 로드를 막는 장치 자체는 살아 있다(SetScopeWithoutReload 가
+    // 쓰고, PostListPage 가 그쪽을 부른다).
 
 
     public Visibility HasPosts
     {
         get
         {
-            var visibility = Posts.Count > 0 && !IsLoading
+            return Posts.Count > 0 && !IsLoading
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-            Debug.WriteLine($"HasPosts 계산됨: Posts.Count={Posts.Count}, IsLoading={IsLoading}, Visibility={visibility}");
-            return visibility;
         }
     }
 
@@ -143,15 +126,12 @@ public class PostListViewModel : INotifyPropertyChanged
     {
         get
         {
-            var visibility = Posts.Count == 0 && !IsLoading
+            return Posts.Count == 0 && !IsLoading
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-            Debug.WriteLine($"IsEmpty 계산됨: Posts.Count={Posts.Count}, IsLoading={IsLoading}, Visibility={visibility}");
-            return visibility;
         }
     }
 
-    public Visibility LoadingVisibility => IsLoading ? Visibility.Visible : Visibility.Collapsed;
 
 
 
@@ -213,7 +193,6 @@ public class PostListViewModel : INotifyPropertyChanged
                 field = value;
                 Debug.WriteLine($"[IsLoading Setter] 값 변경: {value}");
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(LoadingVisibility));
                 OnPropertyChanged(nameof(IsEmpty));
                 OnPropertyChanged(nameof(HasPosts));
             }
@@ -537,7 +516,18 @@ public class PostItemViewModel : INotifyPropertyChanged
     public Visibility PinIconVisibility => _post.PinIconVisibility;
     public string DateTimeDisplay => _post.DateTimeDisplay;
 
-    // 댓글 개수
+    /// <summary>
+    /// 댓글 개수.
+    ///
+    /// <para>⚠ <b>지금 어느 화면도 이 값을 보여 주지 않는다</b>(바인딩 0건). 그런데 목록을
+    /// 읽을 때마다 <c>GetCommentCountsAsync</c> 로 일괄 조회는 계속 돈다. 즉 값을 구해서
+    /// 버리고 있다.</para>
+    ///
+    /// <para>그럼에도 지우지 않는다 — 그 조회에는 "글마다 조회하던 N+1 제거" 라고 적혀 있어,
+    /// 누군가 <b>보여 줄 작정으로 일부러 다듬어 둔</b> 자리다. 목록 항목 서식에 한 줄만
+    /// 이으면 살아난다. 정말 안 쓸 것으로 정하면 이 속성과 함께 위의 일괄 조회도 걷어야
+    /// 헛조회가 사라진다.</para>
+    /// </summary>
     public int CommentCount
     {
         get => _commentCount;

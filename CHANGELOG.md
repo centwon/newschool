@@ -37,6 +37,36 @@
 > 아래 **개발 이력**은 그 기간의 작업 기록이며, 내용은 손대지 않고 그대로 보존한다.
 > 괄호 안의 "구 vX.Y.Z" 는 되돌리기 전에 쓰던 번호다.
 
+### 뷰모델의 죽은 멤버를 걷어낸다 — 그중 셋은 헛조회였다 (2026-08-30)
+뷰모델 검토 3·4단계. 미참조 공개 멤버를 훑었는데, 단순한 잔재가 아니라
+**결과를 아무도 안 보는데 DB·계산을 돌리는 것**이 셋 나왔다.
+
+- **`ClassDiaryViewModel.StudentLogs`** — 채우기만 하고 읽는 곳이 0건인데, 채우려고
+  `LoadDiaryAsync` 가 **일지를 열 때마다** `GetStudentLogsByDateAsync` 로 DB 를 한 번 더
+  쳤다. 컬렉션·메서드와 함께 그 서비스 메서드도 걷었다(유일한 호출자였다).
+  학급 일지 화면의 학생 로그는 `LogListViewer` 가 직접 읽는다
+- **`TodayPageViewModel.SchoolEventGroups`** — 같은 무늬. 읽는 곳이 없는데 채우려고
+  목록을 읽을 때마다 `GroupSchedules` 로 묶기까지 했다. 그룹화가 진짜 필요한 곳
+  (`SchoolScheduleListControl`·`GoogleSyncService`)은 각자 직접 부르므로 그 헬퍼는 남는다
+- **`IsEmpty`·`HasPosts` 게터의 `Debug.WriteLine`** — 알림이 5곳에서 오는 속성이라
+  평가할 때마다 찍혔다
+
+미참조 멤버 정리 — `ClassDiaryViewModel` **15개**(`Diary` 계열 표시 속성 대부분),
+`SchoolScheduleViewModel` 2, `StudentCardViewModel`·`PostListViewModel` 등 각 1~2.
+딸린 알림 18줄과 주석으로 꺼진 알림 7건도 함께 걷었다
+(`LogByteInfo` 계열은 **속성 자체가 없고** XAML 쪽도 주석 블록 안이었다).
+
+**⚠ 조사 중 두 번 헛짚었다 — 지우지 않고 남긴 것들.**
+
+- `PostListViewModel.IsEmpty` 를 "바인딩 0건" 으로 보고 죽었다고 판단했는데,
+  `PostListPage` 가 **`PropertyChanged` 스위치에서** 읽고 있었다. XAML 만 봐서 틀렸다
+- `CurrentPage`·`EditingComment` 는 형제 속성(`PageInfo`·`HasPreviousPage`·`IsEditing`)이
+  외부에서 쓰여 **내부적으로 살아 있다**
+- `CommentCount` 는 표시하는 화면이 없지만 **지우지 않았다.** 그 값을 구하는
+  `GetCommentCountsAsync` 에 "글마다 조회하던 N+1 제거" 라고 적혀 있다 — 누군가 보여 줄
+  작정으로 다듬어 둔 자리다. 대신 **지금 헛조회가 돌고 있다**는 것과, 정말 안 쓸 것이면
+  조회까지 함께 걷어야 한다는 것을 속성 주석에 남겼다
+
 ### ViewModel 을 만드는 것만으로 DB 연결이 열리던 것을 막는다 (2026-08-30)
 뷰모델 계층 검토에서 나온 **실사용 결함**. `BaseRepository` 는 **생성자에서**
 `Connection.Open()` 을 하는데, ViewModel 둘이 서비스를 미리 만들고 있었다.

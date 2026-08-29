@@ -126,7 +126,6 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
                 _detail.PropertyChanged += OnModelPropertyChanged;
 
             // 관련 프로퍼티 업데이트
-            OnPropertyChanged(nameof(PrimaryContact));
             OnPropertyChanged(nameof(HasSpecialConsiderations));
         }
     }
@@ -195,9 +194,6 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
 
     /// <summary>학급 정보 문자열 (예: "2학년 3반 15번")</summary>
     public string ClassInfo => Enrollment?.GetClassInfo() ?? string.Empty;
-
-    /// <summary>주 연락처 (우선순위: 어머니 → 아버지 → 보호자)</summary>
-    public string PrimaryContact => Detail?.GetPrimaryContact() ?? string.Empty;
 
     /// <summary>특이사항 여부</summary>
     public bool HasSpecialConsiderations => Detail?.HasSpecialConsiderations() ?? false;
@@ -584,8 +580,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
                 case nameof(StudentDetail.MotherPhone):
                 case nameof(StudentDetail.FatherPhone):
                 case nameof(StudentDetail.GuardianPhone):
-                    OnPropertyChanged(nameof(PrimaryContact));
-                    break;
+                            break;
                 case nameof(StudentDetail.HealthInfo):
                 case nameof(StudentDetail.Allergies):
                 case nameof(StudentDetail.SpecialNeeds):

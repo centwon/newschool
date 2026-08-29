@@ -30,7 +30,10 @@ public class TodayPageViewModel : INotifyPropertyChanged
     /// <summary>
     /// 학사일정 그룹 (표시용)
     /// </summary>
-    public OptimizedObservableCollection<SchoolScheduleGroup> SchoolEventGroups { get; }
+    // 그룹화한 학사일정(SchoolEventGroups)은 지웠다(2026-08-30) — 채우기만 하고 아무도
+    // 읽지 않았다(바인딩·코드 참조 0건). 그런데 채우려고 목록을 읽을 때마다
+    // SchoolScheduleGroupHelper.GroupSchedules 로 묶는 일까지 했다.
+    // 그룹화가 필요한 곳(SchoolScheduleListControl·GoogleSyncService)은 각자 직접 부른다.
 
     /// <summary>
     /// 할일 목록 (최적화됨, KEvent ItemType="task")
@@ -80,7 +83,6 @@ public class TodayPageViewModel : INotifyPropertyChanged
         _dispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
 
         SchoolEvents = new OptimizedObservableCollection<SchoolSchedule>();
-        SchoolEventGroups = new OptimizedObservableCollection<SchoolScheduleGroup>();
         Tasks = new OptimizedObservableCollection<KEvent>();
         _meals = null;
         _isLoading = false;
@@ -162,9 +164,6 @@ public class TodayPageViewModel : INotifyPropertyChanged
                 {
                     SchoolEvents.ReplaceAll(schedules); // 80% 성능 향상!
                     
-                    // 그룹화하여 표시용 컨렉션 업데이트
-                    var grouped = SchoolScheduleGroupHelper.GroupSchedules(schedules);
-                    SchoolEventGroups.ReplaceAll(grouped);
                 });
             }
         }

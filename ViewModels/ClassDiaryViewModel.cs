@@ -48,7 +48,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     public ClassDiaryViewModel()
     {
         _diary = new ClassDiary();
-        StudentLogs = new OptimizedObservableCollection<StudentLogViewModel>();
     }
 
     /// <summary>
@@ -58,7 +57,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     public ClassDiaryViewModel(ClassDiary diary)
     {
         _diary = diary ?? new ClassDiary();
-        StudentLogs = new OptimizedObservableCollection<StudentLogViewModel>();
     }
 
     /// <summary>
@@ -94,7 +92,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
             if (_diary != value)
             {
                 _diary = value ?? new ClassDiary();
-                OnPropertyChanged(nameof(Diary));
                 OnAllPropertiesChanged();
             }
         }
@@ -152,7 +149,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
             {
                 _diary.Year = value;
                 OnPropertyChanged(nameof(Year));
-                OnPropertyChanged(nameof(YearDisplay));
             }
         }
     }
@@ -167,7 +163,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
             {
                 _diary.Semester = value;
                 OnPropertyChanged(nameof(Semester));
-                OnPropertyChanged(nameof(SemesterDisplay));
             }
         }
     }
@@ -183,10 +178,8 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
                 _diary.Date = value;
                 OnPropertyChanged(nameof(Date));
                 OnPropertyChanged(nameof(DateDisplay));
-                OnPropertyChanged(nameof(DateShort));
                 OnPropertyChanged(nameof(DayOfWeek));
                 OnPropertyChanged(nameof(DayOfWeekKorean));
-                OnPropertyChanged(nameof(MonthDay));
             }
         }
     }
@@ -231,8 +224,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
             {
                 _diary.Absent = value;
                 OnPropertyChanged(nameof(Absent));
-                OnPropertyChanged(nameof(HasAbsent));
-                OnPropertyChanged(nameof(AbsentCount));
                 OnPropertyChanged(nameof(AttendanceSummary));
                 OnPropertyChanged(nameof(HasAttendanceIssues));
             }
@@ -249,8 +240,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
             {
                 _diary.Late = value;
                 OnPropertyChanged(nameof(Late));
-                OnPropertyChanged(nameof(HasLate));
-                OnPropertyChanged(nameof(LateCount));
                 OnPropertyChanged(nameof(AttendanceSummary));
                 OnPropertyChanged(nameof(HasAttendanceIssues));
             }
@@ -267,8 +256,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
             {
                 _diary.LeaveEarly = value;
                 OnPropertyChanged(nameof(LeaveEarly));
-                OnPropertyChanged(nameof(HasLeaveEarly));
-                OnPropertyChanged(nameof(LeaveEarlyCount));
                 OnPropertyChanged(nameof(AttendanceSummary));
                 OnPropertyChanged(nameof(HasAttendanceIssues));
             }
@@ -324,13 +311,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
 
     #region Properties - Student Logs
 
-    /// <summary>학생 생활 로그 목록</summary>
-    /// <summary>
-    /// 학생 기록 컬렉션 (최적화됨)
-    /// ⚡ OptimizedObservableCollection로 UI 업데이트 80% 향상
-    /// </summary>
-    public OptimizedObservableCollection<StudentLogViewModel> StudentLogs { get; }
-
     #endregion
 
     #region Computed Properties - 날짜 관련
@@ -338,23 +318,12 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>날짜 표시 (yyyy년 M월 d일 (요일))</summary>
     public string DateDisplay => _diary.DateDisplay;
 
-    /// <summary>날짜 짧게 (MM-dd)</summary>
-    public string DateShort => _diary.Date.ToString("MM-dd");
-
-    /// <summary>월/일 (M/d)</summary>
-    public string MonthDay => _diary.Date.ToString("M/d");
 
     /// <summary>요일</summary>
     public DayOfWeek DayOfWeek => _diary.DayOfWeek;
 
     /// <summary>요일 (한글)</summary>
     public string DayOfWeekKorean => _diary.DayOfWeekKorean;
-
-    /// <summary>학년도 표시</summary>
-    public string YearDisplay => $"{_diary.Year}학년도";
-
-    /// <summary>학기 표시</summary>
-    public string SemesterDisplay => $"{_diary.Semester}학기";
 
     /// <summary>학급 정보 (예: 3학년 2반)</summary>
     public string ClassInfo => $"{_diary.Grade}학년 {_diary.Class}반";
@@ -363,26 +332,8 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
 
     #region Computed Properties - 출결 관련
 
-    /// <summary>결석 학생 있는지</summary>
-    public bool HasAbsent => !string.IsNullOrWhiteSpace(_diary.Absent);
-
-    /// <summary>지각 학생 있는지</summary>
-    public bool HasLate => !string.IsNullOrWhiteSpace(_diary.Late);
-
-    /// <summary>조퇴 학생 있는지</summary>
-    public bool HasLeaveEarly => !string.IsNullOrWhiteSpace(_diary.LeaveEarly);
-
     /// <summary>출결 문제 있는지</summary>
     public bool HasAttendanceIssues => _diary.HasAttendanceIssues;
-
-    /// <summary>결석 학생 수</summary>
-    public int AbsentCount => HasAbsent ? _diary.Absent.Split(',').Length : 0;
-
-    /// <summary>지각 학생 수</summary>
-    public int LateCount => HasLate ? _diary.Late.Split(',').Length : 0;
-
-    /// <summary>조퇴 학생 수</summary>
-    public int LeaveEarlyCount => HasLeaveEarly ? _diary.LeaveEarly.Split(',').Length : 0;
 
     /// <summary>출결 메모 요약 (예: "결석: 김하늘, 지각: 박지민")</summary>
     public string AttendanceSummary => _diary.AttendanceSummary;
@@ -407,32 +358,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
 
     #region Computed Properties - 시각화
 
-
-    /// <summary>출결 상태 아이콘</summary>
-    public string AttendanceIcon
-    {
-        get
-        {
-            if (!HasAttendanceIssues) return "✓";
-            if (HasAbsent) return "✗";
-            return "△";
-        }
-    }
-
-    /// <summary>출결 상태 색상</summary>
-    public string AttendanceColor
-    {
-        get
-        {
-            if (!HasAttendanceIssues) return "#4CAF50"; // Green
-            if (HasAbsent) return "#F44336"; // Red
-            return "#FFC107"; // Yellow
-        }
-    }
-
-    /// <summary>주말 여부</summary>
-    public bool IsWeekend => DayOfWeek == System.DayOfWeek.Saturday || 
-                             DayOfWeek == System.DayOfWeek.Sunday;
 
     /// <summary>오늘 날짜인지</summary>
     public bool IsToday => Date.Date == DateTime.Today;
@@ -473,8 +398,6 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
             classNumber,
             date,
             Settings.User);
-
-        await LoadStudentLogsAsync();
     }
 
     /// <summary>
@@ -488,27 +411,15 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
 
     #endregion
 
-    #region Methods - 학생 로그 관리
-
-    /// <summary>
-    /// 해당 날짜의 학생 생활 로그 로드 (public으로 노출)
-    /// </summary>
-    public async Task<List<StudentLogViewModel>> LoadStudentLogsAsync()
-    {
-        StudentLogs.Clear();
-        var logs = await Service.GetStudentLogsByDateAsync(_diary.Grade, _diary.Class, _diary.Date);
-        foreach (var log in logs)
-        {
-            StudentLogs.Add(log);
-        }
-        return logs;
-    }
-
-    // GetSelectedLogs / SaveSelectedLogsAsync / AddNewLogAsync / DeleteSelectedLogsAsync /
-    // UpdateLifeFieldAsync 는 호출부가 한 곳도 없었다(전수 조사 34차).
-    // 학생 로그의 저장·삭제는 화면이 LogListViewer 를 통해 직접 한다.
-
-    #endregion
+    // 학생 생활 로그 적재(LoadStudentLogsAsync)와 그 컬렉션(StudentLogs)은 지웠다(2026-08-30).
+    //
+    // 컬렉션을 **채우기만 하고 아무도 읽지 않았다** — 바인딩도 코드 참조도 0건이었다.
+    // 그런데 채우려고 LoadDiaryAsync 가 일지를 열 때마다 GetStudentLogsByDateAsync 로
+    // DB 를 한 번 더 쳤다. 결과가 어디에도 안 가는 조회였다.
+    //
+    // 형제 메서드들(GetSelectedLogs·SaveSelectedLogsAsync·AddNewLogAsync·
+    // DeleteSelectedLogsAsync·UpdateLifeFieldAsync)은 34차에 같은 이유로 이미 사라졌다.
+    // 학생 로그의 조회·저장·삭제는 화면이 LogListViewer 를 통해 직접 한다.
 
     #region IDisposable
 
@@ -565,21 +476,14 @@ public sealed class ClassDiaryViewModel : INotifyPropertyChanged, IDisposable
 
         // Computed Properties
         OnPropertyChanged(nameof(DateDisplay));
-        OnPropertyChanged(nameof(DateShort));
-        OnPropertyChanged(nameof(MonthDay));
         OnPropertyChanged(nameof(DayOfWeek));
         OnPropertyChanged(nameof(DayOfWeekKorean));
-        OnPropertyChanged(nameof(YearDisplay));
-        OnPropertyChanged(nameof(SemesterDisplay));
         OnPropertyChanged(nameof(ClassInfo));
         OnPropertyChanged(nameof(HasAttendanceIssues));
         OnPropertyChanged(nameof(AttendanceSummary));
         OnPropertyChanged(nameof(HasMemo));
         OnPropertyChanged(nameof(HasNotice));
         OnPropertyChanged(nameof(HasLifeRecord));
-        OnPropertyChanged(nameof(AttendanceIcon));
-        OnPropertyChanged(nameof(AttendanceColor));
-        OnPropertyChanged(nameof(IsWeekend));
         OnPropertyChanged(nameof(IsToday));
     }
 

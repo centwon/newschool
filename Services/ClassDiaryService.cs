@@ -120,28 +120,11 @@ public sealed class ClassDiaryService : IDisposable
 
     #endregion
 
-    #region 학생 로그 관리
-
-    /// <summary>
-    /// 특정 날짜와 학급의 학생 생활 로그 조회 (ViewModel으로 변환)
-    /// </summary>
-    public async Task<List<ViewModels.StudentLogViewModel>> GetStudentLogsByDateAsync(
-        int grade, int classNum, DateTime date)
-    {
-        // 해당 날짜의 로그 조회 (작업 학년도 사용)
-        var logs = await StudentLogService.GetByClassAsync(
-            Settings.SchoolCode.Value, 
-            Settings.WorkYear,  // date.Year 대신 Settings.WorkYear 사용
-            grade, 
-            classNum, 
-            date);
-
-        // StudentLogViewModel으로 변환
-        // 배치 조회 (기록 건마다 학적·기본정보를 재조회하던 N+1 제거)
-        return await StudentLogViewModel.CreateManyAsync(logs);
-    }
-
-    #endregion
+    // 학생 생활 로그 조회(GetStudentLogsByDateAsync)는 지웠다(2026-08-30) —
+    // 유일한 호출자가 ClassDiaryViewModel.LoadStudentLogsAsync 였고, 그쪽은 결과를
+    // 아무도 읽지 않는 컬렉션에 담기만 했다. 일지를 열 때마다 도는 헛조회였다.
+    //
+    // 학급 일지 화면의 학생 로그는 LogListViewer 가 직접 읽는다.
 
     #region IDisposable
 
