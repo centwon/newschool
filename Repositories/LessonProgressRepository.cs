@@ -189,6 +189,35 @@ public class LessonProgressRepository : BaseRepository
     #region Query
 
     /// <summary>
+    /// 수업의 진도를 통째로 지운다 — <b>강의실을 다시 정할 때만</b> 쓴다.
+    ///
+    /// <para>진도는 <c>UNIQUE(CourseSectionId, Room)</c> 이라 학급(강의실)별로 갈린다.
+    /// 강의실 이름이 바뀌면 남은 행이 어느 학급 것인지 말할 수 없게 되므로, 이름을 바꾸는
+    /// 쪽에서 함께 지운다(<see cref="Services.CourseRoomReset"/>).</para>
+    ///
+    /// <para><c>LessonProgress</c> 는 <c>CourseSection</c> 을 거쳐야 수업에 닿는다 —
+    /// 그래서 <see cref="GetByCourseAsync"/> 와 같은 JOIN 을 쓴다.</para>
+    /// </summary>
+    public async Task<int> DeleteByCourseAsync(int courseNo)
+    {
+        const string query = @"
+            DELETE FROM LessonProgress
+            WHERE CourseSectionId IN (SELECT No FROM CourseSection WHERE Course = @CourseNo)";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.Add("@CourseNo", SqliteType.Integer).Value = courseNo;
+            return await cmd.ExecuteNonQueryAsync();
+        }
+        catch (Exception ex)
+        {
+            LogError($"수업 진도 삭제 실패: Course={courseNo}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// 수업의 전체 진도 조회 (매트릭스용)
     /// </summary>
     public async Task<List<LessonProgress>> GetByCourseAsync(int courseNo)
