@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using NewSchool.Models;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -19,7 +20,7 @@ namespace NewSchool.Board.ViewModels;
 /// <summary>
 /// Post 상세 ViewModel
 /// </summary>
-public class PostDetailViewModel : INotifyPropertyChanged
+public class PostDetailViewModel : NotifyPropertyChangedBase
 {
     private readonly BoardService _service;
     private Post? _post;
@@ -28,7 +29,6 @@ public class PostDetailViewModel : INotifyPropertyChanged
     private bool _isLoading;
     private string _newCommentContent = "";
 
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     #region Properties
 
@@ -380,10 +380,6 @@ public class PostDetailViewModel : INotifyPropertyChanged
         NewCommentContent = "";
     }
 
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
     public async Task AddCommentAsync(StorageFile? attachedFile = null)
     {
         if (Post == null || string.IsNullOrWhiteSpace(NewCommentContent))

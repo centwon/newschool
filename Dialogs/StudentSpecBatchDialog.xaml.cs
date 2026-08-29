@@ -1,4 +1,10 @@
-﻿using Microsoft.UI;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -7,12 +13,6 @@ using NewSchool.Controls;
 using NewSchool.Helpers;
 using NewSchool.Models;
 using NewSchool.Services;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace NewSchool.Dialogs;
 

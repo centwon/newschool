@@ -1,14 +1,11 @@
 ﻿// ========================================
-// SchoolDB.cs
+// 급식(NEIS)과 교시 계산에 쓰는 기초 형식들.
+//
+// 머리에 SchoolDB.cs 라고 적혀 있었는데 그런 파일은 없다. 여기 있던 학급·수강 배정 모델
+// 넷이 재설계로 대체돼 빠지면서(아래 주석) 파일의 내용도 이름도 달라졌다.
 // ========================================
 
 using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using Microsoft.UI.Xaml.Controls;
 
 namespace NewSchool.Models;
 
@@ -18,8 +15,7 @@ namespace NewSchool.Models;
 /// <summary>
 /// 식단정보
 /// </summary>
-[WinRT.GeneratedBindableCustomProperty]
-public sealed partial class SchoolMeal
+public sealed class SchoolMeal
 {
     public string ATPT_OFCDC_SC_CODE { get; set; } = string.Empty; //        1	    ATPT_OFCDC_SC_CODE 시도교육청코드
     public string ATPT_OFCDC_SC_NM { get; set; } = string.Empty;        //2	    ATPT_OFCDC_SC_NM 시도교육청명
@@ -63,12 +59,6 @@ public sealed partial class SchoolMeal
     //12	    NTR_INFO 영양정보
     //13	    MLSV_FROM_YMD 급식시작일자
     //14	    MLSV_TO_YMD 급식종료일자
-}
-
-public class Classroom(int x, int y)
-{
-    public int Grade { get; set; } = x;
-    public int Class { get; set; } = y;
 }
 
 public class Period
@@ -142,57 +132,14 @@ public readonly record struct PeriodTimes(
 
 #endregion
 
-#region Core Models
-
-
-public class ClassAssignment : NotifyPropertyChangedBase
-{
-    private int _no = -1;
-    private int _year;
-    private int _grade;
-    private int _class;
-    private int _number;
-    private string _student = string.Empty;
-    private string _name = string.Empty;
-
-    public int No { get => _no; set => SetProperty(ref _no, value); }
-    public int Year { get => _year; set => SetProperty(ref _year, value); }
-    public int Grade { get => _grade; set => SetProperty(ref _grade, value); }
-    public int Class { get => _class; set => SetProperty(ref _class, value); }
-    public int Number { get => _number; set => SetProperty(ref _number, value); }
-    public string Student { get => _student; set => SetProperty(ref _student, value); }
-    public string Name { get => _name; set => SetProperty(ref _name, value); }
-}
-
-public class Subject : NotifyPropertyChangedBase
-{
-    private int _no = -1;
-    private string _curriculum = string.Empty;
-    private string _name = string.Empty;
-    private int _unit;
-    private string _remark = string.Empty;
-
-    public int No { get => _no; set => SetProperty(ref _no, value); }
-    public string Curriculum { get => _curriculum; set => SetProperty(ref _curriculum, value); }
-    public string Name { get => _name; set => SetProperty(ref _name, value); }
-    public int Unit { get => _unit; set => SetProperty(ref _unit, value); }
-    public string Remark { get => _remark; set => SetProperty(ref _remark, value); }
-}
-
-
-public class CourseAssignment : NotifyPropertyChangedBase
-{
-    private int _no = -1;
-    private string _student = string.Empty;
-    private int _course;
-    private string _remark = string.Empty;
-
-    public int No { get => _no; set => SetProperty(ref _no, value); }
-    public string Student { get => _student; set => SetProperty(ref _student, value); }
-    public int Course { get => _course; set => SetProperty(ref _course, value); }
-    public string Remark { get => _remark; set => SetProperty(ref _remark, value); }
-}
-
-
-
-#endregion
+// 이 파일에서 지운 것들 — 넷 다 정의부 말고는 읽는 곳도 쓰는 곳도 한 군데 없었다.
+//
+// "Core Models" 영역의 ClassAssignment·Subject·CourseAssignment 는 재설계로 대체된
+// 이전 세대다. 학급 배정은 Enrollment, 수강 배정은 CourseEnrollment 가 맡는다
+// (docs/enrollment-redesign.md). Subject 는 테이블 쪽이 먼저 없어졌고
+// (DatabaseInitializer 의 "Subject 테이블은 만들지 않는다") 모델만 남아 있었다 —
+// 과목명은 Course.Subject 에 문자열로 들어간다.
+//
+// Classroom(Grade, Class) 은 학년·반 한 쌍을 담던 그릇인데, 그 한 쌍을 함께 넘길 일이
+// 생기면 Enrollment 나 ClassTimetable 처럼 맥락을 가진 형이 이미 있다. 아무것도 뜻하지
+// 않는 좌표쌍이 따로 있으면 그쪽으로 새기 쉬워 되살리지 않는다.

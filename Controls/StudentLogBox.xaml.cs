@@ -1,437 +1,436 @@
-﻿using Microsoft.UI.Xaml;
+﻿using System;
+using System.Linq;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Models;
-using System;
-using System.Linq;
 using Windows.ApplicationModel.DataTransfer;
 using WinRT.NewSchoolGenericHelpers;
 
-namespace NewSchool.Controls
+namespace NewSchool.Controls;
+
+/// <summary>
+/// StudentLog 상세 편집/생성 컨트롤
+/// 
+/// 주요 기능:
+/// 1. StudentLog 모델 편집 (기존 기록 수정)
+/// 2. 새 StudentLog 생성
+/// 3. 구조화된 활동 기록 입력
+/// 4. 활동 요약/학생부 초안 자동 생성
+/// 5. 바이트 카운터 (NEIS 기준)
+/// 6. 클립보드 복사
+/// </summary>
+public sealed partial class StudentLogBox : UserControl
 {
-    /// <summary>
-    /// StudentLog 상세 편집/생성 컨트롤
-    /// 
-    /// 주요 기능:
-    /// 1. StudentLog 모델 편집 (기존 기록 수정)
-    /// 2. 새 StudentLog 생성
-    /// 3. 구조화된 활동 기록 입력
-    /// 4. 활동 요약/학생부 초안 자동 생성
-    /// 5. 바이트 카운터 (NEIS 기준)
-    /// 6. 클립보드 복사
-    /// </summary>
-    public sealed partial class StudentLogBox : UserControl
+    #region Fields
+
+    private StudentLog? _currentLog;
+    private string _generatedText = string.Empty;
+
+    #endregion
+
+    #region Events
+
+    /// <summary>저장 버튼 클릭 이벤트</summary>
+    public event EventHandler<StudentLog>? LogSaved;
+
+    /// <summary>취소 버튼 클릭 이벤트</summary>
+    public event EventHandler? LogCancelled;
+
+    #endregion
+
+    // 내부 상태를 밖으로 열던 CurrentLog·IsEditMode 는 쓰는 곳이 없어 지웠다(39차) —
+    // 편집 결과는 저장 이벤트로만 나간다.
+
+    #region Constructor
+
+    public StudentLogBox()
     {
-        #region Fields
+        this.InitializeComponent();
+        InitializeDefaultValues();
+    }
 
-        private StudentLog? _currentLog;
-        private string _generatedText = string.Empty;
+    #endregion
 
-        #endregion
+    #region Initialization
 
-        #region Events
+    /// <summary>기본값 초기화</summary>
+    private void InitializeDefaultValues()
+    {
+        NumYear.Value = DateTime.Today.Year;
+        // 학기 규칙은 DateTimeHelper 한 곳에서만 정한다(여기 있던 `Month <= 6` 은
+        // 7·8월과 1·2월에 학기를 뒤집었다 — 3~8월이 1학기다).
+        CBoxSemester.SelectedIndex = DateTimeHelper.SemesterOf(DateTime.Today) - 1;
+        DatePickerLog.Date = DateTimeOffset.Now;
+        CBoxCategory.SelectedIndex = 0;
+    }
 
-        /// <summary>저장 버튼 클릭 이벤트</summary>
-        public event EventHandler<StudentLog>? LogSaved;
+    #endregion
 
-        /// <summary>취소 버튼 클릭 이벤트</summary>
-        public event EventHandler? LogCancelled;
+    #region Public Methods - Load/Create
 
-        #endregion
+    /// <summary>
+    /// 기존 StudentLog 로드 (편집 모드)
+    /// </summary>
+    public void LoadLog(StudentLog log)
+    {
+        _currentLog = log;
 
-        // 내부 상태를 밖으로 열던 CurrentLog·IsEditMode 는 쓰는 곳이 없어 지웠다(39차) —
-        // 편집 결과는 저장 이벤트로만 나간다.
+        // UI에 데이터 바인딩
+        NumYear.Value = log.Year;
+        CBoxSemester.SelectedIndex = log.Semester - 1;
 
-        #region Constructor
+        // string Date → DateTimeOffset 변환
+        DatePickerLog.Date = new DateTimeOffset(log.Date);
 
-        public StudentLogBox()
+
+        CBoxCategory.SelectedIndex = (int)log.Category;
+        // 교과활동/개인별세특이면 과목 필드 표시
+        bool showSubject = log.Category == LogCategory.교과활동 || log.Category == LogCategory.개인별세특;
+        var vis = showSubject ? Visibility.Visible : Visibility.Collapsed;
+        TxtSubjectName.Visibility = vis;
+        TxtSubjectName.Text = log.SubjectName ?? string.Empty;
+        ChkIsImportant.IsChecked = log.IsImportant;
+
+        // 구조화된 필드
+        TxtActivityName.Text = log.ActivityName ?? string.Empty;
+        TxtTopic.Text = log.Topic ?? string.Empty;
+        TxtDescription.Text = log.Description ?? string.Empty;
+        TxtRole.Text = log.Role ?? string.Empty;
+        TxtSkillDeveloped.Text = log.SkillDeveloped ?? string.Empty;
+        TxtStrengthShown.Text = log.StrengthShown ?? string.Empty;
+        TxtResultOrOutcome.Text = log.ResultOrOutcome ?? string.Empty;
+
+        // 기록 내용
+        TxtLog.Text = log.Log ?? string.Empty;
+        TxtTag.Text = log.Tag ?? string.Empty;
+
+        // 구조화된 데이터가 있으면 Expander 자동 펼침
+        if (log.HasStructuredData())
         {
-            this.InitializeComponent();
-            InitializeDefaultValues();
+            ExpanderStructured.IsExpanded = true;
         }
 
-        #endregion
+        // 학생 정보 표시
+        TxtStudentInfo.Text = $"학생 ID: {log.StudentID}";
 
-        #region Initialization
+        UpdateLogByteInfo();
+    }
 
-        /// <summary>기본값 초기화</summary>
-        private void InitializeDefaultValues()
+    /// <summary>
+    /// 새 StudentLog 생성 (생성 모드)
+    /// </summary>
+    public void CreateNew(string studentId, string teacherId, int year, int semester)
+    {
+        _currentLog = new StudentLog
         {
-            NumYear.Value = DateTime.Today.Year;
-            // 학기 규칙은 DateTimeHelper 한 곳에서만 정한다(여기 있던 `Month <= 6` 은
-            // 7·8월과 1·2월에 학기를 뒤집었다 — 3~8월이 1학기다).
-            CBoxSemester.SelectedIndex = DateTimeHelper.SemesterOf(DateTime.Today) - 1;
-            DatePickerLog.Date = DateTimeOffset.Now;
-            CBoxCategory.SelectedIndex = 0;
-        }
+            StudentID = studentId,
+            TeacherID = teacherId,
+            Year = year,
+            Semester = semester,
+            Date = DateTime.Now,
+            Category = LogCategory.전체
+        };
 
-        #endregion
+        // UI 초기화
+        ClearFields();
 
-        #region Public Methods - Load/Create
+        NumYear.Value = year;
+        CBoxSemester.SelectedIndex = semester - 1;
+        DatePickerLog.Date = DateTimeOffset.Now;
 
-        /// <summary>
-        /// 기존 StudentLog 로드 (편집 모드)
-        /// </summary>
-        public void LoadLog(StudentLog log)
+        TxtStudentInfo.Text = $"학생 ID: {studentId}";
+    }
+
+    /// <summary>
+    /// 카테고리 설정 및 잠금 (일괄 입력 모드용)
+    /// </summary>
+    public void SetCategory(LogCategory category, bool locked = false)
+    {
+        // ComboBoxItem의 Tag 값으로 찾기
+        for (int i = 0; i < CBoxCategory.Items.Count; i++)
         {
-            _currentLog = log;
-
-            // UI에 데이터 바인딩
-            NumYear.Value = log.Year;
-            CBoxSemester.SelectedIndex = log.Semester - 1;
-
-            // string Date → DateTimeOffset 변환
-            DatePickerLog.Date = new DateTimeOffset(log.Date);
-
-
-            CBoxCategory.SelectedIndex = (int)log.Category;
-            // 교과활동/개인별세특이면 과목 필드 표시
-            bool showSubject = log.Category == LogCategory.교과활동 || log.Category == LogCategory.개인별세특;
-            var vis = showSubject ? Visibility.Visible : Visibility.Collapsed;
-            TxtSubjectName.Visibility = vis;
-            TxtSubjectName.Text = log.SubjectName ?? string.Empty;
-            ChkIsImportant.IsChecked = log.IsImportant;
-
-            // 구조화된 필드
-            TxtActivityName.Text = log.ActivityName ?? string.Empty;
-            TxtTopic.Text = log.Topic ?? string.Empty;
-            TxtDescription.Text = log.Description ?? string.Empty;
-            TxtRole.Text = log.Role ?? string.Empty;
-            TxtSkillDeveloped.Text = log.SkillDeveloped ?? string.Empty;
-            TxtStrengthShown.Text = log.StrengthShown ?? string.Empty;
-            TxtResultOrOutcome.Text = log.ResultOrOutcome ?? string.Empty;
-
-            // 기록 내용
-            TxtLog.Text = log.Log ?? string.Empty;
-            TxtTag.Text = log.Tag ?? string.Empty;
-
-            // 구조화된 데이터가 있으면 Expander 자동 펼침
-            if (log.HasStructuredData())
+            if (CBoxCategory.Items[i] is ComboBoxItem item &&
+                item.Tag is string tag &&
+                int.TryParse(tag, out int tagVal) &&
+                tagVal == (int)category)
             {
-                ExpanderStructured.IsExpanded = true;
+                CBoxCategory.SelectedIndex = i;
+                break;
             }
-
-            // 학생 정보 표시
-            TxtStudentInfo.Text = $"학생 ID: {log.StudentID}";
-
-            UpdateLogByteInfo();
         }
+        CBoxCategory.IsEnabled = !locked;
+    }
 
-        /// <summary>
-        /// 새 StudentLog 생성 (생성 모드)
-        /// </summary>
-        public void CreateNew(string studentId, string teacherId, int year, int semester)
-        {
-            _currentLog = new StudentLog
-            {
-                StudentID = studentId,
-                TeacherID = teacherId,
-                Year = year,
-                Semester = semester,
-                Date = DateTime.Now,
-                Category = LogCategory.전체
-            };
+    /// <summary>
+    /// 과목명 설정 및 잠금
+    /// </summary>
+    public void SetSubjectName(string subjectName, bool locked = false)
+    {
+        TxtSubjectName.Visibility = Visibility.Visible;
+        TxtSubjectName.Text = subjectName;
+        TxtSubjectName.IsReadOnly = locked;
+    }
 
-            // UI 초기화
-            ClearFields();
+    /// <summary>
+    /// 학년도/학기 잠금 (일괄 입력 시 변경 불필요)
+    /// </summary>
+    public void LockYearSemester(bool locked = true)
+    {
+        NumYear.IsEnabled = !locked;
+        CBoxSemester.IsEnabled = !locked;
+    }
 
-            NumYear.Value = year;
-            CBoxSemester.SelectedIndex = semester - 1;
-            DatePickerLog.Date = DateTimeOffset.Now;
+    /// <summary>
+    /// 학생 정보 표시 숨김 (일괄 입력 시 학생 ID 불필요)
+    /// </summary>
+    public void HideStudentInfo()
+    {
+        TxtStudentInfo.Visibility = Visibility.Collapsed;
+    }
 
-            TxtStudentInfo.Text = $"학생 ID: {studentId}";
-        }
+    /// <summary>
+    /// 입력 필드 초기화
+    /// </summary>
+    public void ClearFields()
+    {
+        TxtSubjectName.Text = string.Empty;
+        ChkIsImportant.IsChecked = false;
 
-        /// <summary>
-        /// 카테고리 설정 및 잠금 (일괄 입력 모드용)
-        /// </summary>
-        public void SetCategory(LogCategory category, bool locked = false)
-        {
-            // ComboBoxItem의 Tag 값으로 찾기
-            for (int i = 0; i < CBoxCategory.Items.Count; i++)
-            {
-                if (CBoxCategory.Items[i] is ComboBoxItem item &&
-                    item.Tag is string tag &&
-                    int.TryParse(tag, out int tagVal) &&
-                    tagVal == (int)category)
-                {
-                    CBoxCategory.SelectedIndex = i;
-                    break;
-                }
-            }
-            CBoxCategory.IsEnabled = !locked;
-        }
+        // 활동 상세 항목 Expander 닫기
+        ExpanderStructured.IsExpanded = false;
 
-        /// <summary>
-        /// 과목명 설정 및 잠금
-        /// </summary>
-        public void SetSubjectName(string subjectName, bool locked = false)
-        {
-            TxtSubjectName.Visibility = Visibility.Visible;
-            TxtSubjectName.Text = subjectName;
-            TxtSubjectName.IsReadOnly = locked;
-        }
+        TxtActivityName.Text = string.Empty;
+        TxtTopic.Text = string.Empty;
+        TxtDescription.Text = string.Empty;
+        TxtRole.Text = string.Empty;
+        TxtSkillDeveloped.Text = string.Empty;
+        TxtStrengthShown.Text = string.Empty;
+        TxtResultOrOutcome.Text = string.Empty;
 
-        /// <summary>
-        /// 학년도/학기 잠금 (일괄 입력 시 변경 불필요)
-        /// </summary>
-        public void LockYearSemester(bool locked = true)
-        {
-            NumYear.IsEnabled = !locked;
-            CBoxSemester.IsEnabled = !locked;
-        }
+        TxtLog.Text = string.Empty;
+        TxtTag.Text = string.Empty;
 
-        /// <summary>
-        /// 학생 정보 표시 숨김 (일괄 입력 시 학생 ID 불필요)
-        /// </summary>
-        public void HideStudentInfo()
-        {
-            TxtStudentInfo.Visibility = Visibility.Collapsed;
-        }
+        TxtGeneratedText.Text = "여기에 생성된 요약 또는 초안이 표시됩니다.";
+        _generatedText = string.Empty;
+        BtnCopyToClipboard.IsEnabled = false;
+    }
 
-        /// <summary>
-        /// 입력 필드 초기화
-        /// </summary>
-        public void ClearFields()
+    #endregion
+
+    #region UI Event Handlers
+
+    /// <summary>카테고리 변경 시</summary>
+    private void OnCategoryChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var selectedIndex = CBoxCategory.SelectedIndex;
+        bool showSubject = selectedIndex == 1 || selectedIndex == 2; // 교과활동, 개인별세특
+        var vis = showSubject ? Visibility.Visible : Visibility.Collapsed;
+        TxtSubjectName.Visibility = vis;
+
+        if (!showSubject)
         {
             TxtSubjectName.Text = string.Empty;
-            ChkIsImportant.IsChecked = false;
-
-            // 활동 상세 항목 Expander 닫기
-            ExpanderStructured.IsExpanded = false;
-
-            TxtActivityName.Text = string.Empty;
-            TxtTopic.Text = string.Empty;
-            TxtDescription.Text = string.Empty;
-            TxtRole.Text = string.Empty;
-            TxtSkillDeveloped.Text = string.Empty;
-            TxtStrengthShown.Text = string.Empty;
-            TxtResultOrOutcome.Text = string.Empty;
-
-            TxtLog.Text = string.Empty;
-            TxtTag.Text = string.Empty;
-
-            TxtGeneratedText.Text = "여기에 생성된 요약 또는 초안이 표시됩니다.";
-            _generatedText = string.Empty;
-            BtnCopyToClipboard.IsEnabled = false;
         }
-
-        #endregion
-
-        #region UI Event Handlers
-
-        /// <summary>카테고리 변경 시</summary>
-        private void OnCategoryChanged(object sender, SelectionChangedEventArgs e)
-        {
-            var selectedIndex = CBoxCategory.SelectedIndex;
-            bool showSubject = selectedIndex == 1 || selectedIndex == 2; // 교과활동, 개인별세특
-            var vis = showSubject ? Visibility.Visible : Visibility.Collapsed;
-            TxtSubjectName.Visibility = vis;
-
-            if (!showSubject)
-            {
-                TxtSubjectName.Text = string.Empty;
-            }
-        }
-
-        /// <summary>구조화된 필드 변경 시</summary>
-        private void OnStructuredFieldChanged(object sender, TextChangedEventArgs e)
-        {
-            // 구조화된 필드가 하나라도 입력되면 생성 버튼 활성화
-            bool hasStructuredData = !string.IsNullOrWhiteSpace(TxtActivityName.Text) ||
-                                    !string.IsNullOrWhiteSpace(TxtTopic.Text) ||
-                                    !string.IsNullOrWhiteSpace(TxtDescription.Text);
-
-            BtnGenerateSummary.IsEnabled = hasStructuredData;
-            BtnGenerateDraft.IsEnabled = hasStructuredData;
-        }
-
-        /// <summary>Log 텍스트 변경 시</summary>
-        private void OnLogChanged(object sender, TextChangedEventArgs e)
-        {
-            UpdateLogByteInfo();
-        }
-
-        /// <summary>활동 요약 생성</summary>
-        private void OnGenerateSummaryClick(object sender, RoutedEventArgs e)
-        {
-            var tempLog = CreateTempLogFromUI();
-            
-            if (tempLog.HasStructuredData())
-            {
-                _generatedText = tempLog.Summary;
-                TxtGeneratedText.Text = _generatedText;
-                BtnCopyToClipboard.IsEnabled = true;
-            }
-            else
-            {
-                ShowMessage("활동 상세 항목 필요", "활동명, 주제, 활동 내용 중 하나 이상을 입력해주세요.");
-            }
-        }
-
-        /// <summary>학생부 초안 생성</summary>
-        private void OnGenerateDraftClick(object sender, RoutedEventArgs e)
-        {
-            var tempLog = CreateTempLogFromUI();
-            
-            if (tempLog.HasStructuredData())
-            {
-                _generatedText = tempLog.DraftSummary;
-                TxtGeneratedText.Text = _generatedText;
-                BtnCopyToClipboard.IsEnabled = true;
-            }
-            else
-            {
-                ShowMessage("활동 상세 항목 필요", "활동명, 주제, 활동 내용 중 하나 이상을 입력해주세요.");
-            }
-        }
-
-        /// <summary>클립보드에 복사</summary>
-        private void OnCopyToClipboardClick(object sender, RoutedEventArgs e)
-        {
-            if (!string.IsNullOrEmpty(_generatedText))
-            {
-                var dataPackage = new DataPackage();
-                dataPackage.SetText(_generatedText);
-                Clipboard.SetContent(dataPackage);
-
-                ShowMessage("복사 완료", "클립보드에 복사되었습니다.");
-            }
-        }
-
-        /// <summary>저장 버튼 클릭</summary>
-        private void OnSaveClick(object sender, RoutedEventArgs e)
-        {
-            if (_currentLog == null)
-            {
-                ShowMessage("오류", "저장할 로그가 없습니다.");
-                return;
-            }
-
-            // UI 데이터를 _currentLog에 반영
-            UpdateLogFromUI();
-
-            // 유효성 검사
-            if (string.IsNullOrWhiteSpace(_currentLog.StudentID))
-            {
-                ShowMessage("유효성 검사 실패", "학생 ID가 없습니다.");
-                return;
-            }
-
-            // 기록 내용이나 구조화된 데이터 중 하나는 있어야 함
-            bool hasLog = !string.IsNullOrWhiteSpace(_currentLog.Log);
-            bool hasStructured = _currentLog.HasStructuredData();
-
-            if (!hasLog && !hasStructured)
-            {
-                ShowMessage("유효성 검사 실패", "기록 내용 또는 활동 상세 항목 중 하나는 입력해야 합니다.");
-                return;
-            }
-
-            // 이벤트 발생
-            LogSaved?.Invoke(this, _currentLog);
-        }
-
-        /// <summary>취소 버튼 클릭</summary>
-        private void OnCancelClick(object sender, RoutedEventArgs e)
-        {
-            LogCancelled?.Invoke(this, EventArgs.Empty);
-        }
-
-        #endregion
-
-        #region Helper Methods
-
-        /// <summary>UI에서 임시 StudentLog 객체 생성 (미리보기용)</summary>
-        private StudentLog CreateTempLogFromUI()
-        {
-            return new StudentLog
-            {
-                Year = (int)NumYear.Value,
-                Semester = CBoxSemester.SelectedIndex + 1,
-                Date = (DatePickerLog.Date ?? DateTimeOffset.Now).LocalDateTime,
-                Category = (LogCategory)CBoxCategory.SelectedIndex,
-                SubjectName = TxtSubjectName.Text,
-                ActivityName = TxtActivityName.Text,
-                Topic = TxtTopic.Text,
-                Description = TxtDescription.Text,
-                Role = TxtRole.Text,
-                SkillDeveloped = TxtSkillDeveloped.Text,
-                StrengthShown = TxtStrengthShown.Text,
-                ResultOrOutcome = TxtResultOrOutcome.Text,
-                Log = TxtLog.Text,
-                Tag = TxtTag.Text,
-                IsImportant = ChkIsImportant.IsChecked ?? false
-            };
-        }
-
-        /// <summary>UI 데이터를 _currentLog에 반영</summary>
-        private void UpdateLogFromUI()
-        {
-            if (_currentLog == null) return;
-
-            _currentLog.Year = (int)NumYear.Value;
-            _currentLog.Semester = CBoxSemester.SelectedIndex + 1;
-            _currentLog.Date = (DatePickerLog.Date ?? DateTimeOffset.Now).LocalDateTime;
-            _currentLog.Category = (LogCategory)CBoxCategory.SelectedIndex;
-            _currentLog.SubjectName = TxtSubjectName.Text;
-            _currentLog.IsImportant = ChkIsImportant.IsChecked ?? false;
-
-            _currentLog.ActivityName = TxtActivityName.Text;
-            _currentLog.Topic = TxtTopic.Text;
-            _currentLog.Description = TxtDescription.Text;
-            _currentLog.Role = TxtRole.Text;
-            _currentLog.SkillDeveloped = TxtSkillDeveloped.Text;
-            _currentLog.StrengthShown = TxtStrengthShown.Text;
-            _currentLog.ResultOrOutcome = TxtResultOrOutcome.Text;
-
-            _currentLog.Log = TxtLog.Text;
-            _currentLog.Tag = TxtTag.Text;
-        }
-
-        /// <summary>바이트 정보 업데이트</summary>
-        private void UpdateLogByteInfo()
-        {
-            int byteCount = CalculateNeisByte(TxtLog.Text);
-            int charCount = TxtLog.Text?.Length ?? 0;
-            TxtLogByteInfo.Text = $"{byteCount} Byte / {charCount} 자";
-        }
-
-        /// <summary>
-        /// NEIS 바이트 계산 (한글 3바이트, 영문/숫자/기호 1바이트)
-        /// </summary>
-        private int CalculateNeisByte(string? text)
-        {
-            if (string.IsNullOrEmpty(text))
-                return 0;
-
-            int byteCount = 0;
-            foreach (char c in text)
-            {
-                // 한글 범위: AC00-D7A3 (가-힣)
-                if (c >= 0xAC00 && c <= 0xD7A3)
-                {
-                    byteCount += 3;
-                }
-                // 한자 및 기타 유니코드 문자 (2바이트 이상)
-                else if (c >= 0x3000)
-                {
-                    byteCount += 3;
-                }
-                // ASCII 범위 (영문, 숫자, 기호)
-                else
-                {
-                    byteCount += 1;
-                }
-            }
-            return byteCount;
-        }
-
-        /// <summary>메시지 표시 (간단한 알림)</summary>
-        private async void ShowMessage(string title, string message)
-        {
-            await MessageBox.ShowAsync(message, title);
-        }
-
-        #endregion
     }
+
+    /// <summary>구조화된 필드 변경 시</summary>
+    private void OnStructuredFieldChanged(object sender, TextChangedEventArgs e)
+    {
+        // 구조화된 필드가 하나라도 입력되면 생성 버튼 활성화
+        bool hasStructuredData = !string.IsNullOrWhiteSpace(TxtActivityName.Text) ||
+                                !string.IsNullOrWhiteSpace(TxtTopic.Text) ||
+                                !string.IsNullOrWhiteSpace(TxtDescription.Text);
+
+        BtnGenerateSummary.IsEnabled = hasStructuredData;
+        BtnGenerateDraft.IsEnabled = hasStructuredData;
+    }
+
+    /// <summary>Log 텍스트 변경 시</summary>
+    private void OnLogChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateLogByteInfo();
+    }
+
+    /// <summary>활동 요약 생성</summary>
+    private void OnGenerateSummaryClick(object sender, RoutedEventArgs e)
+    {
+        var tempLog = CreateTempLogFromUI();
+        
+        if (tempLog.HasStructuredData())
+        {
+            _generatedText = tempLog.Summary;
+            TxtGeneratedText.Text = _generatedText;
+            BtnCopyToClipboard.IsEnabled = true;
+        }
+        else
+        {
+            ShowMessage("활동 상세 항목 필요", "활동명, 주제, 활동 내용 중 하나 이상을 입력해주세요.");
+        }
+    }
+
+    /// <summary>학생부 초안 생성</summary>
+    private void OnGenerateDraftClick(object sender, RoutedEventArgs e)
+    {
+        var tempLog = CreateTempLogFromUI();
+        
+        if (tempLog.HasStructuredData())
+        {
+            _generatedText = tempLog.DraftSummary;
+            TxtGeneratedText.Text = _generatedText;
+            BtnCopyToClipboard.IsEnabled = true;
+        }
+        else
+        {
+            ShowMessage("활동 상세 항목 필요", "활동명, 주제, 활동 내용 중 하나 이상을 입력해주세요.");
+        }
+    }
+
+    /// <summary>클립보드에 복사</summary>
+    private void OnCopyToClipboardClick(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(_generatedText))
+        {
+            var dataPackage = new DataPackage();
+            dataPackage.SetText(_generatedText);
+            Clipboard.SetContent(dataPackage);
+
+            ShowMessage("복사 완료", "클립보드에 복사되었습니다.");
+        }
+    }
+
+    /// <summary>저장 버튼 클릭</summary>
+    private void OnSaveClick(object sender, RoutedEventArgs e)
+    {
+        if (_currentLog == null)
+        {
+            ShowMessage("오류", "저장할 로그가 없습니다.");
+            return;
+        }
+
+        // UI 데이터를 _currentLog에 반영
+        UpdateLogFromUI();
+
+        // 유효성 검사
+        if (string.IsNullOrWhiteSpace(_currentLog.StudentID))
+        {
+            ShowMessage("유효성 검사 실패", "학생 ID가 없습니다.");
+            return;
+        }
+
+        // 기록 내용이나 구조화된 데이터 중 하나는 있어야 함
+        bool hasLog = !string.IsNullOrWhiteSpace(_currentLog.Log);
+        bool hasStructured = _currentLog.HasStructuredData();
+
+        if (!hasLog && !hasStructured)
+        {
+            ShowMessage("유효성 검사 실패", "기록 내용 또는 활동 상세 항목 중 하나는 입력해야 합니다.");
+            return;
+        }
+
+        // 이벤트 발생
+        LogSaved?.Invoke(this, _currentLog);
+    }
+
+    /// <summary>취소 버튼 클릭</summary>
+    private void OnCancelClick(object sender, RoutedEventArgs e)
+    {
+        LogCancelled?.Invoke(this, EventArgs.Empty);
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>UI에서 임시 StudentLog 객체 생성 (미리보기용)</summary>
+    private StudentLog CreateTempLogFromUI()
+    {
+        return new StudentLog
+        {
+            Year = (int)NumYear.Value,
+            Semester = CBoxSemester.SelectedIndex + 1,
+            Date = (DatePickerLog.Date ?? DateTimeOffset.Now).LocalDateTime,
+            Category = (LogCategory)CBoxCategory.SelectedIndex,
+            SubjectName = TxtSubjectName.Text,
+            ActivityName = TxtActivityName.Text,
+            Topic = TxtTopic.Text,
+            Description = TxtDescription.Text,
+            Role = TxtRole.Text,
+            SkillDeveloped = TxtSkillDeveloped.Text,
+            StrengthShown = TxtStrengthShown.Text,
+            ResultOrOutcome = TxtResultOrOutcome.Text,
+            Log = TxtLog.Text,
+            Tag = TxtTag.Text,
+            IsImportant = ChkIsImportant.IsChecked ?? false
+        };
+    }
+
+    /// <summary>UI 데이터를 _currentLog에 반영</summary>
+    private void UpdateLogFromUI()
+    {
+        if (_currentLog == null) return;
+
+        _currentLog.Year = (int)NumYear.Value;
+        _currentLog.Semester = CBoxSemester.SelectedIndex + 1;
+        _currentLog.Date = (DatePickerLog.Date ?? DateTimeOffset.Now).LocalDateTime;
+        _currentLog.Category = (LogCategory)CBoxCategory.SelectedIndex;
+        _currentLog.SubjectName = TxtSubjectName.Text;
+        _currentLog.IsImportant = ChkIsImportant.IsChecked ?? false;
+
+        _currentLog.ActivityName = TxtActivityName.Text;
+        _currentLog.Topic = TxtTopic.Text;
+        _currentLog.Description = TxtDescription.Text;
+        _currentLog.Role = TxtRole.Text;
+        _currentLog.SkillDeveloped = TxtSkillDeveloped.Text;
+        _currentLog.StrengthShown = TxtStrengthShown.Text;
+        _currentLog.ResultOrOutcome = TxtResultOrOutcome.Text;
+
+        _currentLog.Log = TxtLog.Text;
+        _currentLog.Tag = TxtTag.Text;
+    }
+
+    /// <summary>바이트 정보 업데이트</summary>
+    private void UpdateLogByteInfo()
+    {
+        int byteCount = CalculateNeisByte(TxtLog.Text);
+        int charCount = TxtLog.Text?.Length ?? 0;
+        TxtLogByteInfo.Text = $"{byteCount} Byte / {charCount} 자";
+    }
+
+    /// <summary>
+    /// NEIS 바이트 계산 (한글 3바이트, 영문/숫자/기호 1바이트)
+    /// </summary>
+    private int CalculateNeisByte(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return 0;
+
+        int byteCount = 0;
+        foreach (char c in text)
+        {
+            // 한글 범위: AC00-D7A3 (가-힣)
+            if (c >= 0xAC00 && c <= 0xD7A3)
+            {
+                byteCount += 3;
+            }
+            // 한자 및 기타 유니코드 문자 (2바이트 이상)
+            else if (c >= 0x3000)
+            {
+                byteCount += 3;
+            }
+            // ASCII 범위 (영문, 숫자, 기호)
+            else
+            {
+                byteCount += 1;
+            }
+        }
+        return byteCount;
+    }
+
+    /// <summary>메시지 표시 (간단한 알림)</summary>
+    private async void ShowMessage(string title, string message)
+    {
+        await MessageBox.ShowAsync(message, title);
+    }
+
+    #endregion
 }

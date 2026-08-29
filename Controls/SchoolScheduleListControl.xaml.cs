@@ -1,13 +1,13 @@
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using NewSchool.Models;
-using NewSchool.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using NewSchool.Models;
+using NewSchool.Services;
 
 namespace NewSchool.Controls;
 
@@ -18,15 +18,9 @@ public sealed partial class SchoolScheduleListControl : UserControl
 {
     private ObservableCollection<SchoolScheduleGroup> _scheduleGroups = new();
 
-    public ObservableCollection<SchoolScheduleGroup> ScheduleGroups
-    {
-        get => _scheduleGroups;
-        set
-        {
-            _scheduleGroups = value ?? new ObservableCollection<SchoolScheduleGroup>();
-            ScheduleItemsRepeater.ItemsSource = _scheduleGroups;
-        }
-    }
+    // 바깥에서 목록을 통째로 갈아 끼우던 ScheduleGroups 속성은 지웠다(2026-08-30) —
+    // 부르는 곳이 없었다. 이 컨트롤은 스스로 학사일정을 읽어 _scheduleGroups 를 채우고,
+    // ItemsSource 는 생성자에서 한 번만 묶는다.
 
     public SchoolScheduleListControl()
     {

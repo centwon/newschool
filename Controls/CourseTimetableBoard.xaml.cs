@@ -592,8 +592,7 @@ public sealed partial class CourseTimetableBoard : UserControl
             DayOfWeek = day,
             Period = period,
             Grade = course.Grade,
-            Room = room ?? course.RoomList.FirstOrDefault() ?? string.Empty,
-            IsRecurring = true
+            Room = room ?? course.RoomList.FirstOrDefault() ?? string.Empty
         };
 
         using var repo = new LessonRepository(SchoolDatabase.DbPath);

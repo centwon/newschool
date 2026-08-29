@@ -106,7 +106,7 @@ public sealed partial class StudentEditDialog : ContentDialog
             // 목록에 없는 값(빈 값, 옛 "전학")이면 아무것도 안 잡힌다. 그대로 저장하면
             // '재학' 으로 채워지므로, 그런 행은 한 번 열었다 저장하는 것으로 정리된다.
             SelectByTag(CBoxChange, _enrollment.ChangeType);
-            DateChange.Date = ParseDate(_enrollment.ChangeDate);
+            DateChange.Date = ToOffset(_enrollment.ChangeDate);
             TxtMemo.Text = _enrollment.Memo ?? string.Empty;
 
             return null;
@@ -220,7 +220,7 @@ public sealed partial class StudentEditDialog : ContentDialog
         // ApplyChange 가 IsActive 까지 함께 맞춘다. 세 값을 따로 넣지 말 것.
         _enrollment.ApplyChange(
             TagOf(CBoxChange) ?? EnrollmentChange.DefaultFor(grade),
-            FormatDate(DateChange.Date));
+            ToDate(DateChange.Date));
 
         using var repo = new EnrollmentRepository(SchoolDatabase.DbPath);
         if (!await repo.UpdateAsync(_enrollment))
@@ -271,11 +271,11 @@ public sealed partial class StudentEditDialog : ContentDialog
     private async Task ApplyExtrasToNewAsync(string studentId, int grade)
     {
         string changeType = TagOf(CBoxChange) ?? EnrollmentChange.DefaultFor(grade);
-        string changeDate = FormatDate(DateChange.Date);
+        DateTime? changeDate = ToDate(DateChange.Date);
         string memo = TxtMemo.Text.Trim();
 
         bool nothingExtra = changeType == EnrollmentChange.DefaultFor(grade)
-            && changeDate.Length == 0 && memo.Length == 0;
+            && changeDate == null && memo.Length == 0;
         if (nothingExtra) return;
 
         try
@@ -330,19 +330,12 @@ public sealed partial class StudentEditDialog : ContentDialog
         (box.SelectedItem as ComboBoxItem)?.Tag as string;
 
     /// <summary>"yyyy-MM-dd" → 날짜. 비었거나 형식이 다르면 null.</summary>
-    private static DateTimeOffset? ParseDate(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return null;
+    /// <summary>모델의 날짜 → DatePicker 값. 둘 다 "없음" 을 null 로 쓴다.</summary>
+    private static DateTimeOffset? ToOffset(DateTime? value) =>
+        value.HasValue ? new DateTimeOffset(value.Value) : null;
 
-        return DateTime.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                                      DateTimeStyles.None, out var parsed)
-            ? new DateTimeOffset(parsed)
-            : null;
-    }
-
-    /// <summary>날짜 → "yyyy-MM-dd". 비었으면 빈 문자열(모델이 문자열로 들고 있다).</summary>
-    private static string FormatDate(DateTimeOffset? value) =>
-        value?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty;
+    /// <summary>DatePicker 값 → 모델의 날짜. 시각은 버린다(변동 일자는 날짜만 쓴다).</summary>
+    private static DateTime? ToDate(DateTimeOffset? value) => value?.Date;
 
     private void InitializeErrorInfoBar()
     {

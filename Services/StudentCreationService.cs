@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Threading.Tasks;
 using System.Linq;
+using System.Threading.Tasks;
 using NewSchool.Models;
 using NewSchool.Repositories;
 
@@ -156,8 +156,7 @@ public static class StudentCreationService
 
                 // 학년이 기본 변동을 정한다 — 1학년은 입학, 그 위는 진급.
                 // ApplyChange 가 IsActive 까지 함께 맞춘다.
-                enrollment.ApplyChange(EnrollmentChange.DefaultFor(grade),
-                                       DateTime.Now.ToString("yyyy-MM-dd"));
+                enrollment.ApplyChange(EnrollmentChange.DefaultFor(grade), DateTime.Today);
 
                 if (await enrollmentRepo.CreateAsync(enrollment) <= 0)
                     throw new InvalidOperationException("학적이 저장되지 않았습니다.");

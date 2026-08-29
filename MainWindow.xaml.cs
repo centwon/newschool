@@ -10,11 +10,11 @@ using NewSchool.Board.Pages;
 using NewSchool.Controls;
 using NewSchool.Pages;
 using NewSchool.Scheduler;
+using NewSchool.Services;
 using Windows.Media.Miracast;
 using Windows.Storage;
 using Windows.System;
 using WinRT.Interop;
-using NewSchool.Services;
 
 namespace NewSchool;
 

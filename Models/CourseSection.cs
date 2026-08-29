@@ -51,7 +51,7 @@ public class CourseSection : NotifyPropertyChangedBase
     public int UnitNo
     {
         get => _unitNo;
-        set => SetProperty(ref _unitNo, value);
+        set { if (SetProperty(ref _unitNo, value)) Notify(nameof(FullPath)); }
     }
 
     /// <summary>대단원명</summary>
@@ -69,7 +69,7 @@ public class CourseSection : NotifyPropertyChangedBase
     public int ChapterNo
     {
         get => _chapterNo;
-        set => SetProperty(ref _chapterNo, value);
+        set { if (SetProperty(ref _chapterNo, value)) Notify(nameof(FullPath)); }
     }
 
     /// <summary>중단원명</summary>
@@ -87,7 +87,7 @@ public class CourseSection : NotifyPropertyChangedBase
     public int SectionNo
     {
         get => _sectionNo;
-        set => SetProperty(ref _sectionNo, value);
+        set { if (SetProperty(ref _sectionNo, value)) Notify(nameof(FullPath)); }
     }
 
     /// <summary>소단원명 (핵심 단위)</summary>
@@ -101,21 +101,21 @@ public class CourseSection : NotifyPropertyChangedBase
     public int StartPage
     {
         get => _startPage;
-        set => SetProperty(ref _startPage, value);
+        set { if (SetProperty(ref _startPage, value)) Notify(nameof(PageRangeDisplay), nameof(ShortInfo)); }
     }
 
     /// <summary>교과서 끝 페이지</summary>
     public int EndPage
     {
         get => _endPage;
-        set => SetProperty(ref _endPage, value);
+        set { if (SetProperty(ref _endPage, value)) Notify(nameof(PageRangeDisplay), nameof(ShortInfo)); }
     }
 
     /// <summary>예상 소요 차시</summary>
     public int EstimatedHours
     {
         get => _estimatedHours;
-        set => SetProperty(ref _estimatedHours, value);
+        set { if (SetProperty(ref _estimatedHours, value)) Notify(nameof(HoursDisplay), nameof(ShortInfo)); }
     }
 
     /// <summary>정렬 순서</summary>

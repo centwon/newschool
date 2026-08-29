@@ -9,7 +9,7 @@ namespace NewSchool.ViewModels;
 /// StudentSpecial ViewModel
 /// UI 바인딩 및 선택 상태 관리
 /// </summary>
-public class StudentSpecialViewModel : INotifyPropertyChanged
+public class StudentSpecialViewModel : NotifyPropertyChangedBase
 {
     private StudentSpecial _special;
     private bool _isSelected;
@@ -311,12 +311,7 @@ public class StudentSpecialViewModel : INotifyPropertyChanged
 
     #region INotifyPropertyChanged
 
-    public event PropertyChangedEventHandler? PropertyChanged;
 
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 
     #endregion
 }

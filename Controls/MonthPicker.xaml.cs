@@ -45,15 +45,15 @@ public sealed partial class MonthPicker : UserControl
     {
         if (d is MonthPicker picker && e.NewValue is DateTime newDate)
         {
-            var oldDate = e.OldValue is DateTime ? (DateTime)e.OldValue : DateTime.Now;
-
+            // 바뀌기 전 달을 읽던 지역 변수(oldDate)는 PreviousMonth 와 함께 걷었다 —
+            // 실어 보내기만 하고 받는 쪽이 없었다.
             picker.UpdateButtonContent(newDate);
             picker.UpdateMonthHighlight();
 
             // 이벤트 발생
             picker.SelectedMonthChanged?.Invoke(
                 picker,
-                new SelectedMonthChangedEventArgs(newDate, oldDate)
+                new SelectedMonthChangedEventArgs(newDate)
             );
         }
     }
@@ -463,15 +463,24 @@ public sealed partial class MonthPicker : UserControl
     }
     #endregion
 }
+/// <summary>
+/// <c>SelectedMonthChanged</c> 가 실어 보내는 값.
+///
+/// <para>바뀌기 전 달(<c>PreviousMonth</c>)은 지웠다(2026-08-30) — 넣기만 하고 읽는 곳이
+/// 없었다. 필요해지면 되살리되, 그때 아래도 함께 볼 것.</para>
+///
+/// <para>⚠ 남은 <c>SelectedMonth</c> 도 <b>지금은 아무도 이 인자에서 읽지 않는다</b>.
+/// 유일한 소비자(<c>Kcalendar</c>)가 인자 대신 컨트롤의 <c>PickerMonth.SelectedMonth</c> 를
+/// 읽기 때문이다. 그래서 이 클래스 자체가 언젠가 통째로 필요 없어질 수 있다 —
+/// 다만 이벤트의 공개 형태를 바꾸는 일이라 여기서는 손대지 않았다.</para>
+/// </summary>
 public class SelectedMonthChangedEventArgs : EventArgs
 {
     public DateTime SelectedMonth { get; }
-    public DateTime PreviousMonth { get; }
 
-    public SelectedMonthChangedEventArgs(DateTime selectedMonth, DateTime previousMonth)
+    public SelectedMonthChangedEventArgs(DateTime selectedMonth)
     {
         SelectedMonth = selectedMonth;
-        PreviousMonth = previousMonth;
     }
 }
 

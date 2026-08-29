@@ -125,9 +125,12 @@ public sealed partial class ClassPicker : UserControl
         }
 
         // 아직 학생이 없거나 조회가 실패했을 때의 기본 목록.
-        // 예전에는 1~3 이라 초등학교(4~6학년)에서는 담당 학년이 아예 안 보였다
-        // — 학생 추가 화면은 29차에 1~6 으로 넓혔는데 이 선택기만 남아 있었다.
-        if (grades.Count == 0) grades = new HashSet<int> { 1, 2, 3, 4, 5, 6 };
+        //
+        // ⚠ 1~6 으로 넓혀 두었던 적이 있다(초등학교를 염두에 둔 변경). 이 앱은 중·고등학교용이라
+        // 3학년까지가 맞고, 넓혀 두면 첫 실행에서 있지도 않은 4·5·6학년이 콤보에 뜬다.
+        // 학년 수를 바꿔야 할 일이 생기면 여기 말고 학교 설정에서 받아 오는 쪽으로 가야 한다 —
+        // 목록을 화면마다 적어 두면 한 곳을 고쳐도 나머지가 남는다.
+        if (grades.Count == 0) grades = new HashSet<int> { 1, 2, 3 };
 
         CBoxGrade.Items.Clear();
         if (IncludeAllGrade)

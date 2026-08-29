@@ -195,7 +195,7 @@ public static class TestData
             Memo = string.Empty,
         };
 
-        enrollment.ApplyChange(changeType ?? EnrollmentChange.DefaultFor(grade), $"{year}-03-01");
+        enrollment.ApplyChange(changeType ?? EnrollmentChange.DefaultFor(grade), new DateTime(year, 3, 1));
         return enrollment;
     }
 }

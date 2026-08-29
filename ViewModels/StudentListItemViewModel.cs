@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml.Data;
+using NewSchool.Models;
 
 namespace NewSchool.ViewModels;
 
@@ -10,8 +11,7 @@ namespace NewSchool.ViewModels;
 /// ListStudent 컨트롤에서 사용
 /// WinUI3 x:Bind를 위한 Bindable 특성 추가
 /// </summary>
-[Microsoft.UI.Xaml.Data.Bindable]
-public class StudentListItemViewModel : INotifyPropertyChanged
+public class StudentListItemViewModel : NotifyPropertyChangedBase
 {
     #region Fields
 
@@ -138,22 +138,8 @@ public class StudentListItemViewModel : INotifyPropertyChanged
 
     #region INotifyPropertyChanged
 
-    public event PropertyChangedEventHandler? PropertyChanged;
 
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (Equals(field, value))
-            return false;
-
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
 
     #endregion
 }

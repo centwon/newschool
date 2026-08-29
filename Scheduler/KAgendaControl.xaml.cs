@@ -10,9 +10,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
+using NewSchool.Controls;
 using Windows.UI;
 using Windows.UI.Text;
-using NewSchool.Controls;
 
 namespace NewSchool.Scheduler;
 
@@ -20,7 +20,6 @@ namespace NewSchool.Scheduler;
 // AgendaItem — 할 일 또는 일정을 통합 표현하는 ViewModel
 // ✅ Ktask → KEvent 통합: SourceEvent만 사용, ItemType으로 구분
 // ─────────────────────────────────────────────
-[WinRT.GeneratedBindableCustomProperty]
 public sealed partial class AgendaItem : INotifyPropertyChanged
 {
     // 원본 참조 (편집/삭제에 사용) — KEvent 단일 모델

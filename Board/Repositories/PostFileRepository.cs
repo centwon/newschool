@@ -3,243 +3,242 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 
-namespace NewSchool.Board.Repositories
+namespace NewSchool.Board.Repositories;
+
+/// <summary>
+/// PostFile 리포지토리 - 비동기 + 트랜잭션 + 에러 처리
+/// </summary>
+public class PostFileRepository : BaseRepository
 {
-    /// <summary>
-    /// PostFile 리포지토리 - 비동기 + 트랜잭션 + 에러 처리
-    /// </summary>
-    public class PostFileRepository : BaseRepository
+    public PostFileRepository(string dbPath) : base(dbPath)
     {
-        public PostFileRepository(string dbPath) : base(dbPath)
-        {
-        }
+    }
 
-        /// <summary>UnitOfWork 공유 연결 생성자.</summary>
-        public PostFileRepository(SqliteConnection connection) : base(connection)
-        {
-        }
+    /// <summary>UnitOfWork 공유 연결 생성자.</summary>
+    public PostFileRepository(SqliteConnection connection) : base(connection)
+    {
+    }
 
-        #region Create
+    #region Create
 
-        /// <summary>
-        /// PostFile 생성 (비동기)
-        /// </summary>
-        public async Task<int> CreateAsync(PostFile postFile)
-        {
-            // INSERT + SELECT 를 한 번에 실행 (왕복 1회)
-            const string query = @"
+    /// <summary>
+    /// PostFile 생성 (비동기)
+    /// </summary>
+    public async Task<int> CreateAsync(PostFile postFile)
+    {
+        // INSERT + SELECT 를 한 번에 실행 (왕복 1회)
+        const string query = @"
                 INSERT INTO PostFile (Post, DateTime, FileName, FileSize)
                 VALUES (@Post, @DateTime, @FileName, @FileSize);
                 SELECT last_insert_rowid();";
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Post", postFile.Post);
-                cmd.Parameters.AddWithValue("@DateTime", DateTimeHelper.ToStandardString(postFile.DateTime));
-                cmd.Parameters.AddWithValue("@FileName", postFile.FileName);
-                cmd.Parameters.AddWithValue("@FileSize", postFile.FileSize);
-
-                var result = await cmd.ExecuteScalarAsync();
-                postFile.No = Convert.ToInt32(result);
-
-                LogInfo($"PostFile 생성 완료: No={postFile.No}, FileName={postFile.FileName}");
-                return postFile.No;
-            }
-            catch (Exception ex)
-            {
-                LogError($"PostFile 생성 실패: FileName={postFile.FileName}", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Read
-
-        /// <summary>
-        /// ID로 PostFile 조회 (비동기)
-        /// </summary>
-        public async Task<PostFile?> GetByIdAsync(int no)
+        try
         {
-            const string query = "SELECT * FROM PostFile WHERE No = @No";
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@Post", postFile.Post);
+            cmd.Parameters.AddWithValue("@DateTime", DateTimeHelper.ToStandardString(postFile.DateTime));
+            cmd.Parameters.AddWithValue("@FileName", postFile.FileName);
+            cmd.Parameters.AddWithValue("@FileSize", postFile.FileSize);
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
+            var result = await cmd.ExecuteScalarAsync();
+            postFile.No = Convert.ToInt32(result);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    return MapPostFile(reader);
-                }
-
-                LogWarning($"PostFile을 찾을 수 없음: No={no}");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                LogError($"PostFile 조회 실패: No={no}", ex);
-                throw;
-            }
+            LogInfo($"PostFile 생성 완료: No={postFile.No}, FileName={postFile.FileName}");
+            return postFile.No;
         }
-
-        /// <summary>
-        /// Post의 모든 PostFile 조회 (비동기)
-        /// </summary>
-        public async Task<List<PostFile>> GetByPostAsync(int postNo)
+        catch (Exception ex)
         {
-            const string query = "SELECT * FROM PostFile WHERE Post = @Post ORDER BY No ASC";
-
-            var files = new List<PostFile>();
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Post", postNo);
-
-                files = await ExecuteListAsync(cmd, MapPostFile);
-
-                LogInfo($"PostFile 목록 조회 완료: Post={postNo}, Count={files.Count}");
-                return files;
-            }
-            catch (Exception ex)
-            {
-                LogError($"PostFile 목록 조회 실패: Post={postNo}", ex);
-                throw;
-            }
+            LogError($"PostFile 생성 실패: FileName={postFile.FileName}", ex);
+            throw;
         }
-
-        /// <summary>
-        /// Post의 PostFile 개수 조회 (비동기)
-        /// </summary>
-        public async Task<int> GetCountByPostAsync(int postNo)
-        {
-            const string query = "SELECT COUNT(*) FROM PostFile WHERE Post = @Post";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@Post", postNo);
-
-                var result = await cmd.ExecuteScalarAsync();
-                return Convert.ToInt32(result);
-            }
-            catch (Exception ex)
-            {
-                LogError($"PostFile 개수 조회 실패: Post={postNo}", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Delete
-
-        /// <summary>
-        /// 저장된 파일명 변경 (비동기).
-        ///
-        /// 글의 카테고리를 옮길 때, 대상 폴더에 같은 이름이 이미 있으면 실물을 다른 이름으로
-        /// 옮겨야 한다. 그때 DB 의 이름도 함께 따라가지 않으면 첨부를 못 찾거나 —
-        /// 더 나쁘게는 그 자리에 있던 <b>남의 파일</b>을 가리키게 된다.
-        /// </summary>
-        public async Task<bool> UpdateFileNameAsync(int no, string fileName)
-        {
-            const string query = "UPDATE PostFile SET FileName = @FileName WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-                cmd.Parameters.AddWithValue("@FileName", fileName);
-
-                bool success = await cmd.ExecuteNonQueryAsync() > 0;
-                if (success)
-                    LogInfo($"PostFile 이름 변경: No={no} → {fileName}");
-                else
-                    LogWarning($"PostFile 이름 변경 실패 (존재하지 않음): No={no}");
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"PostFile 이름 변경 실패: No={no}", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// PostFile 삭제 (비동기)
-        /// </summary>
-        public async Task<bool> DeleteAsync(int no)
-        {
-            const string query = "DELETE FROM PostFile WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"PostFile 삭제 완료: No={no}");
-                }
-                else
-                {
-                    LogWarning($"PostFile 삭제 실패 (존재하지 않음): No={no}");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"PostFile 삭제 실패: No={no}", ex);
-                throw;
-            }
-        }
-
-        // 글 단위 일괄 삭제(DeleteByPostAsync)는 호출부가 없어 지웠다(39차).
-        // 글을 지울 때는 BoardService 가 실물 파일까지 함께 지우려고 한 건씩 훑는다.
-
-        #endregion
-
-        #region Helper Methods
-
-        /// <summary>
-        /// SqliteDataReader를 PostFile로 매핑 (캐시된 컬럼 인덱스 사용)
-        /// </summary>
-        private PostFile MapPostFile(SqliteDataReader reader, ReaderColumnCache cache)
-        {
-            var noOrd = cache.GetOrdinal("No");
-            var postOrd = cache.GetOrdinal("Post");
-            var dtOrd = cache.GetOrdinal("DateTime");
-            var nameOrd = cache.GetOrdinal("FileName");
-            var sizeOrd = cache.GetOrdinal("FileSize");
-
-            return new PostFile
-            {
-                No = reader.GetInt32(noOrd),
-                Post = reader.GetInt32(postOrd),
-                DateTime = DateTimeHelper.FromDateString(reader.GetString(dtOrd)),
-                FileName = reader.GetString(nameOrd),
-                FileSize = reader.GetInt32(sizeOrd)
-            };
-        }
-
-        /// <summary>
-        /// 비캐시 오버로드 (단일 행 조회용)
-        /// </summary>
-        private PostFile MapPostFile(SqliteDataReader reader)
-        {
-            var cache = new ReaderColumnCache();
-            cache.Initialize(reader);
-            return MapPostFile(reader, cache);
-        }
-
-        #endregion
     }
+
+    #endregion
+
+    #region Read
+
+    /// <summary>
+    /// ID로 PostFile 조회 (비동기)
+    /// </summary>
+    public async Task<PostFile?> GetByIdAsync(int no)
+    {
+        const string query = "SELECT * FROM PostFile WHERE No = @No";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", no);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                return MapPostFile(reader);
+            }
+
+            LogWarning($"PostFile을 찾을 수 없음: No={no}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            LogError($"PostFile 조회 실패: No={no}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Post의 모든 PostFile 조회 (비동기)
+    /// </summary>
+    public async Task<List<PostFile>> GetByPostAsync(int postNo)
+    {
+        const string query = "SELECT * FROM PostFile WHERE Post = @Post ORDER BY No ASC";
+
+        var files = new List<PostFile>();
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@Post", postNo);
+
+            files = await ExecuteListAsync(cmd, MapPostFile);
+
+            LogInfo($"PostFile 목록 조회 완료: Post={postNo}, Count={files.Count}");
+            return files;
+        }
+        catch (Exception ex)
+        {
+            LogError($"PostFile 목록 조회 실패: Post={postNo}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Post의 PostFile 개수 조회 (비동기)
+    /// </summary>
+    public async Task<int> GetCountByPostAsync(int postNo)
+    {
+        const string query = "SELECT COUNT(*) FROM PostFile WHERE Post = @Post";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@Post", postNo);
+
+            var result = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }
+        catch (Exception ex)
+        {
+            LogError($"PostFile 개수 조회 실패: Post={postNo}", ex);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Delete
+
+    /// <summary>
+    /// 저장된 파일명 변경 (비동기).
+    ///
+    /// 글의 카테고리를 옮길 때, 대상 폴더에 같은 이름이 이미 있으면 실물을 다른 이름으로
+    /// 옮겨야 한다. 그때 DB 의 이름도 함께 따라가지 않으면 첨부를 못 찾거나 —
+    /// 더 나쁘게는 그 자리에 있던 <b>남의 파일</b>을 가리키게 된다.
+    /// </summary>
+    public async Task<bool> UpdateFileNameAsync(int no, string fileName)
+    {
+        const string query = "UPDATE PostFile SET FileName = @FileName WHERE No = @No";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", no);
+            cmd.Parameters.AddWithValue("@FileName", fileName);
+
+            bool success = await cmd.ExecuteNonQueryAsync() > 0;
+            if (success)
+                LogInfo($"PostFile 이름 변경: No={no} → {fileName}");
+            else
+                LogWarning($"PostFile 이름 변경 실패 (존재하지 않음): No={no}");
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            LogError($"PostFile 이름 변경 실패: No={no}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// PostFile 삭제 (비동기)
+    /// </summary>
+    public async Task<bool> DeleteAsync(int no)
+    {
+        const string query = "DELETE FROM PostFile WHERE No = @No";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", no);
+
+            int rowsAffected = await cmd.ExecuteNonQueryAsync();
+            bool success = rowsAffected > 0;
+
+            if (success)
+            {
+                LogInfo($"PostFile 삭제 완료: No={no}");
+            }
+            else
+            {
+                LogWarning($"PostFile 삭제 실패 (존재하지 않음): No={no}");
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            LogError($"PostFile 삭제 실패: No={no}", ex);
+            throw;
+        }
+    }
+
+    // 글 단위 일괄 삭제(DeleteByPostAsync)는 호출부가 없어 지웠다(39차).
+    // 글을 지울 때는 BoardService 가 실물 파일까지 함께 지우려고 한 건씩 훑는다.
+
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>
+    /// SqliteDataReader를 PostFile로 매핑 (캐시된 컬럼 인덱스 사용)
+    /// </summary>
+    private PostFile MapPostFile(SqliteDataReader reader, ReaderColumnCache cache)
+    {
+        var noOrd = cache.GetOrdinal("No");
+        var postOrd = cache.GetOrdinal("Post");
+        var dtOrd = cache.GetOrdinal("DateTime");
+        var nameOrd = cache.GetOrdinal("FileName");
+        var sizeOrd = cache.GetOrdinal("FileSize");
+
+        return new PostFile
+        {
+            No = reader.GetInt32(noOrd),
+            Post = reader.GetInt32(postOrd),
+            DateTime = DateTimeHelper.FromDateString(reader.GetString(dtOrd)),
+            FileName = reader.GetString(nameOrd),
+            FileSize = reader.GetInt32(sizeOrd)
+        };
+    }
+
+    /// <summary>
+    /// 비캐시 오버로드 (단일 행 조회용)
+    /// </summary>
+    private PostFile MapPostFile(SqliteDataReader reader)
+    {
+        var cache = new ReaderColumnCache();
+        cache.Initialize(reader);
+        return MapPostFile(reader, cache);
+    }
+
+    #endregion
 }

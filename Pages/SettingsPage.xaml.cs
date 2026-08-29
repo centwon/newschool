@@ -12,7 +12,6 @@ using NewSchool.Services;
 namespace NewSchool.Pages;
 
 /// <summary>캘린더 체크리스트 항목 (CalendarSettingsDialog UI용)</summary>
-[WinRT.GeneratedBindableCustomProperty]
 public sealed partial class GoogleCalendarCheckItem
 {
     public string Title { get; set; } = string.Empty;

@@ -7,8 +7,7 @@ namespace NewSchool.Models;
 /// <summary>
 /// 학사일정 그룹 (연속된 날짜를 하나로 묶음)
 /// </summary>
-[WinRT.GeneratedBindableCustomProperty]
-public sealed partial class SchoolScheduleGroup
+public sealed class SchoolScheduleGroup
 {
     public string EventName { get; set; } = string.Empty;
     public DateTime StartDate { get; set; }

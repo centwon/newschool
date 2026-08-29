@@ -221,9 +221,9 @@
 | 파일 | 기능 |
 |------|------|
 | `CourseService.cs` | 수업(교과) 관리 |
-| `LessonService.cs` | 수업 |
+| `TeacherTimetableService.cs` | **교사** 시간표 — 내 수업이 언제 어디 (`Lesson` 기반) |
 | `EnrollmentService.cs` | 수강 등록 |
-| `TimetableService.cs` | 시간표 |
+| `TimetableService.cs` | **학급** 시간표 — 이 반은 언제 무슨 수업 (`ClassTimetable` 기반) |
 
 ### 시수/시간표 계산
 화면마다 규칙을 복붙하지 않도록 계산은 이 둘에 모으고 테스트로 고정한다.
@@ -475,9 +475,9 @@
 
 | 과제 | 요약 | 상세 |
 |------|------|------|
-| **동아리 배정 다이얼로그 — 학년·반 필터** | 지금은 1~3학년 × 1~15반을 전부 훑어 후보 목록에 쏟는다(`LoadStudentsAsync` 의 이중 루프). 반이 많으면 목록이 길어 고르기 어렵다. 수업 배정 쪽처럼 학년·반으로 좁히는 필터가 필요하다 | `Dialogs/ClubEnrollmentDialog.xaml.cs:118` |
-| **동아리 배정 다이얼로그 — 학생 목록 스크롤바** | 목록이 길어져도 스크롤바가 안 보여 더 있는 줄 모른다 | `Dialogs/ClubEnrollmentDialog.xaml` |
-| **좌석 축 정리 (학적 재설계 3b)** | `SeatAssignment`·`SeatPosHistory` 가 `StudentID` 를 직접 가리킨다. 다만 `SeatArrangement` 를 거쳐 학년도 범위가 이미 잡혀 있어 **고쳐야 할 문제가 아니라 일관성 정리**다. 좌석 테이블 넷(`SeatArrangement`·`SeatAssignment`·`SeatHistory`·`SeatPosHistory`, 2·60·42·116행)을 통째로 볼 때 함께 한다 | [docs/enrollment-redesign.md](docs/enrollment-redesign.md) 7.5 |
+| ~~**동아리 배정 다이얼로그 — 학년·반 필터**~~ ✅ 완료 (2026-08-29) | 후보를 `1~3학년 × 1~15반` 이중 루프(DB 45회)로 모으던 것을 **조회 한 번**으로 바꿨다. 학년·반 필터는 이제 **명부에서** 만든다 — 예전에는 늘 `1~15반` 이 나와 3반까지인 학교에서도 4~15반을 고를 수 있었다. 모든 예외를 삼키던 빈 `catch` 도 없앴다 | `Dialogs/ClubEnrollmentDialog.xaml.cs` |
+| ~~**동아리 배정 다이얼로그 — 학생 목록 스크롤바**~~ ✅ 완료 (2026-08-29) | 원인은 목록이 아니라 **다이얼로그에 높이 상한이 없던 것**이었다. 높이를 안 묶으면 안쪽 `ListView` 가 "높이 무한" 으로 측정돼 항목을 전부 펼치고 스크롤이 필요 없다고 판단한다. 같은 모양의 수업 배정 다이얼로그에 이미 있던 `ContentDialogMaxHeight`·`MinHeight` 를 맞춰 넣었다 | `Dialogs/ClubEnrollmentDialog.xaml` |
+| ~~**좌석 축 정리 (학적 재설계 3b)**~~ ❌ **하지 않기로 함** (2026-08-29) | `StudentID` → `EnrollmentNo` 전환을 **닫는다.** ① 학년도 범위는 `SeatArrangement`·이력 표가 이미 제 안에 들고 있고 ② **전출 학생이 좌석표에 나타나지 않는 것을 실측**했다(복원 루프가 현재 명단과 대조해 짝이 없으면 빈 자리로 둔다 — `PageSeats.xaml.cs`). 즉 수업·동아리와 달리 **고칠 증상이 없다.** 대가는 표 넷 + `SeatService`(560줄) + `PageSeats`(1,300줄) + 짝 제외 로직 + 데이터 이관으로, 얻는 것이 일관성뿐이라 남는 장사가 아니다. **실제로 남아 있던 문제 하나(FK 가 없어 지운 학생의 좌석·이력이 영영 쌓임)는 초기화기의 고아 정리로 처리했다**(회귀 테스트 3건) | [docs/enrollment-redesign.md](docs/enrollment-redesign.md) 7.5 |
 | ~~**테스트 확충**~~ ✅ 완료 | 테스트 25개 → 211개(0~4단계, 2026-07-12) → **514개**(2026-08-26 기준, 이후 회귀 테스트 누적). 리포지토리 CRUD·경계 → 서비스 로직·회귀 → 헬퍼·파서 → VM 변환. 잠재 버그 2건도 작성 중 발견·수정. 잔여(Settings 파서·Excel 헤더 탐지 등)는 ROI 낮아 보류 | [TEST_PLAN.md](TEST_PLAN.md) |
 | ~~**자체 포함 전환 + 실행 파일을 `bin\` 하위로**~~ ✅ 완료 (2026-08-26, v1.0.0 재게시에 포함) — 실측 **설치 파일 117.1MB → 26MB(−78%)**, 설치 폴더 46파일·4폴더·96.5MB, 루트엔 `bin\` 과 언인스톨러만. 런타임 설치 단계·`prerequisites\`·`RequiredRuntimeVersion` 검사 전부 제거. ⚠ 로 적어 둔 포터블 문제는 **`Settings.FindPortableRoot` 가 실행 파일 폴더의 부모까지 보도록** 고쳐 해결(회귀 테스트 5건 추가, 실제 설치로 `{app}\Data\` 생성 확인). 아래는 결정 당시 기록 | 1.0.0 은 런타임 번들로 냈다(설치 파일 **122.8MB** = 런타임 설치기 106.9MB + 앱 15.9MB). 자체 포함으로 바꾸면 **설치 파일 29.1MB**(1/4)로 줄고 **런타임 설치 단계가 통째로 사라진다** — 1.0.0 게시를 막았던 "번들 2.3 vs 요구 2.4" 부류가 원천 소멸한다. 대가는 설치 폴더 8개·40MB → **53개·93MB**(정리 후). 지저분함은 **앱 전체를 `{app}\bin\` 하위에 넣어** 해결한다(루트엔 그 폴더와 언인스톨러만). ⚠ 포터블 판정이 exe 폴더 기준이라 `Data\` 가 `bin\` 아래로 들어간다 — 그 부분 조정 필요 | `NewSchool.csproj:255`, `Installer/NewSchoolSetup.iss` |
 | ~~`lib\` 로 DLL 격리~~ ❌ 불가 (2026-08-24 실측) | exe 는 페이로드 DLL 을 **정적 임포트하지 않아**(시스템 DLL 18개뿐) 가능해 보였다. PATH 는 .NET 이 `SetDefaultDllDirectories` 로 빼서 실패, `AddDllDirectory`+`SetDllImportResolver` 로 **DLL 로드까지는 성공**했으나 **WinRT 활성화에서 막힌다**(`Microsoft.UI.Xaml.Application` 팩토리 → COMException). 액티베이션 컨텍스트가 클래스→DLL 을 앱 디렉터리 기준으로 찾기 때문. 지원되는 구성이 아니고 SDK 업데이트마다 깨진다 → **재시도 금지**, 위 `bin\` 안으로 갈음 | — |

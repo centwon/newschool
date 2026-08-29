@@ -119,7 +119,16 @@ public class KCalendarListRepository : BaseRepository
             using var cmd = CreateCommand("SELECT COALESCE(MAX(SortOrder), 0) FROM KCalendarList");
             maxOrder = Convert.ToInt32(await cmd.ExecuteScalarAsync());
         }
-        catch { /* ignore */ }
+        catch (Exception ex)
+        {
+            // 정렬 순서를 못 읽어도 달력 만들기를 막지 않는다 — maxOrder 는 0 으로 남고
+            // 새 달력이 SortOrder=1 로, 즉 목록 맨 앞에 꽂힐 뿐이다. 순서는 사람이 다시
+            // 바꿀 수 있는 값이라, 그것 때문에 만들기 자체를 실패시키는 편이 더 나쁘다.
+            //
+            // 다만 조용히 넘기지는 않는다. 이 조회가 실패한다면 DB 쪽에 다른 문제가 있다는
+            // 뜻이고, 그 신호까지 지우면 "왜 새 달력이 자꾸 맨 앞에 오지" 로만 보인다.
+            LogWarning($"달력 정렬 순서 조회 실패 — 맨 앞(SortOrder=1)으로 만든다: {ex.Message}");
+        }
 
         var newCal = new KCalendarList
         {

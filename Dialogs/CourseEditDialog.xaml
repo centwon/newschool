@@ -68,14 +68,35 @@
                     PlaceholderText="예: 1반-5반, 1반,3반,5반, A,B,C, 미술실, 음악실, 과학실"
                     MaxLength="200"
                     TextChanged="OnRoomsTextChanged"/>
-                <TextBlock 
+                <TextBlock
                     x:Name="TxtRoomsPreview"
                     Text=""
                     Foreground="{ThemeResource SystemColorGrayTextColor}"
                     FontSize="12"
                     TextWrapping="Wrap"
                     Visibility="Collapsed"/>
-                <StackPanel Orientation="Horizontal" Spacing="8">
+
+                <!-- 강의실이 잠겼을 때만 보인다. 잠금 규칙은 코드비하인드의
+                     ApplyRoomLockAsync 주석 참고 — 딸린 기록이 있으면 잠근다. -->
+                <StackPanel
+                    x:Name="RoomsLockedPanel"
+                    Spacing="6"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="TxtRoomsLockedNote"
+                        Foreground="{ThemeResource SystemColorGrayTextColor}"
+                        FontSize="12"
+                        TextWrapping="Wrap"/>
+                    <Button
+                        x:Name="BtnResetRooms"
+                        Content="강의실 다시 정하기"
+                        Click="BtnResetRooms_Click"
+                        Height="32"
+                        Padding="12,4"
+                        HorizontalAlignment="Left"/>
+                </StackPanel>
+
+                <StackPanel x:Name="RoomsQuickFillPanel" Orientation="Horizontal" Spacing="8">
                     <Button
                         x:Name="BtnWholeRooms"                        
                         Content="1반-5반"
