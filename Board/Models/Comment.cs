@@ -3,158 +3,157 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
 
-namespace NewSchool.Board
+namespace NewSchool.Board;
+
+public class Comment : INotifyPropertyChanged
 {
-    public class Comment : INotifyPropertyChanged
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private int _no = -1;
+    public int No
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        private int _no = -1;
-        public int No
+        get => _no;
+        set
         {
-            get => _no;
-            set
+            if (_no != value)
             {
-                if (_no != value)
-                {
-                    _no = value;
-                    OnPropertyChanged();
-                }
+                _no = value;
+                OnPropertyChanged();
             }
         }
+    }
 
-        private int _post;
-        public int Post
+    private int _post;
+    public int Post
+    {
+        get => _post;
+        set
         {
-            get => _post;
-            set
+            if (_post != value)
             {
-                if (_post != value)
-                {
-                    _post = value;
-                    OnPropertyChanged();
-                }
+                _post = value;
+                OnPropertyChanged();
             }
         }
+    }
 
-        private string _user = string.Empty;
-        public string User
+    private string _user = string.Empty;
+    public string User
+    {
+        get => _user;
+        set
         {
-            get => _user;
-            set
+            if (_user != value)
             {
-                if (_user != value)
-                {
-                    _user = value;
-                    OnPropertyChanged();
-                }
+                _user = value;
+                OnPropertyChanged();
             }
         }
+    }
 
-        private DateTime _dateTime = DateTime.Now;
-        public DateTime DateTime
+    private DateTime _dateTime = DateTime.Now;
+    public DateTime DateTime
+    {
+        get => _dateTime;
+        set
         {
-            get => _dateTime;
-            set
+            if (_dateTime != value)
             {
-                if (_dateTime != value)
-                {
-                    _dateTime = value;
-                    OnPropertyChanged();
-                }
+                _dateTime = value;
+                OnPropertyChanged();
             }
         }
+    }
 
-        private int _parentNo;
-        /// <summary>답글 대상 댓글의 No. 0이면 최상위(원 댓글).</summary>
-        public int ParentNo
+    private int _parentNo;
+    /// <summary>답글 대상 댓글의 No. 0이면 최상위(원 댓글).</summary>
+    public int ParentNo
+    {
+        get => _parentNo;
+        set
         {
-            get => _parentNo;
-            set
+            if (_parentNo != value)
             {
-                if (_parentNo != value)
-                {
-                    _parentNo = value;
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsReply));
-                    OnPropertyChanged(nameof(IndentMargin));
-                    OnPropertyChanged(nameof(NotReply));
-                }
+                _parentNo = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsReply));
+                OnPropertyChanged(nameof(IndentMargin));
+                OnPropertyChanged(nameof(NotReply));
             }
         }
+    }
 
-        /// <summary>답글 여부 (UI 들여쓰기 판단용)</summary>
-        public bool IsReply => ParentNo != 0;
+    /// <summary>답글 여부 (UI 들여쓰기 판단용)</summary>
+    public bool IsReply => ParentNo != 0;
 
-        /// <summary>답글이면 들여쓰기 마진 적용</summary>
-        public Thickness IndentMargin => IsReply ? new Thickness(32, 0, 0, 8) : new Thickness(0, 0, 0, 8);
+    /// <summary>답글이면 들여쓰기 마진 적용</summary>
+    public Thickness IndentMargin => IsReply ? new Thickness(32, 0, 0, 8) : new Thickness(0, 0, 0, 8);
 
-        /// <summary>답글 버튼 표시 여부 (1단계 대댓글만 지원하므로 답글에는 답글 버튼을 숨김)</summary>
-        public Visibility NotReply => IsReply ? Visibility.Collapsed : Visibility.Visible;
+    /// <summary>답글 버튼 표시 여부 (1단계 대댓글만 지원하므로 답글에는 답글 버튼을 숨김)</summary>
+    public Visibility NotReply => IsReply ? Visibility.Collapsed : Visibility.Visible;
 
-        private string _content = string.Empty;
-        public string Content
+    private string _content = string.Empty;
+    public string Content
+    {
+        get => _content;
+        set
         {
-            get => _content;
-            set
+            if (_content != value)
             {
-                if (_content != value)
-                {
-                    _content = value;
-                    OnPropertyChanged();
-                }
+                _content = value;
+                OnPropertyChanged();
             }
         }
+    }
 
-        private bool _hasFile;
-        public bool HasFile
+    private bool _hasFile;
+    public bool HasFile
+    {
+        get => _hasFile;
+        set
         {
-            get => _hasFile;
-            set
+            if (_hasFile != value)
             {
-                if (_hasFile != value)
-                {
-                    _hasFile = value;
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(FileIconVisibility));
-                }
+                _hasFile = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(FileIconVisibility));
             }
         }
+    }
 
-        private string _fileName = string.Empty;
-        public string FileName
+    private string _fileName = string.Empty;
+    public string FileName
+    {
+        get => _fileName;
+        set
         {
-            get => _fileName;
-            set
+            if (_fileName != value)
             {
-                if (_fileName != value)
-                {
-                    _fileName = value;
-                    OnPropertyChanged();
-                }
+                _fileName = value;
+                OnPropertyChanged();
             }
         }
+    }
 
-        private int _fileSize;
-        public int FileSize
+    private int _fileSize;
+    public int FileSize
+    {
+        get => _fileSize;
+        set
         {
-            get => _fileSize;
-            set
+            if (_fileSize != value)
             {
-                if (_fileSize != value)
-                {
-                    _fileSize = value;
-                    OnPropertyChanged();
-                }
+                _fileSize = value;
+                OnPropertyChanged();
             }
         }
+    }
 
-        // UI 바인딩용 속성
-        public Visibility FileIconVisibility => HasFile ? Visibility.Visible : Visibility.Collapsed;
+    // UI 바인딩용 속성
+    public Visibility FileIconVisibility => HasFile ? Visibility.Visible : Visibility.Collapsed;
 
-        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

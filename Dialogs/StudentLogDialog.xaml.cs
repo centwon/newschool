@@ -1,15 +1,15 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using NewSchool.Controls;
-using NewSchool.Models;
-using NewSchool.Repositories;
-using NewSchool.Services;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using NewSchool.Controls;
+using NewSchool.Models;
+using NewSchool.Repositories;
+using NewSchool.Services;
 
 namespace NewSchool.Dialogs;
 

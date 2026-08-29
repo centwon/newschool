@@ -1,14 +1,14 @@
 ﻿using System;
-using System.IO;
-using Microsoft.UI.Xaml;
-using SQLitePCL;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using NewSchool.Logging;
-using NewSchool.Pages;
+using Microsoft.UI.Xaml;
 using NewSchool.Controls;
 using NewSchool.Google;
+using NewSchool.Logging;
+using NewSchool.Pages;
+using SQLitePCL;
 
 namespace NewSchool;
 

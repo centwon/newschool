@@ -1,13 +1,13 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using NewSchool.Dialogs;
-using NewSchool.ViewModels;
 using NewSchool.Models;
 using NewSchool.Services;
-using System.Threading.Tasks;
+using NewSchool.ViewModels;
 
 namespace NewSchool.Controls;
 

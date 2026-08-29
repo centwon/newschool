@@ -1,345 +1,344 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Microsoft.Data.Sqlite;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using NewSchool.Logging;
 
-namespace NewSchool.Board.Repositories
+namespace NewSchool.Board.Repositories;
+
+/// <summary>
+/// 모든 Repository의 기반 클래스
+/// Native AOT 호환 + 비동기 + 트랜잭션 + 에러 처리
+/// </summary>
+public abstract class BaseRepository : IDisposable
 {
+    protected readonly string _dbPath;
+    protected readonly SqliteConnection Connection;
+    protected SqliteTransaction? Transaction;
+    private bool _disposed;
+    private readonly bool _ownsConnection;   // 공유 연결(UnitOfWork)일 때 false → Dispose 시 닫지 않음
+
+    // ⭐ public getter 추가
+    public SqliteTransaction? GetTransaction() => Transaction;
+    public SqliteConnection GetConnection() => Connection;
+
     /// <summary>
-    /// 모든 Repository의 기반 클래스
-    /// Native AOT 호환 + 비동기 + 트랜잭션 + 에러 처리
+    /// 외부에서 만든 연결을 공유하는 생성자 (UnitOfWork 전용).
+    /// 연결을 소유하지 않으므로 Dispose 시 닫지 않는다(여러 Repo 가 한 연결·한 트랜잭션을 공유).
     /// </summary>
-    public abstract class BaseRepository : IDisposable
+    protected BaseRepository(SqliteConnection sharedConnection)
     {
-        protected readonly string _dbPath;
-        protected readonly SqliteConnection Connection;
-        protected SqliteTransaction? Transaction;
-        private bool _disposed;
-        private readonly bool _ownsConnection;   // 공유 연결(UnitOfWork)일 때 false → Dispose 시 닫지 않음
-
-        // ⭐ public getter 추가
-        public SqliteTransaction? GetTransaction() => Transaction;
-        public SqliteConnection GetConnection() => Connection;
-
-        /// <summary>
-        /// 외부에서 만든 연결을 공유하는 생성자 (UnitOfWork 전용).
-        /// 연결을 소유하지 않으므로 Dispose 시 닫지 않는다(여러 Repo 가 한 연결·한 트랜잭션을 공유).
-        /// </summary>
-        protected BaseRepository(SqliteConnection sharedConnection)
-        {
-            Connection = sharedConnection;
-            _dbPath = sharedConnection.DataSource ?? string.Empty;
-            _ownsConnection = false;
-        }
-
-        protected BaseRepository(string dbPath)
-        {
-            _ownsConnection = true;
-            try
-            {
-                _dbPath = dbPath;  // ⭐ 저장
-
-                // ✅ 동시성 개선을 위한 연결 옵션
-                var connectionString = new SqliteConnectionStringBuilder
-                {
-                    DataSource = dbPath,
-                    Mode = SqliteOpenMode.ReadWriteCreate,
-                    // Cache=Shared 를 쓰지 않는다(기본값 Private). WAL 위에 공유 캐시를 얹으면
-                    // 같은 프로세스의 연결들 사이에 테이블 락이 생겨 WAL 이 주는 읽기/쓰기 동시성이
-                    // 깎이고, 그 락은 SQLITE_BUSY 가 아니라 SQLITE_LOCKED 로 즉시 실패해
-                    // 아래 busy_timeout 도 듣지 않는다.
-                    Pooling = true
-                }.ToString();
-
-                Connection = new SqliteConnection(connectionString);
-                Connection.Open();
-
-                // ✅ WAL 모드 활성화 (동시 읽기/쓰기 개선)
-                using var cmd = Connection.CreateCommand();
-                // WAL + synchronous=NORMAL 은 권장 조합 (쓰기 안전성 유지하며 성능 향상)
-                // foreign_keys=ON 필수: per-connection 설정이므로 작업용 연결마다 켜야
-                // Post 삭제 시 Comment/PostFile 의 ON DELETE CASCADE 가 실제로 동작함(고아 행 방지)
-                cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
-                cmd.ExecuteNonQuery();
-
-                LogDebug($"{GetType().Name} 연결 열림 (WAL 모드)");
-            }
-            catch (Exception ex)
-            {
-                LogError($"{GetType().Name} 연결 실패", ex);
-                throw;
-            }
-        }
-
-        #region Transaction Management
-
-        /// <summary>
-        /// ⭐ 외부에서 트랜잭션 설정 (UnitOfWork용)
-        /// </summary>
-        public void SetTransaction(SqliteTransaction? transaction)
-        {
-            Transaction = transaction;
-            LogDebug($"트랜잭션 설정됨: {(transaction != null ? "활성" : "비활성")}");
-        }
-
-        /// <summary>
-        /// 트랜잭션 시작
-        /// </summary>
-        public void BeginTransaction()
-        {
-            try
-            {
-                Transaction?.Dispose();
-                Transaction = Connection.BeginTransaction();
-                LogDebug("트랜잭션 시작");
-            }
-            catch (Exception ex)
-            {
-                LogError("트랜잭션 시작 실패", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 트랜잭션 커밋
-        /// </summary>
-        public void Commit()
-        {
-            try
-            {
-                Transaction?.Commit();
-                LogDebug("트랜잭션 커밋 완료");
-            }
-            catch (Exception ex)
-            {
-                LogError("트랜잭션 커밋 실패", ex);
-                Rollback();
-                throw;
-            }
-            finally
-            {
-                Transaction?.Dispose();
-                Transaction = null;
-            }
-        }
-
-        /// <summary>
-        /// 트랜잭션 롤백
-        /// </summary>
-        public void Rollback()
-        {
-            try
-            {
-                Transaction?.Rollback();
-                LogDebug("트랜잭션 롤백 완료");
-            }
-            catch (Exception ex)
-            {
-                LogError("트랜잭션 롤백 실패", ex);
-            }
-            finally
-            {
-                Transaction?.Dispose();
-                Transaction = null;
-            }
-        }
-
-        /// <summary>
-        /// 트랜잭션 내에서 작업 실행
-        /// </summary>
-        protected async Task<T> ExecuteInTransactionAsync<T>(Func<Task<T>> operation)
-        {
-            BeginTransaction();
-            try
-            {
-                var result = await operation();
-                Commit();
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Rollback();
-                LogError("트랜잭션 작업 실패", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 트랜잭션 내에서 작업 실행 (반환값 없음)
-        /// </summary>
-        protected async Task ExecuteInTransactionAsync(Func<Task> operation)
-        {
-            BeginTransaction();
-            try
-            {
-                await operation();
-                Commit();
-            }
-            catch (Exception ex)
-            {
-                Rollback();
-                LogError("트랜잭션 작업 실패", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Command Helpers
-
-        /// <summary>
-        /// 명령 생성 헬퍼
-        /// </summary>
-        protected SqliteCommand CreateCommand(string query)
-        {
-            var cmd = Connection.CreateCommand();
-            cmd.CommandText = query;
-            // 트랜잭션이 이 연결에서 시작된 것인지 확인 후 설정 (연결 불일치 가드)
-            if (Transaction != null && Transaction.Connection == Connection)
-            {
-                cmd.Transaction = Transaction;
-            }
-            else if (Transaction != null)
-            {
-                LogDebug($"트랜잭션 연결 불일치 무시 - {GetType().Name}");
-                Transaction = null;
-            }
-            return cmd;
-        }
-
-        // 매개변수 없는 문자열 질의용 헬퍼(ExecuteNonQueryAsync·ExecuteScalarAsync)는
-        // Board 의 DB 검증·최적화 헬퍼만 쓰던 것이라, 그 둘이 사라지면서 함께 지웠다(39차).
-        // 리포지토리들은 전부 CreateCommand 로 매개변수를 붙여 쓴다.
-
-        #endregion
-
-        #region Reader Column Caching
-
-        /// <summary>
-        /// SqliteDataReader 컬럼 인덱스 캐싱
-        /// GetOrdinal 반복 호출 제거로 성능 향상
-        /// </summary>
-        protected sealed class ReaderColumnCache
-        {
-            private readonly Dictionary<string, int> _ordinals;
-
-            public ReaderColumnCache(int estimatedColumns = 16)
-            {
-                _ordinals = new Dictionary<string, int>(estimatedColumns, StringComparer.OrdinalIgnoreCase);
-            }
-
-            public void Initialize(SqliteDataReader reader)
-            {
-                _ordinals.Clear();
-                for (int i = 0; i < reader.FieldCount; i++)
-                    _ordinals[reader.GetName(i)] = i;
-            }
-
-            public int GetOrdinal(string columnName) => _ordinals[columnName];
-
-            public bool TryGetOrdinal(string columnName, out int ordinal)
-                => _ordinals.TryGetValue(columnName, out ordinal);
-        }
-
-        /// <summary>
-        /// 캐시된 컬럼 인덱스로 리스트 조회 실행
-        /// </summary>
-        protected async Task<List<T>> ExecuteListAsync<T>(
-            SqliteCommand cmd,
-            Func<SqliteDataReader, ReaderColumnCache, T> mapper)
-        {
-            var list = new List<T>();
-            var cache = new ReaderColumnCache();
-
-            using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-            cache.Initialize(reader);
-
-            while (await reader.ReadAsync().ConfigureAwait(false))
-                list.Add(mapper(reader, cache));
-
-            return list;
-        }
-
-        #endregion
-
-        #region Logging
-
-        [Conditional("DEBUG")]
-        protected void LogDebug(string message)
-        {
-            Debug.WriteLine($"[DEBUG] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
-        }
-
-        [Conditional("DEBUG")]
-        protected void LogInfo(string message)
-        {
-            Debug.WriteLine($"[INFO] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
-        }
-
-        protected void LogWarning(string message)
-        {
-            Debug.WriteLine($"[WARNING] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
-            FileLogger.Instance.Warning($"[{GetType().Name}] {message}");
-        }
-
-        protected void LogError(string message, Exception? ex = null)
-        {
-            Debug.WriteLine($"[ERROR] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
-            if (ex != null)
-            {
-                Debug.WriteLine($"  Exception: {ex.GetType().Name}");
-                Debug.WriteLine($"  Message: {ex.Message}");
-                Debug.WriteLine($"  StackTrace: {ex.StackTrace}");
-            }
-            FileLogger.Instance.Error($"[{GetType().Name}] {message}", ex);
-        }
-
-        #endregion
-
-        #region Dispose
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    try
-                    {
-                        // 공유 연결(UnitOfWork)에서는 트랜잭션·연결 수명을 UnitOfWork 가 관리하므로 닫지 않는다.
-                        if (_ownsConnection)
-                        {
-                            Transaction?.Dispose();
-
-                            // ✅ 강제로 연결 종료
-                            if (Connection != null)
-                            {
-                                if (Connection.State == System.Data.ConnectionState.Open)
-                                {
-                                    Connection.Close();
-                                }
-                                Connection.Dispose();
-                            }
-                        }
-
-                        LogDebug($"{GetType().Name} 리소스 해제 완료");
-                    }
-                    catch (Exception ex)
-                    {
-                        LogError("Dispose 중 오류", ex);
-                    }
-                }
-                _disposed = true;
-            }
-        }
-        #endregion
+        Connection = sharedConnection;
+        _dbPath = sharedConnection.DataSource ?? string.Empty;
+        _ownsConnection = false;
     }
+
+    protected BaseRepository(string dbPath)
+    {
+        _ownsConnection = true;
+        try
+        {
+            _dbPath = dbPath;  // ⭐ 저장
+
+            // ✅ 동시성 개선을 위한 연결 옵션
+            var connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = dbPath,
+                Mode = SqliteOpenMode.ReadWriteCreate,
+                // Cache=Shared 를 쓰지 않는다(기본값 Private). WAL 위에 공유 캐시를 얹으면
+                // 같은 프로세스의 연결들 사이에 테이블 락이 생겨 WAL 이 주는 읽기/쓰기 동시성이
+                // 깎이고, 그 락은 SQLITE_BUSY 가 아니라 SQLITE_LOCKED 로 즉시 실패해
+                // 아래 busy_timeout 도 듣지 않는다.
+                Pooling = true
+            }.ToString();
+
+            Connection = new SqliteConnection(connectionString);
+            Connection.Open();
+
+            // ✅ WAL 모드 활성화 (동시 읽기/쓰기 개선)
+            using var cmd = Connection.CreateCommand();
+            // WAL + synchronous=NORMAL 은 권장 조합 (쓰기 안전성 유지하며 성능 향상)
+            // foreign_keys=ON 필수: per-connection 설정이므로 작업용 연결마다 켜야
+            // Post 삭제 시 Comment/PostFile 의 ON DELETE CASCADE 가 실제로 동작함(고아 행 방지)
+            cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA temp_store=MEMORY; PRAGMA busy_timeout=5000; PRAGMA cache_size=10000; PRAGMA mmap_size=30000000;";
+            cmd.ExecuteNonQuery();
+
+            LogDebug($"{GetType().Name} 연결 열림 (WAL 모드)");
+        }
+        catch (Exception ex)
+        {
+            LogError($"{GetType().Name} 연결 실패", ex);
+            throw;
+        }
+    }
+
+    #region Transaction Management
+
+    /// <summary>
+    /// ⭐ 외부에서 트랜잭션 설정 (UnitOfWork용)
+    /// </summary>
+    public void SetTransaction(SqliteTransaction? transaction)
+    {
+        Transaction = transaction;
+        LogDebug($"트랜잭션 설정됨: {(transaction != null ? "활성" : "비활성")}");
+    }
+
+    /// <summary>
+    /// 트랜잭션 시작
+    /// </summary>
+    public void BeginTransaction()
+    {
+        try
+        {
+            Transaction?.Dispose();
+            Transaction = Connection.BeginTransaction();
+            LogDebug("트랜잭션 시작");
+        }
+        catch (Exception ex)
+        {
+            LogError("트랜잭션 시작 실패", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 트랜잭션 커밋
+    /// </summary>
+    public void Commit()
+    {
+        try
+        {
+            Transaction?.Commit();
+            LogDebug("트랜잭션 커밋 완료");
+        }
+        catch (Exception ex)
+        {
+            LogError("트랜잭션 커밋 실패", ex);
+            Rollback();
+            throw;
+        }
+        finally
+        {
+            Transaction?.Dispose();
+            Transaction = null;
+        }
+    }
+
+    /// <summary>
+    /// 트랜잭션 롤백
+    /// </summary>
+    public void Rollback()
+    {
+        try
+        {
+            Transaction?.Rollback();
+            LogDebug("트랜잭션 롤백 완료");
+        }
+        catch (Exception ex)
+        {
+            LogError("트랜잭션 롤백 실패", ex);
+        }
+        finally
+        {
+            Transaction?.Dispose();
+            Transaction = null;
+        }
+    }
+
+    /// <summary>
+    /// 트랜잭션 내에서 작업 실행
+    /// </summary>
+    protected async Task<T> ExecuteInTransactionAsync<T>(Func<Task<T>> operation)
+    {
+        BeginTransaction();
+        try
+        {
+            var result = await operation();
+            Commit();
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Rollback();
+            LogError("트랜잭션 작업 실패", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 트랜잭션 내에서 작업 실행 (반환값 없음)
+    /// </summary>
+    protected async Task ExecuteInTransactionAsync(Func<Task> operation)
+    {
+        BeginTransaction();
+        try
+        {
+            await operation();
+            Commit();
+        }
+        catch (Exception ex)
+        {
+            Rollback();
+            LogError("트랜잭션 작업 실패", ex);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Command Helpers
+
+    /// <summary>
+    /// 명령 생성 헬퍼
+    /// </summary>
+    protected SqliteCommand CreateCommand(string query)
+    {
+        var cmd = Connection.CreateCommand();
+        cmd.CommandText = query;
+        // 트랜잭션이 이 연결에서 시작된 것인지 확인 후 설정 (연결 불일치 가드)
+        if (Transaction != null && Transaction.Connection == Connection)
+        {
+            cmd.Transaction = Transaction;
+        }
+        else if (Transaction != null)
+        {
+            LogDebug($"트랜잭션 연결 불일치 무시 - {GetType().Name}");
+            Transaction = null;
+        }
+        return cmd;
+    }
+
+    // 매개변수 없는 문자열 질의용 헬퍼(ExecuteNonQueryAsync·ExecuteScalarAsync)는
+    // Board 의 DB 검증·최적화 헬퍼만 쓰던 것이라, 그 둘이 사라지면서 함께 지웠다(39차).
+    // 리포지토리들은 전부 CreateCommand 로 매개변수를 붙여 쓴다.
+
+    #endregion
+
+    #region Reader Column Caching
+
+    /// <summary>
+    /// SqliteDataReader 컬럼 인덱스 캐싱
+    /// GetOrdinal 반복 호출 제거로 성능 향상
+    /// </summary>
+    protected sealed class ReaderColumnCache
+    {
+        private readonly Dictionary<string, int> _ordinals;
+
+        public ReaderColumnCache(int estimatedColumns = 16)
+        {
+            _ordinals = new Dictionary<string, int>(estimatedColumns, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public void Initialize(SqliteDataReader reader)
+        {
+            _ordinals.Clear();
+            for (int i = 0; i < reader.FieldCount; i++)
+                _ordinals[reader.GetName(i)] = i;
+        }
+
+        public int GetOrdinal(string columnName) => _ordinals[columnName];
+
+        public bool TryGetOrdinal(string columnName, out int ordinal)
+            => _ordinals.TryGetValue(columnName, out ordinal);
+    }
+
+    /// <summary>
+    /// 캐시된 컬럼 인덱스로 리스트 조회 실행
+    /// </summary>
+    protected async Task<List<T>> ExecuteListAsync<T>(
+        SqliteCommand cmd,
+        Func<SqliteDataReader, ReaderColumnCache, T> mapper)
+    {
+        var list = new List<T>();
+        var cache = new ReaderColumnCache();
+
+        using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+        cache.Initialize(reader);
+
+        while (await reader.ReadAsync().ConfigureAwait(false))
+            list.Add(mapper(reader, cache));
+
+        return list;
+    }
+
+    #endregion
+
+    #region Logging
+
+    [Conditional("DEBUG")]
+    protected void LogDebug(string message)
+    {
+        Debug.WriteLine($"[DEBUG] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+    }
+
+    [Conditional("DEBUG")]
+    protected void LogInfo(string message)
+    {
+        Debug.WriteLine($"[INFO] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+    }
+
+    protected void LogWarning(string message)
+    {
+        Debug.WriteLine($"[WARNING] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+        FileLogger.Instance.Warning($"[{GetType().Name}] {message}");
+    }
+
+    protected void LogError(string message, Exception? ex = null)
+    {
+        Debug.WriteLine($"[ERROR] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+        if (ex != null)
+        {
+            Debug.WriteLine($"  Exception: {ex.GetType().Name}");
+            Debug.WriteLine($"  Message: {ex.Message}");
+            Debug.WriteLine($"  StackTrace: {ex.StackTrace}");
+        }
+        FileLogger.Instance.Error($"[{GetType().Name}] {message}", ex);
+    }
+
+    #endregion
+
+    #region Dispose
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                try
+                {
+                    // 공유 연결(UnitOfWork)에서는 트랜잭션·연결 수명을 UnitOfWork 가 관리하므로 닫지 않는다.
+                    if (_ownsConnection)
+                    {
+                        Transaction?.Dispose();
+
+                        // ✅ 강제로 연결 종료
+                        if (Connection != null)
+                        {
+                            if (Connection.State == System.Data.ConnectionState.Open)
+                            {
+                                Connection.Close();
+                            }
+                            Connection.Dispose();
+                        }
+                    }
+
+                    LogDebug($"{GetType().Name} 리소스 해제 완료");
+                }
+                catch (Exception ex)
+                {
+                    LogError("Dispose 중 오류", ex);
+                }
+            }
+            _disposed = true;
+        }
+    }
+    #endregion
 }

@@ -4,24 +4,24 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
 
-namespace NewSchool.Repositories
+namespace NewSchool.Repositories;
+
+/// <summary>
+/// ClassDiary Repository
+/// 학급 일지 관리 (출결, 메모, 알림장, 생활 기록)
+/// </summary>
+public class ClassDiaryRepository : BaseRepository
 {
+    public ClassDiaryRepository(string dbPath) : base(dbPath) { }
+
+    #region Create
+
     /// <summary>
-    /// ClassDiary Repository
-    /// 학급 일지 관리 (출결, 메모, 알림장, 생활 기록)
+    /// 학급 일지 생성
     /// </summary>
-    public class ClassDiaryRepository : BaseRepository
+    public async Task<int> CreateAsync(ClassDiary diary)
     {
-        public ClassDiaryRepository(string dbPath) : base(dbPath) { }
-
-        #region Create
-
-        /// <summary>
-        /// 학급 일지 생성
-        /// </summary>
-        public async Task<int> CreateAsync(ClassDiary diary)
-        {
-            const string query = @"
+        const string query = @"
                 INSERT INTO ClassDiary (
                     SchoolCode, TeacherID, Year, Semester, Date, Grade, Class,
                     Absent, Late, LeaveEarly, Memo, Notice, Life,
@@ -34,64 +34,64 @@ namespace NewSchool.Repositories
                 );
                 SELECT last_insert_rowid();";
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                AddDiaryParameters(cmd, diary);
-
-                var result = await cmd.ExecuteScalarAsync();
-                diary.No = Convert.ToInt32(result);
-
-                LogInfo($"학급 일지 생성: No={diary.No}, Date={diary.Date:yyyy-MM-dd}, {diary.Grade}학년 {diary.Class}반");
-                return diary.No;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학급 일지 생성 실패: Date={diary.Date:yyyy-MM-dd}", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Read
-
-        /// <summary>
-        /// No로 학급 일지 조회
-        /// </summary>
-        public async Task<ClassDiary?> GetByNoAsync(int no)
+        try
         {
-            const string query = "SELECT * FROM ClassDiary WHERE No = @No";
+            using var cmd = CreateCommand(query);
+            AddDiaryParameters(cmd, diary);
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
+            var result = await cmd.ExecuteScalarAsync();
+            diary.No = Convert.ToInt32(result);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                if (await reader.ReadAsync())
-                {
-                    return MapDiary(reader, cache);
-                }
-
-                LogWarning($"학급 일지를 찾을 수 없음: No={no}");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학급 일지 조회 실패: No={no}", ex);
-                throw;
-            }
+            LogInfo($"학급 일지 생성: No={diary.No}, Date={diary.Date:yyyy-MM-dd}, {diary.Grade}학년 {diary.Class}반");
+            return diary.No;
         }
-
-        /// <summary>
-        /// 특정 날짜의 특정 학급 일지 조회
-        /// </summary>
-        public async Task<ClassDiary?> GetByDateAsync(string schoolCode, int year, int grade, int classNum, DateTime date)
+        catch (Exception ex)
         {
-            const string query = @"
+            LogError($"학급 일지 생성 실패: Date={diary.Date:yyyy-MM-dd}", ex);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Read
+
+    /// <summary>
+    /// No로 학급 일지 조회
+    /// </summary>
+    public async Task<ClassDiary?> GetByNoAsync(int no)
+    {
+        const string query = "SELECT * FROM ClassDiary WHERE No = @No";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", no);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+            if (await reader.ReadAsync())
+            {
+                return MapDiary(reader, cache);
+            }
+
+            LogWarning($"학급 일지를 찾을 수 없음: No={no}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            LogError($"학급 일지 조회 실패: No={no}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 특정 날짜의 특정 학급 일지 조회
+    /// </summary>
+    public async Task<ClassDiary?> GetByDateAsync(string schoolCode, int year, int grade, int classNum, DateTime date)
+    {
+        const string query = @"
                 SELECT * FROM ClassDiary 
                 WHERE SchoolCode = @SchoolCode 
                   AND Year = @Year 
@@ -99,46 +99,46 @@ namespace NewSchool.Repositories
                   AND Class = @Class 
                   AND Date = @Date";
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-                cmd.Parameters.AddWithValue("@Date", date.ToString("yyyy-MM-dd"));
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                if (await reader.ReadAsync())
-                {
-                    return MapDiary(reader, cache);
-                }
-
-                LogDebug($"학급 일지 없음: {date:yyyy-MM-dd}, {grade}학년 {classNum}반");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학급 일지 조회 실패: Date={date:yyyy-MM-dd}", ex);
-                throw;
-            }
-        }
-
-        // 미사용 메서드 제거 (2026-08-19): GetByClassAsync, GetByMonthAsync — 호출처 0건.
-        //   ClassDiaryService 의 GetClassDiariesAsync·GetMonthDiariesAsync 를 통해서만 닿을 수 있었는데
-        //   그 둘도 어느 화면에서도 부르지 않아 함께 지웠다. 기간 조회(GetByDateRangeAsync)가 상위
-        //   호환이라 월별은 그것으로 낼 수 있다.
-
-        /// <summary>
-        /// 기간별 학급 일지 조회
-        /// </summary>
-        public async Task<List<ClassDiary>> GetByDateRangeAsync(
-            string schoolCode, int year, int semester, int grade, int classNum, 
-            DateTime startDate, DateTime endDate)
+        try
         {
-            const string query = @"
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
+            cmd.Parameters.AddWithValue("@Year", year);
+            cmd.Parameters.AddWithValue("@Grade", grade);
+            cmd.Parameters.AddWithValue("@Class", classNum);
+            cmd.Parameters.AddWithValue("@Date", date.ToString("yyyy-MM-dd"));
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+            if (await reader.ReadAsync())
+            {
+                return MapDiary(reader, cache);
+            }
+
+            LogDebug($"학급 일지 없음: {date:yyyy-MM-dd}, {grade}학년 {classNum}반");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            LogError($"학급 일지 조회 실패: Date={date:yyyy-MM-dd}", ex);
+            throw;
+        }
+    }
+
+    // 미사용 메서드 제거 (2026-08-19): GetByClassAsync, GetByMonthAsync — 호출처 0건.
+    //   ClassDiaryService 의 GetClassDiariesAsync·GetMonthDiariesAsync 를 통해서만 닿을 수 있었는데
+    //   그 둘도 어느 화면에서도 부르지 않아 함께 지웠다. 기간 조회(GetByDateRangeAsync)가 상위
+    //   호환이라 월별은 그것으로 낼 수 있다.
+
+    /// <summary>
+    /// 기간별 학급 일지 조회
+    /// </summary>
+    public async Task<List<ClassDiary>> GetByDateRangeAsync(
+        string schoolCode, int year, int semester, int grade, int classNum, 
+        DateTime startDate, DateTime endDate)
+    {
+        const string query = @"
                 SELECT * FROM ClassDiary 
                 WHERE SchoolCode = @SchoolCode 
                   AND Year = @Year 
@@ -148,46 +148,46 @@ namespace NewSchool.Repositories
                   AND Date BETWEEN @StartDate AND @EndDate
                 ORDER BY Date";
 
-            var diaries = new List<ClassDiary>();
+        var diaries = new List<ClassDiary>();
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-                cmd.Parameters.AddWithValue("@StartDate", startDate.ToString("yyyy-MM-dd"));
-                cmd.Parameters.AddWithValue("@EndDate", endDate.ToString("yyyy-MM-dd"));
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    diaries.Add(MapDiary(reader, cache));
-                }
-
-                LogInfo($"기간별 일지 조회: {startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd} - {diaries.Count}건");
-                return diaries;
-            }
-            catch (Exception ex)
-            {
-                LogError($"기간별 일지 조회 실패: {startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd}", ex);
-                throw;
-            }
-        }
-
-        // 최근 일지 한 건(GetLatestAsync)과 존재 확인(ExistsAsync)은 호출부가 없어 지웠다(39차).
-        // 학급일지는 날짜로 직접 읽고(GetByDateAsync), 없으면 그 자리에서 새로 만든다.
-
-        /// <summary>
-        /// 검색 (메모, 알림장, 생활 기록에서 키워드 검색)
-        /// </summary>
-        public async Task<List<ClassDiary>> SearchAsync(string schoolCode, int year, int semester, int grade, int classNum, string keyword)
+        try
         {
-            const string query = @"
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
+            cmd.Parameters.AddWithValue("@Year", year);
+            cmd.Parameters.AddWithValue("@Semester", semester);
+            cmd.Parameters.AddWithValue("@Grade", grade);
+            cmd.Parameters.AddWithValue("@Class", classNum);
+            cmd.Parameters.AddWithValue("@StartDate", startDate.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@EndDate", endDate.ToString("yyyy-MM-dd"));
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+            while (await reader.ReadAsync())
+            {
+                diaries.Add(MapDiary(reader, cache));
+            }
+
+            LogInfo($"기간별 일지 조회: {startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd} - {diaries.Count}건");
+            return diaries;
+        }
+        catch (Exception ex)
+        {
+            LogError($"기간별 일지 조회 실패: {startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd}", ex);
+            throw;
+        }
+    }
+
+    // 최근 일지 한 건(GetLatestAsync)과 존재 확인(ExistsAsync)은 호출부가 없어 지웠다(39차).
+    // 학급일지는 날짜로 직접 읽고(GetByDateAsync), 없으면 그 자리에서 새로 만든다.
+
+    /// <summary>
+    /// 검색 (메모, 알림장, 생활 기록에서 키워드 검색)
+    /// </summary>
+    public async Task<List<ClassDiary>> SearchAsync(string schoolCode, int year, int semester, int grade, int classNum, string keyword)
+    {
+        const string query = @"
                 SELECT * FROM ClassDiary 
                 WHERE SchoolCode = @SchoolCode 
                   AND Year = @Year 
@@ -197,46 +197,46 @@ namespace NewSchool.Repositories
                   AND (Memo LIKE @Keyword OR Notice LIKE @Keyword OR Life LIKE @Keyword)
                 ORDER BY Date DESC";
 
-            var diaries = new List<ClassDiary>();
+        var diaries = new List<ClassDiary>();
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-                cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    diaries.Add(MapDiary(reader, cache));
-                }
-
-                LogInfo($"일지 검색: '{keyword}' - {diaries.Count}건");
-                return diaries;
-            }
-            catch (Exception ex)
-            {
-                LogError($"일지 검색 실패: '{keyword}'", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Update
-
-        /// <summary>
-        /// 학급 일지 수정
-        /// </summary>
-        public async Task<bool> UpdateAsync(ClassDiary diary)
+        try
         {
-            const string query = @"
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
+            cmd.Parameters.AddWithValue("@Year", year);
+            cmd.Parameters.AddWithValue("@Semester", semester);
+            cmd.Parameters.AddWithValue("@Grade", grade);
+            cmd.Parameters.AddWithValue("@Class", classNum);
+            cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+            while (await reader.ReadAsync())
+            {
+                diaries.Add(MapDiary(reader, cache));
+            }
+
+            LogInfo($"일지 검색: '{keyword}' - {diaries.Count}건");
+            return diaries;
+        }
+        catch (Exception ex)
+        {
+            LogError($"일지 검색 실패: '{keyword}'", ex);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Update
+
+    /// <summary>
+    /// 학급 일지 수정
+    /// </summary>
+    public async Task<bool> UpdateAsync(ClassDiary diary)
+    {
+        const string query = @"
                 UPDATE ClassDiary SET
                     SchoolCode = @SchoolCode,
                     TeacherID = @TeacherID,
@@ -254,80 +254,80 @@ namespace NewSchool.Repositories
                     UpdatedAt = @UpdatedAt
                 WHERE No = @No";
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", diary.No);
-                AddDiaryParameters(cmd, diary);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"학급 일지 수정 완료: No={diary.No}");
-                }
-                else
-                {
-                    LogWarning($"학급 일지 수정 실패 (존재하지 않음): No={diary.No}");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학급 일지 수정 실패: No={diary.No}", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Delete
-
-        /// <summary>
-        /// 학급 일지 삭제 (물리 삭제)
-        /// </summary>
-        public async Task<bool> DeleteAsync(int no)
+        try
         {
-            const string query = "DELETE FROM ClassDiary WHERE No = @No";
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", diary.No);
+            AddDiaryParameters(cmd, diary);
 
-            try
+            int rowsAffected = await cmd.ExecuteNonQueryAsync();
+            bool success = rowsAffected > 0;
+
+            if (success)
             {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"학급 일지 삭제 완료: No={no}");
-                }
-                else
-                {
-                    LogWarning($"학급 일지 삭제 실패 (존재하지 않음): No={no}");
-                }
-
-                return success;
+                LogInfo($"학급 일지 수정 완료: No={diary.No}");
             }
-            catch (Exception ex)
+            else
             {
-                LogError($"학급 일지 삭제 실패: No={no}", ex);
-                throw;
+                LogWarning($"학급 일지 수정 실패 (존재하지 않음): No={diary.No}");
             }
+
+            return success;
         }
-
-        #endregion
-
-        #region Statistics & Utilities
-
-        /// <summary>
-        /// 일지 개수 조회
-        /// </summary>
-        public async Task<int> GetCountAsync(string schoolCode, int year, int semester, int grade, int classNum)
+        catch (Exception ex)
         {
-            const string query = @"
+            LogError($"학급 일지 수정 실패: No={diary.No}", ex);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Delete
+
+    /// <summary>
+    /// 학급 일지 삭제 (물리 삭제)
+    /// </summary>
+    public async Task<bool> DeleteAsync(int no)
+    {
+        const string query = "DELETE FROM ClassDiary WHERE No = @No";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", no);
+
+            int rowsAffected = await cmd.ExecuteNonQueryAsync();
+            bool success = rowsAffected > 0;
+
+            if (success)
+            {
+                LogInfo($"학급 일지 삭제 완료: No={no}");
+            }
+            else
+            {
+                LogWarning($"학급 일지 삭제 실패 (존재하지 않음): No={no}");
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            LogError($"학급 일지 삭제 실패: No={no}", ex);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Statistics & Utilities
+
+    /// <summary>
+    /// 일지 개수 조회
+    /// </summary>
+    public async Task<int> GetCountAsync(string schoolCode, int year, int semester, int grade, int classNum)
+    {
+        const string query = @"
                 SELECT COUNT(*) FROM ClassDiary 
                 WHERE SchoolCode = @SchoolCode 
                   AND Year = @Year 
@@ -335,92 +335,91 @@ namespace NewSchool.Repositories
                   AND Grade = @Grade 
                   AND Class = @Class";
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-                cmd.Parameters.AddWithValue("@Year", year);
-                cmd.Parameters.AddWithValue("@Semester", semester);
-                cmd.Parameters.AddWithValue("@Grade", grade);
-                cmd.Parameters.AddWithValue("@Class", classNum);
-
-                var result = await cmd.ExecuteScalarAsync();
-                return Convert.ToInt32(result);
-            }
-            catch (Exception ex)
-            {
-                LogError("일지 개수 조회 실패", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Helper Methods
-
-        /// <summary>
-        /// ClassDiary 파라미터 추가
-        /// </summary>
-        private void AddDiaryParameters(SqliteCommand cmd, ClassDiary diary)
+        try
         {
-            cmd.Parameters.AddWithValue("@SchoolCode", diary.SchoolCode);
-            cmd.Parameters.AddWithValue("@TeacherID", string.IsNullOrWhiteSpace(diary.TeacherID) ? DBNull.Value : diary.TeacherID);
-            cmd.Parameters.AddWithValue("@Year", diary.Year);
-            cmd.Parameters.AddWithValue("@Semester", diary.Semester);
-            cmd.Parameters.AddWithValue("@Date", diary.Date.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@Grade", diary.Grade);
-            cmd.Parameters.AddWithValue("@Class", diary.Class);
-            cmd.Parameters.AddWithValue("@Absent", diary.Absent);
-            cmd.Parameters.AddWithValue("@Late", diary.Late);
-            cmd.Parameters.AddWithValue("@LeaveEarly", diary.LeaveEarly);
-            cmd.Parameters.AddWithValue("@Memo", diary.Memo);
-            cmd.Parameters.AddWithValue("@Notice", diary.Notice);
-            cmd.Parameters.AddWithValue("@Life", diary.Life);
-            cmd.Parameters.AddWithValue("@CreatedAt", diary.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-            cmd.Parameters.AddWithValue("@UpdatedAt", diary.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-        }
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
+            cmd.Parameters.AddWithValue("@Year", year);
+            cmd.Parameters.AddWithValue("@Semester", semester);
+            cmd.Parameters.AddWithValue("@Grade", grade);
+            cmd.Parameters.AddWithValue("@Class", classNum);
 
-        /// <summary>
-        /// SqliteDataReader를 ClassDiary로 매핑
-        /// </summary>
-        private ClassDiary MapDiary(SqliteDataReader reader, ReaderColumnCache cache)
+            var result = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }
+        catch (Exception ex)
         {
-            return new ClassDiary
-            {
-                No = reader.GetInt32(cache.GetOrdinal("No")),
-                SchoolCode = reader.GetString(cache.GetOrdinal("SchoolCode")),
-                TeacherID = reader.IsDBNull(cache.GetOrdinal("TeacherID")) ? string.Empty : reader.GetString(cache.GetOrdinal("TeacherID")),
-                Year = reader.GetInt32(cache.GetOrdinal("Year")),
-                Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
-                Date = DateTime.Parse(reader.GetString(cache.GetOrdinal("Date"))),
-                Grade = reader.GetInt32(cache.GetOrdinal("Grade")),
-                Class = reader.GetInt32(cache.GetOrdinal("Class")),
-                Absent = reader.GetString(cache.GetOrdinal("Absent")),
-                Late = reader.GetString(cache.GetOrdinal("Late")),
-                LeaveEarly = reader.GetString(cache.GetOrdinal("LeaveEarly")),
-                Memo = reader.GetString(cache.GetOrdinal("Memo")),
-                Notice = reader.GetString(cache.GetOrdinal("Notice")),
-                Life = reader.GetString(cache.GetOrdinal("Life")),
-                CreatedAt = GetDateTimeSafe(reader, cache, "CreatedAt"),
-                UpdatedAt = GetDateTimeSafe(reader, cache, "UpdatedAt")
-            };
+            LogError("일지 개수 조회 실패", ex);
+            throw;
         }
-
-        private static DateTime GetDateTimeSafe(SqliteDataReader reader, ReaderColumnCache cache, string column)
-        {
-            try
-            {
-                var ordinal = cache.GetOrdinal(column);
-                if (reader.IsDBNull(ordinal)) return DateTime.Now;
-                var str = reader.GetString(ordinal);
-                return DateTime.TryParse(str, out var dt) ? dt : DateTime.Now;
-            }
-            catch
-            {
-                return DateTime.Now;
-            }
-        }
-
-        #endregion
     }
+
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>
+    /// ClassDiary 파라미터 추가
+    /// </summary>
+    private void AddDiaryParameters(SqliteCommand cmd, ClassDiary diary)
+    {
+        cmd.Parameters.AddWithValue("@SchoolCode", diary.SchoolCode);
+        cmd.Parameters.AddWithValue("@TeacherID", string.IsNullOrWhiteSpace(diary.TeacherID) ? DBNull.Value : diary.TeacherID);
+        cmd.Parameters.AddWithValue("@Year", diary.Year);
+        cmd.Parameters.AddWithValue("@Semester", diary.Semester);
+        cmd.Parameters.AddWithValue("@Date", diary.Date.ToString("yyyy-MM-dd"));
+        cmd.Parameters.AddWithValue("@Grade", diary.Grade);
+        cmd.Parameters.AddWithValue("@Class", diary.Class);
+        cmd.Parameters.AddWithValue("@Absent", diary.Absent);
+        cmd.Parameters.AddWithValue("@Late", diary.Late);
+        cmd.Parameters.AddWithValue("@LeaveEarly", diary.LeaveEarly);
+        cmd.Parameters.AddWithValue("@Memo", diary.Memo);
+        cmd.Parameters.AddWithValue("@Notice", diary.Notice);
+        cmd.Parameters.AddWithValue("@Life", diary.Life);
+        cmd.Parameters.AddWithValue("@CreatedAt", diary.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+        cmd.Parameters.AddWithValue("@UpdatedAt", diary.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+    }
+
+    /// <summary>
+    /// SqliteDataReader를 ClassDiary로 매핑
+    /// </summary>
+    private ClassDiary MapDiary(SqliteDataReader reader, ReaderColumnCache cache)
+    {
+        return new ClassDiary
+        {
+            No = reader.GetInt32(cache.GetOrdinal("No")),
+            SchoolCode = reader.GetString(cache.GetOrdinal("SchoolCode")),
+            TeacherID = reader.IsDBNull(cache.GetOrdinal("TeacherID")) ? string.Empty : reader.GetString(cache.GetOrdinal("TeacherID")),
+            Year = reader.GetInt32(cache.GetOrdinal("Year")),
+            Semester = reader.GetInt32(cache.GetOrdinal("Semester")),
+            Date = DateTime.Parse(reader.GetString(cache.GetOrdinal("Date"))),
+            Grade = reader.GetInt32(cache.GetOrdinal("Grade")),
+            Class = reader.GetInt32(cache.GetOrdinal("Class")),
+            Absent = reader.GetString(cache.GetOrdinal("Absent")),
+            Late = reader.GetString(cache.GetOrdinal("Late")),
+            LeaveEarly = reader.GetString(cache.GetOrdinal("LeaveEarly")),
+            Memo = reader.GetString(cache.GetOrdinal("Memo")),
+            Notice = reader.GetString(cache.GetOrdinal("Notice")),
+            Life = reader.GetString(cache.GetOrdinal("Life")),
+            CreatedAt = GetDateTimeSafe(reader, cache, "CreatedAt"),
+            UpdatedAt = GetDateTimeSafe(reader, cache, "UpdatedAt")
+        };
+    }
+
+    private static DateTime GetDateTimeSafe(SqliteDataReader reader, ReaderColumnCache cache, string column)
+    {
+        try
+        {
+            var ordinal = cache.GetOrdinal(column);
+            if (reader.IsDBNull(ordinal)) return DateTime.Now;
+            var str = reader.GetString(ordinal);
+            return DateTime.TryParse(str, out var dt) ? dt : DateTime.Now;
+        }
+        catch
+        {
+            return DateTime.Now;
+        }
+    }
+
+    #endregion
 }

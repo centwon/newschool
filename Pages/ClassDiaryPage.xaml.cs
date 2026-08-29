@@ -4,9 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using NewSchool.Services;
 using NewSchool.Controls;
 using NewSchool.Models;
+using NewSchool.Services;
 using NewSchool.ViewModels;
 
 namespace NewSchool.Pages;

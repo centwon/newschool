@@ -7,11 +7,11 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using NewSchool.Controls;
+using NewSchool.Dialogs;
 using NewSchool.Models;
+using NewSchool.Repositories;
 using NewSchool.Services;
 using NewSchool.ViewModels;
-using NewSchool.Repositories;
-using NewSchool.Dialogs;
 
 namespace NewSchool.Pages;
 

@@ -12,9 +12,9 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Windows.UI;
-using NewSchool.Models;
 using NewSchool.Controls;
+using NewSchool.Models;
+using Windows.UI;
 
 namespace NewSchool.Scheduler;
 

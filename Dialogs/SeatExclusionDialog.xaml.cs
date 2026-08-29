@@ -1,8 +1,8 @@
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Controls;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace NewSchool.Dialogs;
 

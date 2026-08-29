@@ -5,25 +5,25 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Models;
 
-namespace NewSchool.Repositories
+namespace NewSchool.Repositories;
+
+/// <summary>
+/// StudentDetail Repository
+/// 학생 상세 정보 (보호자, 가족, 진로, 특기사항 등) 관리
+/// Student와 1:1 관계
+/// </summary>
+public class StudentDetailRepository : BaseRepository
 {
+    public StudentDetailRepository(string dbPath) : base(dbPath) { }
+
+    #region Create
+
     /// <summary>
-    /// StudentDetail Repository
-    /// 학생 상세 정보 (보호자, 가족, 진로, 특기사항 등) 관리
-    /// Student와 1:1 관계
+    /// 학생 상세 정보 생성
     /// </summary>
-    public class StudentDetailRepository : BaseRepository
+    public async Task<int> CreateAsync(StudentDetail detail)
     {
-        public StudentDetailRepository(string dbPath) : base(dbPath) { }
-
-        #region Create
-
-        /// <summary>
-        /// 학생 상세 정보 생성
-        /// </summary>
-        public async Task<int> CreateAsync(StudentDetail detail)
-        {
-            const string query = @"
+        const string query = @"
                 INSERT INTO StudentDetail (
                     StudentID, FatherName, FatherPhone, FatherJob,
                     MotherName, MotherPhone, MotherJob,
@@ -41,135 +41,135 @@ namespace NewSchool.Repositories
                 );
                 SELECT last_insert_rowid();";
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                AddStudentDetailParameters(cmd, detail);
-
-                var result = await cmd.ExecuteScalarAsync();
-                detail.No = Convert.ToInt32(result);
-
-                LogInfo($"학생 상세정보 생성 완료: No={detail.No}, StudentID={detail.StudentID}");
-                return detail.No;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 상세정보 생성 실패: StudentID={detail.StudentID}", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Read
-
-        /// <summary>
-        /// StudentID로 상세 정보 조회
-        /// </summary>
-        public async Task<StudentDetail?> GetByStudentIdAsync(string studentId)
+        try
         {
-            const string query = "SELECT * FROM StudentDetail WHERE StudentID = @StudentID";
+            using var cmd = CreateCommand(query);
+            AddStudentDetailParameters(cmd, detail);
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
+            var result = await cmd.ExecuteScalarAsync();
+            detail.No = Convert.ToInt32(result);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                if (await reader.ReadAsync())
-                {
-                    return MapStudentDetail(reader, cache);
-                }
-
-                LogWarning($"학생 상세정보를 찾을 수 없음: StudentID={studentId}");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 상세정보 조회 실패: StudentID={studentId}", ex);
-                throw;
-            }
+            LogInfo($"학생 상세정보 생성 완료: No={detail.No}, StudentID={detail.StudentID}");
+            return detail.No;
         }
-
-        /// <summary>
-        /// No로 상세 정보 조회
-        /// </summary>
-        public async Task<StudentDetail?> GetByNoAsync(int no)
+        catch (Exception ex)
         {
-            const string query = "SELECT * FROM StudentDetail WHERE No = @No";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                if (await reader.ReadAsync())
-                {
-                    return MapStudentDetail(reader, cache);
-                }
-
-                LogWarning($"학생 상세정보를 찾을 수 없음: No={no}");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 상세정보 조회 실패: No={no}", ex);
-                throw;
-            }
+            LogError($"학생 상세정보 생성 실패: StudentID={detail.StudentID}", ex);
+            throw;
         }
+    }
 
-        /// <summary>
-        /// 여러 StudentID로 상세 정보 일괄 조회
-        /// </summary>
-        public async Task<List<StudentDetail>> GetByStudentIdsAsync(List<string> studentIds)
+    #endregion
+
+    #region Read
+
+    /// <summary>
+    /// StudentID로 상세 정보 조회
+    /// </summary>
+    public async Task<StudentDetail?> GetByStudentIdAsync(string studentId)
+    {
+        const string query = "SELECT * FROM StudentDetail WHERE StudentID = @StudentID";
+
+        try
         {
-            if (studentIds == null || studentIds.Count == 0)
-                return [];
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@StudentID", studentId);
 
-            var placeholders = string.Join(",", studentIds.Select((_, i) => $"@id{i}"));
-            var query = $"SELECT * FROM StudentDetail WHERE StudentID IN ({placeholders})";
-
-            try
+            using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+            if (await reader.ReadAsync())
             {
-                using var cmd = CreateCommand(query);
-                for (int i = 0; i < studentIds.Count; i++)
-                {
-                    cmd.Parameters.AddWithValue($"@id{i}", studentIds[i]);
-                }
-
-                var results = new List<StudentDetail>();
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                {
-                    results.Add(MapStudentDetail(reader, cache));
-                }
-
-                return results;
+                return MapStudentDetail(reader, cache);
             }
-            catch (Exception ex)
-            {
-                LogError($"학생 상세정보 일괄 조회 실패: {studentIds.Count}건", ex);
-                throw;
-            }
+
+            LogWarning($"학생 상세정보를 찾을 수 없음: StudentID={studentId}");
+            return null;
         }
-
-        #endregion
-
-        #region Update
-
-        /// <summary>
-        /// 학생 상세 정보 수정
-        /// </summary>
-        public async Task<bool> UpdateAsync(StudentDetail detail)
+        catch (Exception ex)
         {
-            const string query = @"
+            LogError($"학생 상세정보 조회 실패: StudentID={studentId}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// No로 상세 정보 조회
+    /// </summary>
+    public async Task<StudentDetail?> GetByNoAsync(int no)
+    {
+        const string query = "SELECT * FROM StudentDetail WHERE No = @No";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", no);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+            if (await reader.ReadAsync())
+            {
+                return MapStudentDetail(reader, cache);
+            }
+
+            LogWarning($"학생 상세정보를 찾을 수 없음: No={no}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            LogError($"학생 상세정보 조회 실패: No={no}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 여러 StudentID로 상세 정보 일괄 조회
+    /// </summary>
+    public async Task<List<StudentDetail>> GetByStudentIdsAsync(List<string> studentIds)
+    {
+        if (studentIds == null || studentIds.Count == 0)
+            return [];
+
+        var placeholders = string.Join(",", studentIds.Select((_, i) => $"@id{i}"));
+        var query = $"SELECT * FROM StudentDetail WHERE StudentID IN ({placeholders})";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            for (int i = 0; i < studentIds.Count; i++)
+            {
+                cmd.Parameters.AddWithValue($"@id{i}", studentIds[i]);
+            }
+
+            var results = new List<StudentDetail>();
+            using var reader = await cmd.ExecuteReaderAsync();
+            var cache = new ReaderColumnCache();
+            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
+            while (await reader.ReadAsync())
+            {
+                results.Add(MapStudentDetail(reader, cache));
+            }
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            LogError($"학생 상세정보 일괄 조회 실패: {studentIds.Count}건", ex);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Update
+
+    /// <summary>
+    /// 학생 상세 정보 수정
+    /// </summary>
+    public async Task<bool> UpdateAsync(StudentDetail detail)
+    {
+        const string query = @"
                 UPDATE StudentDetail SET
                     FatherName = @FatherName,
                     FatherPhone = @FatherPhone,
@@ -192,169 +192,168 @@ namespace NewSchool.Repositories
                     UpdatedAt = @UpdatedAt
                 WHERE No = @No";
 
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", detail.No);
-                AddStudentDetailParameters(cmd, detail);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"학생 상세정보 수정 완료: No={detail.No}");
-                }
-                else
-                {
-                    LogWarning($"학생 상세정보 수정 실패 (존재하지 않음): No={detail.No}");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 상세정보 수정 실패: No={detail.No}", ex);
-                throw;
-            }
-        }
-
-        #endregion
-
-        #region Delete
-
-        /// <summary>
-        /// 학생 상세 정보 삭제
-        /// </summary>
-        public async Task<bool> DeleteAsync(int no)
+        try
         {
-            const string query = "DELETE FROM StudentDetail WHERE No = @No";
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", detail.No);
+            AddStudentDetailParameters(cmd, detail);
 
-            try
+            int rowsAffected = await cmd.ExecuteNonQueryAsync();
+            bool success = rowsAffected > 0;
+
+            if (success)
             {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@No", no);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"학생 상세정보 삭제 완료: No={no}");
-                }
-                else
-                {
-                    LogWarning($"학생 상세정보 삭제 실패 (존재하지 않음): No={no}");
-                }
-
-                return success;
+                LogInfo($"학생 상세정보 수정 완료: No={detail.No}");
             }
-            catch (Exception ex)
+            else
             {
-                LogError($"학생 상세정보 삭제 실패: No={no}", ex);
-                throw;
+                LogWarning($"학생 상세정보 수정 실패 (존재하지 않음): No={detail.No}");
             }
-        }
 
-        /// <summary>
-        /// StudentID로 상세 정보 삭제
-        /// </summary>
-        public async Task<bool> DeleteByStudentIdAsync(string studentId)
+            return success;
+        }
+        catch (Exception ex)
         {
-            const string query = "DELETE FROM StudentDetail WHERE StudentID = @StudentID";
-
-            try
-            {
-                using var cmd = CreateCommand(query);
-                cmd.Parameters.AddWithValue("@StudentID", studentId);
-
-                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                bool success = rowsAffected > 0;
-
-                if (success)
-                {
-                    LogInfo($"학생 상세정보 삭제 완료: StudentID={studentId}");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                LogError($"학생 상세정보 삭제 실패: StudentID={studentId}", ex);
-                throw;
-            }
+            LogError($"학생 상세정보 수정 실패: No={detail.No}", ex);
+            throw;
         }
-
-        #endregion
-
-        #region Helper Methods
-
-        /// <summary>
-        /// StudentDetail 파라미터 추가
-        /// </summary>
-        private void AddStudentDetailParameters(SqliteCommand cmd, StudentDetail detail)
-        {
-            cmd.Parameters.AddWithValue("@StudentID", detail.StudentID);
-            cmd.Parameters.AddWithValue("@FatherName", detail.FatherName ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@FatherPhone", detail.FatherPhone ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@FatherJob", detail.FatherJob ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@MotherName", detail.MotherName ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@MotherPhone", detail.MotherPhone ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@MotherJob", detail.MotherJob ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@GuardianName", detail.GuardianName ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@GuardianPhone", detail.GuardianPhone ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@GuardianRelation", detail.GuardianRelation ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@FamilyInfo", detail.FamilyInfo ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@Friends", detail.Friends ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@Interests", detail.Interests ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@Talents", detail.Talents ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@CareerGoal", detail.CareerGoal ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@HealthInfo", detail.HealthInfo ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@Allergies", detail.Allergies ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@SpecialNeeds", detail.SpecialNeeds ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@Memo", detail.Memo ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@CreatedAt", detail.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-            cmd.Parameters.AddWithValue("@UpdatedAt", detail.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-        }
-
-        /// <summary>
-        /// SqliteDataReader를 StudentDetail로 매핑
-        /// </summary>
-        private StudentDetail MapStudentDetail(SqliteDataReader reader, ReaderColumnCache cache)
-        {
-            return new StudentDetail
-            {
-                No = reader.GetInt32(cache.GetOrdinal("No")),
-                StudentID = reader.GetString(cache.GetOrdinal("StudentID")),
-                FatherName = GetStringOrEmpty(reader, cache, "FatherName"),
-                FatherPhone = GetStringOrEmpty(reader, cache, "FatherPhone"),
-                FatherJob = GetStringOrEmpty(reader, cache, "FatherJob"),
-                MotherName = GetStringOrEmpty(reader, cache, "MotherName"),
-                MotherPhone = GetStringOrEmpty(reader, cache, "MotherPhone"),
-                MotherJob = GetStringOrEmpty(reader, cache, "MotherJob"),
-                GuardianName = GetStringOrEmpty(reader, cache, "GuardianName"),
-                GuardianPhone = GetStringOrEmpty(reader, cache, "GuardianPhone"),
-                GuardianRelation = GetStringOrEmpty(reader, cache, "GuardianRelation"),
-                FamilyInfo = GetStringOrEmpty(reader, cache, "FamilyInfo"),
-                Friends = GetStringOrEmpty(reader, cache, "Friends"),
-                Interests = GetStringOrEmpty(reader, cache, "Interests"),
-                Talents = GetStringOrEmpty(reader, cache, "Talents"),
-                CareerGoal = GetStringOrEmpty(reader, cache, "CareerGoal"),
-                HealthInfo = GetStringOrEmpty(reader, cache, "HealthInfo"),
-                Allergies = GetStringOrEmpty(reader, cache, "Allergies"),
-                SpecialNeeds = GetStringOrEmpty(reader, cache, "SpecialNeeds"),
-                Memo = GetStringOrEmpty(reader, cache, "Memo"),
-                CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
-                UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt")))
-            };
-        }
-
-        private string GetStringOrEmpty(SqliteDataReader reader, ReaderColumnCache cache, string columnName)
-        {
-            int ordinal = cache.GetOrdinal(columnName);
-            return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
-        }
-
-        #endregion
     }
+
+    #endregion
+
+    #region Delete
+
+    /// <summary>
+    /// 학생 상세 정보 삭제
+    /// </summary>
+    public async Task<bool> DeleteAsync(int no)
+    {
+        const string query = "DELETE FROM StudentDetail WHERE No = @No";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@No", no);
+
+            int rowsAffected = await cmd.ExecuteNonQueryAsync();
+            bool success = rowsAffected > 0;
+
+            if (success)
+            {
+                LogInfo($"학생 상세정보 삭제 완료: No={no}");
+            }
+            else
+            {
+                LogWarning($"학생 상세정보 삭제 실패 (존재하지 않음): No={no}");
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            LogError($"학생 상세정보 삭제 실패: No={no}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// StudentID로 상세 정보 삭제
+    /// </summary>
+    public async Task<bool> DeleteByStudentIdAsync(string studentId)
+    {
+        const string query = "DELETE FROM StudentDetail WHERE StudentID = @StudentID";
+
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@StudentID", studentId);
+
+            int rowsAffected = await cmd.ExecuteNonQueryAsync();
+            bool success = rowsAffected > 0;
+
+            if (success)
+            {
+                LogInfo($"학생 상세정보 삭제 완료: StudentID={studentId}");
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            LogError($"학생 상세정보 삭제 실패: StudentID={studentId}", ex);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>
+    /// StudentDetail 파라미터 추가
+    /// </summary>
+    private void AddStudentDetailParameters(SqliteCommand cmd, StudentDetail detail)
+    {
+        cmd.Parameters.AddWithValue("@StudentID", detail.StudentID);
+        cmd.Parameters.AddWithValue("@FatherName", detail.FatherName ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@FatherPhone", detail.FatherPhone ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@FatherJob", detail.FatherJob ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@MotherName", detail.MotherName ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@MotherPhone", detail.MotherPhone ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@MotherJob", detail.MotherJob ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@GuardianName", detail.GuardianName ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@GuardianPhone", detail.GuardianPhone ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@GuardianRelation", detail.GuardianRelation ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@FamilyInfo", detail.FamilyInfo ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@Friends", detail.Friends ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@Interests", detail.Interests ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@Talents", detail.Talents ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@CareerGoal", detail.CareerGoal ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@HealthInfo", detail.HealthInfo ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@Allergies", detail.Allergies ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@SpecialNeeds", detail.SpecialNeeds ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@Memo", detail.Memo ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@CreatedAt", detail.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+        cmd.Parameters.AddWithValue("@UpdatedAt", detail.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+    }
+
+    /// <summary>
+    /// SqliteDataReader를 StudentDetail로 매핑
+    /// </summary>
+    private StudentDetail MapStudentDetail(SqliteDataReader reader, ReaderColumnCache cache)
+    {
+        return new StudentDetail
+        {
+            No = reader.GetInt32(cache.GetOrdinal("No")),
+            StudentID = reader.GetString(cache.GetOrdinal("StudentID")),
+            FatherName = GetStringOrEmpty(reader, cache, "FatherName"),
+            FatherPhone = GetStringOrEmpty(reader, cache, "FatherPhone"),
+            FatherJob = GetStringOrEmpty(reader, cache, "FatherJob"),
+            MotherName = GetStringOrEmpty(reader, cache, "MotherName"),
+            MotherPhone = GetStringOrEmpty(reader, cache, "MotherPhone"),
+            MotherJob = GetStringOrEmpty(reader, cache, "MotherJob"),
+            GuardianName = GetStringOrEmpty(reader, cache, "GuardianName"),
+            GuardianPhone = GetStringOrEmpty(reader, cache, "GuardianPhone"),
+            GuardianRelation = GetStringOrEmpty(reader, cache, "GuardianRelation"),
+            FamilyInfo = GetStringOrEmpty(reader, cache, "FamilyInfo"),
+            Friends = GetStringOrEmpty(reader, cache, "Friends"),
+            Interests = GetStringOrEmpty(reader, cache, "Interests"),
+            Talents = GetStringOrEmpty(reader, cache, "Talents"),
+            CareerGoal = GetStringOrEmpty(reader, cache, "CareerGoal"),
+            HealthInfo = GetStringOrEmpty(reader, cache, "HealthInfo"),
+            Allergies = GetStringOrEmpty(reader, cache, "Allergies"),
+            SpecialNeeds = GetStringOrEmpty(reader, cache, "SpecialNeeds"),
+            Memo = GetStringOrEmpty(reader, cache, "Memo"),
+            CreatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("CreatedAt"))),
+            UpdatedAt = DateTime.Parse(reader.GetString(cache.GetOrdinal("UpdatedAt")))
+        };
+    }
+
+    private string GetStringOrEmpty(SqliteDataReader reader, ReaderColumnCache cache, string columnName)
+    {
+        int ordinal = cache.GetOrdinal(columnName);
+        return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
+    }
+
+    #endregion
 }

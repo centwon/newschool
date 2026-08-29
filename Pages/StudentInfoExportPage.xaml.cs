@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Controls;
+using NewSchool.Helpers;
 using NewSchool.Models;
 using NewSchool.Repositories;
-using NewSchool.Helpers;
 using NewSchool.Services;
 
 namespace NewSchool.Pages;

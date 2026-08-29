@@ -1,7 +1,7 @@
 ﻿using System;
-using Windows.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
+using Windows.UI.Text;
 
 namespace NewSchool.Converters;
 
