@@ -14,6 +14,7 @@ using NewSchool.Board.Models;
 using NewSchool.Board.Services;
 using NewSchool.Board.ViewModels;
 using NewSchool.Collections;
+using NewSchool.Models;
 
 namespace NewSchool.Board.ViewModels;
 
@@ -21,13 +22,11 @@ namespace NewSchool.Board.ViewModels;
 /// <summary>
 /// Post 목록 ViewModel - MVVM 패턴
 /// </summary>
-public class PostListViewModel : INotifyPropertyChanged
+public class PostListViewModel : NotifyPropertyChangedBase
 {
     private readonly BoardService _service;
     private OptimizedObservableCollection<PostItemViewModel> _posts;
     private readonly DispatcherQueue? _dispatcherQueue;
-    public event PropertyChangedEventHandler? PropertyChanged;
-
     #region Properties
 
     public OptimizedObservableCollection<PostItemViewModel> Posts
@@ -456,11 +455,6 @@ public class PostListViewModel : INotifyPropertyChanged
         await LoadPostsAsync();
     }
 
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
     #endregion
 }
 #region Post Wrapper for UI
@@ -468,12 +462,10 @@ public class PostListViewModel : INotifyPropertyChanged
 /// <summary>
 /// UI 바인딩용 Post 래퍼 - 댓글 개수 포함
 /// </summary>
-public class PostItemViewModel : INotifyPropertyChanged
+public class PostItemViewModel : NotifyPropertyChangedBase
 {
     private readonly Post _post;
     private int _commentCount;
-
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     public PostItemViewModel(Post post, int commentCount = 0)
     {
@@ -544,10 +536,6 @@ public class PostItemViewModel : INotifyPropertyChanged
     // 원본 Post 객체 접근
     public Post Post => _post;
 
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 }
 
 #endregion

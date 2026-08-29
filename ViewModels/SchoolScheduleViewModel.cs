@@ -10,7 +10,7 @@ namespace NewSchool.ViewModels;
 /// 학사일정 ViewModel (UI 바인딩용)
 /// ListView에서 사용
 /// </summary>
-public class SchoolScheduleViewModel : INotifyPropertyChanged
+public class SchoolScheduleViewModel : NotifyPropertyChangedBase
 {
     private bool _isSelected;
     private bool _isModified;
@@ -339,12 +339,7 @@ public class SchoolScheduleViewModel : INotifyPropertyChanged
     // INotifyPropertyChanged 구현
     // ==========================================
 
-    public event PropertyChangedEventHandler? PropertyChanged;
 
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 
     // ==========================================
     // Helper Methods

@@ -18,7 +18,7 @@ namespace NewSchool.ViewModels;
 /// TodayPage의 ViewModel
 /// ⚡ 성능 최적화: OptimizedObservableCollection 사용으로 대량 업데이트 80% 향상
 /// </summary>
-public class TodayPageViewModel : INotifyPropertyChanged
+public class TodayPageViewModel : NotifyPropertyChangedBase
 {
     private readonly DispatcherQueue _dispatcherQueue;
 
@@ -233,12 +233,7 @@ public class TodayPageViewModel : INotifyPropertyChanged
     
     #region INotifyPropertyChanged 구현
     
-    public event PropertyChangedEventHandler? PropertyChanged;
     
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
     
     #endregion
 }
