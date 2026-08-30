@@ -24,6 +24,24 @@ public sealed partial class CourseScopeBar : UserControl
 
     private bool _showCourse = true;
     private bool _showGrade = true;
+    private bool _showYear = true;
+
+    /// <summary>
+    /// 학년도 콤보 표시 여부.
+    ///
+    /// <para>끄더라도 <see cref="Year"/> 는 그대로 값을 낸다 — 감추는 것은 <b>조작</b>일 뿐,
+    /// 바들끼리 맞춰 두는 학년도 자체는 페이지가 계속 들고 있다. 주별 시간표처럼
+    /// 보는 대상이 <b>날짜</b>인 탭에서 끈다.</para>
+    /// </summary>
+    public bool ShowYear
+    {
+        get => _showYear;
+        set
+        {
+            _showYear = value;
+            CBoxYear.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
 
     /// <summary>
     /// 수업 콤보 표시 여부. 수업 개설 탭처럼 목록 자체가 대상인 곳에서는 끈다.

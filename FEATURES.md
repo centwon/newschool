@@ -153,23 +153,25 @@
 | `YearSemesterPicker.xaml` | 학년도/학기 선택기 |
 | `ClassPicker.xaml` | 학년/반 선택기 (확정 시 학생 목록 이벤트 전달) |
 | `CoursePicker.xaml` | 과목/강의실 선택기 (확정 시 수강생 목록 이벤트 전달) |
-| `SchoolMealBox.xaml` | 급식 정보 박스 |
+| `SchoolMealBox.xaml` | 급식 정보 박스 (날짜는 홈 화면의 날짜 이동을 따른다 — 자체 선택기 없음) |
 | `SchoolScheduleListControl.xaml` | 학사일정 목록 |
 | `RichTextEditor.xaml` | 리치 텍스트 에디터 (WinUIRichEditor/Win2D 어댑터) |
 | `RichTextEditorWin.xaml` | 에디터 윈도우 (전체화면 편집) |
 
 ### 수업 관리 탭 컨트롤
 `CourseManagementPage` 의 여섯 탭은 각각 아래 컨트롤이 담당한다. 탭 위의 범위 선택줄은
-`CourseScopeBar` 하나를 탭마다 두고 페이지가 값을 맞춘다(학년 콤보는 수업 개설 탭에만 노출).
+`CourseScopeBar` 하나를 탭마다 두고 페이지가 값을 맞춘다. **쓰지 않는 칸은 탭마다 감춘다** —
+학년 콤보는 수업 개설 탭에만, 주별 시간표 탭은 보는 대상이 날짜라 학기만 남긴다.
+감춰도 `Year`·`SelectedCourse` 는 그대로 값을 낸다(감추는 것은 조작일 뿐이다).
 
 | 파일 | 탭 |
 |------|-----|
-| `CourseScopeBar.xaml` | 공통 범위 선택줄 (학년도·학기·학년·수업) |
+| `CourseScopeBar.xaml` | 공통 범위 선택줄 (학년도·학기·학년·수업, `ShowYear`/`ShowGrade`/`ShowCourse` 로 가림) |
 | `CourseSectionView.xaml` | 단원 관리 (CRUD · 드래그 정렬 · CSV 입출력) |
-| `CourseHoursView.xaml` | 수업 시수 (주차 × 학급, 손으로 고친 칸만 저장) |
+| `CourseHoursView.xaml` | 수업 시수 (주차 × 학급, 손으로 고친 칸만 저장. 학사일정의 방학 다음 주부터 끝까지 뺀다) |
 | `ProgressMatrixView.xaml` | 진도 관리 (단원 × 학급 매트릭스, 격차 분석·CSV) |
-| `CourseTimetableBoard.xaml` | 수업 시간표 입력 (요일 × 교시 배치판, 드래그·키보드) |
-| `WeeklyTimetableView.xaml` | 주별 시간표 확인 및 변경 (날짜 × 교시, 3주치) |
+| `CourseTimetableBoard.xaml` | 수업 시간표 입력 (요일 × 교시 배치판, 드래그·키보드. 필요 칸 수 = 주당 시수 × 강의실 수) |
+| `WeeklyTimetableView.xaml` | 주별 시간표 확인 및 변경 (**교시 × 날짜**, 3주치 가로 스크롤·교시 열 고정·휠=가로) |
 
 ---
 
@@ -230,9 +232,9 @@
 
 | 파일 | 기능 |
 |------|------|
-| `WeeklyHoursCalculator.cs` | 주차별 수업 가능 시수 계산 (시간표 배치 + 학사일정). 학기 경계는 여름방학(수업일 14일 이상 공백)에서 유추 |
+| `WeeklyHoursCalculator.cs` | 주차별 수업 가능 시수 계산 (시간표 배치 + 학사일정). 학기 경계는 여름방학(수업일 14일 이상 공백)에서 유추하고, 표는 학사일정이 "방학"이라 적은 첫 휴업일의 다음 주부터 끊는다 |
 | `TimetableChangeMerger.cs` | 날짜별 시간표 변경(`LessonChange`)을 평소 시간표에 얹기 — 오늘 화면·수업 홈이 함께 쓴다 |
-| `Helpers/SchoolCalendar.cs` | 휴업일·학년 행사(`IsGradeOnlyEvent`)·수업일(`IsTeachingDayFor`) 판정 |
+| `Helpers/SchoolCalendar.cs` | 휴업일·학년 행사(`IsGradeOnlyEvent`)·수업일(`IsTeachingDayFor`) 판정. 휴업 여부는 **수업공제일자명 한 칸**으로만 본다 — 행사명 짐작은 "여름방학식"을 휴업일로 만들었다 |
 
 ### 기타
 | 파일 | 기능 |
@@ -478,7 +480,7 @@
 | ~~**동아리 배정 다이얼로그 — 학년·반 필터**~~ ✅ 완료 (2026-08-29) | 후보를 `1~3학년 × 1~15반` 이중 루프(DB 45회)로 모으던 것을 **조회 한 번**으로 바꿨다. 학년·반 필터는 이제 **명부에서** 만든다 — 예전에는 늘 `1~15반` 이 나와 3반까지인 학교에서도 4~15반을 고를 수 있었다. 모든 예외를 삼키던 빈 `catch` 도 없앴다 | `Dialogs/ClubEnrollmentDialog.xaml.cs` |
 | ~~**동아리 배정 다이얼로그 — 학생 목록 스크롤바**~~ ✅ 완료 (2026-08-29) | 원인은 목록이 아니라 **다이얼로그에 높이 상한이 없던 것**이었다. 높이를 안 묶으면 안쪽 `ListView` 가 "높이 무한" 으로 측정돼 항목을 전부 펼치고 스크롤이 필요 없다고 판단한다. 같은 모양의 수업 배정 다이얼로그에 이미 있던 `ContentDialogMaxHeight`·`MinHeight` 를 맞춰 넣었다 | `Dialogs/ClubEnrollmentDialog.xaml` |
 | ~~**좌석 축 정리 (학적 재설계 3b)**~~ ❌ **하지 않기로 함** (2026-08-29) | `StudentID` → `EnrollmentNo` 전환을 **닫는다.** ① 학년도 범위는 `SeatArrangement`·이력 표가 이미 제 안에 들고 있고 ② **전출 학생이 좌석표에 나타나지 않는 것을 실측**했다(복원 루프가 현재 명단과 대조해 짝이 없으면 빈 자리로 둔다 — `PageSeats.xaml.cs`). 즉 수업·동아리와 달리 **고칠 증상이 없다.** 대가는 표 넷 + `SeatService`(560줄) + `PageSeats`(1,300줄) + 짝 제외 로직 + 데이터 이관으로, 얻는 것이 일관성뿐이라 남는 장사가 아니다. **실제로 남아 있던 문제 하나(FK 가 없어 지운 학생의 좌석·이력이 영영 쌓임)는 초기화기의 고아 정리로 처리했다**(회귀 테스트 3건) | [docs/enrollment-redesign.md](docs/enrollment-redesign.md) 7.5 |
-| ~~**테스트 확충**~~ ✅ 완료 | 테스트 25개 → 211개(0~4단계, 2026-07-12) → **514개**(2026-08-26 기준, 이후 회귀 테스트 누적). 리포지토리 CRUD·경계 → 서비스 로직·회귀 → 헬퍼·파서 → VM 변환. 잠재 버그 2건도 작성 중 발견·수정. 잔여(Settings 파서·Excel 헤더 탐지 등)는 ROI 낮아 보류 | [TEST_PLAN.md](TEST_PLAN.md) |
+| ~~**테스트 확충**~~ ✅ 완료 | 테스트 25개 → 211개(0~4단계, 2026-07-12) → **616개**(2026-08-30 v1.0.0 게시 기준, 이후 회귀 테스트 누적). 리포지토리 CRUD·경계 → 서비스 로직·회귀 → 헬퍼·파서 → VM 변환. 잠재 버그 2건도 작성 중 발견·수정. 잔여(Settings 파서·Excel 헤더 탐지 등)는 ROI 낮아 보류 | [TEST_PLAN.md](TEST_PLAN.md) |
 | ~~**자체 포함 전환 + 실행 파일을 `bin\` 하위로**~~ ✅ 완료 (2026-08-26, v1.0.0 재게시에 포함) — 실측 **설치 파일 117.1MB → 26MB(−78%)**, 설치 폴더 46파일·4폴더·96.5MB, 루트엔 `bin\` 과 언인스톨러만. 런타임 설치 단계·`prerequisites\`·`RequiredRuntimeVersion` 검사 전부 제거. ⚠ 로 적어 둔 포터블 문제는 **`Settings.FindPortableRoot` 가 실행 파일 폴더의 부모까지 보도록** 고쳐 해결(회귀 테스트 5건 추가, 실제 설치로 `{app}\Data\` 생성 확인). 아래는 결정 당시 기록 | 1.0.0 은 런타임 번들로 냈다(설치 파일 **122.8MB** = 런타임 설치기 106.9MB + 앱 15.9MB). 자체 포함으로 바꾸면 **설치 파일 29.1MB**(1/4)로 줄고 **런타임 설치 단계가 통째로 사라진다** — 1.0.0 게시를 막았던 "번들 2.3 vs 요구 2.4" 부류가 원천 소멸한다. 대가는 설치 폴더 8개·40MB → **53개·93MB**(정리 후). 지저분함은 **앱 전체를 `{app}\bin\` 하위에 넣어** 해결한다(루트엔 그 폴더와 언인스톨러만). ⚠ 포터블 판정이 exe 폴더 기준이라 `Data\` 가 `bin\` 아래로 들어간다 — 그 부분 조정 필요 | `NewSchool.csproj:255`, `Installer/NewSchoolSetup.iss` |
 | ~~`lib\` 로 DLL 격리~~ ❌ 불가 (2026-08-24 실측) | exe 는 페이로드 DLL 을 **정적 임포트하지 않아**(시스템 DLL 18개뿐) 가능해 보였다. PATH 는 .NET 이 `SetDefaultDllDirectories` 로 빼서 실패, `AddDllDirectory`+`SetDllImportResolver` 로 **DLL 로드까지는 성공**했으나 **WinRT 활성화에서 막힌다**(`Microsoft.UI.Xaml.Application` 팩토리 → COMException). 액티베이션 컨텍스트가 클래스→DLL 을 앱 디렉터리 기준으로 찾기 때문. 지원되는 구성이 아니고 SDK 업데이트마다 깨진다 → **재시도 금지**, 위 `bin\` 안으로 갈음 | — |
 | ~~게시 필터의 접두어 오탐~~ ✅ 처리 | `kok-IN`·`en-GB` 는 `CleanPublishOutput` 에서 명시적으로 제거한다. AI 계열(`Windows.Search`·`Widgets`·`PerceptiveStreaming`·`NPUDetect`·`Workloads`)도 이름으로 직접 지운다 | `NewSchool.csproj` `CleanPublishOutput` |

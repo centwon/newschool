@@ -393,7 +393,7 @@ public sealed partial class CourseTimetableBoard : UserControl
             indexText.Text = args.ItemIndex < 9 ? $"{args.ItemIndex + 1}" : "";
 
         if (grid.Children.Count > 2 && grid.Children[2] is Border badge && badge.Child is TextBlock badgeText)
-            badgeText.Text = $"{CountPlaced(course.No)}/{course.Unit}";
+            badgeText.Text = $"{CountPlaced(course.No)}/{RequiredSlots(course)}";
     }
 
     private void RefreshCourseBadges()
@@ -405,7 +405,7 @@ public sealed partial class CourseTimetableBoard : UserControl
             if (CourseListView.ContainerFromItem(course) is not ListViewItem item) continue;
             if (item.ContentTemplateRoot is not Grid grid) continue;
             if (grid.Children.Count > 2 && grid.Children[2] is Border badge && badge.Child is TextBlock badgeText)
-                badgeText.Text = $"{CountPlaced(course.No)}/{course.Unit}";
+                badgeText.Text = $"{CountPlaced(course.No)}/{RequiredSlots(course)}";
         }
 
         UpdateStatus();
@@ -573,13 +573,18 @@ public sealed partial class CourseTimetableBoard : UserControl
             return;
         }
 
-        // 주당 시수를 넘겨 배치하면 시수 탭의 계산이 조용히 부풀어 오른다.
+        // 필요한 칸 수를 넘겨 배치하면 시수 탭의 계산이 조용히 부풀어 오른다.
         // 주당 시수를 안 적어 둔 수업(0)은 넘을 기준이 없으므로 막지 않는다.
-        if (course.Unit > 0 && CountPlaced(course.No) >= course.Unit)
+        if (course.Unit > 0 && CountPlaced(course.No) >= RequiredSlots(course))
         {
+            int rooms = Math.Max(1, course.RoomList.Count);
+            var basis = rooms > 1
+                ? $"주당 {course.Unit}시간 × {rooms}개 학급 = {RequiredSlots(course)}시간"
+                : $"주당 {course.Unit}시간";
+
             ShowWarning(
-                $"'{course.Subject}' 는 주당 {course.Unit}시간인데 이미 {CountPlaced(course.No)}시간 배치됐습니다.\n" +
-                "더 넣으려면 [수업 개설] 에서 주당 시수를 먼저 늘리세요.");
+                $"'{course.Subject}' 는 {basis}인데 이미 {CountPlaced(course.No)}시간 배치됐습니다.\n" +
+                "더 넣으려면 [수업 개설] 에서 주당 시수나 강의실을 먼저 늘리세요.");
             return;
         }
 
@@ -903,17 +908,32 @@ public sealed partial class CourseTimetableBoard : UserControl
     private int CountPlaced(int courseNo)
         => _lessons.Count(l => l.Course == courseNo);
 
+    /// <summary>
+    /// 그 수업이 이 판에 채워야 할 칸 수 = <b>주당 시수 × 학급(강의실) 수</b>.
+    ///
+    /// <para>판의 한 칸은 "어느 학급의 몇 교시" 하나다. 주당 4시간짜리 과목을 세 학급에
+    /// 가르치면 판에는 12칸이 들어간다. 예전에는 주당 시수만 단순히 더해서, 학급이 여럿인
+    /// 교사에게는 합계가 늘 모자라게 나왔고 — 더 나쁘게는, 아래 배치 상한이 그 모자란
+    /// 숫자에서 걸려 <b>두 번째 학급부터는 아예 놓을 수 없었다</b>.</para>
+    ///
+    /// <para>강의실을 아직 적지 않은 수업은 학급 수를 셀 근거가 없으므로 한 학급으로 본다
+    /// (그래야 예전과 같은 값이 나와, 강의실을 안 쓰는 교사에게는 달라지는 것이 없다).</para>
+    /// </summary>
+    private static int RequiredSlots(Course course)
+        => course.Unit * Math.Max(1, course.RoomList.Count);
+
     private void UpdateStatus()
     {
         int placed = _lessons.Count;
-        int required = _courses.Sum(c => c.Unit);
+        int required = _courses.Sum(RequiredSlots);
 
         var text = $"배치 {placed}시간 / 주당 시수 합계 {required}시간";
 
         if (_selectedCourse != null)
         {
             int mine = CountPlaced(_selectedCourse.No);
-            int diff = mine - _selectedCourse.Unit;
+            int need = RequiredSlots(_selectedCourse);
+            int diff = mine - need;
             var state = diff switch
             {
                 0 => "맞음",
@@ -921,7 +941,7 @@ public sealed partial class CourseTimetableBoard : UserControl
                 _ => $"{diff}시간 초과"
             };
 
-            text += $"   ·   {_selectedCourse.Subject}: {mine}/{_selectedCourse.Unit} ({state})";
+            text += $"   ·   {_selectedCourse.Subject}: {mine}/{need} ({state})";
         }
 
         text += $"   ·   커서 {DayNames[_cursor.Day - 1]} {_cursor.Period}교시";

@@ -1,42 +1,22 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Models;
 
 namespace NewSchool.Controls;
 
 /// <summary>
-/// 급식 정보 표시 컨트롤 (날짜 선택 기능 포함)
+/// 급식 정보 표시 컨트롤.
+///
+/// <para>날짜는 <b>스스로 들지 않는다</b>. 어느 날짜를 볼지는 이 상자를 안고 있는 화면
+/// (<c>TodayPage</c>)의 날짜 이동이 정하고, 여기는 <see cref="LoadMealsAsync"/> 로
+/// 받은 날짜만 그린다 — 기준이 하나면 헤더와 급식이 어긋날 일도 없다.</para>
 /// </summary>
-public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
+public sealed partial class SchoolMealBox : UserControl
 {
     private ObservableCollection<SchoolMeal> _meals = new();
-    private DateTimeOffset _selectedDate = DateTimeOffset.Now;
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    /// <summary>
-    /// 선택된 날짜
-    /// </summary>
-    public DateTimeOffset SelectedDate
-    {
-        get => _selectedDate;
-        set
-        {
-            if (_selectedDate != value)
-            {
-                _selectedDate = value;
-                OnPropertyChanged();
-            }
-        }
-    }
 
     public ObservableCollection<SchoolMeal> Meals
     {
@@ -52,9 +32,6 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
     {
         this.InitializeComponent();
         MealsRepeater.ItemsSource = _meals;
-        
-        // 초기 날짜를 오늘로 설정
-        SelectedDate = DateTimeOffset.Now;
     }
 
     /// <summary>
@@ -62,8 +39,6 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
     /// </summary>
     public async Task LoadMealsAsync(DateTime date)
     {
-        SetStatus(null);
-
         try
         {
             Debug.WriteLine($"[SchoolMealBox] 급식 정보 로드 시작 - 날짜: {date:yyyy-MM-dd}");
@@ -96,83 +71,12 @@ public sealed partial class SchoolMealBox : UserControl, INotifyPropertyChanged
         }
     }
 
-    /// <summary>
-    /// 사용자가 상자 안에서 날짜를 바꾼 경우의 조회 — 실패해도 앱이 죽으면 안 되므로
-    /// 여기서 잡아 상자 안에 안내한다.
-    ///
-    /// <para>⚠ <see cref="LoadMealsAsync"/> 는 실패를 <b>예외로 올린다</b>(홈 화면이 전역
-    /// InfoBar 로 모으기 위해서다). 그래서 <c>async void</c> 핸들러에서 그대로 부르면
-    /// 미처리 예외가 된다 — 반드시 이 경로를 쓸 것.</para>
-    /// </summary>
-    private async Task LoadMealsForUserAsync(DateTime date)
-    {
-        try
-        {
-            await LoadMealsAsync(date);
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"급식 정보를 불러오지 못했습니다. {ex.Message}");
-        }
-    }
-
-    private void SetStatus(string? message)
-    {
-        if (TxtMealStatus == null) return;
-
-        TxtMealStatus.Text = message ?? string.Empty;
-        TxtMealStatus.Visibility = string.IsNullOrEmpty(message)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-    }
-
     // 급식 정보를 밖에서 넣어 주던 SetMeals 는 호출부가 없어 지웠다(39차) —
     // 이 컨트롤은 날짜가 정해지면 스스로 NEIS 에서 받아 온다.
-
-    #region 날짜 선택 이벤트 핸들러
-
-    /// <summary>
-    /// 이전 날짜 버튼 클릭
-    /// </summary>
-    private async void PreviousDayButton_Click(object sender, RoutedEventArgs e)
-    {
-        SelectedDate = SelectedDate.AddDays(-1);
-        await LoadMealsForUserAsync(SelectedDate.DateTime);
-    }
-
-    /// <summary>
-    /// 다음 날짜 버튼 클릭
-    /// </summary>
-    private async void NextDayButton_Click(object sender, RoutedEventArgs e)
-    {
-        SelectedDate = SelectedDate.AddDays(1);
-        await LoadMealsForUserAsync(SelectedDate.DateTime);
-    }
-
-    /// <summary>
-    /// 오늘 버튼 클릭
-    /// </summary>
-    private async void TodayButton_Click(object sender, RoutedEventArgs e)
-    {
-        SelectedDate = DateTimeOffset.Now;
-        await LoadMealsForUserAsync(SelectedDate.DateTime);
-    }
-
-    /// <summary>
-    /// 날짜 선택기 변경
-    /// </summary>
-    private async void DatePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
-    {
-        if (args.NewDate.HasValue)
-        {
-            await LoadMealsForUserAsync(args.NewDate.Value.DateTime);
-        }
-    }
-
-    #endregion
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+    //
+    // 상자 안의 날짜 이동(◀ ▶ · 달력 선택기)도 지웠다. 홈 화면 머리의 날짜 이동과 하는 일이
+    // 같은데 기준을 둘로 나눠 놓아, 상자에서 날짜를 옮기면 헤더는 어제를 말하고 급식만 내일을
+    // 보여 줄 수 있었다. 그와 함께 상자 안 실패 안내(TxtMealStatus)와, 그것을 띄우려고
+    // 예외를 삼키던 LoadMealsForUserAsync 도 갈 곳을 잃어 함께 걷었다 —
+    // 이제 실패 경로는 "LoadMealsAsync 가 던지고 홈 화면이 전역 InfoBar 로 모은다" 하나뿐이다.
 }

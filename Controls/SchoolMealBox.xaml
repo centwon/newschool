@@ -14,65 +14,14 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- 헤더 -->
+            <!-- 헤더 — 날짜 선택기는 두지 않는다.
+                 날짜는 이 상자를 안고 있는 홈 화면(TodayPage)의 날짜 이동이 정한다.
+                 상자가 자기 날짜를 따로 들면 헤더가 말하는 날짜와 급식이 어긋난다. -->
             <Border Grid.Row="0" Style="{StaticResource DashboardCardHeader}" Padding="12,6">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- 제목 -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8"
-                            VerticalAlignment="Center" Margin="0,0,12,0">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <FontIcon Glyph="&#xE957;" Style="{StaticResource DashboardCardHeaderIcon}"/>
                     <TextBlock Text="급식" Style="{StaticResource DashboardCardHeaderTitle}"/>
                 </StackPanel>
-
-                <!-- 날짜 선택 영역 -->
-                <StackPanel Grid.Column="2" 
-                            Orientation="Horizontal" 
-                            Spacing="2">
-                    <!-- 이전 날짜 -->
-                    <Button x:Name="PreviousDayButton"
-                            Content="◀"
-                            Click="PreviousDayButton_Click"
-                            ToolTipService.ToolTip="이전 날"
-                            Width="24"
-                            Height="32"
-                            Padding="0"
-                            FontSize="12"/>
-
-                    <!-- 날짜 선택기 -->
-                    <CalendarDatePicker x:Name="DatePicker"
-                                        Date="{x:Bind SelectedDate, Mode=TwoWay}"
-                                        DateChanged="DatePicker_DateChanged"
-                                        PlaceholderText="날짜 선택"
-                                        Width="120"
-                                        Height="32"
-                                        HorizontalAlignment="Center"/>
-
-                    <!-- 다음 날짜 -->
-                    <Button x:Name="NextDayButton"
-                            Content="▶"
-                            Click="NextDayButton_Click"
-                            ToolTipService.ToolTip="다음 날"
-                            Width="24"
-                            Height="32"
-                            Padding="0"
-                            FontSize="12"/>
-
-                    <!-- 오늘 버튼 --><!--
-                    <Button x:Name="TodayButton"
-                            Content="오늘"
-                            Click="TodayButton_Click"
-                            ToolTipService.ToolTip="오늘로 이동"
-                            Height="32"
-                            Padding="12,0"
-                            FontSize="12"/>-->
-                </StackPanel>
-            </Grid>
             </Border>
 
             <!-- 급식 목록 -->
@@ -107,15 +56,9 @@
                 </ItemsRepeater>
             </ScrollViewer>
 
-            <!-- 조회 실패 안내 — 사용자가 직접 날짜를 바꿨을 때는 상자 안에서 알린다
-                 (홈 화면 첫 로드는 하단 전역 InfoBar 가 맡는다) -->
-            <TextBlock x:Name="TxtMealStatus"
-                       Grid.Row="1"
-                       Margin="12,8"
-                       TextWrapping="Wrap"
-                       FontSize="12"
-                       Visibility="Collapsed"
-                       Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+            <!-- 상자 안 실패 안내는 두지 않는다 — 그것을 띄우던 유일한 경로가
+                 "사용자가 상자 안에서 날짜를 바꿨을 때" 였다.
+                 실패는 LoadMealsAsync 가 예외로 올려 홈 화면의 전역 InfoBar 로 모인다. -->
         </Grid>
     </Border>
 </UserControl>

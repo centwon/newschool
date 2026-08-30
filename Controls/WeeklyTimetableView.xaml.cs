@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -17,10 +18,15 @@ using Windows.System;
 namespace NewSchool.Controls;
 
 /// <summary>
-/// 주별 시간표 — <b>날짜가 행, 교시가 열</b>인 표. 한 번에 3주치를 보여 준다.
+/// 주별 시간표 — <b>교시가 행, 날짜가 열</b>인 표. 한 번에 3주치(15일)를 가로로 보여 준다.
 ///
-/// 기초 시간표(<see cref="CourseTimetableBoard"/>)와 일부러 행·열을 반대로 뒀다.
-/// 같은 모양이면 "그 주만" 바꿀 것을 "매주" 바꾸는 사고가 나기 때문이다.
+/// <para>예전에는 날짜를 세로로 세웠다. 기초 시간표(<see cref="CourseTimetableBoard"/>)와
+/// 행·열을 반대로 두면 "그 주만" 바꿀 것을 "매주" 바꾸는 사고를 막을 수 있다고 봤기 때문이다.
+/// 실제로 써 보니 <b>날짜가 15줄로 아래로 흘러</b> 한 주를 한눈에 보기 어려웠고, 시간표를
+/// 시간표답게 읽지 못했다. 지금은 가로로 세우고, 헷갈릴 위험은 <b>모양이 아니라 표시</b>로
+/// 막는다 — 주 구분 띠, 날짜(요일)·오늘 표시, 변경 칸의 (휴)(교)(보)(대) 표식, 그리고
+/// 도구 모음의 "평소 시간표는 그대로입니다" 안내.</para>
+///
 /// 여기서 손대는 것은 <see cref="LessonChange"/> 뿐이고 <see cref="Lesson"/> 은 그대로 있으므로,
 /// 시수 계산과 교사 시간표의 "평소" 기준은 흔들리지 않는다.
 ///
@@ -50,10 +56,9 @@ public sealed partial class WeeklyTimetableView : UserControl
     /// <summary>표에 그린 칸 — (날짜, 교시) → Border</summary>
     private readonly Dictionary<(DateTime Date, int Period), Border> _cells = [];
 
-    /// <summary>표에 그린 날짜들 (위에서 아래 순서)</summary>
+    /// <summary>표에 그린 날짜들 (왼쪽에서 오른쪽 순서)</summary>
     private readonly List<DateTime> _dates = [];
 
-    private Course? _selectedCourse;
     private int _year;
     private int _semester;
     private string _teacherId = string.Empty;
@@ -77,8 +82,12 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     /// <summary>
     /// 학년도·학기와 수업 목록을 받는다.
+    ///
+    /// <para>수업 <b>하나</b>는 받지 않는다 — 이 표가 보는 대상은 날짜이고, 그 날 있는 수업은
+    /// 모두 보여야 한다. 예전에는 고른 수업을 받아 Enter 로 그 수업을 넣었는데, 정작 이 탭에는
+    /// 무엇이 골라져 있는지 보이지 않았다. 지금 Enter 는 <b>그 칸의 메뉴를 연다</b>.</para>
     /// </summary>
-    public async Task LoadAsync(int year, int semester, IReadOnlyList<Course> courses, Course? selected)
+    public async Task LoadAsync(int year, int semester, IReadOnlyList<Course> courses)
     {
         bool scopeChanged = _year != year || _semester != semester;
 
@@ -90,7 +99,6 @@ public sealed partial class WeeklyTimetableView : UserControl
 
         _courses.Clear();
         _courses.AddRange(courses);
-        _selectedCourse = selected;
 
         if (scopeChanged || _firstMonday == default)
             _firstMonday = MondayOf(DateTime.Today);
@@ -255,46 +263,71 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     #region 표 그리기
 
+    /// <summary>고정 교시 열의 너비</summary>
+    private const double PeriodColumnWidth = 52;
+
+    /// <summary>
+    /// 날짜 한 열의 너비. 고정이라야 15일이 가로로 흘러 스크롤이 생긴다.
+    ///
+    /// <para>"8/31(월)" 한 줄이 들어갈 만큼만 잡는다 — 한 화면에 하루라도 더 보이는 편이
+    /// 낫기 때문이다. "오늘"·휴업 사유는 <b>아랫줄</b>로 내리고, 과목명이 길면 칸에서는
+    /// 줄임표로 자른다(전문은 툴팁에 있다).</para>
+    /// </summary>
+    private const double DateColumnWidth = 88;
+
+    private const double BandRowHeight = 26;
+    private const double DateRowHeight = 44;
+
+    /// <summary>과목명 줄 + 강의실 줄이 들어가므로 넉넉히 잡는다 — 낮으면 아래 줄이 잘린다.</summary>
+    private const double SlotRowHeight = 62;
+
     private void BuildTable()
     {
         WeekGrid.Children.Clear();
         WeekGrid.RowDefinitions.Clear();
         WeekGrid.ColumnDefinitions.Clear();
+        PeriodGrid.Children.Clear();
+        PeriodGrid.RowDefinitions.Clear();
+        PeriodGrid.ColumnDefinitions.Clear();
         _cells.Clear();
         _dates.Clear();
 
-        WeekGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-        for (int period = 0; period < _maxPeriod; period++)
-            WeekGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 104 });
+        // ── 행: [주 띠] [날짜] [1교시] … [n교시] ─ 두 표가 같은 높이를 쓴다.
+        foreach (var grid in new[] { PeriodGrid, WeekGrid })
+        {
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(BandRowHeight) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(DateRowHeight) });
+            for (int period = 0; period < _maxPeriod; period++)
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(SlotRowHeight) });
+        }
 
-        // 머리: 날짜 | 1 | 2 | … | 7
-        WeekGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        AddHeader("날짜", 0, 0);
+        // ── 고정 열(교시)
+        PeriodGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(PeriodColumnWidth) });
+        AddHeader(PeriodGrid, string.Empty, 0, 0);       // 주 띠와 마주 보는 빈 모서리
+        AddHeader(PeriodGrid, "교시", 1, 0);
         for (int period = 1; period <= _maxPeriod; period++)
-            AddHeader($"{period}", 0, period);
+            AddHeader(PeriodGrid, $"{period}", period + 1, 0);
 
-        int row = 1;
+        // ── 날짜 열들
+        for (int i = 0; i < WeekCount * DayCount; i++)
+            WeekGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(DateColumnWidth) });
 
         for (int week = 0; week < WeekCount; week++)
         {
             var monday = _firstMonday.AddDays(week * 7);
-
-            WeekGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            AddWeekBand(monday, row++);
+            AddWeekBand(monday, week * DayCount);
 
             for (int day = 0; day < DayCount; day++)
             {
                 var date = monday.AddDays(day);
+                int column = week * DayCount + day;
 
-                // 과목명 줄 + 강의실 줄이 들어가므로 넉넉히 잡는다 — 낮으면 아래 줄이 잘린다.
-                WeekGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(62) });
-                AddDateCell(date, row);
+                AddDateCell(date, column);
 
                 for (int period = 1; period <= _maxPeriod; period++)
-                    AddSlotCell(date, period, row);
+                    AddSlotCell(date, period, column);
 
                 _dates.Add(date);
-                row++;
             }
         }
 
@@ -310,7 +343,7 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     private Style CellStyle(string key) => (Style)Resources[key];
 
-    private void AddHeader(string text, int row, int column)
+    private void AddHeader(Grid grid, string text, int row, int column)
     {
         var border = new Border
         {
@@ -320,10 +353,10 @@ public sealed partial class WeeklyTimetableView : UserControl
 
         Grid.SetRow(border, row);
         Grid.SetColumn(border, column);
-        WeekGrid.Children.Add(border);
+        grid.Children.Add(border);
     }
 
-    private void AddWeekBand(DateTime monday, int row)
+    private void AddWeekBand(DateTime monday, int startColumn)
     {
         int count = _changes.Keys.Count(k => k.Date >= monday && k.Date <= monday.AddDays(4));
 
@@ -337,41 +370,55 @@ public sealed partial class WeeklyTimetableView : UserControl
             Child = new TextBlock { Text = text, Style = CellStyle("WeekBandTextStyle") }
         };
 
-        Grid.SetRow(border, row);
-        Grid.SetColumn(border, 0);
-        Grid.SetColumnSpan(border, _maxPeriod + 1);
+        // 다섯 열을 합쳐도 좁으면 줄임표가 붙으므로 전문을 툴팁에 남긴다.
+        ToolTipService.SetToolTip(border, text);
+
+        Grid.SetRow(border, 0);
+        Grid.SetColumn(border, startColumn);
+        Grid.SetColumnSpan(border, DayCount);
         WeekGrid.Children.Add(border);
     }
 
-    private void AddDateCell(DateTime date, int row)
+    private void AddDateCell(DateTime date, int column)
     {
-        string? reason = OffDayReason(date);
-        bool off = reason != null;
+        string? off = OffDayReason(date);
+        string? note = off == null ? GradeEventNote(date) : null;
+        bool today = date == DateTime.Today;
 
         var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
 
-        var label = $"{date:M/d}({DayNames[SchoolCalendar.ToLessonDayOfWeek(date) - 1]})";
-        if (date == DateTime.Today) label += " · 오늘";
+        // 윗줄은 날짜만 — 열이 좁아 "· 오늘"을 붙이면 그만큼 폭을 더 잡아먹는다.
+        // 오늘은 색으로, 사유는 아랫줄로 뺀다.
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"{date:M/d}({DayNames[SchoolCalendar.ToLessonDayOfWeek(date) - 1]})",
+            Style = CellStyle(today ? "WeekTodayDateTextStyle" : "WeekDateTextStyle")
+        });
 
-        panel.Children.Add(new TextBlock { Text = label, Style = CellStyle("WeekDateTextStyle") });
-
-        if (off)
-            panel.Children.Add(new TextBlock { Text = reason, Style = CellStyle("WeekReasonTextStyle") });
+        var sub = string.Join(" · ", new[] { today ? "오늘" : null, off ?? note }.Where(s => s != null));
+        if (sub.Length > 0)
+            panel.Children.Add(new TextBlock { Text = sub, Style = CellStyle("WeekReasonTextStyle") });
 
         var border = new Border
         {
-            Style = CellStyle(off ? "WeekOffDateCellStyle" : "WeekDateCellStyle"),
+            // 학교 전체 휴업만 흐리게 만든다. 일부 학년 행사는 다른 학년 수업이 그대로 있으므로
+            // 사유만 적고 칸은 살려 둔다.
+            Style = CellStyle(off != null ? "WeekOffDateCellStyle" : "WeekDateCellStyle"),
             Child = panel
         };
 
-        if (off) ToolTipService.SetToolTip(border, reason);
+        // 잘려 보일 수 있으므로 전문은 툴팁에 남긴다.
+        var tip = string.Join(" · ",
+            new[] { $"{date:M월 d일}({DayNames[SchoolCalendar.ToLessonDayOfWeek(date) - 1]})", sub.Length > 0 ? sub : null }
+                .Where(s => s != null));
+        ToolTipService.SetToolTip(border, tip);
 
-        Grid.SetRow(border, row);
-        Grid.SetColumn(border, 0);
+        Grid.SetRow(border, 1);
+        Grid.SetColumn(border, column);
         WeekGrid.Children.Add(border);
     }
 
-    /// <summary>그 날 수업이 없는 사유 (없으면 null)</summary>
+    /// <summary>그 날 학교가 통째로 쉬는 사유 (없으면 null)</summary>
     private string? OffDayReason(DateTime date)
     {
         foreach (var schedule in _schedules)
@@ -381,15 +428,39 @@ public sealed partial class WeeklyTimetableView : UserControl
 
             if (SchoolCalendar.IsNonTeachingDay(schedule))
                 return string.IsNullOrWhiteSpace(schedule.EVENT_NM) ? schedule.SBTR_DD_SC_NM : schedule.EVENT_NM;
-
-            if (SchoolCalendar.IsGradeOnlyEvent(schedule, _selectedCourse?.Grade ?? 0, _gradeCount))
-                return schedule.EVENT_NM;
         }
 
         return null;
     }
 
-    private void AddSlotCell(DateTime date, int period, int row)
+    /// <summary>
+    /// 그 날 <b>일부 학년만</b> 걸리는 행사 (없으면 null).
+    ///
+    /// <para>예전에는 "위에서 고른 수업의 학년" 으로 판정했다. 이 탭에서 수업 선택을 걷어내면서
+    /// <b>내가 가르치는 학년들</b> 기준으로 바꿨다 — 어느 수업을 골랐는지와 무관하게 내 시간표에
+    /// 걸리는 행사면 알려야 한다.</para>
+    /// </summary>
+    private string? GradeEventNote(DateTime date)
+    {
+        var grades = _courses.Select(c => c.Grade).Where(g => g > 0).Distinct().OrderBy(g => g).ToList();
+        if (grades.Count == 0) return null;
+
+        foreach (var schedule in _schedules)
+        {
+            if (schedule == null || schedule.IsDeleted) continue;
+            if (schedule.AA_YMD.Date != date.Date) continue;
+
+            foreach (int grade in grades)
+            {
+                if (SchoolCalendar.IsGradeOnlyEvent(schedule, grade, _gradeCount))
+                    return $"{grade}학년 {schedule.EVENT_NM}";
+            }
+        }
+
+        return null;
+    }
+
+    private void AddSlotCell(DateTime date, int period, int column)
     {
         int day = SchoolCalendar.ToLessonDayOfWeek(date);
         bool available = period <= _periods.ForDay(day);
@@ -411,8 +482,8 @@ public sealed partial class WeeklyTimetableView : UserControl
             border.PointerPressed += OnSlotPointerPressed;
         }
 
-        Grid.SetRow(border, row);
-        Grid.SetColumn(border, period);
+        Grid.SetRow(border, period + 1);
+        Grid.SetColumn(border, column);
         WeekGrid.Children.Add(border);
         _cells[(date.Date, period)] = border;
     }
@@ -936,40 +1007,33 @@ public sealed partial class WeeklyTimetableView : UserControl
 
         switch (e.Key)
         {
+            // 표가 가로로 서 있으므로 ←→ 는 날짜, ↑↓ 는 교시다.
             case VirtualKey.Left:
-                MoveCursor(0, -1);
-                e.Handled = true;
-                return;
-
-            case VirtualKey.Right:
-                MoveCursor(0, 1);
-                e.Handled = true;
-                return;
-
-            case VirtualKey.Up:
                 MoveCursor(-1, 0);
                 e.Handled = true;
                 return;
 
-            case VirtualKey.Down:
+            case VirtualKey.Right:
                 MoveCursor(1, 0);
                 e.Handled = true;
                 return;
 
+            case VirtualKey.Up:
+                MoveCursor(0, -1);
+                e.Handled = true;
+                return;
+
+            case VirtualKey.Down:
+                MoveCursor(0, 1);
+                e.Handled = true;
+                return;
+
+            // 넣을 것을 고르는 자리는 칸의 메뉴다 — 화면에 보이지 않는 "고른 수업" 에
+            // 기대지 않는다(오른쪽 클릭과 같은 메뉴가 열린다).
             case VirtualKey.Enter:
             case VirtualKey.Space:
                 e.Handled = true;
-                if (_selectedCourse == null)
-                {
-                    ShowWarning("넣을 수업을 위쪽 [수업] 에서 먼저 고르세요.");
-                    return;
-                }
-                await RunAsync(
-                    () => SetSlotAsync(
-                        _cursor.Value.Date, _cursor.Value.Period,
-                        _selectedCourse, string.Empty,
-                        _selectedCourse.RoomList.FirstOrDefault() ?? string.Empty),
-                    "수업 넣기");
+                ShowSlotMenu(_cursor.Value.Date, _cursor.Value.Period);
                 return;
 
             case VirtualKey.Delete:
@@ -1004,6 +1068,58 @@ public sealed partial class WeeklyTimetableView : UserControl
         _cursor = (date, period);
         UpdateCursorVisual();
         UpdateStatus();
+        EnsureCursorVisible();
+    }
+
+    /// <summary>커서가 가로 스크롤 밖으로 나가면 그 열이 보이도록 민다.</summary>
+    private void EnsureCursorVisible()
+    {
+        if (_cursor == null) return;
+
+        int index = _dates.IndexOf(_cursor.Value.Date);
+        if (index < 0) return;
+
+        double left = index * DateColumnWidth;
+        double right = left + DateColumnWidth;
+        double viewport = WeekScroll.ViewportWidth;
+        double offset = WeekScroll.HorizontalOffset;
+
+        if (left < offset)
+            WeekScroll.ChangeView(left, null, null, true);
+        else if (right > offset + viewport)
+            WeekScroll.ChangeView(right - viewport, null, null, true);
+    }
+
+    /// <summary>그 칸의 메뉴를 연다 (오른쪽 클릭과 같은 것).</summary>
+    private void ShowSlotMenu(DateTime date, int period)
+    {
+        if (!_cells.TryGetValue((date.Date, period), out var border)) return;
+        border.ContextFlyout?.ShowAt(border);
+    }
+
+    /// <summary>
+    /// 마우스 휠 → <b>가로</b>. 3주치 15일이 가로로 늘어서므로 실제로 넘길 축은 가로다.
+    /// 위아래(교시)는 Shift+휠로 남긴다 — 교시가 화면보다 많을 때만 움직인다.
+    ///
+    /// <para>⚠ 디스플레이 배율이 100% 가 아니면 WinUI 가 휠을 커서 아래가 아닌 다른 요소로
+    /// hit-test 하는 프레임워크 버그가 있다(microsoft-ui-xaml#7008 계열). 그 배율에서는 이
+    /// 처리도 함께 빗나간다 — 앱 코드로 고칠 수 있는 문제가 아니다.</para>
+    /// </summary>
+    private void OnTableWheel(object sender, PointerRoutedEventArgs e)
+    {
+        int delta = e.GetCurrentPoint((UIElement)sender).Properties.MouseWheelDelta;
+        if (delta == 0) return;
+
+        bool shift = InputKeyboardSource
+            .GetKeyStateForCurrentThread(VirtualKey.Shift)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+        if (shift)
+            OuterScroll.ChangeView(null, OuterScroll.VerticalOffset - delta, null, true);
+        else
+            WeekScroll.ChangeView(WeekScroll.HorizontalOffset - delta, null, null, true);
+
+        e.Handled = true;
     }
 
     #endregion
@@ -1018,9 +1134,6 @@ public sealed partial class WeeklyTimetableView : UserControl
         int inRange = _changes.Count;
 
         var text = $"보는 구간 변경 {inRange}건 · 앞으로 등록된 변경 {_futureChangeCount}건";
-
-        if (_selectedCourse != null)
-            text += $"   ·   Enter 로 넣을 수업: {_selectedCourse.DisplayName}";
 
         if (_cursor != null)
             text += $"   ·   커서 {_cursor.Value.Date:M/d} {_cursor.Value.Period}교시";

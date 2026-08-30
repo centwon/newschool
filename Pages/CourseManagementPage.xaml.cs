@@ -350,8 +350,9 @@ public sealed partial class CourseManagementPage : Page
                 break;
 
             case TabWeekly:
+                // 수업 선택은 넘기지 않는다 — 이 탭은 그 주에 있는 수업을 모두 보여 준다.
                 await WeeklyView.LoadAsync(
-                    ScopeWeekly.Year, ScopeWeekly.Semester, _allCourses, _selectedCourse);
+                    ScopeWeekly.Year, ScopeWeekly.Semester, _allCourses);
                 break;
         }
     }

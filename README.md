@@ -85,24 +85,27 @@ dotnet publish -c Release -p:Platform=x64
 `bin\Release\net10.0-windows10.0.26100.0\win-x64\publish\` 에 생성합니다. x86/arm64는 `-p:Platform=x86` 또는
 `-p:Platform=arm64` 로 교체.
 
-**.NET 런타임만 자체 포함**이고 Windows App SDK 런타임은 별도입니다(`WindowsAppSDKSelfContained=false`).
-그래서 게시 폴더는 9개 파일 44MB 로 단출하고, 대신 설치 프로그램이 런타임을 함께 설치합니다.
+**.NET 런타임과 Windows App SDK 를 모두 자체 포함**합니다(`WindowsAppSDKSelfContained=true`).
+게시 폴더는 **43개 파일·5개 폴더·92MB** 이고, 그 대신 **설치 프로그램에 런타임 설치 단계가 없습니다.**
+
+게시본에서 닿지 않는 파일은 `NewSchool.csproj` 의 두 곳이 걷어냅니다 —
+`RemoveUnusedWinAppSdkAssets`(WebView2·Windows AI 등 전이 자산, 게시 목록 단계에서 제외)와
+`CleanPublishOutput`(게시 후 정리). 무엇을 왜 빼는지는 그 자리 주석에 적어 두었습니다.
+**WinAppSDK 를 올리면 그 목록을 다시 볼 것** — 스모크는 PDF 출력·리치에디터·엑셀 내보내기·
+구글 연동·인쇄입니다.
 
 이후 Inno Setup 으로 `Installer/NewSchoolSetup.iss` 컴파일.
 
-> **릴리스 체크리스트 — Windows App SDK 버전을 올렸다면**
-> 앱은 프레임워크 의존(`WindowsAppSDKSelfContained=false`)이라 설치 프로그램이 런타임을
-> 함께 깔아 줍니다. SDK 를 올릴 때 아래 둘을 **반드시 같이** 갱신하세요.
+> **왜 자체 포함인가 — 겪고 나서 바꾼 것**
+> 1.0 이전에는 프레임워크 의존이라 설치 프로그램이 런타임(약 107MB)을 함께 깔았습니다.
+> 그래서 SDK 를 올릴 때마다 번들한 설치기와 `RequiredRuntimeVersion` 을 같이 갱신해야 했고,
+> **개발 PC 에는 최신 런타임이 이미 있어 그 불일치가 로컬 테스트로는 드러나지 않았습니다.**
+> 실제로 번들이 2.3 에 멈춘 채 앱만 2.4 로 올라가, 깨끗한 PC 에서 설치 후 앱이 시작되지 않는
+> 일이 있었습니다.
 >
-> 1. `Installer/prerequisites/WindowsAppRuntimeInstall-x64.exe` — 같은 버전으로 교체
-> 2. `Installer/NewSchoolSetup.iss` 의 `RequiredRuntimeVersion`
->
-> 개발 PC 에는 최신 런타임이 이미 있어 **이 불일치는 로컬 테스트로 드러나지 않습니다.**
->
-> ⚠ **지금 이 저장소가 바로 그 상태입니다(2026-08-24 기준).** 앱과 `RequiredRuntimeVersion` 은
-> 2.4 인데 번들된 `WindowsAppRuntimeInstall-x64.exe` 는 **2.3** 에 멈춰 있습니다. 그래서 깨끗한
-> PC 에서는 설치 후 앱이 시작되지 않고, **v1.0.0 게시가 이 때문에 보류 중**입니다.
-> 게시하려면 2.4 런타임 설치기를 받아 교체해야 합니다.
+> 자체 포함으로 바꾸면서 이 부류가 원천적으로 사라졌습니다. 설치 파일은 오히려
+> **117.1MB → 26MB** 로 줄었고, `prerequisites\` 와 `RequiredRuntimeVersion` 은 함께 없앴습니다.
+> 대가는 설치 폴더가 커진 것인데, 앱 파일을 모두 `{app}\bin\` 아래로 내려 정리했습니다.
 
 ## 데이터 저장 위치
 

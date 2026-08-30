@@ -296,8 +296,14 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
+                    <!-- 이 탭이 보는 대상은 수업이 아니라 날짜다.
+                         학년도는 화면에 뜬 주(週)가 이미 말해 주고, 수업 하나로 거르면
+                         그 주에 실제로 있는 다른 수업이 표에서 사라져 오히려 사실과 멀어진다.
+                         → 학기만 남긴다(학기가 바뀌면 기초 시간표 자체가 다른 표다). -->
                     <controls:CourseScopeBar Grid.Row="0" x:Name="ScopeWeekly"
+                                             ShowYear="False"
                                              ShowGrade="False"
+                                             ShowCourse="False"
                                              HorizontalAlignment="Left"/>
                     <controls:WeeklyTimetableView Grid.Row="1" x:Name="WeeklyView"/>
                 </Grid>

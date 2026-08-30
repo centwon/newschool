@@ -14,6 +14,18 @@
         스타일을 여기 두고 코드는 스타일만 갈아 끼운다.
     -->
     <UserControl.Resources>
+        <!--
+            배치된 칸의 바탕. AccentFillColorSecondaryBrush 는 강조색 원색에 가까워
+            칸이 판을 가득 채우면 과목명이 바탕에 묻혔다. 강조색을 그대로 쓰되 옅게 깐다
+            (주별 시간표 WeeklyTimetableView 와 같은 규칙 — 두 표가 따로 놀면 안 된다).
+
+            ⚠ 밝은 색을 고정으로 박지 않는다 — 다크 테마에서 글자를 삼킨다.
+              SystemAccentColor 는 테마를 따라가고, 알파는 밑바탕과 섞이므로
+              라이트에서는 파스텔 하늘색, 다크에서는 짙은 남색 기가 도는 바탕이 된다.
+        -->
+        <SolidColorBrush x:Key="BoardFilledFillBrush" Color="{ThemeResource SystemAccentColor}" Opacity="0.16"/>
+        <SolidColorBrush x:Key="BoardFilledStrokeBrush" Color="{ThemeResource SystemAccentColor}" Opacity="0.45"/>
+
         <Style x:Key="BoardHeaderCellStyle" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
             <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
@@ -31,8 +43,8 @@
         </Style>
 
         <Style x:Key="BoardFilledCellStyle" TargetType="Border">
-            <Setter Property="Background" Value="{ThemeResource AccentFillColorSecondaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+            <Setter Property="Background" Value="{StaticResource BoardFilledFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BoardFilledStrokeBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Margin" Value="2"/>

@@ -14,18 +14,22 @@ namespace NewSchool.Helpers;
 public static class SchoolCalendar
 {
     /// <summary>
-    /// 수업을 배치하면 안 되는 날인가. NEIS 의 휴업일·공휴일 구분과 행사명을 함께 본다.
-    /// (행사명이 비어 있어도 안전하다 — 예전에는 이 자리에서 NullReference 가 나면
-    ///  바깥 catch 가 삼켜서 <b>휴일 목록 전체</b>가 조용히 비어버렸다)
+    /// 수업을 배치하면 안 되는 날인가. 판단 근거는 NEIS 의 <b>수업공제일자명</b>
+    /// (<see cref="SchoolSchedule.IsHoliday"/>) 하나다.
+    ///
+    /// <para>예전에는 행사명에 "휴업·공휴·방학" 이 들어가는지도 함께 봤다. 그 짐작이
+    /// <b>"여름방학식" 을 휴업일로 만들었다</b> — 방학식은 수업공제일자명이 "해당없음" 인
+    /// 엄연한 수업일인데, 시수에서 하루가 조용히 빠졌다.</para>
+    ///
+    /// <para>실제 학사일정을 확인해 보니 짐작이 필요한 자리가 아니었다: 수업공제일자명은
+    /// <b>모든 행에 채워져 있고</b>(NEIS 자료든 앱에서 손으로 넣은 것이든), 이름 규칙이
+    /// 추가로 잡아내던 행은 저 방학식 하나뿐이었다 — 그것도 틀린 쪽으로.</para>
+    ///
+    /// <para>(schedule 이 null 이어도 안전하다 — 예전에는 이 자리에서 NullReference 가 나면
+    ///  바깥 catch 가 삼켜서 <b>휴일 목록 전체</b>가 조용히 비어버렸다)</para>
     /// </summary>
     public static bool IsNonTeachingDay(SchoolSchedule schedule)
-    {
-        if (schedule == null) return false;
-        if (schedule.IsHoliday) return true;
-
-        string name = schedule.EVENT_NM ?? string.Empty;
-        return name.Contains("휴업") || name.Contains("공휴") || name.Contains("방학");
-    }
+        => schedule?.IsHoliday == true;
 
     /// <summary>
     /// 학교급 이름에서 학년 수를 얻는다. 모르면 0.

@@ -37,9 +37,6 @@ public sealed partial class CourseHoursView : UserControl
     private int _semester;
     private int _sectionHours;
 
-    /// <summary>학사일정을 읽어 둔 학년도 (0 = 아직 안 읽음)</summary>
-    private int _schedulesYear;
-
     /// <summary>학교의 학년 수 (0 = 모름 → 학사일정 판정이 종전 기준으로 돈다)</summary>
     private int _gradeCount;
 
@@ -61,22 +58,21 @@ public sealed partial class CourseHoursView : UserControl
     /// </summary>
     public async Task LoadAsync(int year, int semester, Course? course)
     {
-        bool rangeChanged = _year != year || _semester != semester;
-
         _year = year;
         _semester = semester;
 
-        // 학사일정은 학년도 단위라 학년도가 그대로면 다시 읽지 않는다.
-        // (없는 학교에서는 Count 로 판단하면 열 때마다 다시 읽고 경고도 다시 뜬다)
-        // 기간을 학사일정으로 좁히므로 반드시 기간보다 먼저 읽는다.
-        if (_schedulesYear != year)
-        {
-            _schedulesYear = year;
-            await LoadSchedulesAsync();
-        }
+        // 학사일정은 탭을 열 때마다 다시 읽는다. 기간을 학사일정으로 좁히므로 기간보다 먼저.
+        //
+        // ⚠ 예전에는 "학년도가 그대로면 다시 읽지 않는다"고 한 번만 읽었다. 그런데 학사일정은
+        //    [설정 → 학사일정] 에서 <b>앱을 켜 둔 채로</b> 내려받는다 — 그러면 이 탭만 옛 목록을
+        //    들고 그 세션 내내 버텼다. 겨울방학을 방금 받아 왔는데도 방학 주에 수업일이
+        //    5일로 잡히고, 주차도 방학까지 그대로 늘어서 있는 식이다.
+        //    154행짜리 조회 한 번이고, 탭이 낡았을 때만 오므로 캐시할 값이 아니었다.
+        await LoadSchedulesAsync();
 
-        if (rangeChanged || _range.Start == default)
-            _range = WeeklyHoursCalculator.ResolveSemesterRange(_year, _semester, _schedules);
+        // 기간도 방금 읽은 학사일정으로 다시 유추한다. 학년도·학기가 그대로여도 학사일정이
+        // 바뀌면 방학 경계가 움직인다 — 옛 기간을 들고 있으면 위에서 새로 읽은 보람이 없다.
+        _range = WeeklyHoursCalculator.ResolveSemesterRange(_year, _semester, _schedules);
 
         _selectedCourse = course;
         BtnClearAdjustments.IsEnabled = course != null;

@@ -298,4 +298,91 @@ public class WeeklyHoursCalculatorTests
         // 월~금 5일 중 수요일 휴업 → 4일
         Assert.Equal(4, result[0].TeachingDays);
     }
+
+    [Fact]
+    public void 방학_이후의_주차는_표에_나오지_않는다()
+    {
+        var lessons = new[] { Lesson(1, 1), Lesson(3, 2), Lesson(5, 3) };
+
+        // 학기 구간은 방학을 품는다(1학기 = 3/1 ~ 8/17). 그대로 펼치면 7/21 부터
+        // 수업일 0인 주가 4줄 넘게 따라붙는다.
+        var result = WeeklyHoursCalculator.Calculate(
+            Course(), lessons, WithSummerVacation(),
+            new DateTime(2026, 7, 6), new DateTime(2026, 8, 17));
+
+        Assert.NotEmpty(result);
+        Assert.All(result, w => Assert.True(w.TeachingDays > 0));
+
+        // 마지막 수업일은 7/20(월). 그 주까지만 남는다.
+        Assert.Equal(new DateTime(2026, 7, 20), result[^1].StartDate);
+    }
+
+    [Fact]
+    public void 겨울방학_뒤에_개학해도_방학부터_끝까지_자른다()
+    {
+        // 2학기 구간은 2월 말까지다. 많은 학교가 2월에 개학해 졸업식·종업식으로 며칠을 남기므로
+        // 방학 주가 "끝" 이 아니라 "중간" 에 놓인다 — 끝만 자르는 규칙으로는 안 지워졌다.
+        var lessons = new[] { Lesson(1, 1), Lesson(3, 2), Lesson(5, 3) };
+
+        var schedules = new List<SchoolSchedule>();
+        for (var d = new DateTime(2027, 1, 4); d <= new DateTime(2027, 2, 5); d = d.AddDays(1))
+            schedules.Add(new SchoolSchedule { AA_YMD = d, SBTR_DD_SC_NM = "휴업일", EVENT_NM = "겨울방학" });
+
+        var result = WeeklyHoursCalculator.Calculate(
+            Course(), lessons, schedules,
+            new DateTime(2026, 12, 21), new DateTime(2027, 2, 28));
+
+        Assert.All(result, w => Assert.True(w.TeachingDays > 0));
+
+        // 마지막 수업일은 2027-01-01(금)이 아니라 그 주다. 2월 개학분도 함께 빠진다.
+        Assert.Equal(new DateTime(2026, 12, 28), result[^1].StartDate);
+        Assert.DoesNotContain(result, w => w.StartDate.Month == 2);
+    }
+
+    [Fact]
+    public void 방학식은_수업일이라_거기서_끊지_않는다()
+    {
+        // "여름방학식" 도 이름에 "방학" 이 들어가지만 그 날은 수업일(해당없음)이다.
+        // 이름만 보고 끊으면 멀쩡한 한 주가 통째로 사라진다.
+        var lessons = new[] { Lesson(1, 1), Lesson(3, 2), Lesson(5, 3) };
+
+        var schedules = new List<SchoolSchedule>
+        {
+            new() { AA_YMD = new DateTime(2026, 3, 5), EVENT_NM = "여름방학식", SBTR_DD_SC_NM = "해당없음" }
+        };
+
+        var result = WeeklyHoursCalculator.Calculate(
+            Course(), lessons, schedules, new DateTime(2026, 3, 2), new DateTime(2026, 3, 20));
+
+        Assert.Equal(3, result.Count);
+    }
+
+    [Fact]
+    public void 학기_중간에_수업일이_없는_주는_남긴다()
+    {
+        // 끝에 붙은 방학만 자른다 — 학기 안에서 실제로 비는 주는 보여야 한다.
+        var lessons = new[] { Lesson(1, 1) };
+
+        var schedules = new List<SchoolSchedule>();
+        for (var d = new DateTime(2026, 3, 9); d <= new DateTime(2026, 3, 13); d = d.AddDays(1))
+            schedules.Add(Holiday(d));
+
+        var result = WeeklyHoursCalculator.Calculate(
+            Course(), lessons, schedules, new DateTime(2026, 3, 2), new DateTime(2026, 3, 20));
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal(0, result[1].TeachingDays);
+    }
+
+    [Fact]
+    public void 학사일정이_없으면_자를_주도_없다()
+    {
+        // 모든 평일이 수업일로 잡히므로 관례값 구간이 그대로 남는다.
+        var lessons = new[] { Lesson(1, 1) };
+
+        var result = WeeklyHoursCalculator.Calculate(
+            Course(), lessons, [], new DateTime(2026, 3, 2), new DateTime(2026, 3, 20));
+
+        Assert.Equal(3, result.Count);
+    }
 }

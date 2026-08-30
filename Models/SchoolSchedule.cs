@@ -128,10 +128,18 @@ public class SchoolSchedule
     // ==========================================
 
     /// <summary>
-    /// 휴일 여부 (휴업일 또는 공휴일)
+    /// 수업을 하지 않는 날인가.
+    ///
+    /// <para>NEIS 의 <b>수업공제일자명</b>(<see cref="SBTR_DD_SC_NM"/>)이 그것만을 위한 칸이다 —
+    /// 행사명으로 짐작할 일이 아니다. 앱에서 손으로 넣을 때도 같은 셋(해당없음·휴업일·공휴일)
+    /// 중에서 고르므로 이 칸은 늘 채워져 있다.</para>
+    ///
+    /// <para>정확히 같은지가 아니라 <b>포함</b>으로 본다 — 교육청에 따라 "토요휴업일" 처럼
+    /// 앞뒤가 붙은 값이 올 수 있다.</para>
     /// </summary>
-    public bool IsHoliday => 
-        SBTR_DD_SC_NM == "휴업일" || SBTR_DD_SC_NM == "공휴일";
+    public bool IsHoliday =>
+        (SBTR_DD_SC_NM ?? string.Empty).Contains("휴업")
+        || (SBTR_DD_SC_NM ?? string.Empty).Contains("공휴");
 
     /// <summary>
     /// 대상 학년 텍스트 (예: "1,2,3학년")

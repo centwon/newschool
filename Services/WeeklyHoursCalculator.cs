@@ -160,7 +160,74 @@ public static class WeeklyHoursCalculator
             });
         }
 
+        TrimFromVacation(result, schedules);
         return result;
+    }
+
+    /// <summary>
+    /// 방학이 시작되는 주부터 <b>끝까지</b> 잘라낸다.
+    ///
+    /// <para>학기 구간은 일부러 방학을 품는다(<see cref="ResolveSemesterRange"/>) — 그래야
+    /// 1학기와 2학기의 경계가 겹치지도 비지도 않는다. 하지만 그 구간을 그대로 주차로 펼치면
+    /// 표에 <b>수업이 하루도 없는 방학 주가 5~6줄</b> 붙어 "n주" 통계까지 부풀었다.</para>
+    ///
+    /// <para>어디서부터가 방학인지는 <b>학사일정이 이름으로 말해 준다</b>. NEIS 자료는 방학
+    /// 기간의 <b>모든 날</b>에 <c>EVENT_NM = "겨울방학"/"여름방학"</c> 과 <c>휴업일</c> 을 달아
+    /// 준다(실측). 그 첫 날이 든 주부터 끊으면 된다 — 공백 길이를 세어 유추할 일이 아니다.</para>
+    ///
+    /// <para>⚠ 이름만 보면 안 된다. <c>"여름방학식"</c> 도 "방학" 을 품지만 그 날은 <b>수업일</b>
+    /// 이다(<c>SBTR_DD_SC_NM = "해당없음"</c>). 그래서 <see cref="SchoolSchedule.IsHoliday"/> 로
+    /// 휴업일인지 함께 본다. 방학식에서 끊으면 멀쩡한 한 주가 통째로 사라진다.</para>
+    ///
+    /// <para>방학이 <b>시작한 주</b>까지는 남긴다 — 방학이 주 중간(실제 자료에서 여름방학은
+    /// 금요일, 겨울방학은 목요일 시작)에 들어가면 그 주 앞머리는 멀쩡한 수업일이다.</para>
+    ///
+    /// <para>이름이 없는 학교를 위해, 방학을 못 찾으면 <b>끝에 붙은 빈 주</b>만 턴다.
+    /// 학기 경계를 정하는 <see cref="ResolveSemesterRange"/> 가 이름 대신 공백
+    /// (<see cref="VacationGapDays"/>)을 보는 것과는 다른 판단이다 — 거기서 틀리면 학기 전체가
+    /// 어긋나지만, 여기는 표를 어디서 끊을지의 문제라 이름을 믿어도 손해가 없다.</para>
+    ///
+    /// <para>학사일정이 없으면 방학도 빈 주도 없으므로 관례값 구간이 그대로 남는다.
+    /// 화면은 그 사실을 <c>FromSchedule</c> 로 이미 알린다.</para>
+    /// </summary>
+    private static void TrimFromVacation(
+        List<WeeklyHoursWeek> weeks, IReadOnlyCollection<SchoolSchedule> schedules)
+    {
+        if (weeks.Count == 0) return;
+
+        // ① 학사일정이 "방학" 이라고 적어 둔 첫 휴업일
+        DateTime? vacation = null;
+        foreach (var schedule in schedules ?? [])
+        {
+            if (schedule == null || schedule.IsDeleted) continue;
+            if (!schedule.IsHoliday) continue;                       // 방학식은 수업일이다
+            if (schedule.EVENT_NM?.Contains("방학") != true) continue;
+
+            var date = schedule.AA_YMD.Date;
+            if (date < weeks[0].StartDate || date > weeks[^1].EndDate) continue;
+            if (vacation == null || date < vacation) vacation = date;
+        }
+
+        // ② 방학이 <b>시작한 주</b>까지는 남긴다 — 방학이 주 중간(예: 목요일)에 시작하면
+        //    그 주 앞머리는 멀쩡한 수업일이다. 지우는 것은 그 다음 주부터.
+        int end = weeks.Count;
+        if (vacation != null)
+        {
+            int next = weeks.FindIndex(w => w.StartDate >= vacation.Value);
+            if (next >= 0) end = next;
+        }
+
+        // ③ 남긴 구간의 끝에 붙은 빈 주를 턴다 — 방학이 월요일에 시작했거나,
+        //    학사일정에 방학 이름이 없는 학교(② 가 아무것도 못 줄인 경우)를 함께 처리한다.
+        int lastTeaching = end > 0 ? weeks.FindLastIndex(end - 1, end, w => w.TeachingDays > 0) : -1;
+
+        // 수업이 한 주도 없으면 자를 근거가 없다(학기를 통째로 지워 버리면 안 된다).
+        if (lastTeaching < 0) return;
+
+        int cut = lastTeaching + 1;
+        if (cut >= weeks.Count) return;
+
+        weeks.RemoveRange(cut, weeks.Count - cut);
     }
 
     /// <summary>

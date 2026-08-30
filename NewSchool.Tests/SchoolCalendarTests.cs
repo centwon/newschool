@@ -16,20 +16,31 @@ public class SchoolCalendarTests
         new() { EVENT_NM = name, SBTR_DD_SC_NM = category };
 
     [Theory]
-    [InlineData("여름방학")]
-    [InlineData("재량휴업일")]
-    [InlineData("공휴일(어린이날)")]
-    public void 휴업_공휴_방학이_들어간_행사는_수업일이_아니다(string name)
+    [InlineData("휴업일")]
+    [InlineData("공휴일")]
+    [InlineData("토요휴업일")]   // 교육청에 따라 앞뒤가 붙어 온다 — 같은지가 아니라 포함으로 본다
+    public void 수업공제일자명이_휴업_공휴면_행사명과_무관하게_수업일이_아니다(string category)
     {
-        Assert.True(SchoolCalendar.IsNonTeachingDay(Event(name)));
+        Assert.True(SchoolCalendar.IsNonTeachingDay(Event("체육대회", category)));
     }
 
     [Theory]
-    [InlineData("휴업일")]
-    [InlineData("공휴일")]
-    public void NEIS_구분값이_휴업일_공휴일이면_행사명과_무관하게_수업일이_아니다(string category)
+    [InlineData("여름방학")]
+    [InlineData("재량휴업일")]
+    [InlineData("공휴일(어린이날)")]
+    public void 행사명만_그럴듯해도_수업공제일자명이_해당없음이면_수업일이다(string name)
     {
-        Assert.True(SchoolCalendar.IsNonTeachingDay(Event("체육대회", category)));
+        // 근거는 행사명이 아니라 수업공제일자명 하나다. 실제 자료에서 방학·휴업 기간은
+        // 그 칸이 "휴업일" 로 채워져 오므로, 이름으로 짐작할 일이 없다.
+        Assert.False(SchoolCalendar.IsNonTeachingDay(Event(name, "해당없음")));
+    }
+
+    [Fact]
+    public void 방학식은_수업일이다()
+    {
+        // "여름방학식" 은 이름에 "방학" 이 들어가지만 수업공제일자명이 "해당없음" 인 수업일이다.
+        // 예전에는 이름 규칙 때문에 휴업일로 잡혀 시수에서 하루가 조용히 빠졌다.
+        Assert.False(SchoolCalendar.IsNonTeachingDay(Event("여름방학식", "해당없음")));
     }
 
     [Fact]
