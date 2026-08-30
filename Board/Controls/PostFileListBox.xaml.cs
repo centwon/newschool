@@ -100,6 +100,9 @@ public sealed partial class PostFileListBox : UserControl
         _category = category;
         IsReadOnly = readOnly;
         FileBoxes.Clear();
+        // 지울 목록도 함께 비운다 — 목록을 다시 채우는데 앞서 고른 삭제 예정이 남아 있으면,
+        // 다음 저장 때 지금 화면에 보이지도 않는 첨부가 지워진다.
+        FilesToDelete.Clear();
 
         foreach (var file in files)
         {
@@ -122,6 +125,7 @@ public sealed partial class PostFileListBox : UserControl
     public void SetFiles(System.Collections.Generic.List<PostFile> files)
     {
         FileBoxes.Clear();
+        FilesToDelete.Clear();   // LoadFiles 와 같은 이유
 
         foreach (var file in files)
         {

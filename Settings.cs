@@ -254,6 +254,26 @@ public static class Settings
     public static SettingProperty<int> WorkSemester { get; private set; } = null!;
     public static SettingProperty<bool> TopMost { get; private set; } = null!;
     public static SettingProperty<string> UserName { get; private set; } = null!;
+
+    /// <summary>
+    /// 글·댓글·자료의 <b>작성자</b>로 남길 이름. 이름을 정해 두지 않았으면 "사용자".
+    ///
+    /// <para>⚠ <c>Settings.UserName ?? "사용자"</c> 라고 쓰면 안 된다 — 그 폴백은
+    /// <b>절대 발동하지 않는다</b>. <see cref="SettingProperty{T}"/> 에는
+    /// <c>implicit operator T</c> 가 있어서 <c>??</c> 의 null 검사가 값이 아니라
+    /// <b>래퍼 객체</b>를 보는데, 래퍼는 초기화 뒤 결코 null 이 아니기 때문이다.
+    /// 설정 화면은 빈 이름도 그대로 저장하므로, 이름을 지우면 그 뒤로 쓰는 글의 작성자가
+    /// 빈 문자열로 남았다. 컴파일러도 잡지 못하는 함정이라 화면마다 적지 말고 여기를 쓴다.</para>
+    /// </summary>
+    public static string AuthorName
+    {
+        get
+        {
+            var name = UserName?.Value;
+            return string.IsNullOrWhiteSpace(name) ? "사용자" : name.Trim();
+        }
+    }
+
     public static SettingProperty<bool> IsNeisEventDownloaded { get; private set; } = null!;
 
     // school period 설정

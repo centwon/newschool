@@ -257,7 +257,6 @@ public sealed partial class MainWindow : Window
                     WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
                     {
                         Category = "학급",
-                        Title = "학급 게시판",
                         AllowCategoryChange = false,
                         ShowSubjectFilter = true
                     });
@@ -300,7 +299,6 @@ public sealed partial class MainWindow : Window
                     {
                         Category = "수업",
                         Subject = "수업일지",
-                        Title = "수업 일지",
                         AllowCategoryChange = false,
                         UseLessonJournalTemplate = true
                     });
@@ -310,7 +308,6 @@ public sealed partial class MainWindow : Window
                     WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
                     {
                         Category = "수업",
-                        Title = "수업 게시판",
                         AllowCategoryChange = false,
                         ShowSubjectFilter = true
                     });
@@ -324,7 +321,6 @@ public sealed partial class MainWindow : Window
                     WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
                     {
                         Category = "업무",
-                        Title = "업무 게시판",
                         AllowCategoryChange = false,
                         ShowSubjectFilter = true
                     });
@@ -333,7 +329,6 @@ public sealed partial class MainWindow : Window
                 case "Archive":
                     WorkFrame.Navigate(typeof(PostListPage), new PostListPageParameter
                     {
-                        Title = "아카이브",
                         AllowCategoryChange = true,
                         ShowSubjectFilter = true
                     });

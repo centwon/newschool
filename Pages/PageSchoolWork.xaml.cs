@@ -44,7 +44,6 @@ public sealed partial class PageSchoolWork : Page
             BoardFrame.Navigate(typeof(PostListPage), new PostListPageParameter
             {
                 Category = CategoryNames.Work,
-                Title = "업무 게시판",
                 IsEmbedded = true,
                 AllowCategoryChange = false,
                 AllowViewModeChange = true,

@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
@@ -26,7 +25,15 @@ public class PostListViewModel : NotifyPropertyChangedBase
 {
     private readonly BoardService _service;
     private OptimizedObservableCollection<PostItemViewModel> _posts;
-    private readonly DispatcherQueue? _dispatcherQueue;
+
+    // ── 확정된 검색 조건 ─────────────────────────────────────────────────
+    // 검색창(SearchText·SearchInTitle·SearchInContent)은 사용자가 "지금 치고 있는" 값이고,
+    // 아래 셋은 검색 버튼을 눌러 "확정된" 값이다. 목록 조회는 항상 아래 셋만 본다.
+    // 둘을 가르지 않으면, 검색을 누르지 않고 카테고리만 바꿔도 치다 만 글자로 걸러진다.
+    private string _appliedSearchText = "";
+    private bool _appliedSearchInTitle = true;
+    private bool _appliedSearchInContent;
+
     #region Properties
 
     public OptimizedObservableCollection<PostItemViewModel> Posts
@@ -53,14 +60,7 @@ public class PostListViewModel : NotifyPropertyChangedBase
             {
                 field = value;
                 OnPropertyChanged();
-                if (!_suppressAutoReload)
-                {
-                    _ = LoadPostsAsync().ContinueWith(t =>
-                    {
-                        if (t.IsFaulted)
-                            System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
-                    }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
-                }
+                if (!_suppressAutoReload) ReloadInBackground();
             }
         }
     } = "";
@@ -74,14 +74,7 @@ public class PostListViewModel : NotifyPropertyChangedBase
             {
                 field = value;
                 OnPropertyChanged();
-                if (!_suppressAutoReload)
-                {
-                    _ = LoadPostsAsync().ContinueWith(t =>
-                    {
-                        if (t.IsFaulted)
-                            System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
-                    }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
-                }
+                if (!_suppressAutoReload) ReloadInBackground();
             }
         }
     } = "";
@@ -143,11 +136,7 @@ public class PostListViewModel : NotifyPropertyChangedBase
             {
                 field = value;
                 OnPropertyChanged();
-                _ = LoadPostsAsync().ContinueWith(t =>
-                {
-                    if (t.IsFaulted)
-                        System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
-                }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
+                ReloadInBackground();
             }
         }
     } = PostSortOrder.NewestFirst;
@@ -205,7 +194,8 @@ public class PostListViewModel : NotifyPropertyChangedBase
         {
             field = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(PageInfo));
+            OnPropertyChanged(nameof(HasPreviousPage));
+            OnPropertyChanged(nameof(HasNextPage));
         }
     } = 1;
 
@@ -218,12 +208,7 @@ public class PostListViewModel : NotifyPropertyChangedBase
             {
                 field = value;
                 OnPropertyChanged();
-                CurrentPage = 1;
-                _ = LoadPostsAsync().ContinueWith(t =>
-                {
-                    if (t.IsFaulted)
-                        System.Diagnostics.Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
-                }, TaskContinuationOptions.OnlyOnFaulted); // 자동 새로고침
+                ReloadInBackground();
             }
         }
     } = 20;
@@ -235,7 +220,6 @@ public class PostListViewModel : NotifyPropertyChangedBase
         {
             field = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(PageInfo));
             OnPropertyChanged(nameof(HasPreviousPage));
             OnPropertyChanged(nameof(HasNextPage));
         }
@@ -248,14 +232,26 @@ public class PostListViewModel : NotifyPropertyChangedBase
         {
             field = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(PageInfo));
+            OnPropertyChanged(nameof(TotalCountText));
         }
     }
 
-    public string PageInfo => $"{CurrentPage} / {TotalPages} 페이지 (전체 {TotalCount}개)";
+    /// <summary>
+    /// 페이저 옆에 붙는 전체 건수. "몇 / 몇 페이지"는 페이저의 번호가 직접 보여 주므로 뺐다.
+    /// </summary>
+    public string TotalCountText => TotalCount > 0 ? $"전체 {TotalCount}개" : string.Empty;
+
+    /// <summary>페이저에 그릴 칸(첫 장 · 생략표 · 현재 둘레 · 끝 장).</summary>
+    public IReadOnlyList<PageToken> PageTokens => PageWindow.Build(CurrentPage, TotalPages);
 
     public bool HasPreviousPage => CurrentPage > 1;
     public bool HasNextPage => CurrentPage < TotalPages;
+
+    /// <summary>
+    /// 지금 목록이 검색 결과인지. 검색 버튼으로 확정된 검색어가 있을 때만 참이다
+    /// (검색창에 치고만 있는 글자는 세지 않는다).
+    /// </summary>
+    public bool IsSearchActive => !string.IsNullOrWhiteSpace(_appliedSearchText);
 
 
 
@@ -268,9 +264,6 @@ public class PostListViewModel : NotifyPropertyChangedBase
 
     public PostListViewModel()
     {
-        // DispatcherQueue 가져오기
-        _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-
         _service = Board.CreateCachedService();
         _posts = new OptimizedObservableCollection<PostItemViewModel>();
         // Posts 컬렉션 변경 감지 추가
@@ -285,19 +278,47 @@ public class PostListViewModel : NotifyPropertyChangedBase
 
     #region Methods
 
-    public async Task LoadPostsAsync()
+    /// <summary>
+    /// 목록 조회 — <b>모든 경로가 여기 하나로 모인다.</b>
+    ///
+    /// <para>예전에는 조회가 둘로 갈라져 있었다. 검색은 <c>SearchPostsAsync</c> 가, 나머지
+    /// (페이지 넘김·정렬·필터·새로고침·뒤로가기)는 <c>LoadPostsAsync</c> 가 맡았는데
+    /// <b>뒤엣것이 검색어를 아예 넘기지 않았다</b>. 그래서 검색 결과에서 '다음'을 누르면
+    /// 전체 목록 2페이지가 나왔다 — 총 페이지 수는 검색 결과 기준이라 버튼은 켜져 있고
+    /// 검색창에도 검색어가 그대로 남아 있어서, 증상은 "검색이 안 먹는다"로만 보였다.
+    /// 정렬을 바꿔도, 글 하나 열고 뒤로 돌아와도 같은 일이 벌어졌다.</para>
+    ///
+    /// <para>검색어는 카테고리·주제와 마찬가지로 <b>조건 하나일 뿐</b>이다. 조회는 하나로 두고,
+    /// 경로마다 갈리는 것은 "지금 페이지를 유지할지"뿐이다.</para>
+    /// </summary>
+    /// <param name="resetToFirstPage">
+    /// 조건이 바뀌어 지금 페이지 번호가 뜻을 잃는 경우(검색·필터·정렬·페이지 크기) true.
+    /// 페이지 이동이나 제자리 새로고침은 false.
+    /// </param>
+    private async Task LoadAsync(bool resetToFirstPage)
     {
         try
         {
-            IsLoading = true;
-            Debug.WriteLine($"=== Posts 로딩 시작 ===");
+            // ⚠ 조회 인자를 읽기 "전에" 곧바로 바꾼다. 예전에는 이 대입을 DispatcherQueue 로
+            //    미뤄 놓고 바로 다음 줄에서 CurrentPage 를 읽었는데, 인자 평가가 먼저라 큐에 넣은
+            //    람다는 아직 돌지 않았다 — 3페이지에서 검색하면 검색 결과의 3페이지를 가져오면서
+            //    화면에는 "1 / N 페이지"가 찍혔다.
+            if (resetToFirstPage) CurrentPage = 1;
 
-            var result = await _service.GetPostsPagedAsync(
-                pageNumber: CurrentPage,
-                pageSize: PageSize,
-                category: SelectedCategory,
-                subject: SelectedSubject,
-                sortOrder: SortOrder);
+            IsLoading = true;
+            Debug.WriteLine($"=== Posts 로딩 시작 (page={CurrentPage}, 검색='{_appliedSearchText}') ===");
+
+            var result = await QueryAsync();
+
+            // 글이 지워져 마지막 페이지가 통째로 사라졌을 수 있다. 그대로 두면 빈 목록에
+            // '이전'만 켜진 상태가 되므로, 남아 있는 마지막 장으로 한 번 물러나 다시 읽는다.
+            // (0건이면 물러날 곳이 없으니 1페이지 그대로 둔다.)
+            if (result.TotalPages > 0 && CurrentPage > result.TotalPages)
+            {
+                Debug.WriteLine($"페이지 초과({CurrentPage} > {result.TotalPages}) — 마지막 장으로 물러남");
+                CurrentPage = result.TotalPages;
+                result = await QueryAsync();
+            }
 
             Debug.WriteLine($"서비스에서 받은 아이템 수: {result.Items.Count}");
 
@@ -352,107 +373,69 @@ public class PostListViewModel : NotifyPropertyChangedBase
 
             Debug.WriteLine($"최종 상태: Posts.Count={Posts.Count}, IsLoading={IsLoading}");
         }
-    }
-    public async Task SearchPostsAsync()
-    {
-        try
-        {
-            if (_dispatcherQueue != null)
-            {
-                _dispatcherQueue.TryEnqueue(() =>
-                {
-                    IsLoading = true;
-                    CurrentPage = 1;
-                });
-            }
 
-            var result = await _service.GetPostsPagedAsync(
-                pageNumber: CurrentPage,
-                pageSize: PageSize,
-                category: SelectedCategory,
-                subject: SelectedSubject,
-                searchTitle: SearchInTitle,
-                searchContent: SearchInContent,
-                searchText: SearchText,
-                sortOrder: SortOrder);
-
-            if (_dispatcherQueue != null)
-            {
-                // 댓글 개수 일괄 조회 (N+1 제거) — UI 스레드 진입 전에 수행
-                var ids = new List<int>(result.Items.Count);
-                foreach (var p in result.Items) ids.Add(p.No);
-                Dictionary<int, int> commentCounts;
-                try
-                {
-                    commentCounts = await _service.GetCommentCountsAsync(ids);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"댓글 개수 일괄 조회 실패: {ex.Message}");
-                    commentCounts = new Dictionary<int, int>();
-                }
-
-                _dispatcherQueue.TryEnqueue(() =>
-                {
-                    var items = new List<PostItemViewModel>(result.Items.Count);
-                    foreach (var post in result.Items)
-                    {
-                        commentCounts.TryGetValue(post.No, out int commentCount);
-                        items.Add(new PostItemViewModel(post, commentCount));
-                    }
-                    Posts.ReplaceAll(items);
-
-                    TotalPages = result.TotalPages;
-                    TotalCount = result.TotalCount;
-
-                    OnPropertyChanged(nameof(Posts));
-                    OnPropertyChanged(nameof(IsEmpty));
-                    OnPropertyChanged(nameof(HasPosts));
-
-                    IsLoading = false;
-                });
-            }
-
-            Debug.WriteLine($"검색 완료: {result.Items.Count}개");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"검색 실패: {ex.Message}");
-
-            if (_dispatcherQueue != null)
-            {
-                _dispatcherQueue.TryEnqueue(() =>
-                {
-                    IsLoading = false;
-                });
-            }
-        }
+        Task<PagedResult<Post>> QueryAsync() => _service.GetPostsPagedAsync(
+            pageNumber: CurrentPage,
+            pageSize: PageSize,
+            category: SelectedCategory,
+            subject: SelectedSubject,
+            searchTitle: _appliedSearchInTitle,
+            searchContent: _appliedSearchInContent,
+            searchText: _appliedSearchText,
+            sortOrder: SortOrder);
     }
 
+    /// <summary>지금 조건·지금 페이지 그대로 다시 읽는다 (새로고침·화면 진입·뒤로가기).</summary>
+    public Task LoadPostsAsync() => LoadAsync(resetToFirstPage: false);
 
+    /// <summary>조건이 바뀌었으니 1페이지부터 다시 읽는다 (필터 변경·새 글 작성 후).</summary>
+    public Task RefreshAsync() => LoadAsync(resetToFirstPage: true);
 
-    public async Task PreviousPageAsync()
+    /// <summary>
+    /// 화면의 검색 조건을 <b>확정</b>하고 1페이지부터 검색한다.
+    ///
+    /// <para>확정한 값만 <see cref="LoadAsync"/> 가 쓴다 — 검색창의 살아 있는 값을 그때그때
+    /// 읽으면, 검색 버튼을 누르지 않고 카테고리만 바꿔도 <b>치다 만 글자</b>로 걸러진다
+    /// (검색창의 TwoWay 바인딩은 포커스를 잃을 때 넘어오므로 실제로 그렇게 된다).
+    /// 검색 해제는 검색창을 비우고 다시 검색을 누르면 된다.</para>
+    /// </summary>
+    public Task SearchPostsAsync()
     {
-        if (HasPreviousPage)
-        {
-            CurrentPage--;
-            await LoadPostsAsync();
-        }
+        _appliedSearchText = SearchText ?? "";
+        _appliedSearchInTitle = SearchInTitle;
+        _appliedSearchInContent = SearchInContent;
+        OnPropertyChanged(nameof(IsSearchActive));
+        return LoadAsync(resetToFirstPage: true);
     }
 
-    public async Task NextPageAsync()
+    /// <summary>
+    /// 지정한 페이지로 이동한다 (검색·필터·정렬은 그대로).
+    /// 범위를 벗어난 값은 있는 범위로 끌어당긴다 — 페이저 버튼이 옛 페이지 수로 그려져 있을 수 있다.
+    /// </summary>
+    public async Task GoToPageAsync(int page)
     {
-        if (HasNextPage)
-        {
-            CurrentPage++;
-            await LoadPostsAsync();
-        }
+        int target = Math.Clamp(page, 1, Math.Max(TotalPages, 1));
+        if (target == CurrentPage) return;
+
+        CurrentPage = target;
+        await LoadAsync(resetToFirstPage: false);
     }
 
-    public async Task RefreshAsync()
+    public Task PreviousPageAsync() => GoToPageAsync(CurrentPage - 1);
+
+    public Task NextPageAsync() => GoToPageAsync(CurrentPage + 1);
+
+    /// <summary>
+    /// setter 에서 부르는 조회. 조건이 바뀐 자리이므로 1페이지부터 읽는다
+    /// (5페이지를 보다 카테고리를 바꾸면 그 카테고리의 5페이지가 아니라 처음이 맞다).
+    /// </summary>
+    private void ReloadInBackground()
     {
-        CurrentPage = 1;
-        await LoadPostsAsync();
+        _ = RefreshAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.WriteLine($"[PostListViewModel] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     #endregion

@@ -146,7 +146,11 @@ public partial class DateTimeToStringConverter : IValueConverter
     {
         if (value is DateTime dateTime)
         {
-            return dateTime.ToString("yyyy-MM-dd HH:mm:ss");
+            // ConverterParameter 로 형식을 지정할 수 있다 (예: ConverterParameter='yyyy-MM-dd').
+            // 넘기지 않으면 예전과 같은 날짜+시각 — 기존 사용처는 그대로 둔다.
+            // 게시판 목록은 한 줄이 좁아 날짜만 쓰고, 상세·댓글은 시각을 남긴다
+            // (댓글은 시각이 있어야 주고받은 순서가 읽힌다).
+            return dateTime.ToString(parameter as string ?? "yyyy-MM-dd HH:mm:ss");
         }
         return string.Empty;
     }

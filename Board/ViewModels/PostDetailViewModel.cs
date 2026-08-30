@@ -395,7 +395,7 @@ public class PostDetailViewModel : NotifyPropertyChangedBase
             var comment = new Comment
             {
                 Post = Post.No,
-                User = Settings.UserName ?? "익명",
+                User = Settings.AuthorName,
                 Content = NewCommentContent,
                 DateTime = DateTime.Now,
                 ParentNo = parentNo,

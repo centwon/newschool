@@ -94,6 +94,87 @@ internal static class PostAttachments
     }
 
     /// <summary>
+    /// 글의 카테고리가 바뀌었을 때, 그 글에 딸린 첨부 <b>전부</b>(글 첨부 + 댓글 첨부)를
+    /// 새 카테고리 폴더로 옮긴다.
+    ///
+    /// <para>글을 저장한 <b>뒤</b>, 첨부 변경(<see cref="ApplyAsync"/>)을 반영하기 <b>전</b>에
+    /// 부른다. 그 순서라야 이번에 지우기로 한 첨부도 새 폴더에서 제대로 지워진다.</para>
+    ///
+    /// <para>옮길 일이 없으면(새 글이거나 카테고리가 그대로면) 아무 것도 하지 않으므로
+    /// 부르는 쪽이 조건을 따로 걸 필요가 없다.</para>
+    ///
+    /// <para>⚠ 이 손질을 빠뜨리면 첨부가 조용히 끊긴다. <see cref="Board.GetFilePath"/> 는
+    /// 언제나 <b>글의 현재 카테고리</b>로 경로를 만들기 때문에, 실물이 옛 폴더에 남으면
+    /// 첨부를 열 때 "파일이 없다"가 되고 — 대상 폴더에 같은 이름의 <b>남의 파일</b>이
+    /// 있으면 그것이 열리고 그것이 지워진다. 게시글 편집·메모 편집 창·메모 보드가
+    /// 카테고리를 바꿀 수 있으므로 셋 다 이 한 벌을 부른다.</para>
+    /// </summary>
+    /// <returns>모두 옮겼거나 옮길 것이 없으면 true</returns>
+    public static async Task<bool> MoveAllToCategoryAsync(
+        BoardService service, int postNo, string oldCategory, string newCategory)
+    {
+        if (postNo <= 0 || string.IsNullOrEmpty(oldCategory) || oldCategory == newCategory)
+            return true;
+
+        var failed = new List<string>();
+
+        try
+        {
+            Board.EnsureCategoryDirectory(newCategory);
+
+            foreach (var file in await service.GetPostFilesByPostAsync(postNo))
+            {
+                if (string.IsNullOrEmpty(file.FileName)) continue;
+
+                bool moved = await MoveToCategoryAsync(
+                    file.FileName, oldCategory, newCategory,
+                    renamed => service.UpdatePostFileNameAsync(file.No, renamed));
+
+                if (!moved) failed.Add(file.FileName);
+            }
+
+            // 댓글 첨부파일도 같은 폴더에 살므로 함께 옮긴다
+            foreach (var comment in await service.GetCommentsByPostAsync(postNo))
+            {
+                if (!comment.HasFile || string.IsNullOrEmpty(comment.FileName)) continue;
+
+                var original = comment.FileName;
+
+                bool moved = await MoveToCategoryAsync(
+                    original, oldCategory, newCategory,
+                    renamed =>
+                    {
+                        comment.FileName = renamed;
+                        return service.UpdateCommentAsync(comment);
+                    });
+
+                if (!moved)
+                {
+                    comment.FileName = original;   // DB 를 못 고쳤으면 메모리도 되돌린다
+                    failed.Add(original);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[PostAttachments] 첨부 이동 실패: {ex.Message}");
+            await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 이동", ex);
+            return false;
+        }
+
+        if (failed.Count > 0)
+        {
+            await NewSchool.Controls.MessageBox.ShowErrorAsync(
+                $"글은 '{newCategory}' 로 옮겼지만 첨부 {failed.Count}건을 함께 옮기지 못했습니다.\n" +
+                string.Join("\n", failed) +
+                "\n\n해당 첨부는 지금 열리지 않습니다. 다시 붙여 주세요.");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// 삭제 예정 파일을 지우고, 새로 붙인 파일을 복사해 등록한다.
     /// </summary>
     /// <returns>처리 후 이 글에 첨부가 남아 있는지(<c>Post.HasFile</c> 에 넣을 값)</returns>

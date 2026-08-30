@@ -127,6 +127,9 @@ public static class LessonJournalComposer
         try
         {
             Post? post;
+            // ⚠ 캐시 서비스로 바꾸지 말 것 — 돌려받은 Post 를 편집 창이 직접 고치는데,
+            //    캐시는 같은 인스턴스를 나눠 주므로 취소해도 고친 값이 캐시에 남는다.
+            //    (저장은 LessonJournalWindow 가 캐시 서비스로 한다.)
             using (var service = NewSchool.Board.Board.CreateService())
                 post = await service.GetPostAsync(postNo, incrementReadCount: false);
 

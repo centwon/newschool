@@ -56,7 +56,7 @@ public sealed partial class LessonJournalWindow : Window
         _post = new Post
         {
             DateTime = DateTime.Now,
-            User = Settings.UserName ?? "사용자",
+            User = Settings.AuthorName,
             Category = LessonJournalComposer.Category,
             Subject = LessonJournalComposer.Subject
         };
@@ -455,6 +455,10 @@ public sealed partial class LessonJournalWindow : Window
 
         try
         {
+            // 이 창은 카테고리를 늘 '수업' 으로 고정하므로 실제로 바뀌는 일은 거의 없다.
+            // 그래도 규칙은 하나로 둔다 — 카테고리를 대입하는 화면은 첨부도 함께 옮긴다.
+            string oldCategory = _isNew ? string.Empty : (_post.Category ?? string.Empty);
+
             _post.Category = LessonJournalComposer.Category;
             _post.Subject = LessonJournalComposer.Subject;
             _post.Title = title;
@@ -473,6 +477,8 @@ public sealed partial class LessonJournalWindow : Window
                 await MessageBox.ShowErrorAsync("수업 일지 저장에 실패했습니다.");
                 return;
             }
+
+            await PostAttachments.MoveAllToCategoryAsync(service, postNo, oldCategory, _post.Category);
 
             _post.HasFile = await PostAttachments.ApplyAsync(service, FileList, postNo, _post.Category);
 

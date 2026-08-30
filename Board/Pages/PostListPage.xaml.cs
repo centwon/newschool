@@ -62,6 +62,87 @@ public sealed partial class PostListPage : Page
         args.Handled = true;
     }
 
+    // Ctrl+PageUp / Ctrl+PageDown → 페이지 이동 (Ctrl 없이는 목록 안 스크롤을 가로챈다)
+    private async void OnPreviousPageInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await ViewModel.PreviousPageAsync();
+    }
+
+    private async void OnNextPageInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await ViewModel.NextPageAsync();
+    }
+
+    /// <summary>
+    /// 페이저의 번호 칸을 다시 그린다 — <c>1 … 3 4 [5] 6 7 … 42</c>.
+    ///
+    /// <para>버튼을 XAML 템플릿이 아니라 <b>코드로 짓는 이유</b>: <c>ItemsRepeater</c> 의
+    /// <c>DataTemplate</c> 안에서 <c>x:Bind</c> 는 Mode 를 빼면 OneTime 이라, 페이지를 옮겨도
+    /// "지금 페이지" 강조가 제자리에서 갱신되지 않는다. 칸이 많아야 아홉이라 통째로 다시 짓는
+    /// 편이 싸고 확실하다(<c>MemoBoard.BuildCompactItem</c> 과 같은 방식).</para>
+    /// </summary>
+    private void RenderPager()
+    {
+        // 한 장뿐이면 넘길 곳이 없다 — 전체 건수만 남기고 페이저는 숨긴다.
+        PagerPanel.Visibility = ViewModel.TotalPages > 1 ? Visibility.Visible : Visibility.Collapsed;
+
+        PageNumberPanel.Children.Clear();
+        if (ViewModel.TotalPages <= 1) return;
+
+        foreach (var token in ViewModel.PageTokens)
+        {
+            if (token.IsEllipsis)
+            {
+                PageNumberPanel.Children.Add(new TextBlock
+                {
+                    Text = "…",
+                    FontSize = 13,
+                    Margin = new Thickness(4, 0, 4, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+                });
+                continue;
+            }
+
+            bool isCurrent = token.Number == ViewModel.CurrentPage;
+            var button = new Button
+            {
+                Content = token.Number.ToString(),
+                Tag = token.Number,
+                MinWidth = 36,
+                Padding = new Thickness(8, 4, 8, 4),
+                FontSize = 13,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            if (isCurrent)
+            {
+                // 지금 페이지는 강조만 하고 그대로 둔다 — 눌러도 GoToPageAsync 가 같은 페이지라
+                // 조회 없이 돌아오므로, 비활성으로 흐려 보이게 할 필요가 없다.
+                //
+                // 강조를 굵기와 강조색 둘로 준다. 강조색 스타일을 못 찾더라도(테마 사전이
+                // 바뀌면 조회에 실패할 수 있다) 굵기만으로 지금 페이지를 알 수 있어야 한다.
+                button.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+                if (Application.Current.Resources.TryGetValue("AccentButtonStyle", out var accent)
+                    && accent is Style accentStyle)
+                {
+                    button.Style = accentStyle;
+                }
+            }
+
+            button.Click += PageNumberButton_Click;
+            PageNumberPanel.Children.Add(button);
+        }
+    }
+
+    private async void PageNumberButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: int page })
+            await ViewModel.GoToPageAsync(page);
+    }
+
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         Debug.WriteLine($"[PropertyChanged] {e.PropertyName}");
@@ -107,9 +188,13 @@ public sealed partial class PostListPage : Page
                     Debug.WriteLine($"  -> EmptyMessage 수동 업데이트: Visibility={EmptyMessage.Visibility}");
                     break;
 
-                case nameof(ViewModel.PageInfo):
-                    PageInfoText.Text = ViewModel.PageInfo;
-                    Debug.WriteLine($"  -> PageInfo 수동 업데이트: {ViewModel.PageInfo}");
+                case nameof(ViewModel.TotalCountText):
+                    PageInfoText.Text = ViewModel.TotalCountText;
+                    break;
+
+                case nameof(ViewModel.CurrentPage):
+                case nameof(ViewModel.TotalPages):
+                    RenderPager();
                     break;
 
                 case nameof(ViewModel.HasPreviousPage):
@@ -138,11 +223,13 @@ public sealed partial class PostListPage : Page
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
-        // Back 네비게이션: 상태 유지, 데이터만 새로고침
+        // Back 네비게이션: 상태 유지, 데이터만 새로고침.
+        // 보던 페이지와 검색 조건을 그대로 둔다 — 예전에는 여기서 1페이지로 되돌리고 검색까지
+        // 풀어 버려서, 검색 결과 3페이지에서 글 하나 열고 돌아오면 전체 목록 1페이지가 나왔다.
         if (e.NavigationMode == NavigationMode.Back)
         {
             Debug.WriteLine("Back 네비게이션 - 데이터만 새로고침");
-            await ViewModel.RefreshAsync();
+            await ViewModel.LoadPostsAsync();
             return;
         }
 
@@ -198,32 +285,16 @@ public sealed partial class PostListPage : Page
 
         if (_parameter.IsEmbedded)
         {
-            // 제목 숨김
-            TitleText.Visibility = Visibility.Collapsed;
-            TitleRow.Height = new GridLength(0);
-
             // ViewMode 전환 버튼 표시 여부
-            if (_parameter.AllowViewModeChange)
-            {
-                ViewModeToggleButton.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                ViewModeToggleButton.Visibility = Visibility.Collapsed;
-            }
+            ViewModeToggleButton.Visibility = _parameter.AllowViewModeChange
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
-            // Padding 줄임
+            // 품은 페이지가 이미 여백을 주므로 겹쳐 주지 않는다
             RootGrid.Padding = new Thickness(0);
-            //FilterPanel.Margin = new Thickness(0, 0, 0, 4);
         }
         else
         {
-            // 제목 설정
-            if (!string.IsNullOrEmpty(_parameter.Title))
-            {
-                TitleText.Text = _parameter.Title;
-            }
-
             // ViewMode 전환 버튼 항상 표시
             ViewModeToggleButton.Visibility = Visibility.Visible;
         }
@@ -413,7 +484,9 @@ public sealed partial class PostListPage : Page
             _parameter.Subject = ViewModel.SelectedSubject;
         }
 
-        await ViewModel.LoadPostsAsync();
+        // 조건이 바뀌었으니 1페이지부터 — 5페이지를 보다 주제를 바꾸면 그 주제의 5페이지가
+        // 아니라 처음이 맞다(글이 적은 주제면 빈 화면이 됐다).
+        await ViewModel.RefreshAsync();
     }
 
     /// <summary>
@@ -444,7 +517,7 @@ public sealed partial class PostListPage : Page
             ViewModel.SelectedSubject = string.Empty;
         }
 
-        await ViewModel.LoadPostsAsync();
+        await ViewModel.RefreshAsync();   // 조건이 바뀌었으니 1페이지부터
     }
 
     /// <summary>
@@ -535,11 +608,12 @@ public sealed partial class PostListPage : Page
     }
 
     /// <summary>
-    /// 새로고침 버튼
+    /// 새로고침 버튼 — 보던 페이지와 검색 조건을 그대로 두고 다시 읽는다.
+    /// (3페이지를 보다 F5 를 눌렀는데 1페이지로 튀면 새로고침이 아니라 초기화다.)
     /// </summary>
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        await ViewModel.RefreshAsync();
+        await ViewModel.LoadPostsAsync();
     }
 
     /// <summary>

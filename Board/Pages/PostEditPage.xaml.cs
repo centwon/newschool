@@ -70,6 +70,10 @@ public sealed partial class PostEditPage : Page
             // 수정 모드
             _isEditMode = true;
 
+            // ⚠ 여기는 캐시 서비스로 바꾸지 말 것. CachedBoardService.GetPostAsync 는 캐시에 든
+            //    <b>같은 Post 인스턴스</b>를 그대로 돌려준다. 편집 화면은 그 객체의 제목·본문·
+            //    카테고리를 직접 고치므로, 캐시된 것을 받으면 저장하지 않고 취소해도 고친 값이
+            //    캐시에 남아 목록·상세에 비친다. (쓰기는 저장할 때 캐시 서비스로 한다.)
             using var service = Board.CreateService();
             _post = await service.GetPostAsync(postNo, incrementReadCount: false);
 
@@ -110,7 +114,7 @@ public sealed partial class PostEditPage : Page
             _post = new Post
             {
                 DateTime = DateTime.Now,
-                User = Settings.UserName ?? "사용자"
+                User = Settings.AuthorName
             };
 
             // 파라미터로 카테고리/Subject 설정
@@ -377,11 +381,9 @@ public sealed partial class PostEditPage : Page
 
                 if (postNo > 0)
                 {
-                    // 1.5. 카테고리 변경 시 기존 첨부파일 이동
-                    if (_isEditMode && !string.IsNullOrEmpty(_originalCategory) && _originalCategory != _post.Category)
-                    {
-                        await MoveExistingFilesAsync(_originalCategory, _post.Category, postNo, service);
-                    }
+                    // 1.5. 카테고리 변경 시 기존 첨부파일 이동 (안 옮기면 첨부가 조용히 끊긴다)
+                    await PostAttachments.MoveAllToCategoryAsync(
+                        service, postNo, _originalCategory, _post.Category);
 
                     // 2. 첨부 변경(삭제 예정 + 새로 붙인 파일) 반영
                     _post.HasFile = await PostAttachments.ApplyAsync(
@@ -402,8 +404,7 @@ public sealed partial class PostEditPage : Page
                                 Category = _parameter.DefaultCategory ?? string.Empty,
                                 Subject = _parameter.DefaultSubject ?? string.Empty,
                                 AllowCategoryChange = _parameter.AllowCategoryChange,
-                                ShowSubjectFilter = !string.IsNullOrEmpty(_parameter.DefaultCategory),
-                                Title = ""
+                                ShowSubjectFilter = !string.IsNullOrEmpty(_parameter.DefaultCategory)
                             }
                             : null);
                     }
@@ -429,74 +430,9 @@ public sealed partial class PostEditPage : Page
         }
     }
 
-    /// <summary>
-    /// 카테고리 변경 시 기존 첨부파일을 새 카테고리 폴더로 이동.
-    ///
-    /// 첨부 실물은 <c>Data\Files\{카테고리}\{파일명}</c> 에 살고, 경로를 만드는
-    /// <see cref="Board.GetFilePath"/> 는 언제나 <b>글의 현재 카테고리</b>를 쓴다.
-    /// 그래서 옮기지 못한 파일은 그냥 "안 보이는" 정도로 끝나지 않는다 —
-    /// 대상 폴더에 같은 이름의 <b>남의 파일</b>이 있으면 그 글의 첨부를 열 때 그것이 열리고,
-    /// 첨부를 지우면 그것이 지워진다. 예전에는 그 경우를 조용히 건너뛰었다.
-    ///
-    /// 실제 이동 규칙은 <see cref="PostAttachments.MoveToCategoryAsync"/> 가 들고 있다 —
-    /// 새 첨부를 저장할 때의 이름 충돌 규칙과 한자리에 있어야 서로 어긋나지 않는다.
-    /// </summary>
-    private async Task MoveExistingFilesAsync(string oldCategory, string newCategory, int postNo, BoardService service)
-    {
-        var failed = new List<string>();
-
-        try
-        {
-            Board.EnsureCategoryDirectory(newCategory);
-
-            var existingFiles = await service.GetPostFilesByPostAsync(postNo);
-            foreach (var file in existingFiles)
-            {
-                if (string.IsNullOrEmpty(file.FileName)) continue;
-
-                bool moved = await PostAttachments.MoveToCategoryAsync(
-                    file.FileName, oldCategory, newCategory,
-                    renamed => service.UpdatePostFileNameAsync(file.No, renamed));
-
-                if (!moved) failed.Add(file.FileName);
-            }
-
-            // 댓글 첨부파일도 이동
-            var comments = await service.GetCommentsByPostAsync(postNo);
-            foreach (var comment in comments.Where(c => c.HasFile && !string.IsNullOrEmpty(c.FileName)))
-            {
-                var original = comment.FileName;
-
-                bool moved = await PostAttachments.MoveToCategoryAsync(
-                    original, oldCategory, newCategory,
-                    renamed =>
-                    {
-                        comment.FileName = renamed;
-                        return service.UpdateCommentAsync(comment);
-                    });
-
-                if (!moved)
-                {
-                    comment.FileName = original;   // DB 를 못 고쳤으면 메모리도 되돌린다
-                    failed.Add(original);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"첨부파일 이동 실패: {ex.Message}");
-            await NewSchool.Controls.UserErrorReporter.ReportAsync("첨부파일 이동", ex);
-            return;
-        }
-
-        if (failed.Count > 0)
-        {
-            await NewSchool.Controls.MessageBox.ShowErrorAsync(
-                $"글은 '{newCategory}' 로 옮겼지만 첨부 {failed.Count}건을 함께 옮기지 못했습니다.\n" +
-                string.Join("\n", failed) +
-                "\n\n해당 첨부는 지금 열리지 않습니다. 다시 붙여 주세요.");
-        }
-    }
+    // 카테고리 변경 시 첨부를 옮기던 MoveExistingFilesAsync 는 PostAttachments 로 올렸다
+    // (MoveAllToCategoryAsync). 카테고리를 바꿀 수 있는 화면이 셋(이 페이지·메모 편집 창·
+    // 메모 보드)인데 여기에만 있어서, 메모 쪽에서 바꾸면 첨부가 조용히 끊겼다.
 
     private async void CancelButton_Click(object sender, RoutedEventArgs e)
     {

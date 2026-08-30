@@ -14,10 +14,10 @@ public class PostListPageParameter
     /// <summary>Subject (과목명, 동아리명 등)</summary>
     public string Subject { get; set; } = string.Empty;
 
-    /// <summary>페이지 제목 (기본: "게시판")</summary>
-    public string Title { get; set; } = "게시판";
+    // 페이지 제목(Title)은 지웠다 — 목록 화면 맨 위에 한 줄을 차지했는데, 왼쪽 메뉴가 이미
+    // 같은 말("아카이브"·"업무 게시판"…)을 하고 있어 되풀이였다. 그 높이는 목록에 넘겼다.
 
-    /// <summary>내장 모드 - 제목/카테고리 선택 숨김</summary>
+    /// <summary>내장 모드 - 카테고리 선택 숨김</summary>
     public bool IsEmbedded { get; set; } = false;
 
     // ========== ViewMode 관련 (신규 추가) ==========

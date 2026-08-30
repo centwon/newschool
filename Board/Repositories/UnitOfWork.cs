@@ -103,8 +103,24 @@ public class UnitOfWork : IDisposable
     /// </summary>
     public void BeginTransaction()
     {
+        // ⚠ 이미 트랜잭션이 있으면 버리지 말고 던진다.
+        //
+        // 예전에는 여기서 _transaction?.Dispose() 를 했는데, SqliteTransaction 은 커밋되지
+        // 않은 채 Dispose 되면 **조용히 롤백된다**. 앞선 작업이 오류도 경고도 없이 사라진다.
+        //
+        // BaseRepository 는 같은 결함을 이미 고쳐 두고 그 주석에 "게시판 쪽이 특히 걸리는
+        // 이유는 UnitOfWork 다" 라고 적어 두었는데, 정작 이 파일이 그대로였다.
+        // 여기는 Post·Comment·PostFile 이 <b>한 연결·한 트랜잭션</b>을 나눠 갖는 자리라,
+        // 겹쳐 열면 셋의 작업이 함께 버려진다.
+        if (_transaction != null)
+        {
+            throw new InvalidOperationException(
+                "UnitOfWork: 이미 트랜잭션이 열려 있습니다. " +
+                "겹쳐 열면 앞선 트랜잭션이 조용히 롤백됩니다 — " +
+                "먼저 Commit()/Rollback() 하거나, 그 트랜잭션 안에서 그대로 쓰세요.");
+        }
+
         var conn = EnsureConnection();
-        _transaction?.Dispose();
         _transaction = conn.BeginTransaction();
 
         _postRepository?.SetTransaction(_transaction);

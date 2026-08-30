@@ -23,12 +23,16 @@ public sealed partial class MemoEditDialog : Window
     private readonly Post _post;
     private readonly TaskCompletionSource<bool> _dialogResult = new();
 
+    /// <summary>연 시점의 카테고리. 저장할 때 바뀌었으면 첨부 실물도 함께 옮겨야 한다.</summary>
+    private readonly string _originalCategory;
+
     /// <summary>다이얼로그 결과 (저장: true, 취소: false).</summary>
     public bool Result { get; private set; }
 
     public MemoEditDialog(Post post)
     {
         _post = post ?? throw new ArgumentNullException(nameof(post));
+        _originalCategory = post.Category ?? string.Empty;
 
         InitializeComponent();
         Title = "메모 편집";
@@ -155,7 +159,8 @@ public sealed partial class MemoEditDialog : Window
             _post.PlainText = Editor.PlainText;
             _post.DateTime = DateTime.Now;
 
-            using var service = Board.CreateService();
+            // 쓰기는 캐시 서비스로 — 게시판 목록·상세가 옛 제목·카테고리를 물고 있지 않도록
+            using var service = Board.CreateCachedService();
 
             // 1. Post 저장
             int postNo = await service.SavePostAsync(_post);
@@ -167,6 +172,13 @@ public sealed partial class MemoEditDialog : Window
                 await MessageBox.ShowErrorAsync("메모 저장에 실패했습니다.");
                 return;
             }
+
+            // 1.5. 카테고리를 바꿨으면 첨부 실물도 새 폴더로 옮긴다.
+            //      안 옮기면 첨부가 조용히 끊긴다 — 첨부 경로는 언제나 글의 <b>현재</b>
+            //      카테고리로 만들어지기 때문이다. 첨부 반영(2)보다 먼저 해야, 이번에
+            //      지우기로 한 첨부도 새 폴더에서 제대로 지워진다.
+            await PostAttachments.MoveAllToCategoryAsync(
+                service, postNo, _originalCategory, _post.Category);
 
             // 2. 첨부 변경(삭제 예정 + 새로 붙인 파일) 반영
             _post.HasFile = await PostAttachments.ApplyAsync(

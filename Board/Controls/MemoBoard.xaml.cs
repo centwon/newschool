@@ -149,7 +149,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
 
             var post = new Post
             {
-                User = Settings.UserName ?? Settings.User.Value,
+                User = Settings.AuthorName,
                 DateTime = DateTime.Now,
                 Category = category,
                 Subject = "메모",
@@ -311,7 +311,8 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         try
         {
             var memo = _recentPost;
-            using var service = Board.CreateService();
+            // 쓰기는 캐시 서비스로 — 게시판 목록·상세가 지운 메모를 계속 보여 주지 않도록
+            using var service = Board.CreateCachedService();
             await service.DeletePostAsync(memo.No, memo.Category);
             _memos.Remove(memo);
             Render();
@@ -347,6 +348,11 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         if (_recentPost == null || !_isModified) return;
         try
         {
+            // 첨부는 이 화면에 없지만, 메모 편집 창에서 붙여 둔 것이 있을 수 있다.
+            // 여기 카테고리 콤보로 옮기면 그 첨부의 실물도 따라가야 한다 — 아니면 조용히 끊긴다.
+            // 아직 저장 안 된 메모(No<=0)는 옮길 첨부가 없으므로 빈 값으로 넘겨 건너뛴다.
+            string oldCategory = _recentPost.No > 0 ? _recentPost.Category : string.Empty;
+
             _recentPost.Category = GetRecentCategory();
             _recentPost.Content = Editor.GetFlowBytes();
             _recentPost.PlainText = Editor.PlainText;
@@ -358,8 +364,12 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             _recentPost.DateTime = DateTime.Now;
             TxtRecentTitle.Text = _recentPost.Title;
 
-            using var service = Board.CreateService();
-            await service.SavePostAsync(_recentPost);
+            using var service = Board.CreateCachedService();   // 쓰기 → 캐시 무효화가 함께 돌아야 한다
+            int postNo = await service.SavePostAsync(_recentPost);
+
+            await PostAttachments.MoveAllToCategoryAsync(
+                service, postNo, oldCategory, _recentPost.Category);
+
             _isModified = false;
             Debug.WriteLine($"[MemoBoard] 저장: No={_recentPost.No}");
         }
@@ -383,7 +393,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             // 체크만 켜진 채 DB 는 미완료로 남는 무음 불일치를 막을 수 있다.
             if (memo.No > 0)
             {
-                using var service = Board.CreateService();
+                using var service = Board.CreateCachedService();   // 쓰기 → 목록 캐시도 비운다
                 if (!await service.UpdatePostIsCompletedAsync(memo.No, true))
                     throw new InvalidOperationException("완료 상태를 저장하지 못했습니다(대상 없음).");
             }

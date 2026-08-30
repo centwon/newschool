@@ -139,6 +139,26 @@ public class CachedBoardService : BoardService
         return result;
     }
 
+    /// <summary>
+    /// 완료(확인) 표시 변경 (캐시 무효화).
+    ///
+    /// <para>목록의 ✓ 아이콘과 제목 취소선이 이 값으로 그려지므로 목록 캐시도 함께 비운다.
+    /// 예전에는 이 메서드가 <c>virtual</c> 이 아니라 여기까지 오지도 못했고, 상세에서 완료를
+    /// 켜고 뒤로 나오면 목록이 최대 2분간 옛 상태였다.</para>
+    /// </summary>
+    public override async Task<bool> UpdatePostIsCompletedAsync(int postNo, bool isCompleted)
+    {
+        bool result = await base.UpdatePostIsCompletedAsync(postNo, isCompleted);
+
+        if (result)
+        {
+            _cache.Remove(CacheKeys.Post(postNo));
+            InvalidatePostListCaches();
+        }
+
+        return result;
+    }
+
     #endregion
 
     #region Comment Operations (Cached)

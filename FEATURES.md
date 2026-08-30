@@ -60,7 +60,7 @@
 ### Pages
 | 파일 | 기능 |
 |------|------|
-| `PostListPage.xaml` | 게시글 목록 (리스트/그리드/메모 뷰모드). **중요 글**(`Post.IsPinned`)은 어떤 정렬·필터에서도 그 목록 맨 앞에 온다 |
+| `PostListPage.xaml` | 게시글 목록 (리스트/그리드/메모 뷰모드). **중요 글**(`Post.IsPinned`)은 어떤 정렬·필터에서도 그 목록 맨 앞에 온다. 페이지 이동은 번호 페이저(`‹ 1 … 3 4 [5] 6 7 … 42 ›`, Ctrl+PageUp/PageDown)로 하고, 번호 칸은 `RenderPager()` 가 코드로 짓는다 — `ItemsRepeater` 템플릿 안의 `x:Bind` 는 OneTime 이라 현재 페이지 강조가 제자리 갱신되지 않기 때문이다. 목록의 날짜는 날짜만 보여 준다(상세·댓글은 시각 유지). 화면 제목 줄은 두지 않는다 — 왼쪽 메뉴가 같은 말을 하므로 그 높이를 목록에 넘겼다 |
 | `PostDetailPage.xaml` | 게시글 상세 보기 |
 | `PostEditPage.xaml` | 게시글 작성/수정 |
 
@@ -80,7 +80,7 @@
 ### ViewModels
 | 파일 | 기능 |
 |------|------|
-| `PostListViewModel.cs` | 게시글 목록 뷰모델 |
+| `PostListViewModel.cs` | 게시글 목록 뷰모델. 목록 조회는 `LoadAsync` **한 곳**으로 모여 있고, 경로마다 갈리는 것은 "지금 페이지를 유지할지"뿐이다 — 검색은 카테고리·주제와 같은 조건 하나라서, 페이지를 넘기거나 정렬을 바꾸거나 글을 열고 돌아와도 유지된다. 검색 조건은 검색 버튼으로 **확정된 값**만 조회에 쓴다(검색창에 치고만 있는 글자는 목록을 거르지 않는다) |
 | `PostDetailViewModel.cs` | 게시글 상세 뷰모델 |
 
 ### Models
@@ -91,13 +91,15 @@
 | `PostFile.cs` | 첨부파일 모델 |
 | `BoardViewMode.cs` | 보기 모드 (List/Grid/Memo) |
 | `PostSortOrder.cs` | 정렬 순서 |
+| `PageWindow.cs` | 페이저에 그릴 페이지 번호 고르기 (첫 장·생략표·현재 둘레·끝 장). 계산만 하는 순수 함수라 경계를 테스트로 고정한다 |
 
 ### Services
 | 파일 | 기능 |
 |------|------|
 | `BoardService.cs` | 게시글·댓글·첨부 비즈니스 로직 |
-| `CachedBoardService.cs` | 캐시 계층. 항상 켜져 있다 — 끄는 설정은 저장만 되고 읽는 곳이 없어 40차에 걷어냈다 |
+| `CachedBoardService.cs` | 캐시 계층. 항상 켜져 있다 — 끄는 설정은 저장만 되고 읽는 곳이 없어 40차에 걷어냈다. **글을 고치는 경로는 반드시 이쪽을 쓴다**(`Board.CreateCachedService()`) — 비캐시로 쓰면 목록·상세가 옛 값을 최대 2~30분 들고 있는다. 쓰기 메서드가 빠짐없이 재정의됐는지는 `CachedBoardServiceOverrideTests` 가 반사로 확인한다. 반대로 **편집하려고 글을 읽을 때는 비캐시**(`CreateService()`)여야 한다 — 캐시는 같은 `Post` 인스턴스를 나눠 주므로, 편집 화면이 그것을 고치면 취소해도 캐시에 남는다 |
 | `Board.cs` | 정적 진입점 (DB 초기화·서비스 생성) |
+| `PostAttachments.cs` | 첨부 손질 한 벌 — 저장 시 반영(`ApplyAsync`)과 **카테고리 이동**(`MoveAllToCategoryAsync`). 첨부 경로는 언제나 글의 *현재* 카테고리로 만들어지므로, 카테고리를 대입하는 화면(게시글 편집·메모 편집 창·메모 보드·수업 일지 창)은 **모두** 이동을 함께 불러야 한다 — 빠뜨리면 첨부가 조용히 끊긴다 |
 
 ---
 
@@ -396,6 +398,10 @@
 - `TopMost` - 항상 위에(기본 꺼짐, `OverlappedPresenter.IsAlwaysOnTop`)
 - `WindowWidth` / `WindowHeight` - 창 크기
 - `LogLevel` - 로그 레벨
+- `UserName` - 사용자 이름. 글·댓글의 **작성자**로 남길 때는 `Settings.AuthorName` 을 쓴다
+  (비어 있으면 "사용자"). ⚠ `Settings.UserName ?? "사용자"` 같이 쓰면 안 된다 —
+  `SettingProperty<T>` 에 `implicit operator T` 가 있어 `??` 가 값이 아니라 **래퍼**를
+  검사하므로 폴백이 죽는다. 컴파일러가 못 잡아 `AuthorNameTests` 가 소스로 막는다
 
 ---
 

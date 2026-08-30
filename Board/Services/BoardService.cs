@@ -464,7 +464,14 @@ public partial class BoardService:IDisposable
     /// <summary>
     /// Post의 IsCompleted 플래그 업데이트
     /// </summary>
-    public async Task<bool> UpdatePostIsCompletedAsync(int postNo, bool isCompleted)
+    /// <remarks>
+    /// ⚠ <b>virtual 이어야 한다.</b> 게시글을 고치는 메서드인데 혼자만 virtual 이 아니라
+    /// <see cref="CachedBoardService"/> 가 가로채지 못했고, 그래서 메모 '완료'를 켜도 목록
+    /// 캐시가 그대로였다 — 상세에서 체크하고 뒤로 나오면 목록의 ✓ 와 취소선이 최대 2분간
+    /// 옛 상태였다. 쓰기 메서드가 하나라도 새면 같은 일이 벌어지므로
+    /// <c>CachedBoardServiceOverrideTests</c> 가 반사로 전수 확인한다.
+    /// </remarks>
+    public virtual async Task<bool> UpdatePostIsCompletedAsync(int postNo, bool isCompleted)
     {
         using var postRepo = new PostRepository(_dbPath);
 

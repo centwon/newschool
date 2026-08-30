@@ -210,7 +210,7 @@ public sealed partial class MaterialEditDialog : ContentDialog
             // DB에서 삭제
             try
             {
-                using var boardService = Board.Board.CreateService();
+                using var boardService = Board.Board.CreateCachedService();   // 쓰기 → 캐시 무효화
 
                 // DB 에서 지워진 뒤에 목록에서 뺀다 — 예전에는 결과와 무관하게 화면에서
                 // 지워, 창을 다시 열면 첨부가 되살아났다.
@@ -256,7 +256,7 @@ public sealed partial class MaterialEditDialog : ContentDialog
                 return;
             }
 
-            using var boardService = Board.Board.CreateService();
+            using var boardService = Board.Board.CreateCachedService();   // 쓰기 → 캐시 무효화
 
             int postNo;
             if (_isEdit && _post != null)
@@ -273,7 +273,9 @@ public sealed partial class MaterialEditDialog : ContentDialog
                 // 추가
                 var newPost = new Post
                 {
-                    User = Settings.User.Value,
+                    // 여기만 Settings.User(교사 ID)를 쓰고 있어서, 자료 글의 작성자만
+                    // 이름이 아니라 ID 로 남고 목록의 '작성자순' 정렬이 두 갈래로 섞였다.
+                    User = Settings.AuthorName,
                     DateTime = DateTime.Now,
                     Category = _category,
                     Subject = _subject,
@@ -365,7 +367,7 @@ public sealed partial class MaterialEditDialog : ContentDialog
 
         try
         {
-            using var boardService = Board.Board.CreateService();
+            using var boardService = Board.Board.CreateCachedService();   // 쓰기 → 캐시 무효화
             bool success = await boardService.DeletePostAsync(_post.No, _category);
 
             if (success)

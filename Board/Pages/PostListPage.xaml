@@ -18,24 +18,23 @@
 
     <Page.KeyboardAccelerators>
         <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="OnCtrlFInvoked"/>
+        <!-- Ctrl 없이 PageUp/PageDown 을 쓰면 목록 안 스크롤을 가로챈다 -->
+        <KeyboardAccelerator Modifiers="Control" Key="PageUp" Invoked="OnPreviousPageInvoked"/>
+        <KeyboardAccelerator Modifiers="Control" Key="PageDown" Invoked="OnNextPageInvoked"/>
     </Page.KeyboardAccelerators>
 
+    <!-- 화면 제목 줄은 두지 않는다 — 왼쪽 메뉴가 이미 같은 말("아카이브"·"업무 게시판"…)을
+         하고 있어 한 줄을 그대로 되풀이했다. 목록에 그 높이를 넘긴다. -->
     <Grid Padding="20" x:Name="RootGrid">
         <Grid.RowDefinitions>
-            <RowDefinition x:Name="TitleRow" Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 제목 -->
-        <TextBlock x:Name="TitleText"
-                   Grid.Row="0" 
-                   Text="게시판" 
-                   Margin="0,0,0,12"/>
         <!-- 상단: 카테고리 + Subject 필터 + 액션 버튼 -->
-        <Grid x:Name="FilterRow" Grid.Row="1" Margin="0,0,0,20">
+        <Grid x:Name="FilterRow" Grid.Row="0" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -126,7 +125,7 @@
         </StackPanel>-->
 
         <!-- Post 목록 -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="1">
             <!-- 로딩 표시 (수동 제어) -->
             <ProgressRing x:Name="LoadingRing"
                           Width="60"
@@ -148,8 +147,10 @@
             <ScrollViewer x:Name="TableViewContainer" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                     <!-- 헤더 -->
+                    <!-- ⚠ 아래 행 템플릿과 열 정의가 <b>같아야</b> 한다(머리글과 칸이 어긋난다).
+                         두 곳으로 나뉜 자리라 BoardListLayoutTests 가 소스로 대조한다. -->
                     <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                          Padding="12,8"
+                          Padding="12,6"
                           BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                           BorderThickness="1"
                           CornerRadius="4,4,0,0">
@@ -158,7 +159,7 @@
                             <ColumnDefinition Width="*"/>
                             <!-- 작성자 컬럼: 현재 숨김 (미래 다중 사용자 지원 시 복원) -->
                             <ColumnDefinition Width="0"/>
-                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="100"/>
                             <ColumnDefinition Width="80"/>
                         </Grid.ColumnDefinitions>
 
@@ -173,10 +174,14 @@
                     <ItemsRepeater x:Name="PostsRepeater">
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="viewmodels:PostItemViewModel">
+                                <!-- MinHeight="0": Button 기본 스타일의 MinHeight(32)가 바닥을 잡아
+                                     아래 Padding 을 줄여도 행이 더 낮아지지 않는다. 행 높이는
+                                     Grid 의 Padding 하나로만 정해지게 둔다. -->
                                 <Button Click="PostItem_Click"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Stretch"
                                         Padding="0"
+                                        MinHeight="0"
                                         Background="Transparent"
                                         BorderThickness="1,0,1,1"
                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -193,13 +198,13 @@
                                     </Button.Resources>
 
 
-                                    <Grid Padding="12,12">
+                                    <Grid Padding="12,6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="80"/>
                                             <ColumnDefinition Width="*"/>
                                             <!-- 작성자 컬럼: 현재 숨김 -->
                                             <ColumnDefinition Width="0"/>
-                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="100"/>
                                             <ColumnDefinition Width="80"/>
                                         </Grid.ColumnDefinitions>
 
@@ -257,9 +262,9 @@
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                                         <!-- 날짜 -->
-                                        <TextBlock Grid.Column="3" 
+                                        <TextBlock Grid.Column="3"
                                                    HorizontalTextAlignment="Center"
-                                                   Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}"
+                                                   Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}, ConverterParameter='yyyy-MM-dd'}"
                                                    VerticalAlignment="Center"
                                                    FontSize="13"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -307,6 +312,15 @@
 
                                     <!-- 제목 -->
                                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                        <!-- 중요 글은 어떤 보기에서도 맨 앞에 오므로, 왜 앞에 있는지
+                                             알 수 있게 표 보기와 같은 표시를 붙인다 -->
+                                        <FontIcon Glyph="&#xE718;"
+                                                  FontSize="12"
+                                                  Margin="0,0,6,0"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                                  ToolTipService.ToolTip="중요"
+                                                  Visibility="{x:Bind PinIconVisibility}"/>
                                         <FontIcon Glyph="&#xE73E;"
                                                   FontSize="12"
                                                   Margin="0,0,6,0"
@@ -341,7 +355,7 @@
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <FontIcon Glyph="&#xE787;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}, ConverterParameter='yyyy-MM-dd'}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         </StackPanel>
                                         <FontIcon Glyph="&#xE8BD;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{x:Bind CommentIconVisibility}"/>
                                         <FontIcon Glyph="&#xE723;" FontSize="12" Visibility="{x:Bind FileIconVisibility}"/>
@@ -396,21 +410,28 @@
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
 
-                                        <!-- 제목 -->
-                                        <TextBlock Grid.Row="0"
-                                                   Text="{x:Bind Title}"
-                                                   FontSize="14"
-                                                   FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   MaxLines="2"
-                                                   TextWrapping="Wrap"
-                                                   Margin="0,0,0,4"/>
+                                        <!-- 제목 (중요 글 표시는 표·카드 보기와 같은 아이콘) -->
+                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                            <FontIcon Glyph="&#xE718;"
+                                                      FontSize="11"
+                                                      Margin="0,0,4,0"
+                                                      VerticalAlignment="Top"
+                                                      Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                                      ToolTipService.ToolTip="중요"
+                                                      Visibility="{x:Bind PinIconVisibility}"/>
+                                            <TextBlock Text="{x:Bind Title}"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       MaxLines="2"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
 
                                         <!-- 메타 정보 -->
                                         <StackPanel Grid.Row="2" Orientation="Vertical" Spacing="4">
                                             <!-- 작성자 (숨김) -->
                                             <TextBlock Text="{x:Bind User}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed"/>
-                                            <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                            <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}, ConverterParameter='yyyy-MM-dd'}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Grid>
@@ -427,40 +448,61 @@
             </ScrollViewer>
         </Grid>
 
-        <!-- 페이징 -->
-        <Grid Grid.Row="3" Margin="0,12,0,0">
+        <!-- 페이징: ‹ 1 … 3 4 [5] 6 7 … 42 ›  (번호 칸은 코드에서 그린다 — RenderPager) -->
+        <Grid Grid.Row="2" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Button x:Name="PreviousButton"
-                    Grid.Column="0"
-                    Content="이전"
-                    Click="PreviousButton_Click"
-                    IsEnabled="False"/>
+            <StackPanel x:Name="PagerPanel"
+                        Grid.Column="1"
+                        Orientation="Horizontal"
+                        Spacing="4"
+                        VerticalAlignment="Center">
+
+                <Button x:Name="PreviousButton"
+                        Click="PreviousButton_Click"
+                        IsEnabled="False"
+                        MinWidth="36" Padding="8,4"
+                        ToolTipService.ToolTip="이전 페이지 (Ctrl+PageUp)">
+                    <FontIcon Glyph="&#xE76B;" FontSize="11"/>
+                </Button>
+
+                <!-- 페이지 번호 칸 -->
+                <StackPanel x:Name="PageNumberPanel"
+                            Orientation="Horizontal"
+                            Spacing="2"
+                            VerticalAlignment="Center"/>
+
+                <Button x:Name="NextButton"
+                        Click="NextButton_Click"
+                        IsEnabled="False"
+                        MinWidth="36" Padding="8,4"
+                        ToolTipService.ToolTip="다음 페이지 (Ctrl+PageDown)">
+                    <FontIcon Glyph="&#xE76C;" FontSize="11"/>
+                </Button>
+            </StackPanel>
 
             <TextBlock x:Name="PageInfoText"
-                       Grid.Column="1"
-                       Text="1 / 1 페이지 (전체 0개)"
-                       HorizontalAlignment="Center"
+                       Grid.Column="2"
+                       HorizontalAlignment="Right"
                        VerticalAlignment="Center"
-                       Style="{StaticResource BodyTextBlockStyle}"/>
-
-            <Button x:Name="NextButton"
-                    Grid.Column="2"
-                    Content="다음"
-                    Click="NextButton_Click"
-                    IsEnabled="False"/>
+                       FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Grid>
         <!-- 검색 영역 -->
-        <Grid x:Name="SearchRow" Grid.Row="4" Margin="0,12,0,0" HorizontalAlignment="Center">
+        <Grid x:Name="SearchRow" Grid.Row="3" Margin="0,12,0,0" HorizontalAlignment="Center">
             <StackPanel Orientation="Horizontal">
+                <!-- UpdateSourceTrigger=PropertyChanged 필수: TextBox.Text 의 기본값은 LostFocus 라,
+                     검색창에 치고 곧바로 Enter 를 누르면 포커스가 그대로여서 ViewModel.SearchText 에
+                     아직 아무것도 넘어가지 않았다 — 직전 검색어(첫 시도면 빈 값)로 검색됐다.
+                     버튼 클릭은 포커스가 옮겨가며 값이 넘어와 우연히 동작했다. -->
                 <TextBox x:Name="SearchTextBox"
                              Width="300"
                              PlaceholderText="검색어 입력"
-                             Text="{x:Bind ViewModel.SearchText, Mode=TwoWay}"
+                             Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              KeyDown="SearchTextBox_KeyDown"
                              Margin="0,0,8,0"/>
 
