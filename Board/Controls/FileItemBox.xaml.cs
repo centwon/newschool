@@ -9,7 +9,8 @@ namespace NewSchool.Board.Controls;
 
 public sealed partial class FileItemBox : UserControl
 {
-    public event EventHandler<bool>? SelectionChanged;
+    // 선택이 바뀔 때 알리던 SelectionChanged 는 구독자가 한 곳도 없어 지웠다(2026-08-31).
+    // 지금 선택 상태를 보는 쪽(PostFileListBox 의 삭제 버튼)은 IsSelected 를 그때 훑는다.
 
     private PostFile? _postFile;
     private string _orgFilePath = string.Empty;
@@ -85,13 +86,11 @@ public sealed partial class FileItemBox : UserControl
     private void SelectCheckBox_Checked(object sender, RoutedEventArgs e)
     {
         IsSelected = true;
-        SelectionChanged?.Invoke(this, true);
     }
 
     private void SelectCheckBox_Unchecked(object sender, RoutedEventArgs e)
     {
         IsSelected = false;
-        SelectionChanged?.Invoke(this, false);
     }
 
     private async void FileButton_Click(object sender, RoutedEventArgs e)

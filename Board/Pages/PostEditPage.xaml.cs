@@ -70,10 +70,10 @@ public sealed partial class PostEditPage : Page
             // 수정 모드
             _isEditMode = true;
 
-            // ⚠ 여기는 캐시 서비스로 바꾸지 말 것. CachedBoardService.GetPostAsync 는 캐시에 든
-            //    <b>같은 Post 인스턴스</b>를 그대로 돌려준다. 편집 화면은 그 객체의 제목·본문·
-            //    카테고리를 직접 고치므로, 캐시된 것을 받으면 저장하지 않고 취소해도 고친 값이
-            //    캐시에 남아 목록·상세에 비친다. (쓰기는 저장할 때 캐시 서비스로 한다.)
+            // 편집하려고 읽을 때는 비캐시를 쓴다 — 최대 5분 묵은 값을 고쳐 저장하면
+            // 그 사이 다른 화면에서 바뀐 내용을 덮어쓴다. (캐시가 남의 인스턴스를 넘기던
+            // 문제 자체는 CachedBoardService 가 사본을 돌려주며 사라졌다.)
+            // 쓰기는 저장할 때 캐시 서비스로 한다.
             using var service = Board.CreateService();
             _post = await service.GetPostAsync(postNo, incrementReadCount: false);
 

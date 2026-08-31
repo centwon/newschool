@@ -291,7 +291,9 @@ public static class Settings
 
     //Board 설정
     public static SettingProperty<string> Board_DB { get; private set; } = null!;
-    public static SettingProperty<bool> Board_Inited { get; private set; } = null!;
+    // 게시판 초기화 완료 플래그(Board_Inited/"Board_Init")는 세우기만 하고 읽는 곳이 없어
+    // 지웠다(2026-08-31). 초기화는 CREATE TABLE IF NOT EXISTS 라 매번 돌아도 무해하다.
+    // (설정 DB 에 남은 옛 행은 아무도 읽지 않으므로 그대로 둔다.)
     // 캐시 사용(EnableCache)·페이지 크기(DefaultPageSize)·언어(Language) 는 설정 화면에 있었지만
     // 저장만 되고 읽는 곳이 한 군데도 없었다(40차). 컨트롤과 함께 걷어냈다.
     // 게시판 목록의 페이지 크기는 목록 화면 자체의 콤보가 맡는다.
@@ -395,7 +397,6 @@ public static class Settings
         SchoolDB = new SettingProperty<string>("SchoolDB", "school.db", s => s, s => s);
         School_Inited = new SettingProperty<bool>("SchoolDB_Inited", false, bool.Parse, b => b.ToString().ToLower());
         Board_DB = new SettingProperty<string>("Board_DB", "board.db", s => s, s => s);
-        Board_Inited = new SettingProperty<bool>("Board_Init", false, bool.Parse, b => b.ToString().ToLower());
 
 
         /// <summary>
@@ -500,7 +501,6 @@ public static class Settings
         HomeRoom.Reload();
 
         Board_DB.Reload();
-        Board_Inited.Reload();
         AutoBackupIntervalDays.Reload();
         BackupRetentionCount.Reload();
         LogLevel.Reload();

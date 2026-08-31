@@ -19,9 +19,10 @@ public abstract class BaseRepository : IDisposable
     private bool _disposed;
     private readonly bool _ownsConnection;   // 공유 연결(UnitOfWork)일 때 false → Dispose 시 닫지 않음
 
-    // ⭐ public getter 추가
-    public SqliteTransaction? GetTransaction() => Transaction;
-    public SqliteConnection GetConnection() => Connection;
+    // 연결·트랜잭션을 밖으로 내주던 GetTransaction()/GetConnection() 은 호출부가 없어
+    // 지웠다(2026-08-31). 게시판에서는 UnitOfWork 가 공유 연결을 만들어 각 Repository 에
+    // 생성자로 넘기고, 트랜잭션은 SetTransaction 으로 나눠 준다.
+    // (school.db 쪽 Repositories/BaseRepository 의 같은 이름 메서드는 실제로 쓰이므로 그대로다.)
 
     /// <summary>
     /// 외부에서 만든 연결을 공유하는 생성자 (UnitOfWork 전용).

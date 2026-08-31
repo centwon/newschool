@@ -260,6 +260,39 @@ public class Post : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// 값이 같은 새 <see cref="Post"/> 를 만든다. <b>캐시가 자기 것을 남에게 넘기지 않기 위한</b> 사본이다.
+    ///
+    /// <para>캐시가 담아 둔 인스턴스를 그대로 돌려주면, 그것을 받은 편집 화면이 제목·본문·
+    /// 카테고리를 고치는 순간 <b>저장하지 않아도</b> 캐시가 함께 바뀐다. 취소하고 나와도
+    /// 목록·상세에 고친 값이 비친다.</para>
+    ///
+    /// <para><see cref="Content"/>(.flow 바이트)는 배열 참조를 그대로 나눠 갖는다 —
+    /// 수십KB~MB 라 복사가 비싸고, 쓰는 쪽은 언제나 <c>GetFlowBytes()</c> 가 만든
+    /// <b>새 배열을 통째로 대입</b>하지 제자리에서 고치지 않기 때문이다.</para>
+    ///
+    /// <para><see cref="PropertyChanged"/> 구독자는 따라오지 않는다(사본은 새 객체다).</para>
+    /// </summary>
+    public Post Clone() => new()
+    {
+        No = No,
+        User = User,
+        DateTime = DateTime,
+        Category = Category,
+        Subject = Subject,
+        Title = Title,
+        Content = Content,
+        PlainText = PlainText,
+        RefNo = RefNo,
+        ReplyOrder = ReplyOrder,
+        Depth = Depth,
+        ReadCount = ReadCount,
+        HasFile = HasFile,
+        HasComment = HasComment,
+        IsCompleted = IsCompleted,
+        IsPinned = IsPinned,
+    };
+
     // UI 바인딩용 속성
     public Visibility FileIconVisibility => HasFile ? Visibility.Visible : Visibility.Collapsed;
     public Visibility CommentIconVisibility => HasComment ? Visibility.Visible : Visibility.Collapsed;

@@ -8,8 +8,19 @@ using NewSchool.Board.Services;
 namespace NewSchool.Board.Services;
 
 /// <summary>
-/// 캐싱이 적용된 BoardService
-/// 읽기 작업 성능 향상 (Write-Through Cache)
+/// 캐싱이 적용된 BoardService — 읽기 성능 향상 (Write-Through Cache).
+///
+/// <para><b>규칙 하나: 캐시는 자기가 들고 있는 객체를 밖으로 내보내지 않는다.</b>
+/// 모든 조회는 <c>Clone()</c> 사본을 돌려준다.</para>
+///
+/// <para>예전에는 캐시에 담긴 그 인스턴스를 그대로 돌려줬다. 받은 쪽이 값을 고치면
+/// <b>저장하지 않아도</b> 캐시가 함께 바뀌었다 — 편집 화면에서 제목을 고치다 취소해도
+/// 목록에 고친 제목이 비쳤고, 댓글 수정이 DB 에서 실패해도 캐시에는 새 내용이 남았다.
+/// 조회 한 번에 사본 하나를 더 만드는 값(목록은 Content 를 담지 않아 가볍다)으로
+/// "누가 이 객체를 또 들고 있나"를 아예 따지지 않아도 되게 한다.</para>
+///
+/// <para>쓰기 쪽 규칙은 <see cref="BoardService.UpdatePostIsCompletedAsync"/> 주석 참고 —
+/// 모든 쓰기 메서드는 여기서 가로채 캐시를 비워야 한다.</para>
 /// </summary>
 public class CachedBoardService : BoardService
 {
@@ -28,7 +39,7 @@ public class CachedBoardService : BoardService
     #region Post Operations (Cached)
 
     /// <summary>
-    /// Post 조회 (캐시됨)
+    /// Post 조회 (캐시됨). <b>돌려주는 것은 언제나 사본</b>이다 — 아래 규칙 참고.
     /// </summary>
     public override async Task<Post?> GetPostAsync(int no, bool incrementReadCount = true)
     {
@@ -36,12 +47,15 @@ public class CachedBoardService : BoardService
 
         if (incrementReadCount)
         {
-            // 캐시에 있으면 DB 왕복 없이 즉시 반환하고, 조회수 증가는 백그라운드로 미룬다.
+            // 캐시에 있으면 DB 왕복 없이 즉시 돌려주고, 조회수의 DB 반영만 뒤로 미룬다.
             // (같은 글을 반복 열람해도 매번 Get+Update 두 번의 동기 DB 호출이 발생하던 문제 개선)
             if (_cache.TryGet<Post>(key, out var cachedPost) && cachedPost != null)
             {
-                _ = IncrementReadCountInBackgroundAsync(no, cachedPost);
-                return cachedPost;
+                // 화면에 보일 값은 지금 올린다 — 예전에는 이 증가를 백그라운드 작업 안에서 해서,
+                // 그 작업이 아직 안 돌았으면 방금 연 열람이 빠진 숫자가 보였다.
+                cachedPost.ReadCount++;
+                _ = IncrementReadCountInDbAsync(no);
+                return cachedPost.Clone();
             }
 
             var post = await base.GetPostAsync(no, true);
@@ -49,29 +63,27 @@ public class CachedBoardService : BoardService
             if (post != null)
             {
                 _cache.Set(key, post, _mediumCache);
+                return post.Clone();
             }
 
-            return post;
+            return null;
         }
 
-        // 캐시에서 조회 또는 생성
-        return await _cache.GetOrCreateAsync(
+        var cached = await _cache.GetOrCreateAsync(
             key,
             async () => await base.GetPostAsync(no, false),
             _mediumCache);
+
+        return cached?.Clone();
     }
 
-    /// <summary>
-    /// 조회수 증가를 백그라운드에서 처리 (캐시 히트 시 호출자를 블로킹하지 않음).
-    /// 캐시된 Post 인스턴스도 함께 갱신해 다음 조회 시 최신 조회수가 보이도록 한다.
-    /// </summary>
-    private async Task IncrementReadCountInBackgroundAsync(int postNo, Post cachedPost)
+    /// <summary>조회수 증가를 DB 에 반영 (호출자를 붙잡지 않는다).</summary>
+    private async Task IncrementReadCountInDbAsync(int postNo)
     {
         try
         {
             using var postRepo = new PostRepository(_dbPath);
             await postRepo.IncrementReadCountAsync(postNo);
-            cachedPost.ReadCount++;
         }
         catch (Exception ex)
         {
@@ -95,12 +107,15 @@ public class CachedBoardService : BoardService
         string key = CacheKeys.Posts(pageNumber, pageSize, category, subject,
                                      searchText, searchTitle, searchContent) + $":{sortOrder}";
 
-        return await _cache.GetOrCreateAsync(
+        var cached = await _cache.GetOrCreateAsync(
             key,
             async () => await base.GetPostsPagedAsync(
                 pageNumber, pageSize, category, subject,
                 searchTitle, searchContent, searchText, sortOrder),
             _shortCache);
+
+        // 목록도 사본으로 낸다. 목록의 Post 는 Content(.flow)를 담지 않아 사본이 가볍다.
+        return cached with { Items = cached.Items.ConvertAll(p => p.Clone()) };
     }
 
     /// <summary>
@@ -170,10 +185,14 @@ public class CachedBoardService : BoardService
     {
         string key = CacheKeys.Comments(postNo);
 
-        return await _cache.GetOrCreateAsync(
+        var cached = await _cache.GetOrCreateAsync(
             key,
             async () => await base.GetCommentsByPostAsync(postNo),
             _mediumCache);
+
+        // 댓글 수정 화면이 Content 를 먼저 고치고 저장을 시도한다 — 사본이 아니면
+        // 저장이 실패해도 캐시에 고친 값이 남는다.
+        return cached.ConvertAll(c => c.Clone());
     }
 
     /// <summary>
@@ -246,10 +265,12 @@ public class CachedBoardService : BoardService
     {
         string key = CacheKeys.PostFiles(postNo);
 
-        return await _cache.GetOrCreateAsync(
+        var cached = await _cache.GetOrCreateAsync(
             key,
             async () => await base.GetPostFilesByPostAsync(postNo),
             _mediumCache);
+
+        return cached.ConvertAll(f => f.Clone());
     }
 
     /// <summary>

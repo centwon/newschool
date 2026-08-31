@@ -293,64 +293,8 @@ public class PostRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// Post 개수 조회 (비동기)
-    /// </summary>
-    public async Task<int> GetCountAsync(
-        string category = "",
-        string subject = "",
-        bool searchTitle = false,
-        bool searchContent = false,
-        string searchText = "")
-    {
-        try
-        {
-            string query = "SELECT COUNT(*) FROM Post WHERE 1=1";
-            using var cmd = CreateCommand(query);
-
-            if (!string.IsNullOrEmpty(category))
-            {
-                query += " AND Category = @Category";
-                cmd.Parameters.AddWithValue("@Category", category);
-            }
-
-            if (!string.IsNullOrEmpty(subject))
-            {
-                query += " AND Subject = @Subject";
-                cmd.Parameters.AddWithValue("@Subject", subject);
-            }
-
-            if (!string.IsNullOrEmpty(searchText))
-            {
-                if (searchTitle && searchContent)
-                {
-                    query += " AND (Title LIKE @Search OR PlainText LIKE @Search)";
-                }
-                else if (searchTitle)
-                {
-                    query += " AND Title LIKE @Search";
-                }
-                else if (searchContent)
-                {
-                    query += " AND PlainText LIKE @Search";
-                }
-
-                if (searchTitle || searchContent)
-                {
-                    cmd.Parameters.AddWithValue("@Search", $"%{searchText}%");
-                }
-            }
-
-            cmd.CommandText = query;
-            var result = await cmd.ExecuteScalarAsync();
-            return Convert.ToInt32(result);
-        }
-        catch (Exception ex)
-        {
-            LogError("Post 개수 조회 실패", ex);
-            throw;
-        }
-    }
+    // 개수만 세던 GetCountAsync 는 호출부가 없어 지웠다(2026-08-31). 목록 화면은
+    // GetListWithCountAsync 가 COUNT(*) OVER() 로 목록과 개수를 한 번에 가져온다.
 
     #endregion
 

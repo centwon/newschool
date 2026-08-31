@@ -149,6 +149,24 @@ public class Comment : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// 값이 같은 새 <see cref="Comment"/>. 캐시가 자기 것을 남에게 넘기지 않기 위한 사본이다
+    /// (<see cref="Post.Clone"/> 참고). 댓글 수정 화면이 <c>Content</c> 를 먼저 고치고 저장을
+    /// 시도하는데, 저장이 실패해도 캐시에는 고친 값이 남던 자리다.
+    /// </summary>
+    public Comment Clone() => new()
+    {
+        No = No,
+        Post = Post,
+        User = User,
+        DateTime = DateTime,
+        ParentNo = ParentNo,
+        Content = Content,
+        HasFile = HasFile,
+        FileName = FileName,
+        FileSize = FileSize,
+    };
+
     // UI 바인딩용 속성
     public Visibility FileIconVisibility => HasFile ? Visibility.Visible : Visibility.Collapsed;
 

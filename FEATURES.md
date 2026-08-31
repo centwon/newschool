@@ -97,7 +97,7 @@
 | 파일 | 기능 |
 |------|------|
 | `BoardService.cs` | 게시글·댓글·첨부 비즈니스 로직 |
-| `CachedBoardService.cs` | 캐시 계층. 항상 켜져 있다 — 끄는 설정은 저장만 되고 읽는 곳이 없어 40차에 걷어냈다. **글을 고치는 경로는 반드시 이쪽을 쓴다**(`Board.CreateCachedService()`) — 비캐시로 쓰면 목록·상세가 옛 값을 최대 2~30분 들고 있는다. 쓰기 메서드가 빠짐없이 재정의됐는지는 `CachedBoardServiceOverrideTests` 가 반사로 확인한다. 반대로 **편집하려고 글을 읽을 때는 비캐시**(`CreateService()`)여야 한다 — 캐시는 같은 `Post` 인스턴스를 나눠 주므로, 편집 화면이 그것을 고치면 취소해도 캐시에 남는다 |
+| `CachedBoardService.cs` | 캐시 계층. 항상 켜져 있다 — 끄는 설정은 저장만 되고 읽는 곳이 없어 40차에 걷어냈다. **글을 고치는 경로는 반드시 이쪽을 쓴다**(`Board.CreateCachedService()`) — 비캐시로 쓰면 목록·상세가 옛 값을 최대 2~30분 들고 있는다. 쓰기 메서드가 빠짐없이 재정의됐는지는 `CachedBoardServiceOverrideTests` 가 반사로 확인한다. **조회는 언제나 `Clone()` 사본을 돌려준다** — 캐시가 자기 객체를 내보내면 받은 쪽이 고치는 순간 저장 없이도 캐시가 바뀐다(`CachedBoardServiceIsolationTests` 가 조회 경로마다 고정). 편집하려고 글을 읽을 때는 그래도 **비캐시**(`CreateService()`)를 쓴다 — 묵은 값을 고쳐 저장하면 그 사이 변경을 덮어쓰기 때문 |
 | `Board.cs` | 정적 진입점 (DB 초기화·서비스 생성) |
 | `PostAttachments.cs` | 첨부 손질 한 벌 — 저장 시 반영(`ApplyAsync`)과 **카테고리 이동**(`MoveAllToCategoryAsync`). 첨부 경로는 언제나 글의 *현재* 카테고리로 만들어지므로, 카테고리를 대입하는 화면(게시글 편집·메모 편집 창·메모 보드·수업 일지 창)은 **모두** 이동을 함께 불러야 한다 — 빠뜨리면 첨부가 조용히 끊긴다 |
 

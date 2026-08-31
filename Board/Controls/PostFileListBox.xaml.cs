@@ -24,8 +24,9 @@ public sealed partial class PostFileListBox : UserControl
     private bool _isReadOnly = false;
     private Post? _post;
 
-    /// <summary>파일 변경 이벤트</summary>
-    public event EventHandler? FileBoxesChanged;
+    // 파일 목록이 바뀔 때 알리던 FileBoxesChanged 는 구독자가 한 곳도 없어 지웠다(2026-08-31).
+    // 첨부 반영은 저장을 누를 때 PostAttachments.ApplyAsync 가 FileBoxes·FilesToDelete 를
+    // 그때 훑어 처리하므로, 중간에 알릴 상대가 없다.
 
     public string Category
     {
@@ -115,8 +116,6 @@ public sealed partial class PostFileListBox : UserControl
             };
             FileBoxes.Add(fileBox);
         }
-
-        FileBoxesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -138,8 +137,6 @@ public sealed partial class PostFileListBox : UserControl
             };
             FileBoxes.Add(fileBox);
         }
-
-        FileBoxesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -204,7 +201,6 @@ public sealed partial class PostFileListBox : UserControl
         };
 
         FileBoxes.Add(fileBox);
-        FileBoxesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -214,7 +210,6 @@ public sealed partial class PostFileListBox : UserControl
     {
         if (_isReadOnly) return;
 
-        bool removed = false;
         for (int i = FileBoxes.Count - 1; i >= 0; i--)
         {
             var fileBox = FileBoxes[i];
@@ -226,13 +221,7 @@ public sealed partial class PostFileListBox : UserControl
                     FilesToDelete.Add(fileBox.PostFile);
                 }
                 FileBoxes.RemoveAt(i);
-                removed = true;
             }
-        }
-
-        if (removed)
-        {
-            FileBoxesChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 

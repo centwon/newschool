@@ -245,6 +245,12 @@
                                                       Margin="8,0,0,0"
                                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                                       Visibility="{x:Bind CommentIconVisibility}"/>
+                                            <TextBlock Text="{x:Bind CommentCount}"
+                                                       FontSize="11"
+                                                       Margin="3,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                       Visibility="{x:Bind CommentIconVisibility}"/>
 
                                             <FontIcon Glyph="&#xE723;"
                                                       FontSize="12"
@@ -358,6 +364,7 @@
                                             <TextBlock Text="{x:Bind DateTime, Converter={StaticResource DateTimeConverter}, ConverterParameter='yyyy-MM-dd'}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         </StackPanel>
                                         <FontIcon Glyph="&#xE8BD;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{x:Bind CommentIconVisibility}"/>
+                                        <TextBlock Text="{x:Bind CommentCount}" FontSize="11" Margin="-12,0,0,0" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{x:Bind CommentIconVisibility}"/>
                                         <FontIcon Glyph="&#xE723;" FontSize="12" Visibility="{x:Bind FileIconVisibility}"/>
                                     </StackPanel>
                                 </Grid>

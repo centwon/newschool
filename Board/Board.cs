@@ -51,23 +51,15 @@ Path.Combine(Settings.UserDataPath, "Files");
 
             Debug.WriteLine($"[Board] DB 경로: {DbPath}");
             Debug.WriteLine($"[Board] DB 존재: {File.Exists(DbPath)}");
-            Debug.WriteLine($"[Board] 초기화 상태: {Settings.Board_Inited.Value}");
 
-            // 데이터베이스 초기화 (매번 실행 - 마이그레이션 포함)
+            // 데이터베이스 초기화 (매번 실행 — CREATE TABLE IF NOT EXISTS 라 두 번째부터는 무해)
             Debug.WriteLine("[Board] 데이터베이스 초기화 시작");
-            bool success = await InitDatabaseAsync();
 
-            if (success)
+            // 초기화 완료 플래그(Settings.Board_Inited)는 세우기만 하고 읽는 곳이 없어
+            // 설정째로 지웠다(2026-08-31). 초기화는 어차피 매번 도는 자리다.
+            if (!await InitDatabaseAsync())
             {
-                if (!Settings.Board_Inited.Value)
-                {
-                    Settings.Board_Inited.Set(true);
-                    Debug.WriteLine("[Board] 초기화 완료 플래그 설정됨");
-                }
-            }
-            else
-            {
-                await MessageBox.ShowAsync("데이터베이스 초기화에 실패하였습니다.","오류");
+                await MessageBox.ShowAsync("데이터베이스 초기화에 실패하였습니다.", "오류");
             }
         }
         catch (Exception ex)

@@ -472,18 +472,14 @@ public class PostItemViewModel : NotifyPropertyChangedBase
     public bool HasComment => _post.HasComment;
     public bool IsCompleted => _post.IsCompleted;
 
-    /// <summary>중요 글 여부. 목록에서 이 글이 맨 앞으로 온다.</summary>
-    public bool IsPinned
-    {
-        get => _post.IsPinned;
-        set
-        {
-            if (_post.IsPinned == value) return;
-            _post.IsPinned = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(PinIconVisibility));
-        }
-    }
+    /// <summary>
+    /// 중요 글 여부. 목록에서 이 글이 맨 앞으로 온다.
+    ///
+    /// <para>목록에서 켜고 끄는 자리는 없다(글쓰기·수정 화면의 체크박스로만 바뀐다) —
+    /// 쓰는 곳이 없던 setter 는 지웠다(2026-08-31). 목록에서 바로 토글하게 만들려면
+    /// setter 와 함께 <c>SavePostAsync</c> 반영·캐시 무효화까지 붙여야 한다.</para>
+    /// </summary>
+    public bool IsPinned => _post.IsPinned;
 
     // UI 바인딩용 속성
     public Visibility FileIconVisibility => _post.FileIconVisibility;
@@ -492,16 +488,15 @@ public class PostItemViewModel : NotifyPropertyChangedBase
     public string DateTimeDisplay => _post.DateTimeDisplay;
 
     /// <summary>
-    /// 댓글 개수.
+    /// 댓글 개수. 목록의 💬 아이콘 옆에 숫자로 붙는다(표·카드 보기).
     ///
-    /// <para>⚠ <b>지금 어느 화면도 이 값을 보여 주지 않는다</b>(바인딩 0건). 그런데 목록을
-    /// 읽을 때마다 <c>GetCommentCountsAsync</c> 로 일괄 조회는 계속 돈다. 즉 값을 구해서
-    /// 버리고 있다.</para>
+    /// <para>오랫동안 <b>구해서 버리는 값</b>이었다 — 목록을 읽을 때마다
+    /// <c>GetCommentCountsAsync</c> 로 일괄 조회는 도는데 어느 화면도 보여 주지 않았다.
+    /// 그 조회에 "글마다 조회하던 N+1 제거" 라고 적혀 있어 보여 줄 작정으로 다듬어 둔
+    /// 자리였기에, 걷어내는 대신 <b>이어 붙였다</b>(2026-08-31).</para>
     ///
-    /// <para>그럼에도 지우지 않는다 — 그 조회에는 "글마다 조회하던 N+1 제거" 라고 적혀 있어,
-    /// 누군가 <b>보여 줄 작정으로 일부러 다듬어 둔</b> 자리다. 목록 항목 서식에 한 줄만
-    /// 이으면 살아난다. 정말 안 쓸 것으로 정하면 이 속성과 함께 위의 일괄 조회도 걷어야
-    /// 헛조회가 사라진다.</para>
+    /// <para>이 조회는 캐시를 타지 않으므로(<c>GetCommentCountsAsync</c> 는
+    /// <c>CachedBoardService</c> 가 가로채지 않는다) 언제나 최신값이다.</para>
     /// </summary>
     public int CommentCount
     {

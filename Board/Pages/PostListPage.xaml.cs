@@ -32,13 +32,8 @@ public sealed partial class PostListPage : Page
     // SetSubjectAsync 는 호출부가 없어 지웠다(39차) —
     // 주제는 화면에 들어올 때 넘기는 매개변수로만 정해진다.
 
-    /// <summary>
-    /// 목록 새로고침 (외부에서 호출)
-    /// </summary>
-    public async Task RefreshAsync()
-    {
-        await ViewModel.RefreshAsync();
-    }
+    // 밖에서 목록을 새로 읽게 하던 RefreshAsync 는 호출부가 없어 지웠다(2026-08-31).
+    // 이 페이지는 화면에 다시 들어올 때(OnNavigatedTo) 스스로 읽는다.
 
     public PostListPage()
     {

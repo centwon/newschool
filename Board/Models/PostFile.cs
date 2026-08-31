@@ -14,6 +14,19 @@ public class PostFile
     public long FileSize { get; set; }
 
     /// <summary>
+    /// 값이 같은 새 <see cref="PostFile"/>. 캐시가 자기 것을 남에게 넘기지 않기 위한 사본이다
+    /// (<see cref="Post.Clone"/> 참고).
+    /// </summary>
+    public PostFile Clone() => new()
+    {
+        No = No,
+        Post = Post,
+        DateTime = DateTime,
+        FileName = FileName,
+        FileSize = FileSize,
+    };
+
+    /// <summary>
     /// 파일 크기 표시용 문자열
     /// </summary>
     public string FileSizeDisplay
