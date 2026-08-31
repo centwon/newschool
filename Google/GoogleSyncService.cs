@@ -494,7 +494,7 @@ public sealed class GoogleSyncService : IDisposable
             ColorId = ge.ColorId ?? string.Empty,
             Recurrence = ge.Recurrence != null ? string.Join("\n", ge.Recurrence) : string.Empty,
             Updated = ge.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-            User = Settings.User.Value
+            User = Settings.AuthorName   // 앱 전체가 쓰는 한 벌 (예전엔 교사 ID 가 들어갔다)
         };
 
         // extendedProperties에서 Ktask 통합 데이터 읽기
@@ -730,7 +730,7 @@ public sealed class GoogleSyncService : IDisposable
                         Status = "confirmed",
                         Notes = group.IsVacation ? "휴업일" : string.Empty,
                         Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                        User = Environment.UserName
+                        User = Settings.AuthorName   // Windows 계정 이름이 아니라 앱의 작성자 이름
                     };
                     ev.No = await service.CreateEventAsync(ev);
 

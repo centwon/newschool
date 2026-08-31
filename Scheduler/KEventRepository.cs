@@ -104,19 +104,8 @@ public class KEventRepository : BaseRepository
     // SchedulerService 메서드가 사라지면서 함께 지웠다(39차). 화면들은 캘린더를 가리지 않고
     // 날짜 범위로 읽은 뒤 필요하면 목록에서 거른다.
 
-    public async Task<int> GetCountAsync()
-    {
-        try
-        {
-            using var cmd = CreateCommand("SELECT COUNT(*) FROM KEvent");
-            return Convert.ToInt32(await cmd.ExecuteScalarAsync());
-        }
-        catch (Exception ex)
-        {
-            LogError("KEvent 개수 조회 실패", ex);
-            throw;
-        }
-    }
+    // 전체 개수를 세던 GetCountAsync 는 호출부가 없어 지웠다(2026-08-31).
+    // 할 일 개수는 GetTaskCountAsync 가 따로 있고, 화면들은 목록을 받아 세거나 그마저 안 쓴다.
 
     #endregion
 

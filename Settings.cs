@@ -217,7 +217,8 @@ public static class Settings
 
     // Scheduler 관련 설정
     public static SettingProperty<string> SchedulerDB { get; private set; } = null!;
-    public static SettingProperty<bool> Scheduler_Inited { get; private set; } = null!;
+    // 스케줄러 초기화 완료 플래그(Scheduler_Inited)는 세우기만 하고 읽는 곳이 없어
+    // 지웠다(2026-08-31, Board_Inited 와 같은 이유). 설정 DB 의 옛 행은 그대로 둔다.
 
     public static SettingProperty<bool> ShowEvents { get; private set; } = null!;
     public static SettingProperty<bool> ShowTasks { get; private set; } = null!;
@@ -351,7 +352,6 @@ public static class Settings
 
         // 속성 초기화 (파서와 직렬화기 지정)
         SchedulerDB = new SettingProperty<string>("SchedulerDB", "scheduler.db", s => s, s => s);
-        Scheduler_Inited = new SettingProperty<bool>("Scheduler_Inited", false, bool.Parse, b => b.ToString().ToLower());
 
         ShowEvents = new SettingProperty<bool>("ShowEvents", true, bool.Parse, b => b.ToString().ToLower());
         ShowTasks = new SettingProperty<bool>("ShowTasks", true, bool.Parse, b => b.ToString().ToLower());
@@ -455,7 +455,6 @@ public static class Settings
     private static void LoadAll()
     {
         SchedulerDB.Reload();
-        Scheduler_Inited.Reload();
         ShowEvents.Reload();
         ShowTasks.Reload();
         EventFontSize.Reload();

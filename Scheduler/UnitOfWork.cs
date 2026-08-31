@@ -82,8 +82,23 @@ public sealed class UnitOfWork : IDisposable
     /// </summary>
     public void BeginTransaction()
     {
+        // ⚠ 이미 트랜잭션이 있으면 버리지 말고 던진다.
+        //
+        // 커밋되지 않은 SqliteTransaction 은 Dispose 되면 **조용히 롤백된다** — 앞선 작업이
+        // 오류도 경고도 없이 사라진다. 반복 할 일 저장처럼 여러 건을 한 트랜잭션에 넣는
+        // 자리라 통째로 날아간다.
+        //
+        // 같은 결함을 Repositories/BaseRepository → Board/Repositories/BaseRepository →
+        // Board/Repositories/UnitOfWork 순으로 고쳐 왔고, 이 파일이 마지막 사본이었다.
+        if (_transaction != null)
+        {
+            throw new InvalidOperationException(
+                "Scheduler UnitOfWork: 이미 트랜잭션이 열려 있습니다. " +
+                "겹쳐 열면 앞선 트랜잭션이 조용히 롤백됩니다 — " +
+                "먼저 Commit()/Rollback() 하거나, 그 트랜잭션 안에서 그대로 쓰세요.");
+        }
+
         var conn = EnsureConnection();
-        _transaction?.Dispose();
         _transaction = conn.BeginTransaction();
 
         _kevents?.SetTransaction(_transaction);

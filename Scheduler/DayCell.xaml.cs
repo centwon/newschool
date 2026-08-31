@@ -252,7 +252,8 @@ public sealed partial class DayCell : UserControl
     #endregion
 
     #region Properties
-    public (int Row, int Column) Position { get; set; } = (-1, -1);
+    // 격자 위치를 담아 두던 Position 은 대입만 하고 읽는 곳이 없어 지웠다(2026-08-31).
+    // 배치는 Grid.SetRow/SetColumn 이 하고, 셀이 어느 날인지는 Dayinfo.Date 가 안다.
 
     public DayInfo Dayinfo
     {
@@ -392,14 +393,19 @@ public sealed partial class DayCell : UserControl
             try
             {
                 using var service = Scheduler.CreateService();
-                await service.UpdateTaskAsync(task);
+
+                // 반영 여부를 확인한다. 예외만 잡던 때는 <b>0행 갱신</b>(이미 지워진 할 일)이
+                // 그물을 빠져나갔다 — 예외가 아니라 false 로 돌아오기 때문이다. 그러면 화면은
+                // 완료, DB 는 미완료로 갈라진 채 다음 새로고침에 소리 없이 되돌아간다.
+                // (목록 보기 KAgendaControl.TaskToggle_Click 은 이미 이렇게 확인한다.)
+                if (!await service.UpdateTaskAsync(task))
+                    throw new InvalidOperationException("변경된 항목이 없습니다. 이미 지워진 할 일일 수 있습니다.");
+
                 Debug.WriteLine($"[DayCell] 작업 상태 업데이트 완료: {task.No}");
             }
             catch (Exception ex)
             {
-                // 사용자가 직접 누른 동작이 실패한 경우다.
-                // 조용히 삼키면 화면은 완료, DB 는 미완료로 갈라진 채 다음 새로고침에
-                // 소리 없이 되돌아간다 → 상태를 복구하고 사용자에게 알린다.
+                // 사용자가 직접 누른 동작이 실패한 경우다 → 상태를 복구하고 알린다.
                 Debug.WriteLine($"[DayCell] 작업 상태 업데이트 오류: {ex.Message}");
 
                 task.IsDone = prevIsDone;
@@ -806,65 +812,13 @@ public sealed partial class BooleanToVisibilityConverter : IValueConverter
     }
 }
 
-public sealed partial class DayOfWeekToColorConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, string language)
-    {
-        try
-        {
-            if (value is DayOfWeek dayOfWeek)
-            {
-                return dayOfWeek switch
-                {
-                    DayOfWeek.Sunday => new SolidColorBrush(Color.FromArgb(255, 255, 68, 68)),
-                    DayOfWeek.Saturday => new SolidColorBrush(Color.FromArgb(255, 68, 68, 255)),
-                    _ => new SolidColorBrush(Colors.Black)
-                };
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"DayOfWeekToColorConverter 오류: {ex.Message}");
-        }
-        return new SolidColorBrush(Colors.Black);
-    }
+// 쓰이지 않던 컨버터 셋을 지웠다(2026-08-31, XAML 참조 0건):
+//   · DayOfWeekToColorConverter — 평일에 Colors.Black 을 박고 있었다. 바로 위
+//     UpdateColorDisplay 가 길게 적어 두고 고친 다크 테마 결함(어두운 배경 위 검정 글씨라
+//     평일 날짜가 안 보임)을 그대로 되살리는 코드라, 남겨 두면 갖다 쓰는 순간 버그가 돌아온다.
+//   · TaskCompletionToTextDecorationConverter, BoolToTextDecorationsConverter — 서로 같은 일을
+//     하는 사본 둘. 취소선은 KEvent.TextDecorations / AgendaItem.Decorations 가 직접 낸다.
 
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-public sealed partial class TaskCompletionToTextDecorationConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, string language)
-    {
-        try
-        {
-            return value is bool isDone && isDone
-                ? Windows.UI.Text.TextDecorations.Strikethrough
-                : Windows.UI.Text.TextDecorations.None;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"TaskCompletionToTextDecorationConverter 오류: {ex.Message}");
-            return Windows.UI.Text.TextDecorations.None;
-        }
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        try
-        {
-            return value is Windows.UI.Text.TextDecorations decorations
-                && decorations == Windows.UI.Text.TextDecorations.Strikethrough;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-}
 /// <summary>비어있지 않은 string이면 Visible, 비어있으면 Collapsed</summary>
 public sealed partial class StringNotEmptyToVisibilityConverter : IValueConverter
 {
@@ -873,30 +827,6 @@ public sealed partial class StringNotEmptyToVisibilityConverter : IValueConverte
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)
         => throw new NotImplementedException();
-}
-
-public sealed partial class BoolToTextDecorationsConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, string language)
-    {
-        try
-        {
-            if (value is bool isDone && isDone)
-            {
-                return Windows.UI.Text.TextDecorations.Strikethrough;
-            }
-            return Windows.UI.Text.TextDecorations.None;
-        }
-        catch
-        {
-            return Windows.UI.Text.TextDecorations.None;
-        }
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        throw new NotImplementedException();
-    }
 }
 
 

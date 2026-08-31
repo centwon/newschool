@@ -120,7 +120,7 @@
 | `KCalendarList.cs` | 캘린더 목록(카테고리+색상) 모델. `SchoolCode`로 학사일정 캘린더를 학교별로 분리 |
 | `KCalendarListRepository.cs` | KCalendarList DB 접근 (학교별 조회/생성 포함) |
 | `Scheduler.cs` | 정적 진입점 (Service/UnitOfWork 생성, `InitAsync`). DB 백업/복원/검증/최적화는 부르는 곳이 없어 걷어냈다 — 실제 백업·복원은 `Settings.cs` 한 곳이 맡는다 |
-| `SchedulerService.cs` | 일정/할일 비즈니스 로직 레이어 |
+| `SchedulerService.cs` | 일정/할일 비즈니스 로직 레이어. **갱신 메서드는 반영 여부(bool)를 돌려준다** — 부르는 쪽이 이 값을 버리면 이미 지워진 항목을 고쳐도 저장된 것처럼 보인다(달력 셀·목록·편집 창 셋 다 확인하며, `SchedulerAuditTests` 가 소스로 고정한다). 작성자는 `Settings.AuthorName` 한 벌을 쓴다 |
 | `UnitOfWork.cs` | 단일 트랜잭션으로 여러 Repository 원자적 처리 |
 | `DatabaseInitializer.cs` | 스케줄러 DB 스키마 초기화/마이그레이션 |
 | `DispatcherQueueExtensions.cs` | DispatcherQueue 비동기 실행 확장 메서드 |

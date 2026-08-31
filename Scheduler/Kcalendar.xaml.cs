@@ -121,7 +121,6 @@ public sealed partial class Kcalendar : Page
                 var column = i % 7;
 
                 var cell = new DayCell();
-                cell.Position = (row, column);
                 cell.PointerPressed += DayCell_PointerPressed;
                 cell.CellChanged += DayCell_CellChanged;
 

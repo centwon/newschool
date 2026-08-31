@@ -37,18 +37,14 @@ public static class Scheduler
 
             Debug.WriteLine($"[SchedulerDB] DB 경로: {DbPath}");
             Debug.WriteLine($"[SchedulerDB] DB 존재: {File.Exists(DbPath)}");
-            Debug.WriteLine($"[SchedulerDB] 초기화 상태: {Settings.Scheduler_Inited.Value}");
 
             // 데이터베이스 초기화 — CREATE TABLE IF NOT EXISTS는 멱등적이므로 항상 실행
             Debug.WriteLine("[SchedulerDB] 데이터베이스 테이블 확인/초기화 시작");
-            bool success = await InitDatabaseAsync();
 
-            if (success)
-            {
-                Settings.Scheduler_Inited.Set(true);
-                Debug.WriteLine("[SchedulerDB] 초기화/테이블 확인 완료");
-            }
-            else
+            // 초기화 완료 플래그(Settings.Scheduler_Inited)는 세우기만 하고 읽는 곳이 없어
+            // 설정째로 지웠다(2026-08-31). 게다가 성공할 때마다 조건 없이 Set 을 불러
+            // 앱을 켤 때마다 설정 DB 에 쓰기가 한 번씩 났다. 초기화는 어차피 매번 도는 자리다.
+            if (!await InitDatabaseAsync())
             {
                 await MessageBox.ShowAsync("스케줄러 데이터베이스 초기화에 실패하였습니다.", "오류");
             }

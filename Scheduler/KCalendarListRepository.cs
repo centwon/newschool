@@ -164,13 +164,39 @@ public class KCalendarListRepository : BaseRepository
         }
     }
 
-    /// <summary>캘린더 삭제 + 소속 KEvent 전체 삭제(고아 이벤트 방지, 같은 DB의 두 테이블을 한 트랜잭션으로 처리)</summary>
+    /// <summary>
+    /// 캘린더 삭제 + 소속 KEvent 전체 삭제(고아 이벤트 방지, 두 테이블을 한 트랜잭션으로).
+    ///
+    /// <para>⚠ 기본 캘린더(<c>IsDefault=1</c>)는 지우지 않는다. 예전에는 <b>일정을 먼저 지우고</b>
+    /// 캘린더 삭제에 <c>AND IsDefault = 0</c> 을 걸어 둔 뒤 결과와 무관하게 커밋했다. 그래서
+    /// 기본 캘린더를 넘기면 <b>소속 일정만 몽땅 사라지고 캘린더는 남은 채 false 가 돌아왔다</b> —
+    /// 부르는 쪽은 "삭제 실패"로 보는데 데이터는 이미 없었다. 이제 지울 수 있는지 <b>먼저</b>
+    /// 확인하고, 아니면 아무것도 건드리지 않는다.</para>
+    /// </summary>
+    /// <returns>지웠으면 true. 없는 캘린더이거나 기본 캘린더면 false(아무 것도 지우지 않음).</returns>
     public async Task<bool> DeleteAsync(int no)
     {
         try
         {
             BeginTransaction();
 
+            // 1. 지워도 되는 캘린더인지 먼저 확인 — 아니면 일정도 건드리지 않는다.
+            bool deletable;
+            using (var check = CreateCommand(
+                "SELECT EXISTS(SELECT 1 FROM KCalendarList WHERE No = @No AND IsDefault = 0)"))
+            {
+                check.Parameters.AddWithValue("@No", no);
+                deletable = Convert.ToInt32(await check.ExecuteScalarAsync()) == 1;
+            }
+
+            if (!deletable)
+            {
+                Rollback();
+                LogWarning($"KCalendarList 삭제 건너뜀(없거나 기본 캘린더): No={no}");
+                return false;
+            }
+
+            // 2. 소속 일정 → 캘린더 순으로 지운다.
             using (var delEvents = CreateCommand("DELETE FROM KEvent WHERE CalendarId = @No"))
             {
                 delEvents.Parameters.AddWithValue("@No", no);
@@ -223,12 +249,26 @@ public class KCalendarListRepository : BaseRepository
             Updated   = r.GetString(r.GetOrdinal("Updated")),
             SyncMode  = r.GetString(r.GetOrdinal("SyncMode"))
         };
-        // SyncToken/SchoolCode 컬럼이 존재하면 읽기 (기존 DB 호환)
-        try { cal.SyncToken = r.GetString(r.GetOrdinal("SyncToken")); }
-        catch { cal.SyncToken = string.Empty; }
-        try { cal.SchoolCode = r.GetString(r.GetOrdinal("SchoolCode")); }
-        catch { cal.SchoolCode = string.Empty; }
+        // 예전에는 try/catch 로 GetOrdinal 의 예외를 받아 넘겼다. 행마다 예외를 던지는 비용도
+        // 비용이지만, catch 가 모든 예외를 삼켜서 진짜 읽기 오류까지 빈 문자열이 됐다.
+        // 형제 파일 KEventRepository 처럼 있는지 물어보고 읽는다.
+        cal.SyncToken  = ReadOptional(r, "SyncToken");
+        cal.SchoolCode = ReadOptional(r, "SchoolCode");
         return cal;
+    }
+
+    /// <summary>
+    /// 있으면 읽고 없으면 빈 문자열. 컬럼이 없는 옛 DB 를 위한 자리다
+    /// (없는 컬럼에 <c>GetOrdinal</c> 을 부르면 예외가 난다).
+    /// </summary>
+    private static string ReadOptional(SqliteDataReader r, string column)
+    {
+        for (int i = 0; i < r.FieldCount; i++)
+        {
+            if (!string.Equals(r.GetName(i), column, StringComparison.OrdinalIgnoreCase)) continue;
+            return r.IsDBNull(i) ? string.Empty : r.GetString(i);
+        }
+        return string.Empty;
     }
 
     public async Task<KCalendarList?> GetByGoogleIdAsync(string googleId)

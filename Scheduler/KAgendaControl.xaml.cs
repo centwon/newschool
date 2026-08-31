@@ -285,7 +285,8 @@ public sealed partial class KAgendaControl : UserControl
             allItems.AddRange(tasks);
             allItems.AddRange(calendarEvents);
 
-            BuildAllItems(allItems);
+            // 일정은 오늘부터 60일까지만 펼친다(지난 날짜로 남는 것은 미완료 할 일뿐이어야 한다)
+            BuildAllItems(allItems, DateTime.Today, DateTime.Today.AddDays(59));
             ApplyFilter();
         }
         catch (Exception ex)
@@ -324,7 +325,7 @@ public sealed partial class KAgendaControl : UserControl
             allItems.AddRange(tasks);
             allItems.AddRange(calendarEvents);
 
-            BuildAllItems(allItems);
+            BuildAllItems(allItems, start.Date, start.Date.AddDays(Math.Max(days, 1) - 1));
             ApplyFilter();
         }
         catch (Exception ex)
@@ -382,7 +383,17 @@ public sealed partial class KAgendaControl : UserControl
     // ─────────────────────────────────────────────
     // 내부: 원시 데이터 → AgendaItem 변환
     // ─────────────────────────────────────────────
-    private void BuildAllItems(List<KEvent> allEvents)
+    /// <summary>
+    /// 조회한 KEvent 를 목록 항목으로 바꾼다.
+    /// </summary>
+    /// <param name="windowStart">
+    /// 표시 창의 첫날. 다일 일정을 날짜별로 펼칠 때 <b>이 날 앞으로는 펼치지 않는다</b>.
+    /// 예전에는 자르지 않아서, 지난주에 시작해 다음 주에 끝나는 일정이 있으면 "오늘 이후"
+    /// 목록에 지난주 날짜 행이 함께 생기고 날짜순 정렬 탓에 맨 위에 왔다.
+    /// (달력 쪽 <c>Kcalendar.UpdateCellsDisplayAsync</c> 는 이미 창으로 자른다.)
+    /// </param>
+    /// <param name="windowEnd">표시 창의 마지막 날(포함).</param>
+    private void BuildAllItems(List<KEvent> allEvents, DateTime windowStart, DateTime windowEnd)
     {
         _allItems = new List<AgendaItem>(allEvents.Count);
 
@@ -400,14 +411,15 @@ public sealed partial class KAgendaControl : UserControl
             }
             else
             {
-                // 다일 일정: 각 날짜별로 AgendaItem 생성 (End는 inclusive)
-                int days = (ev.End.Date - ev.Start.Date).Days;
-                if (days < 0) days = 0;
+                // 다일 일정: 각 날짜별로 AgendaItem 생성 (End는 inclusive).
+                // 표시 창 밖으로는 펼치지 않는다 — 창 앞뒤로 걸친 일정이 목록에 넘쳐 나온다.
+                var first = ev.Start.Date < windowStart ? windowStart : ev.Start.Date;
+                var last  = ev.End.Date   > windowEnd   ? windowEnd   : ev.End.Date;
+                if (last < first) last = first;
 
-                for (int d = 0; d <= days; d++)
+                for (var day = first; day <= last; day = day.AddDays(1))
                 {
-                    _allItems.Add(AgendaItem.FromEvent(ev, name, color,
-                        displayDate: ev.Start.Date.AddDays(d)));
+                    _allItems.Add(AgendaItem.FromEvent(ev, name, color, displayDate: day));
                 }
             }
         }

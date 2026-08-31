@@ -93,12 +93,36 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             RbTypeTask.IsChecked  = _isTaskMode;
             RbTypeEvent.IsChecked = !_isTaskMode;
 
+            // 기존 항목은 종류를 바꿀 수 없다.
+            //
+            // 할 일과 일정은 서로 다른 KEvent 객체로 들고 있어서, 예전에는 탭을 옮기면
+            // 제목·날짜가 사라져 보이고 그대로 저장하면 <b>같은 제목의 항목이 하나 더</b>
+            // 생겼다(반대쪽 No 가 -1 이라 새로 만들어지고 원래 항목은 남았다).
+            //
+            // 신원을 넘겨 진짜 '변환' 으로 만들 수도 있지만, 반복 시리즈에 종류가 섞이고
+            // 구글 동기화가 보내는 내용이 달라지는 등 가장자리가 늘어난다. 종류를 잘못 골랐다면
+            // 지우고 다시 만드는 편이 싸다 — 그래서 <b>수정할 때는 아예 잠근다</b>.
+            // (새 항목은 아직 저장 전이라 자유롭게 옮길 수 있고, 적은 내용은 따라간다.)
+            RbTypeTask.IsEnabled  = _isNew;
+            RbTypeEvent.IsEnabled = _isNew;
+            if (!_isNew)
+            {
+                const string why = "이미 만든 항목의 종류는 바꿀 수 없습니다. 지우고 다시 만들어 주세요.";
+                ToolTipService.SetToolTip(RbTypeTask, why);
+                ToolTipService.SetToolTip(RbTypeEvent, why);
+            }
+
             // 패널 표시
             UpdatePanelVisibility();
 
-            // 값 채우기
-            if (_isTaskMode) FillTaskForm();
-            else FillEventForm();
+            // 값 채우기 — <b>두 서식을 모두</b> 채운다.
+            //
+            // 예전에는 지금 보이는 탭만 채웠다. 새 항목은 '할 일'로 열리므로 '일정' 서식은
+            // 한 번도 채워지지 않았고, 탭을 옮겨도 RbType_Checked 는 패널만 바꿀 뿐이라
+            // 날짜·시간 칸이 빈 채로 남았다. 그런데 메모리의 _event 는 값을 들고 있어서
+            // 그대로 저장하면 보이지도 않던 날짜·시간이 등록됐다.
+            FillTaskForm();
+            FillEventForm();
 
             // 신규가 아니면 삭제 버튼 표시
             SecondaryButtonText = _isNew ? string.Empty : "삭제";
@@ -192,11 +216,81 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     private void RbType_Checked(object sender, RoutedEventArgs e)
     {
         if (!_isInitialized) return;
-        _isTaskMode = RbTypeTask.IsChecked == true;
+
+        bool toTask = RbTypeTask.IsChecked == true;
+        if (toTask == _isTaskMode) return;   // 같은 탭을 다시 고른 경우
+
+        CarryOverToOtherType(toTask);
+
+        _isTaskMode = toTask;
         UpdatePanelVisibility();
+
+        // 넘겨받은 값으로 새 탭의 서식을 다시 그린다
+        if (toTask) FillTaskForm();
+        else FillEventForm();
+
         Title = _isNew
             ? (_isTaskMode ? "새 할 일" : "새 일정")
             : (_isTaskMode ? "할 일 수정" : "일정 수정");
+    }
+
+    /// <summary>
+    /// 종류(할 일 ↔ 일정)를 바꿀 때 <b>지금까지 적은 것을 반대쪽으로 넘긴다.</b>
+    ///
+    /// <para>할 일과 일정은 서로 다른 <see cref="KEvent"/> 객체로 들고 있어서, 탭을 옮기면
+    /// 제목·메모·날짜가 사라져 보였다. 새 항목을 쓰다 "이건 할 일이 아니라 일정이네" 하고
+    /// 옮기는 것은 흔한 일이라, 적은 내용은 따라가야 한다.</para>
+    ///
+    /// <para>⚠ <b>새 항목에서만 일어난다.</b> 기존 항목은 종류 전환 자체를 잠갔다
+    /// (<see cref="OnLoaded"/> 참고) — 신원까지 넘겨 진짜 변환으로 만들 수도 있지만
+    /// 반복 시리즈·구글 동기화 쪽 가장자리가 늘어난다. 그래서 <c>No</c>·<c>GoogleId</c> 같은
+    /// 신원은 여기서 넘기지 않는다.</para>
+    /// </summary>
+    /// <param name="toTask">옮겨 갈 쪽이 할 일이면 true.</param>
+    private void CarryOverToOtherType(bool toTask)
+    {
+        var from = toTask ? _event : _taskEvent;   // 지금까지 보던 쪽
+        var to   = toTask ? _taskEvent : _event;
+
+        // 제목·메모는 저장할 때 읽으므로 아직 모델에 없다 — 화면에서 먼저 걷는다.
+        if (toTask)
+        {
+            from.Title = TxtEventTitle.Text.Trim();
+            from.Notes = TxtEventNotes.Text;
+        }
+        else
+        {
+            from.Title = TxtTaskTitle.Text.Trim();
+            from.Notes = TxtTaskNotes.Text;
+        }
+
+        // 고른 캘린더는 두 탭이 각자 콤보를 갖고 있어 함께 넘긴다
+        to.CalendarId = from.CalendarId;
+
+        // 사람이 적은 값
+        to.Title    = from.Title;
+        to.Notes    = from.Notes;
+        to.Start    = from.Start;
+        to.IsAllday = from.IsAllday;
+        to.End      = from.End;
+
+        if (toTask)
+        {
+            NormalizeTaskEnd();   // 할 일의 End 는 Start 를 따른다
+        }
+        else if (to.End <= to.Start)
+        {
+            // 할 일은 End 가 Start 와 같다 — 일정으로 오면 길이가 0 이 되므로 한 시간을 준다
+            to.End = to.Start.AddHours(1);
+        }
+
+        // 캘린더 콤보도 넘겨받은 값으로 맞춘다(두 탭이 각자 콤보를 갖고 있다)
+        var idx = _calendars.FindIndex(c => c.No == to.CalendarId);
+        if (idx >= 0)
+        {
+            if (toTask) CBoxTaskList.SelectedIndex = idx;
+            else CBoxCalendar.SelectedIndex = idx;
+        }
     }
 
     private void UpdatePanelVisibility()
@@ -432,10 +526,14 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            // 예전에는 창만 남기고 아무 말이 없어서, 저장 버튼이 안 먹는 것처럼 보였다
+            // ⚠ 여기서 UserErrorReporter(=MessageBox=또 다른 ContentDialog)를 부르면 안 된다.
+            //    WinUI 는 ContentDialog 를 한 번에 하나만 허용해서, 이 창이 열려 있는 동안에는
+            //    표시가 막히고 게이트가 헛돌기만 한다 — 사용자에게는 아무것도 안 보였다
+            //    (ShowError 주석 참고). 창 안 InfoBar 로 알린다.
             Debug.WriteLine($"[UnifiedItemDialog] 저장 오류: {ex}");
+            NewSchool.Logging.Log.Error("UnifiedItemDialog", "일정 저장 실패", ex);
             args.Cancel = true;
-            await UserErrorReporter.ReportAsync("일정 저장", ex);
+            ShowError($"저장 중 오류가 발생했습니다.\n{ex.Message}");
         }
         finally
         {
@@ -472,9 +570,11 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         }
         catch (Exception ex)
         {
+            // 저장 쪽과 같은 이유로 InfoBar 를 쓴다(대화상자 안에서는 MessageBox 가 뜨지 않는다)
             Debug.WriteLine($"[UnifiedItemDialog] 삭제 오류: {ex}");
+            NewSchool.Logging.Log.Error("UnifiedItemDialog", "일정 삭제 실패", ex);
             args.Cancel = true;
-            await UserErrorReporter.ReportAsync("일정 삭제", ex);
+            ShowError($"삭제 중 오류가 발생했습니다.\n{ex.Message}");
         }
         finally
         {
@@ -530,8 +630,18 @@ public sealed partial class UnifiedItemDialog : ContentDialog
 
         if (tasks.Count <= 1)
         {
-            if (_taskEvent.No <= 0) _taskEvent.No = await service.CreateTaskAsync(_taskEvent);
-            else await service.UpdateTaskAsync(_taskEvent);
+            if (_taskEvent.No <= 0)
+            {
+                _taskEvent.No = await service.CreateTaskAsync(_taskEvent);
+            }
+            // 반영 여부를 확인한다. 예전에는 결과를 버려서, 이미 지워진 할 일을 편집하면
+            // 0행이 갱신됐는데도 저장된 척 창이 닫혔다(고친 내용이 그대로 사라졌다).
+            else if (!await service.UpdateTaskAsync(_taskEvent))
+            {
+                ShowError("저장되지 않았습니다. 이미 지워진 할 일일 수 있습니다.");
+                throw new ValidationAbort();
+            }
+
             ResultEvent = _taskEvent;
         }
         else
@@ -559,7 +669,9 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         _event.Notes    = TxtEventNotes.Text;
         _event.Location = TxtEventLocation.Text.Trim();
         _event.Updated  = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-        _event.User     = Environment.UserName;
+        // 작성자는 앱이 쓰는 한 벌을 따른다 — 예전에는 Windows 계정 이름(Environment.UserName)이
+        // 들어가, 게시판(Settings.AuthorName)·구글 동기화(교사 ID)와 셋으로 갈렸다.
+        _event.User     = Settings.AuthorName;
 
         if (string.IsNullOrWhiteSpace(_event.Title))
         {
@@ -574,8 +686,15 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             _event.End = _event.Start.AddHours(1);
 
         using var service = Scheduler.CreateService();
-        if (_event.No <= 0) _event.No = await service.CreateEventAsync(_event);
-        else await service.UpdateEventAsync(_event);
+        if (_event.No <= 0)
+        {
+            _event.No = await service.CreateEventAsync(_event);
+        }
+        else if (!await service.UpdateEventAsync(_event))   // 0행 갱신을 저장 성공으로 보지 않는다
+        {
+            ShowError("저장되지 않았습니다. 이미 지워진 일정일 수 있습니다.");
+            throw new ValidationAbort();
+        }
 
         ResultEvent = _event;
     }
@@ -692,20 +811,32 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         IsAllday = true,
         IsDone = false,
         Status = "confirmed",
-        User = Environment.UserName,
+        User = Settings.AuthorName,
         Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
     };
 
-    private static KEvent NewEvent(DateTime date) => new()
+    /// <summary>
+    /// 새 일정용 KEvent. <b>고른 날짜 + 지금 시각</b>에서 한 시간짜리로 연다
+    /// (예전에는 어느 날을 눌러도 9시~10시 고정이었다). 초는 버린다 —
+    /// 할 일 쪽 <see cref="NewTaskEvent"/> 과 같은 규칙이다.
+    /// </summary>
+    private static KEvent NewEvent(DateTime date)
     {
-        No = -1,
-        Start = DateTime.SpecifyKind(date.Date.AddHours(9), DateTimeKind.Unspecified),
-        End   = DateTime.SpecifyKind(date.Date.AddHours(10), DateTimeKind.Unspecified),
-        IsAllday = false,
-        Status = "confirmed",
-        User = Environment.UserName,
-        Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-    };
+        var start = DateTime.SpecifyKind(
+            date.Date.AddHours(DateTime.Now.Hour).AddMinutes(DateTime.Now.Minute),
+            DateTimeKind.Unspecified);
+
+        return new()
+        {
+            No = -1,
+            Start = start,
+            End = start.AddHours(1),
+            IsAllday = false,
+            Status = "confirmed",
+            User = Settings.AuthorName,
+            Updated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        };
+    }
 
     #endregion
 
@@ -720,8 +851,8 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         try
         {
             using var service = Scheduler.CreateService();
-            var newId = await service.GetOrCreateCalendarIdAsync(title);
-            // DB에서 전체 목록 다시 로드
+            await service.GetOrCreateCalendarIdAsync(title);
+            // DB에서 전체 목록 다시 로드 (새 캘린더의 No 는 아래 목록에서 다시 찾는다)
             _calendars = await service.GetAllCalendarsAsync();
             _titles = _calendars.Select(c => c.Title).ToList();
             return _titles.IndexOf(title);
@@ -774,10 +905,10 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         if (calendarIndex >= 0 && calendarIndex < _calendars.Count)
         {
             var cal = _calendars[calendarIndex];
-            // "담임"(구버전 이름)은 구글 동기화 대상에서 제외
+            // 구버전 이름 "담임" 을 빼던 조건은 지웠다(2026-08-31) — 그 이름의 캘린더는
+            // 더 이상 없다(기본 넷은 수업·학급·업무·개인, CategoryNames 참고).
             bool isTwoWay = cal.SyncMode == "TwoWay"
-                            && !string.IsNullOrEmpty(cal.GoogleId)
-                            && cal.Title != "담임";
+                            && !string.IsNullOrEmpty(cal.GoogleId);
             chk.Visibility = isTwoWay ? Visibility.Visible : Visibility.Collapsed;
             chk.IsChecked = isTwoWay;
         }
