@@ -20,6 +20,11 @@ public class LessonProgressRepository : BaseRepository
         EnsureTableExists();
     }
 
+    /// <summary>공유 연결 생성자. 테이블은 이미 있다고 보고 DDL 을 실행하지 않는다 —
+    /// 트랜잭션 안에서 DDL 을 돌리지 않기 위해서다
+    /// (<see cref="Services.CourseRoomReset"/>).</summary>
+    public LessonProgressRepository(SqliteConnection connection) : base(connection) { }
+
     #region Table Management
 
     /// <summary>

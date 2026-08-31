@@ -60,18 +60,22 @@ public sealed partial class ClassDiaryBox : UserControl
     }
 
     /// <summary>
-    /// 특정 날짜의 학급일지 로드
+    /// 특정 날짜의 학급일지 로드.
+    ///
+    /// <para>⚠ 학년도·학기를 <b>반드시 부르는 쪽에서 받는다.</b> 예전에는 여기서
+    /// <c>Settings.WorkYear</c>·<c>Settings.WorkSemester</c> 를 직접 읽어서, 화면 위쪽
+    /// 피커로 지난 학년도를 펼쳐 놓아도 일지만 <b>올해 행</b>을 읽고 썼다.</para>
     /// </summary>
-    public async Task LoadDiaryAsync(int grade, int classNumber, DateTime date)
+    public async Task LoadDiaryAsync(int year, int semester, int grade, int classNumber, DateTime date)
     {
         if (_isChanged)
         {
             await SaveDiaryAsync();
         }
 
-        System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] LoadDiaryAsync: {grade}학년 {classNumber}반, {date:yyyy-MM-dd}");
+        System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] LoadDiaryAsync: {year}학년도 {semester}학기 {grade}학년 {classNumber}반, {date:yyyy-MM-dd}");
         
-        await ViewModel.LoadDiaryAsync(grade, classNumber, date);
+        await ViewModel.LoadDiaryAsync(year, semester, grade, classNumber, date);
         
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] ViewModel 로드 완료: No={ViewModel.No}, Absent={ViewModel.Absent}, Memo={ViewModel.Memo?.Length ?? 0} chars");
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] Notice 길이: {ViewModel.Notice?.Length ?? 0} chars");
@@ -82,17 +86,18 @@ public sealed partial class ClassDiaryBox : UserControl
 
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] NoticeBox.Text 설정 완료");
         
-        // 현재 작업 학년도로 시간표 로드
-        LoadTimetable(grade, classNumber, Settings.WorkYear);
+        // 시간표도 일지와 같은 학년도·학기로 읽는다 — 둘이 갈리면 지난 학년도 일지 옆에
+        // 올해 시간표가 붙는다.
+        LoadTimetable(year, semester, grade, classNumber);
         _isChanged = false;
         ResetTextBoxStyles();
     }
     /// <summary>
     /// 시간표 로드
     /// </summary>
-    private async void LoadTimetable(int grade, int classNumber, int year)
+    private async void LoadTimetable(int year, int semester, int grade, int classNumber)
     {
-        if (grade == 0 || classNumber == 0 || year == 0) return;
+        if (grade == 0 || classNumber == 0 || year == 0 || semester == 0) return;
 
         // async void 이므로 예외가 전역으로 전파되어 앱이 종료될 수 있어 방어
         try
@@ -101,18 +106,39 @@ public sealed partial class ClassDiaryBox : UserControl
             var timeset = await service.GetClassTimetableAsync(
                 Settings.SchoolCode,
                 year,
-                Settings.WorkSemester,
+                semester,
                 grade,
                 classNumber);
 
             // 시간표 표시
             ClassTimeTable.DataContext = timeset;
+
+            // ⚠ LoadFailed 를 반드시 본다. 서비스는 조회에 실패해도 <b>빈 시간표</b>를
+            //    돌려주므로(호출부가 화면을 못 그리는 일이 없도록), 이걸 안 보면 DB 오류가
+            //    "이 반은 시간표가 없습니다" 와 똑같이 보인다. 그 구분을 하라고 만든
+            //    플래그인데 그동안 읽는 곳이 한 곳도 없었다.
+            ShowTimetableFailure(timeset.LoadFailed ? timeset.ErrorMessage : null);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] 시간표 로드 실패: {ex.Message}");
+            ShowTimetableFailure(ex.Message);
         }
     }
+    /// <summary>
+    /// 시간표를 못 읽었다는 사실을 제목 줄에 드러낸다(<paramref name="reason"/> 가 null 이면 되돌린다).
+    ///
+    /// <para>대화상자로 알리지 않는 이유 — 이 컨트롤은 <b>날짜를 옮길 때마다</b> 시간표를
+    /// 다시 읽으므로, 오류가 이어지면 대화상자가 계속 뜬다. 자리에 남는 문구가 낫다.</para>
+    /// </summary>
+    private void ShowTimetableFailure(string? reason)
+    {
+        bool failed = !string.IsNullOrWhiteSpace(reason);
+
+        TxtTimetableTitle.Text = failed ? "학급 시간표 — 불러오지 못했습니다" : "학급 시간표";
+        ToolTipService.SetToolTip(TxtTimetableTitle, failed ? reason : null);
+    }
+
     /// <summary>
     /// 현재 학급일지 저장.
     ///

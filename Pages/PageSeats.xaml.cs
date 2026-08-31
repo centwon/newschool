@@ -110,13 +110,26 @@ public sealed partial class PageSeats : Page, IDisposable
         this.Unloaded += Page_Unloaded;
     }
 
-    private void PageSeats_Loaded(object sender, RoutedEventArgs e)
+    private async void PageSeats_Loaded(object sender, RoutedEventArgs e)
     {
         InitializeServices();
         InitializeData();
-        
+
         // ListStudent 선택 이벤트 등록
         StudentList.StudentSelected += StudentList_StudentSelected;
+
+        // 학생이 한 명도 없으면 빈 화면 대신 다음 할 일을 띄운다
+        EmptyState.Visibility = await Helpers.SetupProgress.HasAnyStudentAsync()
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    /// <summary>
+    /// 안내판의 [학생 추가하기] — 학생 관리 화면으로 보낸다.
+    /// </summary>
+    private void EmptyState_ActionInvoked(object sender, EventArgs e)
+    {
+        MainWindow.NavigateFromPage(this.Frame, typeof(StudentManagementPage), "Settings_Student");
     }
 
     private void StudentList_StudentSelected(object? sender, Enrollment e)

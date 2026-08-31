@@ -316,6 +316,54 @@ public sealed class SchoolScheduleService : IDisposable
         }
     }
 
+    /// <summary>
+    /// 한 학년도(3/1 ~ 이듬해 2월 말)의 학사일정을 NEIS 에서 받아 <b>DB 에 저장</b>한다.
+    ///
+    /// <para>예전에는 화면마다 <see cref="DownloadFromNeisAsync"/> 를 직접 부른 뒤 받은 것을
+    /// 그리기만 하고 저장하지 않은 채 <c>Settings.IsNeisEventDownloaded</c> 만 켰다. 그러면
+    /// 그 다음부터는 "이미 받았다"는 판단으로 DB 를 읽는데 DB 는 비어 있어서, 학사일정이
+    /// 딱 한 번 보이고 영영 사라졌다. 받는 것과 저장하는 것과 깃발 세우는 것을 이 한 곳에
+    /// 묶어 그 어긋남을 없앤다.</para>
+    ///
+    /// <para>중복은 <see cref="Repositories.SchoolScheduleRepository.CreateBulkAsync"/> 가
+    /// (학교코드+날짜+행사명)으로 걸러내므로 여러 번 불러도 쌓이지 않는다.</para>
+    /// </summary>
+    /// <returns>Downloaded 는 NEIS 가 준 건수, Saved 는 그중 새로 저장된 건수.</returns>
+    public async Task<(bool Success, string Message, int Downloaded, int Saved)> SyncSchoolYearFromNeisAsync(
+        string schoolCode,
+        string provinceCode,
+        int year)
+    {
+        // 학년도 = 그 해 3/1 ~ 이듬해 2월 말일(윤년이면 2/29)
+        var startDate = new DateTime(year, 3, 1);
+        var endDate = new DateTime(year + 1, 3, 1).AddDays(-1);
+
+        var (success, message, schedules) = await DownloadFromNeisAsync(
+            schoolCode, provinceCode, year, startDate, endDate);
+
+        if (!success)
+            return (false, message, 0, 0);
+
+        if (schedules.Count == 0)
+            return (true, "해당 학년도의 학사일정이 없습니다.", 0, 0);
+
+        foreach (var schedule in schedules)
+        {
+            schedule.IsManual = false;
+            schedule.CreatedAt = DateTime.Now;
+            schedule.UpdatedAt = DateTime.Now;
+        }
+
+        var saved = await CreateBulkScheduleAsync(schedules);
+        if (!saved.Success)
+            return (false, saved.Message, schedules.Count, 0);
+
+        // 저장에 성공한 뒤에만 깃발을 세운다 — 깃발이 켜지면 이후 조회는 DB 만 본다.
+        Settings.IsNeisEventDownloaded.Set(true);
+
+        return (true, $"{schedules.Count}개 중 {saved.Count}개 신규 저장", schedules.Count, saved.Count);
+    }
+
     #endregion
 
     #region Helper Methods

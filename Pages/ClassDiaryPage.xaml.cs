@@ -15,6 +15,17 @@ public sealed partial class ClassDiaryPage : Page
 {
     private DateTime _currentDate = DateTime.Today;
     private int _currentYear;
+
+    /// <summary>
+    /// 화면에서 고른 학기.
+    ///
+    /// <para>⚠ 이 화면의 학년도·학기는 <b>위쪽 피커</b>가 정한다. <c>Settings.WorkYear</c>·
+    /// <c>Settings.WorkSemester</c> 를 섞어 쓰지 말 것 — 예전에는 학생 목록·당일 기록만
+    /// 피커를 따르고 <b>학급일지와 그 시간표는 설정값</b>을 봐서, 피커로 지난 학년도를 펼쳐
+    /// 놓고 쓴 일지가 <b>올해 행에 저장됐다.</b> 그 해의 일지는 열 방법도 없었다.</para>
+    /// </summary>
+    private int _currentSemester;
+
     private int _currentGrade;
     private int _currentClass;
 
@@ -22,6 +33,25 @@ public sealed partial class ClassDiaryPage : Page
     {
         this.InitializeComponent();
         InitializeControls();
+        Loaded += OnPageLoaded;
+    }
+
+    /// <summary>
+    /// 학생이 한 명도 없으면 빈 화면 대신 다음 할 일을 띄운다.
+    /// </summary>
+    private async void OnPageLoaded(object sender, RoutedEventArgs e)
+    {
+        EmptyState.Visibility = await Helpers.SetupProgress.HasAnyStudentAsync()
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    /// <summary>
+    /// 안내판의 [학생 추가하기] — 학생 관리 화면으로 보낸다.
+    /// </summary>
+    private void EmptyState_ActionInvoked(object sender, EventArgs e)
+    {
+        MainWindow.NavigateFromPage(this.Frame, typeof(StudentManagementPage), "Settings_Student");
     }
 
     /// <summary>
@@ -106,7 +136,8 @@ public sealed partial class ClassDiaryPage : Page
     {
         if (_currentGrade == 0 || _currentClass == 0 || _currentYear == 0) return;
 
-        await DiaryBox.LoadDiaryAsync(_currentGrade, _currentClass, _currentDate);
+        await DiaryBox.LoadDiaryAsync(
+            _currentYear, _currentSemester, _currentGrade, _currentClass, _currentDate);
     }
 
     /// <summary>
@@ -168,6 +199,7 @@ public sealed partial class ClassDiaryPage : Page
     private async void ClassFilter_ClassChanged(object? sender, ClassChangedEventArgs e)
     {
         _currentYear = e.Year;
+        _currentSemester = e.Semester;
         _currentGrade = e.Grade;
         _currentClass = e.Class;
 
@@ -228,7 +260,7 @@ public sealed partial class ClassDiaryPage : Page
             SchoolDatabase.DbPath,
             LogCategory.기타,
             _currentYear,
-            Settings.WorkSemester.Value,
+            _currentSemester,
             _currentGrade,
             _currentClass);
         logDialog.Closed += OnLogDialogClosedReloadDaily;
@@ -267,7 +299,7 @@ public sealed partial class ClassDiaryPage : Page
         var logDialog = new Dialogs.StudentLogDialog(
             student,
             _currentYear,
-            Settings.WorkSemester.Value);
+            _currentSemester);
         logDialog.Closed += OnLogDialogClosedReloadDaily;
         logDialog.Activate();
     }
@@ -342,7 +374,7 @@ public sealed partial class ClassDiaryPage : Page
 
         var listWin = new ClassDiaryListWin(
             _currentYear,
-            Settings.WorkSemester.Value,
+            _currentSemester,
             _currentGrade,
             _currentClass);
 

@@ -159,8 +159,14 @@ public class SchoolScheduleViewModel : NotifyPropertyChangedBase
         }
     }
 
-    // DisplayDateWithDay 는 바인딩도 호출도 없어 지웠다(39차) —
-    // 화면은 날짜와 요일을 따로 놓는다.
+    /// <summary>
+    /// 표시용 날짜+요일 (<c>2026.03.03. 월</c>) — 목록의 날짜 칸이 쓴다.
+    ///
+    /// <para>예전에는 날짜와 요일을 두 줄로 쌓아 놓아 행이 그만큼 높았다. 한 줄로 합치면서
+    /// 39차에 지웠던 이 속성을 되살린다(그때는 부르는 곳이 없었다). 날짜와 요일을 따로 쓰는
+    /// 곳(엑셀 내보내기)은 <see cref="DisplayDate"/>·<see cref="DisplayDayOfWeek"/> 그대로다.</para>
+    /// </summary>
+    public string DisplayDateWithDay => $"{DisplayDate}. {DisplayDayOfWeek}";
 
     /// <summary>
     /// 대상 학년 텍스트 (1,2,3학년 또는 전체)

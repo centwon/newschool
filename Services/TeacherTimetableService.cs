@@ -66,6 +66,36 @@ public class TeacherTimetableService : IDisposable
             Settings.WorkSemester.Value);
     }
 
+    /// <summary>
+    /// 그날만 걸리는 변경(휴강·교체·보강·대강)을 평소 슬롯 위에 얹는다.
+    ///
+    /// <para>규칙 자체는 <see cref="TimetableChangeMerger"/> 에 있다(DB 를 모르는 순수 함수).
+    /// 여기서는 그 날 변경을 읽어 넘기는 일만 한다 — <b>그 한 줄을 화면마다 따로 짜면
+    /// 빠뜨리는 화면이 생긴다.</b> 실제로 수업 홈의 [오늘의 수업] 만 이 단계를 거치지 않아,
+    /// 휴강한 수업이 예정 그대로 남고 "N시간 중 M건" 의 N 까지 부풀었다. 바로 옆 [내 시간표]
+    /// 는 얹고 있었으므로 한 화면이 두 답을 내놓았다.</para>
+    ///
+    /// <para>변경을 못 읽어도 평소 시간표는 그대로 쓸모가 있으므로, 실패하면 받은 것을
+    /// 그대로 돌려준다.</para>
+    /// </summary>
+    public static async Task<List<TimetableItemViewModel>> ApplyDayChangesAsync(
+        List<TimetableItemViewModel> slots, DateTime date)
+    {
+        try
+        {
+            using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
+            var changes = await repo.GetByDateAsync(Settings.User.Value, date);
+
+            return TimetableChangeMerger.Apply(
+                slots, changes, Helpers.SchoolCalendar.ToLessonDayOfWeek(date));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TeacherTimetableService] 시간표 변경 조회 실패: {ex.Message}");
+            return slots;
+        }
+    }
+
     #endregion
 
     #region 시간표 ViewModel 생성

@@ -31,7 +31,7 @@ public sealed partial class CourseHoursView : UserControl
     private List<Lesson> _lessons = [];
     private List<string> _rooms = [];
     private List<WeeklyHoursWeek> _weeks = [];
-    private Dictionary<(string Room, int Week), CourseWeeklyHours> _adjustments = [];
+    private Dictionary<(string Room, DateTime WeekStart), CourseWeeklyHours> _adjustments = [];
 
     private int _year;
     private int _semester;
@@ -406,8 +406,8 @@ public sealed partial class CourseHoursView : UserControl
             {
                 // 자동값과 같아지면 조정을 남길 이유가 없다. 남겨 두면 시간표가 바뀌어도
                 // 옛 숫자가 고정으로 버틴다.
-                await repo.DeleteAsync(_selectedCourse.No, room, week.Number);
-                _adjustments.Remove((room, week.Number));
+                await repo.DeleteAsync(_selectedCourse.No, room, week.StartDate);
+                _adjustments.Remove((room, week.StartDate));
             }
             else
             {
@@ -421,7 +421,7 @@ public sealed partial class CourseHoursView : UserControl
                 };
 
                 await repo.UpsertAsync(adjustment);
-                _adjustments[(room, week.Number)] = adjustment;
+                _adjustments[(room, week.StartDate)] = adjustment;
             }
 
             box.Text = value.ToString();
@@ -577,7 +577,7 @@ public sealed partial class CourseHoursView : UserControl
     #region 이벤트 · Helper
 
     private int EffectiveFor(WeeklyHoursWeek week, string room)
-        => _adjustments.TryGetValue((room, week.Number), out var adjustment)
+        => _adjustments.TryGetValue((room, week.StartDate), out var adjustment)
             ? adjustment.PlannedHours
             : week.AutoFor(room);
 

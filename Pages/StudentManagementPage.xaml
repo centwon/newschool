@@ -138,6 +138,20 @@
                     <TextBlock Text="학년도, 학년, 반을 선택하고 조회 버튼을 눌러주세요."
                                Style="{StaticResource BodyTextBlockStyle}"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    <!-- 처음 쓰는 사용자에게는 조회할 학생 자체가 없다 — 여기서 바로 넣게 한다.
+                         (같은 버튼이 화면 위쪽 도구 줄에도 있다.) -->
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                HorizontalAlignment="Center"
+                                Margin="0,8,0,0">
+                        <Button Content="학생 추가"
+                                Padding="16,4"
+                                Click="OnAddOneClick"
+                                Style="{StaticResource AccentButtonStyle}"/>
+                        <Button Content="엑셀로 일괄 추가"
+                                Padding="16,4"
+                                Click="OnAddBulkClick"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- 학생 목록 (헤더 고정 + ItemsRepeater 만 ScrollViewer 안) -->

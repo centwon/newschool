@@ -65,9 +65,10 @@ public sealed class TimetableService : IDisposable
             // ClassTimetable → TimetableItem 변환
             foreach (var timetable in timetables)
             {
-                // 유효성 검사
+                // 유효성 검사 — 교시 상한은 PeriodCounts.MaxSupported 하나가 정한다.
+                // 여기에 숫자를 박아 두면 그 위 교시가 격자에는 있는데 이 조회에서만 빠진다.
                 if (timetable.DayOfWeek < 1 || timetable.DayOfWeek > 5 ||
-                    timetable.Period < 1 || timetable.Period > 7)
+                    timetable.Period < 1 || timetable.Period > PeriodCounts.MaxSupported)
                 {
                     Debug.WriteLine($"[TimetableService] 잘못된 시간표: Grade={grade}, Class={classNo}, Day={timetable.DayOfWeek}, Period={timetable.Period}");
                     continue;

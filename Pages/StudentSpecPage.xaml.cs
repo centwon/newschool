@@ -44,7 +44,26 @@ public sealed partial class StudentSpecPage : Page, IDisposable
     {
         this.InitializeComponent();
         InitializeFilters();
+        Loaded += OnPageLoaded;
         // Unloaded 는 XAML 의 Page_Unloaded 에서 처리 (중복 등록 제거)
+    }
+
+    /// <summary>
+    /// 학생이 한 명도 없으면 빈 화면 대신 다음 할 일을 띄운다.
+    /// </summary>
+    private async void OnPageLoaded(object sender, RoutedEventArgs e)
+    {
+        EmptyState.Visibility = await Helpers.SetupProgress.HasAnyStudentAsync()
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    /// <summary>
+    /// 안내판의 [학생 추가하기] — 학생 관리 화면으로 보낸다.
+    /// </summary>
+    private void EmptyState_ActionInvoked(object sender, EventArgs e)
+    {
+        MainWindow.NavigateFromPage(this.Frame, typeof(StudentManagementPage), "Settings_Student");
     }
 
     #endregion

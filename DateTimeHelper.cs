@@ -32,6 +32,14 @@ public static class DateTimeHelper
     public static int SemesterOf(DateTime date) => date.Month is >= 3 and <= 8 ? 1 : 2;
 
     /// <summary>
+    /// 그 날짜가 속한 <b>학년도</b>. 학년도는 3월에 시작하므로 1·2월은 지난해 학년도다.
+    ///
+    /// <para>NEIS 학사일정을 내려받는 곳들이 저마다 <c>DateTime.Today.Year</c> 를 그대로
+    /// 학년도로 넘겼는데, 1·2월에는 그것이 아직 시작하지도 않은 학년도라 조회가 비었다.</para>
+    /// </summary>
+    public static int SchoolYearOf(DateTime date) => date.Month >= 3 ? date.Year : date.Year - 1;
+
+    /// <summary>
     /// 그 날짜가 속한 주의 월요일. 주 단위 시간표가 어느 주를 펼칠지 정하는 기준이다.
     /// (수업 홈의 내 시간표와 주간 시간표 화면이 각자 같은 코드를 들고 있었다 — 한 벌로 모은다.)
     /// </summary>

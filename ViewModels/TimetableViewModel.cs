@@ -159,7 +159,7 @@ public class TimetableItemViewModel : NotifyPropertyChangedBase
 }
 
 /// <summary>
-/// 전체 시간표 ViewModel (5일 x 7교시)
+/// 전체 시간표 ViewModel (월~금 × <see cref="PeriodCounts.MaxSupported"/> 교시)
 /// </summary>
 public class TimetableViewModel : NotifyPropertyChangedBase
 {
@@ -196,7 +196,7 @@ public class TimetableViewModel : NotifyPropertyChangedBase
     }
 
     /// <summary>
-    /// 시간표 아이템 목록 (5일 x 7교시 = 35개) (최적화됨)
+    /// 시간표 아이템 목록 (월~금 × <see cref="PeriodCounts.MaxSupported"/> 교시) (최적화됨)
     /// ⚡ OptimizedObservableCollection로 UI 업데이트 80% 향상
     /// </summary>
     public OptimizedObservableCollection<TimetableItemViewModel> Items
@@ -216,7 +216,11 @@ public class TimetableViewModel : NotifyPropertyChangedBase
     public string? ErrorMessage { get; set; }
 
     /// <summary>
-    /// 빈 시간표 초기화 (5일 x 7교시)
+    /// 빈 시간표 초기화 (월~금 × <see cref="PeriodCounts.MaxSupported"/> 교시).
+    ///
+    /// <para>⚠ 교시 수를 여기 적지 말 것. 예전에는 <b>7</b> 로 박아 두어, 설정에서 8교시로
+    /// 올려 배치한 수업이 <see cref="GetItem"/> 에서 <c>null</c> 로 떨어져
+    /// <b>조용히 사라졌다</b>(내 시간표·오늘 화면).</para>
     /// </summary>
     public void InitializeEmptyTimetable()
     {
@@ -224,7 +228,7 @@ public class TimetableViewModel : NotifyPropertyChangedBase
 
         for (int day = 1; day <= 5; day++) // 월~금
         {
-            for (int period = 1; period <= 7; period++) // 1~7교시
+            for (int period = 1; period <= PeriodCounts.MaxSupported; period++)
             {
                 Items.Add(new TimetableItemViewModel
                 {

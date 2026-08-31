@@ -274,51 +274,35 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
             SetBusy(true);
             TxtStatus.Text = "NEIS API 호출 중...";
 
-            // Functions.GetSchoolSchedulesAsync() 호출
-            var startDate = new DateTime(year, 3, 1);
-            // 학년도 종료일 = 다음 해 2월 말일 (윤년이면 2/29)
-            var endDate = new DateTime(year + 1, 3, 1).AddDays(-1);
-            var service = new SchoolScheduleService(SchoolDatabase.DbPath);
-            var neisSchedules = await service.DownloadFromNeisAsync(
+            // 받기·저장·깃발 세우기는 서비스 한 곳에 묶여 있다(SyncSchoolYearFromNeisAsync).
+            // 예전에는 여기서 DownloadFromNeisAsync 로 받고 Success 를 보지 않은 채 건수만
+            // 확인해서, 인증키가 없거나 네트워크가 끊겼을 때도 "가져온 학사일정이 없습니다"
+            // 라고만 말했다. 서비스 객체도 새로 만들어 놓고 Dispose 하지 않았다.
+            var sync = await _scheduleservice.SyncSchoolYearFromNeisAsync(
                 Settings.SchoolCode,
                 Settings.ProvinceCode,
-                year,
-                startDate,
-                endDate);
+                year);
 
-            if (neisSchedules.Schedules == null || neisSchedules.Schedules.Count == 0)
+            if (!sync.Success)
+            {
+                await MessageBox.ShowAsync($"학사일정을 가져오지 못했습니다.\n{sync.Message}", "오류");
+                return;
+            }
+
+            if (sync.Downloaded == 0)
             {
                 await MessageBox.ShowAsync("NEIS에서 가져온 학사일정이 없습니다.", "알림");
                 return;
             }
 
-            TxtStatus.Text = $"DB 저장 중... ({neisSchedules.Schedules.Count}개)";
+            var duplicateCount = sync.Downloaded - sync.Saved;
 
-            // DB에 일괄 저장 (중복 제외)
-            foreach (var schedule in neisSchedules.Schedules)
-            {
-                schedule.IsManual = false;
-                schedule.CreatedAt = DateTime.Now;
-                schedule.UpdatedAt = DateTime.Now;
-            }
-            var value = await _scheduleservice.CreateBulkScheduleAsync(neisSchedules.Schedules);
-            if (!value.Success)
-            {
-                // 저장 실패인데 플래그를 세우거나 음수 Count(-1)로 이상한 집계를 내지 않도록 먼저 처리
-                await MessageBox.ShowAsync($"학사일정 저장에 실패했습니다.\n{value.Message}", "오류");
-                return;
-            }
-
-            Settings.IsNeisEventDownloaded.Set(true); // 저장 성공 후에 다운로드 플래그 설정
-            var savedCount = value.Count;
-            var duplicateCount = neisSchedules.Schedules.Count - savedCount;
-
-            var message = $"동기화 완료!\n총 {neisSchedules.Schedules.Count}개 중 {savedCount}개 신규 저장";
+            var message = $"동기화 완료!\n총 {sync.Downloaded}개 중 {sync.Saved}개 신규 저장";
             if (duplicateCount > 0)
             {
                 message += $"\n({duplicateCount}개는 이미 존재하여 건너뜀)";
             }
-            
+
             await MessageBox.ShowAsync(message, "알림");
             
             // 목록 새로고침

@@ -79,6 +79,19 @@ public sealed partial class PageStudentInfo : Page, IDisposable
 
         // StudentCard 이벤트 구독
         SCard.StudentChanged += SCard_StudentChanged;
+
+        // 학생이 한 명도 없으면 빈 화면 대신 다음 할 일을 띄운다
+        EmptyState.Visibility = await SetupProgress.HasAnyStudentAsync()
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    /// <summary>
+    /// 안내판의 [학생 추가하기] — 학생 관리 화면으로 보낸다(한 명씩·엑셀 일괄 둘 다 거기 있다).
+    /// </summary>
+    private void EmptyState_ActionInvoked(object sender, EventArgs e)
+    {
+        MainWindow.NavigateFromPage(this.Frame, typeof(StudentManagementPage), "Settings_Student");
     }
 
     private async void PageStudentInfo_Unloaded(object sender, RoutedEventArgs e)

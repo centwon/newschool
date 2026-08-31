@@ -16,16 +16,9 @@
               Background="{ThemeResource DividerStrokeColorDefaultBrush}"
               ColumnSpacing="1" RowSpacing="1">
             <Grid.RowDefinitions>
-                <!-- 헤더 행 -->
+                <!-- 헤더 행. 교시 행은 코드비하인드가 PeriodCounts.MaxSupported 만큼 만든다 —
+                     여기에 손으로 적어 두면 상한을 늘릴 때 이 파일을 잊는다. -->
                 <RowDefinition Height="auto"/>
-                <!-- 1~7교시 행 -->
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <Grid.ColumnDefinitions>
@@ -103,48 +96,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- 교시 열 (1~7교시) -->
-            <Border Grid.Row="1" Grid.Column="0" Padding="4"
-                        Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontSize="12" FontWeight="Medium"/>
-            </Border>
-
-            <Border Grid.Row="2" Grid.Column="0" Padding="4"
-                        Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontSize="12" FontWeight="Medium"/>
-            </Border>
-
-            <Border Grid.Row="3" Grid.Column="0" Padding="4"
-                        Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontSize="12" FontWeight="Medium"/>
-            </Border>
-
-            <Border Grid.Row="4" Grid.Column="0" Padding="4"
-                        Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="4" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontSize="12" FontWeight="Medium"/>
-            </Border>
-
-            <Border Grid.Row="5" Grid.Column="0" Padding="4"
-                        Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="5" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontSize="12" FontWeight="Medium"/>
-            </Border>
-
-            <Border Grid.Row="6" Grid.Column="0" Padding="4"
-                        Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="6" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontSize="12" FontWeight="Medium"/>
-            </Border>
-
-            <Border Grid.Row="7" Grid.Column="0" Padding="4"
-                        Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Text="7" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontSize="12" FontWeight="Medium"/>
-            </Border>
+            <!-- 교시 열(1~n)도 코드비하인드가 만든다 (BuildPeriodRows) -->
 
             <!-- 시간표 셀들은 코드비하인드에서 동적으로 생성 -->
         </Grid>

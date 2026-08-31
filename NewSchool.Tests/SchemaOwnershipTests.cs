@@ -151,13 +151,19 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
     }
 
     /// <summary>
-    /// 주차별 시수는 <b>손으로 고친 칸만</b> 남긴다. 같은 (수업, 학급, 주차) 가 두 줄이면
-    /// 어느 값이 진짜인지 알 수 없으므로 UNIQUE 로 막아 둔다(리포지토리의 UPSERT 도 여기 기댄다).
+    /// 주차별 시수는 <b>손으로 고친 칸만</b> 남긴다. 같은 주가 두 줄이면 어느 값이 진짜인지
+    /// 알 수 없으므로 UNIQUE 로 막아 둔다(리포지토리의 UPSERT 도 여기 기댄다).
     ///
-    /// <c>Room</c> 이 빠지면 같은 주차의 둘째 학급이 조용히 저장되지 않으므로 열 구성까지 못박는다.
+    /// <para>키는 주차 <b>번호</b>가 아니라 <b>주 시작일</b>이다. 번호는 학기 구간에서 다시
+    /// 세어지는 값이라, 2학기를 관례값(9/1 시작)으로 보다가 학사일정을 내려받으면 시작이
+    /// 여름방학 다음 첫 수업일로 당겨지면서 번호가 통째로 밀린다 — 손으로 고친 시수가
+    /// 조용히 다른 주에 가서 붙었다(2026-08-31 감사).</para>
+    ///
+    /// <para><c>Room</c> 이 빠지면 같은 주의 둘째 학급이 조용히 저장되지 않으므로
+    /// 열 구성까지 못박는다.</para>
     /// </summary>
     [Fact]
-    public async Task CourseWeeklyHours_는_수업_학급_주차가_유일하다()
+    public async Task CourseWeeklyHours_는_수업_학급_주시작일이_유일하다()
     {
         using var conn = new SqliteConnection($"Data Source={_fx.DbPath}");
         await conn.OpenAsync();
@@ -183,6 +189,10 @@ public class SchemaOwnershipTests : IClassFixture<SqliteTestFixture>
 
         Assert.Contains("CourseNo", columns);
         Assert.Contains("Room", columns);
-        Assert.Contains("Week", columns);
+        Assert.Contains("WeekStartDate", columns);
+
+        // 번호로 갈리던 옛 키가 남아 있으면 안 된다 — 두 키가 공존하면 UPSERT 가
+        // 어느 쪽에 걸리는지에 따라 같은 주가 두 줄이 된다.
+        Assert.DoesNotContain("Week", columns);
     }
 }

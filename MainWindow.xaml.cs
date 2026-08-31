@@ -47,6 +47,58 @@ public sealed partial class MainWindow : Window
         SetAppIcon();
     }
 
+    /// <summary>
+    /// 페이지 안에서 다른 메뉴로 넘어갈 때 쓴다 — 화면과 상단 메뉴 표시를 함께 옮긴다.
+    ///
+    /// <para><c>Frame.Navigate</c> 만 부르면 화면은 바뀌는데 상단 메뉴는 원래 있던 항목을
+    /// 계속 파랗게 물고 있어서, 지금 어디에 있는지가 어긋난다(빈 화면 안내판의
+    /// [학생 추가하기] 처럼 페이지가 스스로 옮겨 가는 경우).</para>
+    ///
+    /// <para><c>SelectedItem</c> 을 넣는 것으로는 <c>ItemInvoked</c> 가 뜨지 않으므로
+    /// 화면 이동은 여기서 직접 한다.</para>
+    /// </summary>
+    /// <param name="pageType">넘어갈 페이지</param>
+    /// <param name="navTag">상단 메뉴에서 고를 항목의 Tag</param>
+    public void NavigateTo(Type pageType, string navTag)
+    {
+        WorkFrame.BackStack.Clear();
+        WorkFrame.Navigate(pageType);
+
+        var target = FindNavItem(NavView.MenuItems, navTag);
+        if (target != null)
+            NavView.SelectedItem = target;
+    }
+
+    /// <summary>
+    /// 페이지 쪽에서 부르는 <see cref="NavigateTo"/>. 메인 창을 찾으면 상단 메뉴 표시까지
+    /// 옮기고, 못 찾으면 페이지가 놓인 Frame 만 옮긴다.
+    /// </summary>
+    public static void NavigateFromPage(Frame? frame, Type pageType, string navTag)
+    {
+        if (App.MainWindow is MainWindow main)
+            main.NavigateTo(pageType, navTag);
+        else
+            frame?.Navigate(pageType);
+    }
+
+    /// <summary>Tag 로 메뉴 항목을 찾는다(하위 메뉴까지).</summary>
+    private static NavigationViewItem? FindNavItem(System.Collections.Generic.IList<object> items, string tag)
+    {
+        foreach (var entry in items)
+        {
+            if (entry is not NavigationViewItem item) continue;
+
+            if (string.Equals(item.Tag?.ToString(), tag, StringComparison.Ordinal))
+                return item;
+
+            var found = FindNavItem(item.MenuItems, tag);
+            if (found != null)
+                return found;
+        }
+
+        return null;
+    }
+
     #region 전역 알림 InfoBar (백그라운드 동기화 실패 등)
 
     /// <summary>

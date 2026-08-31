@@ -96,4 +96,39 @@ public class StudentIdAndDateTests
         for (var d = start; d <= end; d = d.AddDays(1))
             Assert.Equal(semester, DateTimeHelper.SemesterOf(d));
     }
+
+    /// <summary>
+    /// 학년도는 3월에 시작한다 — 1·2월은 지난해 학년도다.
+    ///
+    /// 초기 설정 창과 NEIS 학사일정 내려받기가 <c>DateTime.Today.Year</c> 를 그대로 학년도로
+    /// 썼다. 그러면 1·2월에 "2027학년도 2학기" 처럼 아직 시작하지도 않은 조합이 기본값이 되고,
+    /// 학사일정 조회는 빈 결과를 받는다.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 2025)]   // 2026년 1월 → 2025학년도
+    [InlineData(2, 2025)]
+    [InlineData(3, 2026)]   // 학년도 시작
+    [InlineData(8, 2026)]
+    [InlineData(9, 2026)]
+    [InlineData(12, 2026)]
+    public void SchoolYearOf_는_3월에_바뀐다(int month, int expected)
+        => Assert.Equal(expected, DateTimeHelper.SchoolYearOf(new DateTime(2026, month, 15)));
+
+    /// <summary>
+    /// 학년도와 학기가 서로 어긋나지 않는지 본다 — 어느 날짜든
+    /// (SchoolYearOf, SemesterOf) 짝은 실제로 존재하는 학기 구간 안에 들어와야 한다.
+    /// </summary>
+    [Theory]
+    [InlineData(2026, 1)]
+    [InlineData(2026, 2)]
+    public void SchoolYearOf_와_SemesterOf_는_같은_학기를_가리킨다(int year, int semester)
+    {
+        var (start, end) = NewSchool.Services.WeeklyHoursCalculator.DefaultSemesterRange(year, semester);
+
+        for (var d = start; d <= end; d = d.AddDays(1))
+        {
+            Assert.Equal(year, DateTimeHelper.SchoolYearOf(d));
+            Assert.Equal(semester, DateTimeHelper.SemesterOf(d));
+        }
+    }
 }

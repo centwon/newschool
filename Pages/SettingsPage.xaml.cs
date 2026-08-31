@@ -52,6 +52,11 @@ public sealed partial class SettingsPage : Page
             BreakTimeNumberBox.Value = Settings.BreakTime.Value.TotalMinutes;
             LunchTimeNumberBox.Value = Settings.LunchTime.Value.TotalMinutes;
 
+            // 입력 상한은 XAML 이 아니라 여기서 건다 — 상한이 표시 쪽과 갈리면
+            // "설정에서는 올라가는데 시간표에는 안 나오는" 교시가 생긴다(PeriodCounts.MaxSupported 주석).
+            foreach (var box in new[] { PeriodsMonBox, PeriodsTueBox, PeriodsWedBox, PeriodsThuBox, PeriodsFriBox })
+                box.Maximum = Models.PeriodCounts.MaxSupported;
+
             var periods = Models.PeriodCounts.Parse(Settings.PeriodsPerDay.Value);
             PeriodsMonBox.Value = periods.Mon;
             PeriodsTueBox.Value = periods.Tue;

@@ -14,6 +14,10 @@ public class CourseEnrollmentRepository : BaseRepository
 {
     public CourseEnrollmentRepository(string dbPath) : base(dbPath) { }
 
+    /// <summary>공유 연결 생성자. 여러 표를 한 트랜잭션으로 묶을 때 쓴다
+    /// (<see cref="Services.CourseRoomReset"/>).</summary>
+    public CourseEnrollmentRepository(SqliteConnection connection) : base(connection) { }
+
     #region Create
 
     /// <summary>

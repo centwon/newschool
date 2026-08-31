@@ -205,9 +205,10 @@
                                                        Foreground="{x:Bind PeriodForeground}"
                                                        VerticalAlignment="Center"/>
 
-                                            <!-- 과목 -->
+                                            <!-- 과목 — 변경이 걸린 교시는 (교)(보)(대)(휴) 표식이 앞에 붙는다 -->
                                             <TextBlock Grid.Column="1"
-                                                       Text="{x:Bind Subject}"
+                                                       Text="{x:Bind SubjectDisplay}"
+                                                       ToolTipService.ToolTip="{x:Bind ChangeTooltip}"
                                                        FontSize="13"
                                                        Foreground="{x:Bind SubjectForeground}"
                                                        VerticalAlignment="Center"/>
@@ -233,6 +234,7 @@
                                             <!-- 상태 버튼 -->
                                             <Button Grid.Column="4"
                                                     Content="{x:Bind StatusText}"
+                                                    IsEnabled="{x:Bind IsActionable}"
                                                     MinWidth="56" Height="28"
                                                     Padding="8,2"
                                                     FontSize="12"
@@ -279,5 +281,16 @@
                                  FixedCategory="수업"/>
             </Grid>
         </Grid>
+
+        <!-- 개설한 수업이 하나도 없을 때 화면 전체를 덮는 안내 (마지막 자식이라 위에 그려진다) -->
+        <controls:EmptyStateView x:Name="EmptyState"
+                                 Grid.Row="0" Grid.RowSpan="2"
+                                 Margin="-8"
+                                 Visibility="Collapsed"
+                                 Glyph="&#xE8F4;"
+                                 Title="개설한 수업이 없습니다"
+                                 Message="수업을 개설하면 시간표·수업 일지·진도가 이 화면에 모입니다."
+                                 ActionText="수업 개설하기"
+                                 ActionInvoked="EmptyState_ActionInvoked"/>
     </Grid>
 </Page>

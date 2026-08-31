@@ -24,8 +24,8 @@ public enum TimetableDisplayMode
 }
 
 /// <summary>
-/// 시간표 표시 UserControl
-/// 5일(월~금) x 7교시 그리드
+/// 시간표 표시 UserControl.
+/// 월~금 × <see cref="PeriodCounts.MaxSupported"/> 교시 그리드(행은 코드에서 만든다).
 /// </summary>
 public sealed partial class TimetableControl : UserControl
 {
@@ -63,7 +63,44 @@ public sealed partial class TimetableControl : UserControl
     public TimetableControl()
     {
         this.InitializeComponent();
+        BuildPeriodRows();
         this.DataContextChanged += TimetableControl_DataContextChanged;
+    }
+
+    /// <summary>
+    /// 교시 행과 왼쪽 교시 번호 열을 만든다 — 개수는 <see cref="PeriodCounts.MaxSupported"/> 하나가 정한다.
+    ///
+    /// <para>XAML 에 <c>RowDefinition</c> 일곱 개와 번호 <c>Border</c> 일곱 개를 손으로 적어 두었을
+    /// 때는, 설정에서 8교시를 허용해도 이 격자에는 그릴 자리가 없어 <b>그 교시 수업만 조용히
+    /// 사라졌다.</b> 상한을 늘릴 때 잊는 파일이 생기지 않도록 여기서 만든다.</para>
+    ///
+    /// <para>번호 칸은 <b>0번 열</b>에 놓는다 — <see cref="RemoveExistingCells"/> 가
+    /// "행&gt;0 그리고 열&gt;0" 만 걷어내므로 다시 그릴 때 살아남는다.</para>
+    /// </summary>
+    private void BuildPeriodRows()
+    {
+        for (int period = 1; period <= PeriodCounts.MaxSupported; period++)
+        {
+            TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            var label = new Border
+            {
+                Padding = new Thickness(4),
+                Background = (SolidColorBrush)Application.Current.Resources["LayerFillColorDefaultBrush"],
+                Child = new TextBlock
+                {
+                    Text = period.ToString(),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontSize = 12,
+                    FontWeight = Microsoft.UI.Text.FontWeights.Medium
+                }
+            };
+
+            Grid.SetRow(label, period);
+            Grid.SetColumn(label, 0);
+            TimetableGrid.Children.Add(label);
+        }
     }
 
     /// <summary>
@@ -109,7 +146,7 @@ public sealed partial class TimetableControl : UserControl
                 var changes = await repo.GetByDateAsync(Settings.User.Value, monday.AddDays(day - 1));
                 if (changes.Count == 0) continue;
 
-                var slots = Enumerable.Range(1, 7)
+                var slots = Enumerable.Range(1, PeriodCounts.MaxSupported)
                     .Select(p => viewModel.GetItem(day, p))
                     .Where(i => i is { IsEmpty: false })
                     .Select(i => i!)
@@ -211,13 +248,13 @@ public sealed partial class TimetableControl : UserControl
     }
 
     /// <summary>
-    /// 시간표 셀 생성 (5일 x 7교시)
+    /// 시간표 셀 생성 (월~금 × <see cref="PeriodCounts.MaxSupported"/> 교시)
     /// </summary>
     private void CreateTimetableCells(TimetableViewModel viewModel)
     {
         for (int day = 1; day <= 5; day++) // 월~금
         {
-            for (int period = 1; period <= 7; period++) // 1~7교시
+            for (int period = 1; period <= PeriodCounts.MaxSupported; period++)
             {
                 var item = viewModel.GetItem(day, period);
                 var cell = item != null

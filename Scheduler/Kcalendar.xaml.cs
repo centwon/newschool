@@ -173,41 +173,39 @@ public sealed partial class Kcalendar : Page
                 {
                     Debug.WriteLine($"[Kcalendar] 스케줄 로드 시작");
 
-                    if (Settings.IsNeisEventDownloaded.Value)
+                    // SchoolDatabase.DbPath 를 쓴다 — Settings.SchoolDB.Value 는 "school.db" 라는
+                    // 파일 이름뿐이라 상대 경로가 되고, SQLite 가 그것을 프로세스 작업 폴더(실행 파일
+                    // 옆)에서 찾다가 없으면 빈 DB 를 새로 만든다. 달력에 학사일정이 하나도 안 뜨고
+                    // 실행 파일 옆에 school.db 가 생기던 원인이다. 다른 호출처 6곳은 모두 DbPath 를 썼다.
+                    using var scheduleService = new SchoolScheduleService(SchoolDatabase.DbPath);
+
+                    // 아직 한 번도 받은 적이 없으면 그 학년도를 통째로 받아 DB 에 넣는다.
+                    // 예전에는 이 화면이 42일치를 받아 그리기만 하고 저장하지 않아서, 달을 넘길
+                    // 때마다 NEIS 를 다시 부르면서도 DB 에는 아무것도 남기지 않았다.
+                    if (!Settings.IsNeisEventDownloaded.Value)
                     {
-                        // ✅ DB에서 비동기로 로드
-                        Debug.WriteLine($"[Kcalendar] DB에서 로드: {calendarStart:yyyy-MM-dd} + 42일");
-                        // SchoolDatabase.DbPath 를 쓴다 — Settings.SchoolDB.Value 는 "school.db" 라는
-                        // 파일 이름뿐이라 상대 경로가 되고, SQLite 가 그것을 프로세스 작업 폴더(실행 파일
-                        // 옆)에서 찾다가 없으면 빈 DB 를 새로 만든다. 달력에 학사일정이 하나도 안 뜨고
-                        // 실행 파일 옆에 school.db 가 생기던 원인이다. 다른 호출처 6곳은 모두 DbPath 를 썼다.
-                        using var scheduleService = new SchoolScheduleService(SchoolDatabase.DbPath);
-                        var schedules = await scheduleService.GetSchedulesByDataRangeAsync(Settings.SchoolCode, calendarStart, calendarEnd);
-                        if (schedules.Success)
+                        Debug.WriteLine($"[Kcalendar] NEIS API에서 로드");
+                        var sync = await scheduleService.SyncSchoolYearFromNeisAsync(
+                            Settings.SchoolCode, Settings.ProvinceCode, DateTimeHelper.SchoolYearOf(_basedate));
+
+                        if (!sync.Success)
                         {
-                            newSchedules = schedules.Schedules;
-                            Debug.WriteLine($"[Kcalendar] DB 로드 결과: {newSchedules.Count}개");
+                            Debug.WriteLine($"[Kcalendar] 학사일정 다운로드 실패: {sync.Message}");
                         }
-                        else
-                        {
-                            Debug.WriteLine($"[Kcalendar] 학사일정 조회 실패: {schedules.Message}");
-                            failed.Add("학사일정");
-                        }
+                    }
+
+                    // ✅ DB에서 비동기로 로드
+                    Debug.WriteLine($"[Kcalendar] DB에서 로드: {calendarStart:yyyy-MM-dd} + 42일");
+                    var schedules = await scheduleService.GetSchedulesByDataRangeAsync(Settings.SchoolCode, calendarStart, calendarEnd);
+                    if (schedules.Success)
+                    {
+                        newSchedules = schedules.Schedules;
+                        Debug.WriteLine($"[Kcalendar] DB 로드 결과: {newSchedules.Count}개");
                     }
                     else
                     {
-                        // API에서 로드
-                        Debug.WriteLine($"[Kcalendar] NEIS API에서 로드");
-                        // 위와 같은 이유로 DbPath — 내려받은 학사일정을 저장하는 자리도 여기다.
-                        using var scheduleService = new SchoolScheduleService(SchoolDatabase.DbPath);
-                        var downloads = await scheduleService.DownloadFromNeisAsync(schoolCode: Settings.SchoolCode,
-                                                                                   provinceCode: Settings.ProvinceCode,
-                                                                                   year: _basedate.Year,
-                                                                                   startDate: calendarStart,
-                                                                                   endDate: calendarEnd);
-                        if (downloads.Success) { newSchedules = downloads.Schedules; }
-                        else { failed.Add("학사일정"); }
-                        Debug.WriteLine($"[Kcalendar] API 로드 결과: {newSchedules.Count}개");
+                        Debug.WriteLine($"[Kcalendar] 학사일정 조회 실패: {schedules.Message}");
+                        failed.Add("학사일정");
                     }
 
                     Debug.WriteLine($"[Kcalendar] 스케줄 로드 완료: {newSchedules.Count}개");

@@ -181,29 +181,34 @@
                              같아도 간격만큼(12 × 5칸 = 60px) 헤더와 값이 어긋나 오른쪽 열일수록
                              밀린다 — 실제로 헤더에만 빠져 있었다. -->
                         <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                              Padding="16,12"
+                              Padding="16,6"
                               ColumnSpacing="12"
                               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                               BorderThickness="0,0,0,1">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="50"/>   <!-- 체크박스 -->
-                                <ColumnDefinition Width="140"/>  <!-- 날짜 -->
-                                <ColumnDefinition Width="*"/>    <!-- 행사명/내용 -->
+                                <ColumnDefinition Width="36"/>   <!-- 체크박스 -->
+                                <ColumnDefinition Width="130"/>  <!-- 날짜 -->
+                                <ColumnDefinition Width="*"/>    <!-- 행사명 -->
+                                <ColumnDefinition Width="1.6*"/> <!-- 내용 -->
                                 <ColumnDefinition Width="100"/>  <!-- 수업공제일 -->
-                                <ColumnDefinition Width="240"/>  <!-- 학년 체크박스 -->
-                                <ColumnDefinition Width="60"/>   <!-- 수동입력 -->
+                                <ColumnDefinition Width="200"/>  <!-- 학년 체크박스 -->
+                                <ColumnDefinition Width="52"/>   <!-- 수동입력 -->
                             </Grid.ColumnDefinitions>
 
                             <CheckBox x:Name="ChkSelectAll"
                                       Grid.Column="0"
                                       Content=""
+                                      MinWidth="0"
+                                      MinHeight="0"
                                       Click="OnSelectAllClick"
-                                      HorizontalAlignment="Left"/>
-                            <TextBlock Grid.Column="1" Text="날짜" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="2" Text="행사명 / 내용" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="3" Text="수업공제일" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="4" Text="대상학년" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="5" Text="구분" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                      HorizontalAlignment="Left"
+                                      VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="날짜" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="행사명" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="내용" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" Text="수업공제일" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="5" Text="대상학년" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="6" Text="구분" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
 
                         <!-- ItemsRepeater로 목록 표시 -->
@@ -214,58 +219,70 @@
 
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="viewmodels:SchoolScheduleViewModel">
+                                    <!-- 한 행을 한 줄 높이로 눌러 담는다. 예전에는 날짜(2줄)와
+                                         행사명·내용(TextBox 2개)을 세로로 쌓아 한 행이 70px 을
+                                         넘겼다 — 한 화면에 열 몇 줄밖에 못 담겼다.
+                                         TextBox·ComboBox·CheckBox 의 기본 MinHeight 32 를 풀어야
+                                         Padding 을 줄인 효과가 난다. -->
                                     <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                                             BorderThickness="0,0,0,1"
-                                            Padding="16,12">
+                                            Padding="16,3">
                                         <Grid ColumnSpacing="12">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="50"/>   <!-- 체크박스 -->
-                                                <ColumnDefinition Width="140"/>  <!-- 날짜 -->
-                                                <ColumnDefinition Width="*"/>    <!-- 행사명/내용 -->
+                                                <ColumnDefinition Width="36"/>   <!-- 체크박스 -->
+                                                <ColumnDefinition Width="130"/>  <!-- 날짜 -->
+                                                <ColumnDefinition Width="*"/>    <!-- 행사명 -->
+                                                <ColumnDefinition Width="1.6*"/> <!-- 내용 -->
                                                 <ColumnDefinition Width="100"/>  <!-- 수업공제일 -->
-                                                <ColumnDefinition Width="240"/>  <!-- 학년 -->
-                                                <ColumnDefinition Width="60"/>   <!-- 수동입력 -->
+                                                <ColumnDefinition Width="200"/>  <!-- 학년 -->
+                                                <ColumnDefinition Width="52"/>   <!-- 수동입력 -->
                                             </Grid.ColumnDefinitions>
 
                                             <!-- 체크박스 -->
                                             <CheckBox Grid.Column="0"
                                                       IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                                                      MinWidth="0"
+                                                      MinHeight="0"
                                                       HorizontalAlignment="Left"
                                                       VerticalAlignment="Center"/>
 
-                                            <!-- 날짜 -->
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind DisplayDate}" 
-                                                           FontWeight="SemiBold"
-                                                           FontSize="14"
-                                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                                <TextBlock Text="{x:Bind DisplayDayOfWeek}" 
-                                                           FontSize="12"
-                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            </StackPanel>
+                                            <!-- 날짜 + 요일 (2026.03.03. 월) -->
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{x:Bind DisplayDateWithDay}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="13"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
 
-                                            <!-- 행사명 및 내용 -->
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
-                                                <TextBox Text="{x:Bind EVENT_NM, Mode=TwoWay}"
-                                                         FontWeight="Bold"
-                                                         FontSize="14"
-                                                         BorderThickness="0"
-                                                         Background="Transparent"
-                                                         Padding="0"/>
-                                                <TextBox Text="{x:Bind EVENT_CNTNT, Mode=TwoWay}"
-                                                         FontSize="12"
-                                                         BorderThickness="0"
-                                                         Background="Transparent"
-                                                         Padding="0"
-                                                         TextWrapping="Wrap"
-                                                         AcceptsReturn="True"
-                                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            </StackPanel>
+                                            <!-- 행사명 -->
+                                            <TextBox Grid.Column="2"
+                                                     Text="{x:Bind EVENT_NM, Mode=TwoWay}"
+                                                     FontWeight="SemiBold"
+                                                     FontSize="13"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     MinHeight="0"
+                                                     Padding="4,1"
+                                                     VerticalAlignment="Center"/>
+
+                                            <!-- 내용 -->
+                                            <TextBox Grid.Column="3"
+                                                     Text="{x:Bind EVENT_CNTNT, Mode=TwoWay}"
+                                                     FontSize="13"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     MinHeight="0"
+                                                     Padding="4,1"
+                                                     VerticalAlignment="Center"
+                                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                                             <!-- 수업공제일 -->
-                                            <ComboBox Grid.Column="3"
+                                            <ComboBox Grid.Column="4"
                                                       SelectedValue="{x:Bind SBTR_DD_SC_NM, Mode=TwoWay}"
+                                                      FontSize="13"
+                                                      MinHeight="0"
+                                                      Padding="8,1,0,1"
                                                       HorizontalAlignment="Stretch"
                                                       VerticalAlignment="Center">
                                                 <x:String>해당없음</x:String>
@@ -274,41 +291,47 @@
                                             </ComboBox>
 
                                             <!-- 학년 체크박스 -->
-                                            <StackPanel Grid.Column="4" 
-                                                        Orientation="Horizontal" 
-                                                        Spacing="8"
+                                            <StackPanel Grid.Column="5"
+                                                        Orientation="Horizontal"
+                                                        Spacing="4"
                                                         VerticalAlignment="Center">
-                                                <CheckBox Content="1" 
+                                                <CheckBox Content="1"
                                                           IsChecked="{x:Bind ONE_GRADE_EVENT_YN, Mode=TwoWay}"
-                                                          MinWidth="0"/>
-                                                <CheckBox Content="2" 
+                                                          MinWidth="0"
+                                                          MinHeight="0"/>
+                                                <CheckBox Content="2"
                                                           IsChecked="{x:Bind TW_GRADE_EVENT_YN, Mode=TwoWay}"
-                                                          MinWidth="0"/>
-                                                <CheckBox Content="3" 
+                                                          MinWidth="0"
+                                                          MinHeight="0"/>
+                                                <CheckBox Content="3"
                                                           IsChecked="{x:Bind THREE_GRADE_EVENT_YN, Mode=TwoWay}"
-                                                          MinWidth="0"/>
-                                                <CheckBox Content="4" 
+                                                          MinWidth="0"
+                                                          MinHeight="0"/>
+                                                <CheckBox Content="4"
                                                           IsChecked="{x:Bind FR_GRADE_EVENT_YN, Mode=TwoWay}"
-                                                          MinWidth="0"/>
-                                                <CheckBox Content="5" 
+                                                          MinWidth="0"
+                                                          MinHeight="0"/>
+                                                <CheckBox Content="5"
                                                           IsChecked="{x:Bind FIV_GRADE_EVENT_YN, Mode=TwoWay}"
-                                                          MinWidth="0"/>
-                                                <CheckBox Content="6" 
+                                                          MinWidth="0"
+                                                          MinHeight="0"/>
+                                                <CheckBox Content="6"
                                                           IsChecked="{x:Bind SIX_GRADE_EVENT_YN, Mode=TwoWay}"
-                                                          MinWidth="0"/>
+                                                          MinWidth="0"
+                                                          MinHeight="0"/>
                                             </StackPanel>
 
                                             <!-- 수동입력/수정 표시 -->
-                                            <StackPanel Grid.Column="5"
+                                            <StackPanel Grid.Column="6"
                                                        Orientation="Horizontal"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        Spacing="4">
                                                 <TextBlock Text="{x:Bind ManualIcon}"
-                                                           FontSize="16"
+                                                           FontSize="14"
                                                            ToolTipService.ToolTip="수동 입력"/>
                                                 <TextBlock Text="{x:Bind ModifiedIcon, Mode=OneWay}"
-                                                           FontSize="16"
+                                                           FontSize="14"
                                                            Foreground="{ThemeResource SystemFillColorAttentionBrush}"
                                                            ToolTipService.ToolTip="수정됨 (자동 선택)"/>
                                             </StackPanel>

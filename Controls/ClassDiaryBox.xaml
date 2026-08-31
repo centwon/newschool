@@ -46,9 +46,12 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" 
-                           Text="학급 시간표" 
-                           FontWeight="Bold" 
+                <!-- 조회에 실패하면 여기 문구가 바뀐다 — 빈 격자만 남으면
+                     "시간표가 아직 없음" 과 "못 읽어 옴" 이 구분되지 않는다. -->
+                <TextBlock Grid.Row="0"
+                           x:Name="TxtTimetableTitle"
+                           Text="학급 시간표"
+                           FontWeight="Bold"
                            FontSize="12"
                            Margin="0,0,0,2"/>
 

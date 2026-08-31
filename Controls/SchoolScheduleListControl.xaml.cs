@@ -38,37 +38,31 @@ public sealed partial class SchoolScheduleListControl : UserControl
             using var service = new SchoolScheduleService(SchoolDatabase.DbPath);
             List<SchoolSchedule>? schedules = null;
 
-            if (Settings.IsNeisEventDownloaded.Value || !includeDownload)
+            // 받아 오라는 부탁을 받았고 아직 한 번도 받은 적이 없으면, 학년도 전체를 받아
+            // DB 에 넣는다. 예전에는 받은 것을 그리기만 하고 저장하지 않은 채 깃발만 켜서,
+            // 그 다음부터는 빈 DB 를 읽어 학사일정이 사라졌다.
+            if (includeDownload && !Settings.IsNeisEventDownloaded.Value)
             {
-                // DB에서 조회
-                var (Success, Message, Schedules) = await service.GetSchedulesByDataRangeAsync(
-                    Settings.SchoolCode, startDate, startDate.AddDays(days + 1));
+                var sync = await service.SyncSchoolYearFromNeisAsync(
+                    Settings.SchoolCode, Settings.ProvinceCode, DateTimeHelper.SchoolYearOf(startDate));
 
-                if (Success && Schedules != null && Schedules.Any())
+                if (!sync.Success)
                 {
-                    schedules = Schedules;
+                    Debug.WriteLine($"[SchoolScheduleListControl] 학사일정 다운로드 실패: {sync.Message}");
                 }
-                else
-                {
-                    Debug.WriteLine($"[SchoolScheduleListControl] 학사일정 조회 실패: {Message}");
-                }
+            }
+
+            // DB에서 조회
+            var (Success, Message, Schedules) = await service.GetSchedulesByDataRangeAsync(
+                Settings.SchoolCode, startDate, startDate.AddDays(days + 1));
+
+            if (Success && Schedules != null && Schedules.Any())
+            {
+                schedules = Schedules;
             }
             else
             {
-                // NEIS API에서 다운로드
-                var (Success, Message, Schedules) = await service.DownloadFromNeisAsync(
-                    Settings.SchoolCode, Settings.ProvinceCode, startDate.Year,
-                    startDate, startDate.AddDays(days + 1));
-
-                if (Success && Schedules != null)
-                {
-                    schedules = Schedules;
-                    Settings.IsNeisEventDownloaded.Set(true);
-                }
-                else
-                {
-                    Debug.WriteLine($"[SchoolScheduleListControl] 학사일정 다운로드 실패: {Message}");
-                }
+                Debug.WriteLine($"[SchoolScheduleListControl] 학사일정 조회 실패: {Message}");
             }
 
             // 그룹화하여 표시

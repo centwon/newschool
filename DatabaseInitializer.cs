@@ -33,8 +33,12 @@ public sealed class DatabaseInitializer : IDisposable
     ///
     /// <b>2 = 수업 일지 일원화.</b> 수업 일지를 게시판(board.db) 한 곳으로 모으면서
     /// 쓰이지 않게 된 <c>LessonLog</c> 테이블을 버렸다.
+    ///
+    /// <b>3 = 주차별 시수의 키를 주차 번호에서 주 시작일로.</b> 주차 번호는 학기 구간이
+    /// 바뀌면 다시 세어져, 손으로 고친 시수가 다른 주에 붙었다
+    /// (<c>Repositories.CourseWeeklyHoursRepository.SchemaSql</c> 의 인덱스 주석).
     /// </summary>
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 
     private readonly string _dbPath;
     private SqliteConnection? _connection;
@@ -783,6 +787,34 @@ public sealed class DatabaseInitializer : IDisposable
             cmd.CommandText = "DROP TABLE IF EXISTS LessonLog;";
             await cmd.ExecuteNonQueryAsync();
             Debug.WriteLine("[DatabaseInitializer] 마이그레이션 2: LessonLog 테이블 제거");
+        }
+
+        if (version < 3)
+        {
+            // 주차별 시수의 키를 (수업, 학급, 주차번호) → (수업, 학급, 주 시작일) 로 옮긴다.
+            //
+            // 옛 키로 쌓인 데이터에는 같은 주 시작일이 두 줄일 수 있다(학기 구간이 바뀌어
+            // 번호가 밀린 뒤 다시 고친 경우). 새 UNIQUE 인덱스를 그대로 만들면 거기서
+            // 실패하므로, 먼저 겹치는 줄을 정리한다 — <b>나중에 적은 것(No 가 큰 것)</b>을
+            // 남긴다. 그것이 교사가 마지막으로 고친 값이다.
+            cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='CourseWeeklyHours';";
+            bool exists = await cmd.ExecuteScalarAsync() != null;
+
+            if (exists)
+            {
+                cmd.CommandText = @"
+                    DELETE FROM CourseWeeklyHours
+                    WHERE No NOT IN (
+                        SELECT MAX(No) FROM CourseWeeklyHours
+                        GROUP BY CourseNo, Room, WeekStartDate
+                    );";
+                int removed = await cmd.ExecuteNonQueryAsync();
+
+                cmd.CommandText = "DROP INDEX IF EXISTS idx_courseweeklyhours_unique;";
+                await cmd.ExecuteNonQueryAsync();
+
+                Debug.WriteLine($"[DatabaseInitializer] 마이그레이션 3: 주차별 시수 키 전환(겹친 {removed}줄 정리)");
+            }
         }
     }
 

@@ -125,38 +125,33 @@ public class TodayPageViewModel : NotifyPropertyChangedBase
             using var schoolScheduleService = new SchoolScheduleService(SchoolDatabase.DbPath);
             
             List<SchoolSchedule>? schedules = null;
-            
-            if (Settings.IsNeisEventDownloaded.Value)
+
+            // 아직 한 번도 받은 적이 없으면 학년도 전체를 받아 DB 에 넣는다.
+            // 예전에는 여기서 30일치만 받아 화면에 그리고 저장은 하지 않은 채 깃발만 켰다 —
+            // 그러면 다음 실행부터는 "이미 받았다"며 빈 DB 를 읽어 학사일정이 사라졌다.
+            if (!Settings.IsNeisEventDownloaded.Value)
             {
-                var (Success, Message, Schedules) = await schoolScheduleService.GetSchedulesByDataRangeAsync(
-                    Settings.SchoolCode, DateTime.Today, DateTime.Today.AddDays(29)); // +1일로 수정
-                
-                if (Success && Schedules != null && Schedules.Any())
+                var sync = await schoolScheduleService.SyncSchoolYearFromNeisAsync(
+                    Settings.SchoolCode, Settings.ProvinceCode, DateTimeHelper.SchoolYearOf(DateTime.Today));
+
+                if (!sync.Success)
                 {
-                    schedules = Schedules;
+                    Debug.WriteLine($"[TodayPageViewModel] 학사일정 다운로드 실패: {sync.Message}");
                 }
-                else
-                {
-                    Debug.WriteLine($"[TodayPageViewModel] 학사일정 조회 실패: {Message}");
-                }
+            }
+
+            var (Success, Message, Schedules) = await schoolScheduleService.GetSchedulesByDataRangeAsync(
+                Settings.SchoolCode, DateTime.Today, DateTime.Today.AddDays(29)); // +1일로 수정
+
+            if (Success && Schedules != null && Schedules.Any())
+            {
+                schedules = Schedules;
             }
             else
             {
-                var (Success, Message, Schedules) = await schoolScheduleService.DownloadFromNeisAsync(
-                    Settings.SchoolCode, Settings.ProvinceCode, DateTime.Today.Year,
-                    DateTime.Today, DateTime.Today.AddDays(29)); // +1일로 수정
-                
-                if (Success && Schedules != null)
-                {
-                    schedules = Schedules;
-                    Settings.IsNeisEventDownloaded.Set(true); // 다운로드 완료 표시
-                }
-                else
-                {
-                    Debug.WriteLine($"[TodayPageViewModel] 학사일정 다운로드 실패: {Message}");
-                }
+                Debug.WriteLine($"[TodayPageViewModel] 학사일정 조회 실패: {Message}");
             }
-            
+
             // ⚡ UI 스레드에서 컬렉션 업데이트 (최적화됨 - AddRange 사용)
             if (schedules != null)
             {

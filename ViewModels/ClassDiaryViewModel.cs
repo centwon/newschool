@@ -384,16 +384,21 @@ public sealed class ClassDiaryViewModel : NotifyPropertyChangedBase, IDisposable
     #region Methods - 학급일지 관리
 
     /// <summary>
-    /// 특정 날짜의 학급일지 로드
+    /// 특정 날짜의 학급일지 로드.
+    ///
+    /// <para>⚠ 학년도·학기는 <b>부르는 쪽이 준다.</b> 여기서 <c>Settings.WorkYear</c>·
+    /// <c>Settings.WorkSemester</c> 를 읽던 때는, 학급일지 화면의 피커로 지난 학년도를
+    /// 골라도 일지만 올해 행을 읽고 썼다 — 같은 화면의 명렬·누가기록은 피커를 따랐으므로
+    /// 한 화면이 두 학년도를 섞어 보여 주고 있었다.</para>
     /// </summary>
-    public async Task LoadDiaryAsync(int grade, int classNumber, DateTime date)
+    public async Task LoadDiaryAsync(int year, int semester, int grade, int classNumber, DateTime date)
     {
         // 조회 + 없으면 빈 일지 만들기는 서비스가 한다 — 예전에는 같은 로직을 여기에
         // 복사해 두어, 서비스의 GetOrCreateDiaryAsync 는 아무도 부르지 않는 채로 남아 있었다.
         Diary = await Service.GetOrCreateDiaryAsync(
             Settings.SchoolCode.Value,
-            Settings.WorkYear,      // 작업 학년도로 통일
-            Settings.WorkSemester,  // 작업 학기도 사용
+            year,
+            semester,
             grade,
             classNumber,
             date,

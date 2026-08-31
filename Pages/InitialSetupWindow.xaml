@@ -193,6 +193,39 @@
                 </Border>
             </StackPanel>
 
+            <!-- 4단계: 학사일정 -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="4단계: 학사일정 (선택)"
+                           FontSize="16"
+                           FontWeight="SemiBold"/>
+
+                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <CheckBox x:Name="ImportScheduleCheckBox"
+                                  IsChecked="True"
+                                  Content="선택한 학교의 학사일정을 NEIS에서 지금 가져오기"/>
+
+                        <TextBlock Text="가져온 학사일정은 달력과 홈 화면에 함께 표시됩니다. 나중에 [설정 → 학사일정 관리]에서 다시 가져올 수도 있습니다."
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                        <StackPanel x:Name="ScheduleProgressPanel"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    Visibility="Collapsed">
+                            <ProgressRing IsActive="True" Width="16" Height="16"/>
+                            <TextBlock x:Name="ScheduleProgressText"
+                                       Text="학사일정을 가져오는 중..."
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
             <!-- 진행 상태 -->
             <Border Background="{ThemeResource AccentFillColorDefaultBrush}"
                     BorderThickness="0"

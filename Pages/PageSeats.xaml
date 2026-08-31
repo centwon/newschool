@@ -193,5 +193,15 @@
                 </Border>
             </Grid>
         </Grid>
+
+        <!-- 학생이 한 명도 없을 때 화면 전체를 덮는 안내 (마지막 자식이라 위에 그려진다) -->
+        <controls:EmptyStateView x:Name="EmptyState"
+                                 Grid.Column="0" Grid.ColumnSpan="2"
+                                 Visibility="Collapsed"
+                                 Glyph="&#xE8C8;"
+                                 Title="등록된 학생이 없습니다"
+                                 Message="배정할 학생이 있어야 자리를 짤 수 있습니다. 학생을 먼저 등록해 주세요."
+                                 ActionText="학생 추가하기"
+                                 ActionInvoked="EmptyState_ActionInvoked"/>
     </Grid>
 </Page>

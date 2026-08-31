@@ -354,7 +354,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
         // 그날만 걸리는 변경(휴강·교체·보강·대강)을 얹는다.
         // 휴업일이라 정기 수업을 안 그리는 날에도 보강은 있을 수 있으므로 dow 와 무관하게 읽는다.
-        teacherSlots = await ApplyLessonChangesAsync(teacherSlots, _viewDate);
+        teacherSlots = await TeacherTimetableService.ApplyDayChangesAsync(teacherSlots, _viewDate);
         if (teacherSlots.Count > 0)
             TxtNoTeacherSlots.Text = holidayName ?? "수업 없음";
 
@@ -387,28 +387,9 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         HighlightCurrentPeriod(Functions.GetPeriodNow().Index);
     }
 
-    /// <summary>
-    /// 그날만 걸리는 시간표 변경을 정기 슬롯 위에 얹는다.
-    /// 병합 규칙은 <see cref="TimetableChangeMerger"/> 에 있다(DB 없이 검증할 수 있게 떼어 뒀다).
-    /// </summary>
-    private static async Task<List<TimetableItemViewModel>> ApplyLessonChangesAsync(
-        List<TimetableItemViewModel> slots, DateTime date)
-    {
-        try
-        {
-            using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
-            var changes = await repo.GetByDateAsync(Settings.User.Value, date);
-
-            return TimetableChangeMerger.Apply(
-                slots, changes, Helpers.SchoolCalendar.ToLessonDayOfWeek(date));
-        }
-        catch (Exception ex)
-        {
-            // 변경을 못 읽었다고 오늘 시간표까지 비우지는 않는다 — 평소 시간표는 그대로 쓸모가 있다.
-            Debug.WriteLine($"[TodayPage] 시간표 변경 조회 실패: {ex.Message}");
-            return slots;
-        }
-    }
+    // 변경 얹기는 TeacherTimetableService.ApplyDayChangesAsync 로 옮겼다 —
+    // 수업 홈의 [오늘의 수업] 이 같은 단계를 거치지 않아 두 화면이 다른 답을 내고 있었다.
+    // 화면마다 따로 짜면 또 빠뜨리므로 한 곳에 둔다.
 
     /// <summary>
     /// 수업 한 줄의 툴팁 (DataTemplate x:Bind용 순수 함수).

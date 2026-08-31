@@ -52,10 +52,20 @@ public static class CourseRoomReset
         if (courseNo <= 0) return default;
 
         using var lessonRepo = new LessonRepository(dbPath);
-        using var hoursRepo = new CourseWeeklyHoursRepository(dbPath);
-        using var progressRepo = new LessonProgressRepository(dbPath);
-        using var enrollRepo = new CourseEnrollmentRepository(dbPath);
+        using var hoursRepo = new CourseWeeklyHoursRepository(lessonRepo.GetConnection());
+        using var progressRepo = new LessonProgressRepository(lessonRepo.GetConnection());
+        using var enrollRepo = new CourseEnrollmentRepository(lessonRepo.GetConnection());
 
+        return await MeasureAsync(lessonRepo, hoursRepo, progressRepo, enrollRepo, courseNo);
+    }
+
+    private static async Task<Impact> MeasureAsync(
+        LessonRepository lessonRepo,
+        CourseWeeklyHoursRepository hoursRepo,
+        LessonProgressRepository progressRepo,
+        CourseEnrollmentRepository enrollRepo,
+        int courseNo)
+    {
         var lessons = await lessonRepo.GetByCourseAsync(courseNo);
         var hours = await hoursRepo.GetByCourseAsync(courseNo);
         var progress = await progressRepo.GetByCourseAsync(courseNo);
@@ -73,27 +83,50 @@ public static class CourseRoomReset
     ///
     /// <para>지우는 차례는 자식부터다 — 진도는 <c>CourseSection</c> 을 거쳐 수업에 닿으므로
     /// 단원보다 먼저 지운다(여기서 단원 자체는 건드리지 않는다. 단원은 강의실과 무관하다).</para>
+    ///
+    /// <para>⚠ <b>네 표를 한 트랜잭션으로 묶는다.</b> 예전에는 리포지토리마다 제 연결을 열어
+    /// 따로 지웠다 — 세 번째에서 실패하면 진도·시수는 이미 사라졌는데 강의실은 그대로인,
+    /// 부르는 쪽(<c>CourseEditDialog</c>)이 "반쯤 지워진 상태가 제일 나쁘다" 며 막았다고
+    /// 적어 둔 바로 그 상태가 됐다. 세는 것도 같은 트랜잭션 안에서 해야 보고한 숫자와
+    /// 실제로 지운 것이 어긋나지 않는다.</para>
     /// </summary>
     public static async Task<Impact> ExecuteAsync(string dbPath, int courseNo)
     {
         if (courseNo <= 0) return default;
 
-        var measured = await MeasureAsync(dbPath, courseNo);
+        // 연결은 하나만 소유하고(PRAGMA·foreign_keys 가 여기서 걸린다), 나머지 셋은 그 연결에 얹는다.
+        using var lessonRepo = new LessonRepository(dbPath);
+        var connection = lessonRepo.GetConnection();
 
-        using (var progressRepo = new LessonProgressRepository(dbPath))
+        using var hoursRepo = new CourseWeeklyHoursRepository(connection);
+        using var progressRepo = new LessonProgressRepository(connection);
+        using var enrollRepo = new CourseEnrollmentRepository(connection);
+
+        lessonRepo.BeginTransaction();
+        var transaction = lessonRepo.GetTransaction();
+        hoursRepo.SetTransaction(transaction);
+        progressRepo.SetTransaction(transaction);
+        enrollRepo.SetTransaction(transaction);
+
+        try
+        {
+            var measured = await MeasureAsync(lessonRepo, hoursRepo, progressRepo, enrollRepo, courseNo);
+
             await progressRepo.DeleteByCourseAsync(courseNo);
-
-        using (var hoursRepo = new CourseWeeklyHoursRepository(dbPath))
             await hoursRepo.DeleteByCourseAsync(courseNo);
-
-        using (var lessonRepo = new LessonRepository(dbPath))
             await lessonRepo.DeleteByCourseAsync(courseNo);
 
-        // 배정은 지우지 않는다 — 강의실 지정만 비운다.
-        using (var enrollRepo = new CourseEnrollmentRepository(dbPath))
+            // 배정은 지우지 않는다 — 강의실 지정만 비운다.
             await enrollRepo.ClearRoomsByCourseAsync(courseNo);
 
-        return measured;
+            lessonRepo.Commit();
+            return measured;
+        }
+        catch
+        {
+            lessonRepo.Rollback();
+            throw;
+        }
     }
 
     /// <summary>

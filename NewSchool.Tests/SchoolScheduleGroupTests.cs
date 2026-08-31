@@ -142,4 +142,19 @@ public class SchoolScheduleGroupTests
         Assert.Equal(2, groups.Count);
         Assert.All(groups, g => Assert.Equal(D1, g.StartDate));
     }
+
+    /// <summary>
+    /// 학사일정 관리 목록의 날짜 칸 형식 — <c>2026.03.03. 월</c> 한 줄.
+    /// (예전에는 날짜와 요일을 두 줄로 쌓아 행이 그만큼 높았다.)
+    /// </summary>
+    [Theory]
+    [InlineData(2026, 3, 2, "2026.03.02. 월")]
+    [InlineData(2026, 3, 7, "2026.03.07. 토")]
+    [InlineData(2026, 12, 25, "2026.12.25. 금")]
+    public void DisplayDateWithDay_는_날짜와_요일을_한_줄로_보인다(int y, int m, int d, string expected)
+    {
+        var vm = new NewSchool.ViewModels.SchoolScheduleViewModel(Sch("행사", new DateTime(y, m, d)));
+
+        Assert.Equal(expected, vm.DisplayDateWithDay);
+    }
 }

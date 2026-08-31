@@ -35,6 +35,11 @@ public sealed partial class ClassTimetableEditDialog : ContentDialog
 
         TxtClassInfo.Text = $"{grade}학년 {classNo}반 시간표 ({year}학년도 {semester}학기)";
 
+        // 교시 후보는 PeriodCounts.MaxSupported 하나가 정한다. XAML 에 1~7 을 손으로 적어
+        // 두었을 때는, 설정에서 8교시를 허용해도 학급 시간표에는 넣을 방법이 없었다.
+        for (int period = 1; period <= PeriodCounts.MaxSupported; period++)
+            CBoxPeriod.Items.Add(new ComboBoxItem { Content = period.ToString(), Tag = period });
+
         // 기존 시간표 로드
         if (existingTimetables != null)
         {

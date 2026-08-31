@@ -78,6 +78,21 @@ public readonly record struct PeriodCounts(int Mon, int Tue, int Wed, int Thu, i
     /// <summary>기존 하드코딩과 동일한 기본값 (월·수 6교시, 화·목·금 7교시)</summary>
     public static PeriodCounts Default => new(6, 7, 6, 7, 7);
 
+    /// <summary>
+    /// 이 앱이 다룰 수 있는 하루 최대 교시. <b>교시 상한은 여기 하나뿐이다.</b>
+    ///
+    /// <para>현실은 7교시까지지만 예비로 한 칸을 더 둔다. 8 로 잡은 이유는, 이 숫자가
+    /// 설정 화면의 입력 상한이자 시간표 격자의 행 수이기 때문이다 — 크게 잡을수록 6교시인
+    /// 날에 빈 줄만 늘어난다.</para>
+    ///
+    /// <para>⚠ 예전에는 상한이 두 벌이었다. 설정은 <b>12</b> 까지 올릴 수 있는데 표시 쪽은
+    /// <b>7</b> 로 하드코딩돼 있어서(시간표 ViewModel·TimetableControl·학급 시간표 조회·
+    /// 학급 시간표 편집 콤보), 8교시로 올려 배치판에 놓으면 <b>저장은 되는데 내 시간표·
+    /// 오늘 화면·학급일지에서만 사라졌다.</b> 같은 8교시라도 보강(LessonChange)은 보였기
+    /// 때문에 원인을 짚기가 특히 어려웠다. 숫자를 늘려야 하면 여기만 고칠 것.</para>
+    /// </summary>
+    public const int MaxSupported = 8;
+
     /// <summary><paramref name="dayOfWeek"/>는 .NET 규칙(0=일 … 6=토). 주말은 0.</summary>
     public int ForDay(int dayOfWeek) => dayOfWeek switch
     {
@@ -85,7 +100,13 @@ public readonly record struct PeriodCounts(int Mon, int Tue, int Wed, int Thu, i
         _ => 0,
     };
 
-    /// <summary>"6,7,6,7,7" 형식 파싱. 형식이 어긋나거나 범위(1~12) 밖이면 기본값.</summary>
+    /// <summary>
+    /// "6,7,6,7,7" 형식 파싱. 형식이 어긋나거나 범위(1~<see cref="MaxSupported"/>) 밖이면 기본값.
+    ///
+    /// <para>상한이 <see cref="MaxSupported"/> 보다 컸을 때 저장된 설정(예: "6,7,6,7,10")은
+    /// 통째로 기본값으로 떨어진다 — 표시 쪽이 그릴 수 없는 교시를 받아 두면 그 교시 수업이
+    /// 조용히 사라지므로, 어중간하게 잘라 넣는 것보다 낫다.</para>
+    /// </summary>
     public static PeriodCounts Parse(string? serialized)
     {
         if (string.IsNullOrWhiteSpace(serialized)) return Default;
@@ -96,7 +117,7 @@ public readonly record struct PeriodCounts(int Mon, int Tue, int Wed, int Thu, i
         Span<int> counts = stackalloc int[5];
         for (int i = 0; i < 5; i++)
         {
-            if (!int.TryParse(parts[i].Trim(), out counts[i]) || counts[i] < 1 || counts[i] > 12)
+            if (!int.TryParse(parts[i].Trim(), out counts[i]) || counts[i] < 1 || counts[i] > MaxSupported)
                 return Default;
         }
         return new PeriodCounts(counts[0], counts[1], counts[2], counts[3], counts[4]);

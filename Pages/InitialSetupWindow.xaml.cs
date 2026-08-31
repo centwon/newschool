@@ -21,13 +21,14 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
     private bool _isSchoolSelected;
     private bool _isUserNameEntered;
     private bool _isYearSemesterSet;
+    private bool _isBusy;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
-    /// 설정 완료 여부
+    /// 설정 완료 여부. 저장 중에는 꺼서 [완료]가 두 번 눌리지 않게 한다.
     /// </summary>
-    public bool IsSetupComplete => _isSchoolSelected && _isUserNameEntered && _isYearSemesterSet;
+    public bool IsSetupComplete => _isSchoolSelected && _isUserNameEntered && _isYearSemesterSet && !_isBusy;
 
     /// <summary>
     /// 창이 정상적으로 완료되었는지 여부
@@ -47,8 +48,10 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
         // 다시 뜨는데 그때 혼자 밝게 뜬다.
         Helpers.ThemeHelper.Apply(this);
 
-        // 현재 연도로 기본값 설정
-        WorkYearNumberBox.Value = DateTime.Now.Year;
+        // 현재 학년도로 기본값 설정. 달력의 연도가 아니라 학년도다 — 1·2월은 아직 지난
+        // 학년도의 2학기라서, 그냥 DateTime.Now.Year 를 넣으면 "2027학년도 2학기" 처럼
+        // 있지도 않은 조합이 기본값으로 잡혔다(아래 학기 기본값은 이미 2학기를 고른다).
+        WorkYearNumberBox.Value = DateTimeHelper.SchoolYearOf(DateTime.Now);
 
         // 현재 월에 따라 학기 설정 (3-8월: 1학기, 9-2월: 2학기) — 규칙은 DateTimeHelper 한 곳에.
         WorkSemesterComboBox.SelectedIndex = DateTimeHelper.SemesterOf(DateTime.Now) - 1;
@@ -137,6 +140,8 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
 
         try
         {
+            SetBusy(true);
+
             // 1. School 테이블에 저장
             await SaveSchoolAsync();
 
@@ -145,6 +150,9 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
 
             // 3. Settings에 저장
             await SaveSettingsAsync(teacherId);
+
+            // 4. 학사일정 가져오기(선택) — 실패해도 초기 설정 자체는 끝낸다.
+            await ImportSchedulesAsync();
 
             Debug.WriteLine("[InitialSetupWindow] 초기 설정 완료");
 
@@ -156,6 +164,26 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
             Debug.WriteLine($"[InitialSetupWindow] 초기 설정 저장 실패: {ex.Message}");
             await MessageBox.ShowAsync(ex.Message, "설정 저장 오류");
         }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    /// <summary>
+    /// 저장하는 동안 버튼을 잠근다. 학사일정 내려받기는 네트워크라 몇 초 걸릴 수 있는데,
+    /// 그동안 [완료]를 다시 눌리면 교사 행이 한 번 더 만들어진다(TeacherID 를 그때그때
+    /// 새로 짓기 때문에 같은 사람이 둘이 된다).
+    /// </summary>
+    private void SetBusy(bool busy)
+    {
+        _isBusy = busy;
+        CancelButton.IsEnabled = !busy;
+        SearchSchoolButton.IsEnabled = !busy;
+        ImportScheduleCheckBox.IsEnabled = !busy;
+
+        // CompleteButton 은 IsSetupComplete 에 묶여 있으므로 그 계산에 _isBusy 를 넣고 알린다.
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSetupComplete)));
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e)
@@ -312,6 +340,62 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
 
             Debug.WriteLine("[InitialSetupWindow] Settings 저장 완료");
         });
+    }
+
+    /// <summary>
+    /// 선택한 학교의 학사일정을 NEIS 에서 받아 DB 에 넣는다(4단계, 선택).
+    ///
+    /// <para>첫 실행 뒤 곧바로 달력·홈에 학사일정이 보이게 하려는 것이다. 예전에는 이 자리가
+    /// 없어서, 달력이나 홈이 열릴 때 슬그머니 내려받았는데 그건 저장을 하지 않아 한 번 보이고
+    /// 사라졌다(<see cref="SchoolScheduleService.SyncSchoolYearFromNeisAsync"/> 주석 참고).</para>
+    ///
+    /// <para>여기서 실패하더라도 초기 설정은 완료시킨다 — 인증키가 없거나 학교가 NEIS 에
+    /// 일정을 올리지 않았을 뿐인데 프로그램을 아예 못 쓰게 만들 이유가 없다. 나중에
+    /// [설정 → 학사일정 관리]에서 다시 시도할 수 있다.</para>
+    /// </summary>
+    private async Task ImportSchedulesAsync()
+    {
+        if (_selectedSchool == null) return;
+        if (ImportScheduleCheckBox.IsChecked != true) return;
+
+        int year = (int)WorkYearNumberBox.Value;
+
+        try
+        {
+            ScheduleProgressText.Text = $"{year}학년도 학사일정을 가져오는 중...";
+            ScheduleProgressPanel.Visibility = Visibility.Visible;
+
+            using var service = new SchoolScheduleService(SchoolDatabase.DbPath);
+            var sync = await service.SyncSchoolYearFromNeisAsync(
+                _selectedSchool.SchoolCode,
+                _selectedSchool.ATPT_OFCDC_SC_CODE ?? string.Empty,
+                year);
+
+            if (!sync.Success)
+            {
+                // 창이 곧 닫히므로 InfoBar 는 사실상 안 보인다 — 이유는 대화 상자로 말한다.
+                Debug.WriteLine($"[InitialSetupWindow] 학사일정 가져오기 실패: {sync.Message}");
+                await MessageBox.ShowAsync(
+                    $"학사일정을 가져오지 못했습니다.\n{sync.Message}\n\n"
+                    + "나머지 설정은 그대로 저장됩니다. [설정 → 학사일정 관리]에서 다시 시도할 수 있습니다.",
+                    "학사일정 가져오기");
+                return;
+            }
+
+            Debug.WriteLine($"[InitialSetupWindow] 학사일정 {sync.Saved}건 저장 (내려받음 {sync.Downloaded}건)");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[InitialSetupWindow] 학사일정 가져오기 오류: {ex.Message}");
+            await MessageBox.ShowAsync(
+                $"학사일정을 가져오는 중 오류가 발생했습니다.\n{ex.Message}\n\n"
+                + "나머지 설정은 그대로 저장됩니다. [설정 → 학사일정 관리]에서 다시 시도할 수 있습니다.",
+                "학사일정 가져오기");
+        }
+        finally
+        {
+            ScheduleProgressPanel.Visibility = Visibility.Collapsed;
+        }
     }
     #endregion
 
