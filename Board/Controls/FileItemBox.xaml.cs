@@ -15,7 +15,30 @@ public sealed partial class FileItemBox : UserControl
     private PostFile? _postFile;
     private string _orgFilePath = string.Empty;
     private string _category = string.Empty;
+    private string _savedFilePath = string.Empty;
     private bool _showCheckBox = true;
+
+    /// <summary>
+    /// 이미 저장된 첨부의 <b>절대 경로</b>. 채워 두면 게시판의 카테고리 경로 대신 이것을 연다.
+    ///
+    /// <para>누가기록 첨부는 폴더를 분류가 아니라 학년도·학생으로 나누므로
+    /// (<see cref="Models.StudentLogFile"/> 머리 주석) <c>Board.GetFilePath</c> 로는
+    /// 경로가 나오지 않는다. 표시·열기 로직을 한 벌로 쓰려고 경로를 바깥에서 받는다.</para>
+    /// </summary>
+    public string SavedFilePath
+    {
+        get => _savedFilePath;
+        set => _savedFilePath = value ?? string.Empty;
+    }
+
+    /// <summary>
+    /// <see cref="PostFile"/> 없이 표시할 이름과 크기를 직접 준다(게시판 밖의 첨부용).
+    /// </summary>
+    public void SetDisplay(string fileName, long fileSize)
+    {
+        FileNameTextBlock.Text = fileName ?? string.Empty;
+        FileSizeTextBlock.Text = $"({FormatFileSize(fileSize)})";
+    }
 
     public bool IsSelected { get; private set; }
 
@@ -95,21 +118,19 @@ public sealed partial class FileItemBox : UserControl
 
     private async void FileButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_postFile == null) return;
-
         try
         {
+            // 경로를 정하는 순서: 새로 붙인 원본 → 바깥에서 준 저장 경로 → 게시판 카테고리 경로.
+            // 앞의 둘만으로 정해지는 첨부(누가기록)는 PostFile 이 없어도 열려야 한다.
             string filepath;
-            if (string.IsNullOrEmpty(_orgFilePath))
-            {
-                // 저장된 파일
+            if (!string.IsNullOrEmpty(_orgFilePath))
+                filepath = _orgFilePath;                      // 새로 추가한 파일
+            else if (!string.IsNullOrEmpty(_savedFilePath))
+                filepath = _savedFilePath;                    // 바깥에서 준 저장 경로
+            else if (_postFile != null)
                 filepath = Board.GetFilePath(_postFile.FileName, _category);
-            }
             else
-            {
-                // 새로 추가한 파일
-                filepath = _orgFilePath;
-            }
+                return;
 
             System.Diagnostics.Debug.WriteLine($"파일 경로: {filepath}");
 

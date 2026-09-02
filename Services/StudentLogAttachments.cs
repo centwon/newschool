@@ -98,6 +98,55 @@ public static class StudentLogAttachments
     }
 
     /// <summary>
+    /// 편집 창이 들고 있던 첨부 변경을 실제 파일과 DB 에 반영한다.
+    ///
+    /// <para>기록은 이미 저장된 뒤에 부른다 — 그래야 <paramref name="logNo"/> 가 있다.
+    /// 순서는 <b>빼기 먼저, 붙이기 나중</b>이다. 반대로 하면 같은 이름을 뺐다가 다시 붙일 때
+    /// 새로 복사한 것이 "겹치는 이름"이 되어 <c>(2)</c> 가 붙는다.</para>
+    ///
+    /// <para>실패는 삼키지 않는다. 조용히 넘기면 화면에는 첨부가 있는데 실물이 없는(또는
+    /// 뺀 줄 알았는데 남은) 기록이 된다 — 게시판이 같은 이유로 실패 목록을 모아 알린다.</para>
+    /// </summary>
+    /// <returns>반영 뒤 이 기록에 남은 첨부 수</returns>
+    public static async Task<int> ApplyAsync(
+        StudentLogFileRepository repo,
+        IReadOnlyList<StudentLogFile> toDelete,
+        IReadOnlyList<string> newFilePaths,
+        int logNo, int year, string studentId)
+    {
+        var failed = new List<string>();
+
+        foreach (var file in toDelete)
+        {
+            if (!await DeleteAsync(repo, file))
+                failed.Add($"{file.FileName} (빼기)");
+        }
+
+        foreach (var sourcePath in newFilePaths)
+        {
+            // 복사 실패는 SaveFileAsync 가 이미 알렸다 — 여기서는 집계에서만 빼면 된다.
+            var saved = await SaveFileAsync(sourcePath, logNo, year, studentId);
+            if (saved == null) continue;
+
+            if (await repo.CreateAsync(saved) <= 0)
+            {
+                // 등록에 실패했으면 방금 복사한 실물은 아무도 가리키지 않는다 — 바로 치운다.
+                TryDeleteFile(GetFilePath(saved));
+                failed.Add($"{saved.FileName} (등록)");
+            }
+        }
+
+        if (failed.Count > 0)
+        {
+            await Controls.MessageBox.ShowErrorAsync(
+                $"첨부 {failed.Count}건을 반영하지 못했습니다.\n{string.Join("\n", failed)}\n\n" +
+                "기록 자체는 저장됐습니다. 첨부는 다시 붙여 주세요.");
+        }
+
+        return (await repo.GetByLogAsync(logNo)).Count;
+    }
+
+    /// <summary>
     /// 첨부 한 건을 DB 와 실물에서 함께 지운다.
     ///
     /// <para><b>DB 를 먼저 지운다.</b> 실물만 남으면 "아무도 가리키지 않는 파일"이고

@@ -325,6 +325,12 @@ public sealed partial class PageStudentLog : Page, IDisposable
                 {
                     if (log.No > 0)
                     {
+                        // 첨부의 DB 행은 CASCADE 가 지우지만 실물은 남는다 — 지우기 전에
+                        // 무엇이 딸려 있었는지 경로를 모아 둔다.
+                        using var fileRepo = new StudentLogFileRepository(SchoolDatabase.DbPath);
+                        var attachments = await StudentLogAttachments
+                            .CollectFilePathsAsync(fileRepo, log.No);
+
                         // DB 에서 지워진 것만 목록에서 뺀다 — 예전에는 결과와 무관하게
                         // 화면에서 지워, 새로 고치면 기록이 되살아났다.
                         if (!await _logService.DeleteAsync(log.No))
@@ -333,6 +339,8 @@ public sealed partial class PageStudentLog : Page, IDisposable
                                 "삭제되지 않았습니다. 이미 지워진 기록일 수 있습니다.", "삭제 실패");
                             continue;
                         }
+
+                        StudentLogAttachments.DeleteFiles(attachments);
                     }
                     LogList.Logs?.Remove(logViewModel);
                 }

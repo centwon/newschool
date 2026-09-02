@@ -1,0 +1,67 @@
+﻿<UserControl
+    x:Class="NewSchool.Controls.StudentLogFileListBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 머리줄: 안내 + 추가·삭제 -->
+        <Grid Grid.Row="0" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="HeaderTextBlock"
+                       Grid.Column="0"
+                       Text="첨부파일"
+                       FontSize="12"
+                       VerticalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                <Button x:Name="AddFileButton"
+                        Click="AddFileButton_Click"
+                        ToolTipService.ToolTip="파일 첨부"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,2">
+                    <FontIcon Glyph="&#xE710;" FontSize="14"/>
+                </Button>
+
+                <Button x:Name="RemoveFileButton"
+                        Click="RemoveFileButton_Click"
+                        ToolTipService.ToolTip="선택한 첨부 빼기"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,2">
+                    <FontIcon Glyph="&#xE738;" FontSize="14"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- 목록 -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <ItemsControl x:Name="FileItemsControl">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="2"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <!-- 빈 상태 안내. 배경·글자색을 박아 두지 않는다 — 다크 테마에서 묻힌다. -->
+                <TextBlock x:Name="EmptyTextBlock"
+                           Text="첨부한 파일이 없습니다."
+                           FontSize="12"
+                           Margin="2,4,0,0"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

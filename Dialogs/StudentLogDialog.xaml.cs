@@ -276,6 +276,10 @@ public sealed partial class StudentLogDialog : Window
             teacherId: Settings.User.Value,
             year: _year,
             semester: _semester);
+
+        // 일괄 입력에서는 첨부를 받지 않는다 — 같은 파일을 반 전체에 복제하는 것이
+        // 무엇을 뜻하는지 정해지지 않았다. 칸만 띄우면 붙였다고 믿게 된다.
+        LogBox.HideAttachments();
     }
 
     private void HideAllFilters()
@@ -602,9 +606,44 @@ public sealed partial class StudentLogDialog : Window
             return false;
         }
 
+        // 기록이 저장된 뒤에야 No 가 있다 — 첨부는 그 No 로 붙는다.
+        await ApplyAttachmentsAsync(log);
+
         _logs.Clear();
         _logs.Add(log);
         return true;
+    }
+
+    /// <summary>
+    /// 편집 창이 들고 있던 첨부 변경을 반영한다.
+    ///
+    /// <para>첨부에서 실패해도 기록 저장은 되돌리지 않는다 — 기록은 이미 들어갔고,
+    /// 무엇이 어긋났는지는 <see cref="Services.StudentLogAttachments.ApplyAsync"/> 가 알린다.
+    /// 여기서 예외를 올리면 저장에 성공한 사용자가 "저장 실패"를 보게 된다.</para>
+    ///
+    /// <para>일괄 입력에서는 부르지 않는다. 학생마다 다른 파일을 붙이는 화면이 아니라
+    /// 같은 내용을 여럿에게 한꺼번에 넣는 창이라, 첨부를 반 전체에 복제하는 것이
+    /// 무엇을 뜻하는지부터 정해야 한다(지금은 첨부 칸도 뜨지 않는다).</para>
+    /// </summary>
+    private async Task ApplyAttachmentsAsync(StudentLog log)
+    {
+        var (toDelete, newPaths) = LogBox.PendingAttachments;
+        if (toDelete.Count == 0 && newPaths.Count == 0) return;
+
+        try
+        {
+            using var repo = new StudentLogFileRepository(SchoolDatabase.DbPath);
+            await Services.StudentLogAttachments.ApplyAsync(
+                repo, toDelete, newPaths, log.No, log.Year, log.StudentID);
+
+            LogBox.MarkAttachmentsApplied();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[StudentLogDialog] 첨부 반영 실패: {ex.Message}");
+            await ShowErrorAsync("첨부 반영 실패",
+                $"기록은 저장됐지만 첨부를 반영하지 못했습니다.\n{ex.Message}");
+        }
     }
 
     /// <returns>전원 저장에 성공했으면 true. false 면 안내를 띄운 뒤이므로 창을 닫지 않는다.</returns>

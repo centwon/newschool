@@ -674,15 +674,23 @@ public sealed partial class LogListViewer : UserControl
             return (0, 0);
 
         using var logService = new Services.StudentLogService();
+        using var fileRepo = new Repositories.StudentLogFileRepository(SchoolDatabase.DbPath);
         int deleted = 0;
 
         foreach (var logVm in logsToDelete)
         {
             if (logVm.No > 0)
             {
+                // 첨부의 DB 행은 CASCADE 가 지우지만 실물은 남는다 — 지우기 전에
+                // 무엇이 딸려 있었는지 경로를 모아 둔다.
+                var attachments = await Services.StudentLogAttachments
+                    .CollectFilePathsAsync(fileRepo, logVm.No);
+
                 // DB 삭제가 실패하면 목록에서도 지우지 않는다(표시/DB 불일치 방지)
                 if (!await logService.DeleteAsync(logVm.No))
                     continue;
+
+                Services.StudentLogAttachments.DeleteFiles(attachments);
             }
 
             Logs.Remove(logVm);

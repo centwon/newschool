@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Models;
@@ -114,6 +116,54 @@ public sealed partial class StudentLogBox : UserControl
         TxtStudentInfo.Text = $"학생 ID: {log.StudentID}";
 
         UpdateLogByteInfo();
+
+        // 첨부는 저장된 기록에만 있다. 화면을 먼저 비워 두고 뒤늦게 채운다 —
+        // 이 메서드는 동기라 여기서 기다릴 수 없다.
+        FileList.LoadFiles(System.Array.Empty<StudentLogFile>());
+        if (log.No > 0) _ = LoadAttachmentsAsync(log.No);
+    }
+
+    /// <summary>
+    /// 저장된 첨부를 읽어 목록에 올린다.
+    ///
+    /// <para>읽기에 실패해도 편집을 막지 않는다 — 첨부는 곁다리이고, 여기서 예외를 올리면
+    /// 기록을 고치러 온 사용자가 창을 못 쓰게 된다. 대신 목록을 비워 두고 알린다.</para>
+    /// </summary>
+    private async Task LoadAttachmentsAsync(int logNo)
+    {
+        try
+        {
+            using var repo = new Repositories.StudentLogFileRepository(SchoolDatabase.DbPath);
+            FileList.LoadFiles(await repo.GetByLogAsync(logNo));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[StudentLogBox] 첨부 로드 실패: {ex.Message}");
+            await UserErrorReporter.ReportAsync("첨부파일 목록 읽기", ex);
+        }
+    }
+
+    /// <summary>
+    /// 저장할 때 반영해야 할 첨부 변경.
+    ///
+    /// <para>창(<see cref="Dialogs.StudentLogDialog"/>)이 기록을 저장한 <b>뒤</b>,
+    /// 그때 생긴 <c>No</c> 로 <see cref="Services.StudentLogAttachments.ApplyAsync"/> 에 넘긴다.</para>
+    /// </summary>
+    public (IReadOnlyList<StudentLogFile> ToDelete, IReadOnlyList<string> NewPaths) PendingAttachments
+        => (FileList.FilesToDelete, FileList.NewFilePaths);
+
+    /// <summary>첨부 반영이 끝났음을 알린다(같은 창에서 계속 편집할 때 두 번 반영되지 않게).</summary>
+    public void MarkAttachmentsApplied() => FileList.MarkApplied();
+
+    /// <summary>
+    /// 첨부 칸을 감춘다. 학급 일괄 입력에서 쓴다 — 그 창은 같은 내용을 여럿에게 한꺼번에
+    /// 넣는 자리라, 첨부를 반 전체에 복제하는 것이 무엇을 뜻하는지부터 정해야 한다.
+    /// 정하지 않은 채 칸만 띄우면 사용자는 붙였다고 믿고 아무 일도 일어나지 않는다.
+    /// </summary>
+    public void HideAttachments()
+    {
+        FileList.LoadFiles(Array.Empty<StudentLogFile>());
+        FileList.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>
@@ -139,6 +189,9 @@ public sealed partial class StudentLogBox : UserControl
         DatePickerLog.Date = DateTimeOffset.Now;
 
         TxtStudentInfo.Text = $"학생 ID: {studentId}";
+
+        // 새 기록은 아직 딸린 첨부가 없다. 앞 기록의 목록이 남지 않게 비운다.
+        FileList.LoadFiles(Array.Empty<StudentLogFile>());
     }
 
     /// <summary>
