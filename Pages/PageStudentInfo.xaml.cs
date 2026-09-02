@@ -422,12 +422,19 @@ public sealed partial class PageStudentInfo : Page, IDisposable
 
         try
         {
-            // LogListViewer에서 선택된 로그들 삭제
+            // 고르지 않은 것과 확인에서 취소한 것을 구분한다 — 둘 다 (0,0) 으로 돌아오므로
+            // 여기서 먼저 세어 두지 않으면 취소한 사용자에게 "선택하세요" 라고 하게 된다.
+            if (LogList.SelectedLogs.Count == 0)
+            {
+                await MessageBox.ShowAsync("삭제할 기록을 선택하세요.", "삭제");
+                return;
+            }
+
             var (attempted, deleted) = await LogList.DeleteSelectedLogsAsync();
 
             if (attempted == 0)
             {
-                await MessageBox.ShowAsync("삭제할 기록을 선택하세요.", "삭제");
+                // 확인 창에서 취소했다 — 사용자가 한 일이라 알리지 않는다.
             }
             else if (deleted == attempted)
             {

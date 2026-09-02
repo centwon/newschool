@@ -365,16 +365,29 @@ public sealed partial class CourseSectionView : UserControl
     {
         if (sender is not Button button || button.Tag is not CourseSection section) return;
 
+        // ⚠ 진도가 함께 사라진다는 것을 알린다.
+        //   LessonProgress.CourseSectionId 는 CourseSection(No) 에 ON DELETE CASCADE 다.
+        //   예전 문구는 "단원을 삭제하시겠습니까?" 뿐이었고, 코드 주석은 한술 더 떠
+        //   "연관 데이터 보존" 이라고 적혀 있었다 — 정확히 반대였다.
+        //   수업을 통째로 지울 때는 "단원·진도도 함께 삭제됩니다" 라고 알리면서
+        //   단원 하나만 지울 때는 말하지 않는 것도 앞뒤가 안 맞았다.
         if (!await MessageBox.ShowConfirmAsync(
-                $"\"{section.SectionName}\" 단원을 삭제하시겠습니까?",
-                "삭제 확인", "삭제", "취소"))
+                $"\"{section.SectionName}\" 단원을 삭제합니다.\n" +
+                "이 단원에 기록해 둔 진도도 함께 지워지며 되돌릴 수 없습니다.",
+                "단원 삭제", "삭제", "취소"))
             return;
 
         try
         {
-            // DB에서 개별 삭제 (연관 데이터 보존)
             using var repo = new CourseSectionRepository(SchoolDatabase.DbPath);
-            await repo.DeleteAsync(section.No);
+
+            // 반영된 것만 화면에서 뺀다 — 결과를 버리면 0행 삭제에도 목록에서 사라지고,
+            // 새로 고치면 되살아난다.
+            if (!await repo.DeleteAsync(section.No))
+            {
+                ShowSectionError("삭제되지 않았습니다. 이미 지워진 단원일 수 있습니다.");
+                return;
+            }
 
             _courseSections.Remove(section);
             UpdateSectionUI();
@@ -394,7 +407,10 @@ public sealed partial class CourseSectionView : UserControl
             return;
         }
 
-        TxtClearConfirm.Text = $"{_courseSections.Count}개의 단원을 모두 삭제하시겠습니까?";
+        // 낱개 삭제와 같은 말을 한다 — 진도가 함께 사라진다(LessonProgress 는 CASCADE).
+        TxtClearConfirm.Text =
+            $"{_courseSections.Count}개의 단원을 모두 삭제합니다.\n" +
+            "각 단원에 기록해 둔 진도도 함께 지워지며 되돌릴 수 없습니다.";
     }
 
     private void OnClearAllCancelClick(object sender, RoutedEventArgs e)
@@ -409,11 +425,20 @@ public sealed partial class CourseSectionView : UserControl
         try
         {
             using var repo = new CourseSectionRepository(SchoolDatabase.DbPath);
-            await repo.DeleteByCourseAsync(_selectedCourse.No);
+
+            // 지워진 건수를 확인한다 — 결과를 버리면 한 건도 안 지워져도 목록만 비고,
+            // 새로 고치면 단원이 전부 되살아난다.
+            int removed = await repo.DeleteByCourseAsync(_selectedCourse.No);
+            ClearAllFlyout.Hide();
+
+            if (removed == 0)
+            {
+                ShowSectionError("삭제되지 않았습니다. 이미 지워진 단원일 수 있습니다.");
+                return;
+            }
 
             _courseSections.Clear();
             UpdateSectionUI();
-            ClearAllFlyout.Hide();
         }
         catch (Exception ex)
         {

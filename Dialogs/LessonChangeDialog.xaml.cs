@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using NewSchool.Controls;
 using NewSchool.Models;
 using NewSchool.Repositories;
 
@@ -72,10 +73,25 @@ public sealed partial class LessonChangeDialog : ContentDialog
     {
         if ((sender as Button)?.Tag is not LessonChange change) return;
 
+        // 되돌릴 수 없는데 확인 없이 지우고 있었다 — 목록에서 누르는 즉시 사라졌다.
+        // 다른 삭제는 모두 확인을 받는다.
+        if (!await MessageBox.ShowConfirmAsync(
+                $"{change.Date:yyyy-MM-dd} {change.Period}교시의 수업 변경을 되돌립니다.\n되돌릴 수 없습니다.",
+                "수업 변경 삭제", "삭제", "취소"))
+            return;
+
         try
         {
             using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
-            await repo.DeleteAsync(change.No);
+
+            // 반영된 것만 화면에서 뺀다 — 결과를 버리면 0행 삭제(이미 지워진 변경 등)에도
+            // 목록에서 사라지고, 새로 고치면 되살아난다.
+            if (!await repo.DeleteAsync(change.No))
+            {
+                ChangeInfoBar.Message = "삭제되지 않았습니다. 이미 지워진 변경일 수 있습니다.";
+                ChangeInfoBar.IsOpen = true;
+                return;
+            }
 
             _changes.Remove(change);
             UpdateEmptyState();

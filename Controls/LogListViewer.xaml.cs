@@ -673,6 +673,21 @@ public sealed partial class LogListViewer : UserControl
         if (logsToDelete.Count == 0)
             return (0, 0);
 
+        // ⚠ 삭제는 되돌릴 수 없으므로 여기서 묻는다.
+        //
+        // 예전에는 이 공용 경로에 확인이 없었고, 이것을 부르던 학생 정보 화면은
+        // [삭제] 를 누르는 즉시 기록이 사라졌다. 같은 누가기록을 지우는데
+        // 누가기록 전용 화면은 건별로 묻고 이쪽은 안 묻는 상태였다.
+        //
+        // 누가기록 전용 화면(PageStudentLog)은 날짜·주제까지 보여 주는 자기 확인을
+        // 따로 갖고 있어 이 경로를 타지 않는다 — 이리로 옮긴다면 그쪽 확인을 함께
+        // 걷어내야 두 번 묻지 않는다.
+        if (!await MessageBox.ShowConfirmAsync(
+                $"선택한 누가기록 {logsToDelete.Count}건을 삭제합니다.\n" +
+                "딸린 첨부파일도 함께 지워지며 되돌릴 수 없습니다.",
+                "누가기록 삭제", "삭제", "취소"))
+            return (0, 0);
+
         using var logService = new Services.StudentLogService();
         using var fileRepo = new Repositories.StudentLogFileRepository(SchoolDatabase.DbPath);
         int deleted = 0;
