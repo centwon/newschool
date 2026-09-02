@@ -155,33 +155,25 @@ public sealed partial class StudentSpecPage : Page, IDisposable
 
             if (confirmed)
             {
-                int saved = 0;
+                // 한 트랜잭션으로 저장한다 — 하나라도 실패하면 전부 되돌린다.
+                // 예전에는 건별로 돌면서 반영된 것만 세었는데, 도중에 예외가 나면
+                // 앞부분만 DB 에 남고 사용자는 몇 건이 들어갔는지 알 수 없었다.
+                // 같은 표를 저장하는 교과 세특 화면(CourseSpecPage)은 처음부터
+                // 이 경로를 썼다 — 두 화면이 서로 다르게 동작할 이유가 없다.
+                await _specialService.SaveManyAsync(selectedSpecs.Select(s => s.Special));
+
                 foreach (var spec in selectedSpecs)
-                {
-                    // 반영된 항목만 "저장됨"으로 표시한다. 예전에는 결과를 버리고 무조건
-                    // MarkAsSaved 를 불러, 한 건도 저장되지 않아도 변경 표시가 사라지고
-                    // 사용자는 저장됐다고 믿었다.
-                    bool ok = spec.Special.No > 0
-                        ? await _specialService.UpdateAsync(spec.Special)
-                        : (spec.Special.No = await _specialService.CreateAsync(spec.Special)) > 0;
-
-                    if (!ok) continue;
-
                     spec.MarkAsSaved();
-                    saved++;
-                }
 
-                if (saved == selectedSpecs.Count)
-                    await MessageBox.ShowAsync("저장되었습니다", "완료");
-                else
-                    await MessageBox.ShowAsync(
-                        $"{selectedSpecs.Count}개 중 {saved}개만 저장됐습니다.\n" +
-                        "저장되지 않은 항목은 변경 표시가 남아 있습니다.", "일부 저장 실패");
+                await MessageBox.ShowAsync("저장되었습니다", "완료");
             }
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync($"저장 중 오류가 발생했습니다: {ex.Message}", "오류");
+            // 롤백됐으므로 한 건도 저장되지 않았다. 변경 표시를 그대로 두어
+            // 사용자가 고쳐 다시 누를 수 있게 한다.
+            await MessageBox.ShowAsync(
+                $"저장하지 못했습니다. 한 건도 저장되지 않았습니다.\n{ex.Message}", "저장 실패");
         }
     }
 
@@ -316,18 +308,20 @@ public sealed partial class StudentSpecPage : Page, IDisposable
             var studentSpecsList = new List<(int Number, string Name, List<StudentSpecial> Specs)>();
             int totalSpecs = 0;
 
+            // 학급 전체를 IN 쿼리로 한 번에 읽는다 — 예전에는 학생 수만큼 쿼리했다.
+            // (같은 화면의 LoadSpecsAsync 는 이미 이 방식이었다.)
+            var specsByStudent = await specService.GetByStudentIdsAsync(
+                enrollments.Select(e2 => e2.StudentID), year);
+
             foreach (var enrollment in enrollments.OrderBy(e2 => e2.Number))
             {
-                List<StudentSpecial> specs;
+                specsByStudent.TryGetValue(enrollment.StudentID, out var found);
+                var specs = found ?? new List<StudentSpecial>();
 
+                // 영역 필터 (예전에는 학생별 조회 두 갈래로 갈렸는데, 한쪽도 결국
+                //  전부 읽어 메모리에서 걸렀으므로 여기서 한 번만 거른다)
                 if (!string.IsNullOrEmpty(filterType))
-                {
-                    specs = await specService.GetByTypeAsync(enrollment.StudentID, year, filterType);
-                }
-                else
-                {
-                    specs = await specService.GetByStudentAsync(enrollment.StudentID, year);
-                }
+                    specs = specs.Where(s => s.Type == filterType).ToList();
 
                 // 상태 필터
                 if (statusFilter == "draft")

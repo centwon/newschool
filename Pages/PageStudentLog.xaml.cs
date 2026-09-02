@@ -262,8 +262,6 @@ public sealed partial class PageStudentLog : Page, IDisposable
                     selectedLogs.Select(v => ((string?)v.StudentLog.StudentID, v.StudentLog.Year, v.StudentLog.Date))))
                 return;
 
-            using var service = new StudentLogService();
-
             int saved = 0;
             foreach (var logViewModel in selectedLogs)
             {
@@ -274,11 +272,11 @@ public sealed partial class PageStudentLog : Page, IDisposable
                 bool ok;
                 if (log.No > 0)
                 {
-                    ok = await service.UpdateAsync(log);
+                    ok = await _logService.UpdateAsync(log);
                 }
                 else
                 {
-                    log.No = await service.InsertAsync(log);
+                    log.No = await _logService.InsertAsync(log);
                     ok = log.No > 0;
                     if (ok) logViewModel.StudentLog = log;
                 }
@@ -327,11 +325,9 @@ public sealed partial class PageStudentLog : Page, IDisposable
                 {
                     if (log.No > 0)
                     {
-                        using var service = new StudentLogService();
-
                         // DB 에서 지워진 것만 목록에서 뺀다 — 예전에는 결과와 무관하게
                         // 화면에서 지워, 새로 고치면 기록이 되살아났다.
-                        if (!await service.DeleteAsync(log.No))
+                        if (!await _logService.DeleteAsync(log.No))
                         {
                             await MessageBox.ShowAsync(
                                 "삭제되지 않았습니다. 이미 지워진 기록일 수 있습니다.", "삭제 실패");
@@ -430,12 +426,11 @@ public sealed partial class PageStudentLog : Page, IDisposable
                 return;
             }
 
-            using var logService = new StudentLogService();
             var studentLogsList = new List<(StudentCardViewModel Student, List<StudentLogViewModel> Logs)>();
             int totalLogs = 0;
 
             // 학급 전체 기록을 IN 쿼리로 일괄 조회 (학생 수 × 학기만큼 쿼리하던 N+1 제거, semester=0=전체)
-            var logsByStudent = await logService.GetStudentLogsBatchAsync(
+            var logsByStudent = await _logService.GetStudentLogsBatchAsync(
                 enrollments.Select(e => e.StudentID), year, filterSemester);
 
             foreach (var enrollment in enrollments.OrderBy(e => e.Number))
@@ -606,7 +601,10 @@ public sealed partial class PageStudentLog : Page, IDisposable
             if (t.IsFaulted)
                 System.Diagnostics.Debug.WriteLine($"[PageStudentLog] {t.Exception?.InnerException?.Message}");
         }, TaskContinuationOptions.OnlyOnFaulted);
-        _logService?.Dispose();
+
+        // ⚠ 여기서 _logService 를 닫지 않는다. 목록 컨트롤이 내려가는 것과 화면이 끝나는
+        // 것은 다른 일이고, 위의 CheckUnSavedAsync 는 아직 돌고 있다 — 그 사이에 닫으면
+        // 마지막 저장이 닫힌 연결을 쓴다. 서비스는 화면의 Unloaded → Dispose() 가 닫는다.
         if (StudentList != null)
             StudentList.StudentSelected -= OnStudentSelected;
     }
@@ -628,8 +626,7 @@ public sealed partial class PageStudentLog : Page, IDisposable
         {
             // 이 화면은 학년도 전체를 보여준다 — 학기 필터를 두지 않으므로 0(전체)으로 조회한다.
             //   (_semester 는 새 기록을 만들 때 쓸 학기라 여기서는 쓰지 않는다.)
-            using var service = new StudentLogService();
-            var logs = await service.GetStudentLogsAsync(_selectedStudent.StudentID, _year, semester: 0);
+            var logs = await _logService.GetStudentLogsAsync(_selectedStudent.StudentID, _year, semester: 0);
 
             // 카테고리 필터 적용
             if (_category != LogCategory.전체)
@@ -733,7 +730,6 @@ public sealed partial class PageStudentLog : Page, IDisposable
                 var log = logViewModel.StudentLog;
                 var result = await ShowSaveConfirmDialogAsync(log);
 
-                using var service = new StudentLogService();
                 if (result)
                 {
                     // 학생을 바꾸기 직전의 마지막 저장 기회다 — 반영되지 않았는데 선택을
@@ -741,11 +737,11 @@ public sealed partial class PageStudentLog : Page, IDisposable
                     bool ok;
                     if (log.No > 0)
                     {
-                        ok = await service.UpdateAsync(log);
+                        ok = await _logService.UpdateAsync(log);
                     }
                     else
                     {
-                        log.No = await service.InsertAsync(log);
+                        log.No = await _logService.InsertAsync(log);
                         ok = log.No > 0;
                     }
 

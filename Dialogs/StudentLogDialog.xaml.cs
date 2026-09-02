@@ -649,9 +649,7 @@ public sealed partial class StudentLogDialog : Window
         // 칸은 또 달라 "동아리" 열이 늘 비어 있었다.
         var selectedClub = CBoxClub.SelectedItem as Club;
 
-        // 연결은 한 번만 연다 — 예전에는 학생마다 새로 열어 반 30명이면 30개가 열렸다.
-        using var svc = new StudentLogService();
-        int savedCount = 0;
+        var toSave = new List<StudentLog>(selected.Count);
 
         foreach (var enrollment in selected)
         {
@@ -681,29 +679,29 @@ public sealed partial class StudentLogDialog : Window
                 ResultOrOutcome = templateLog.ResultOrOutcome
             };
 
-            try
-            {
-                log.No = await svc.InsertAsync(log);
-                if (log.No <= 0)
-                    throw new InvalidOperationException("기록이 저장되지 않았습니다.");
-
-                _logs.Add(log);
-                savedCount++;
-            }
-            catch (Exception ex)
-            {
-                // 여기서 다시 던지면 호출부가 같은 내용을 한 번 더 띄운다 — 안내는 한 번만 하고
-                // 창은 닫지 않는다. 앞선 학생들의 기록은 이미 저장돼 있으므로 몇 명까지
-                // 되었는지 함께 알려 사용자가 다시 누를 때 무엇이 남았는지 알게 한다.
-                Debug.WriteLine($"[오류] {enrollment.Name} 저장 실패: {ex.Message}");
-                await ShowErrorAsync("저장 실패",
-                    $"'{enrollment.Name}' 저장에 실패했습니다.\n{ex.Message}\n\n" +
-                    $"앞선 {savedCount}명은 저장됐습니다. 창을 닫지 않았으니 다시 저장해 주세요.");
-                return false;
-            }
+            toSave.Add(log);
         }
 
-        return true;
+        // 한 트랜잭션으로 넣는다 — 하나라도 실패하면 전부 되돌린다. 예전에는 학생마다
+        // 따로 넣어서, 열 번째에서 실패하면 앞의 아홉 명만 남았다. 사용자가 다시 저장을
+        // 누르면 그 아홉 명에게 같은 기록이 한 벌 더 생겼다.
+        try
+        {
+            using var svc = new StudentLogService();
+            await svc.InsertManyAsync(toSave);
+            _logs.AddRange(toSave);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // 여기서 다시 던지면 호출부가 같은 내용을 한 번 더 띄운다 — 안내는 한 번만 하고
+            // 창은 닫지 않아 입력한 내용을 지킨다.
+            Debug.WriteLine($"[오류] 일괄 저장 실패: {ex.Message}");
+            await ShowErrorAsync("저장 실패",
+                $"저장하지 못했습니다. 한 건도 저장되지 않았습니다.\n{ex.Message}\n\n" +
+                "창을 닫지 않았으니 다시 저장해 주세요.");
+            return false;
+        }
     }
 
     #endregion

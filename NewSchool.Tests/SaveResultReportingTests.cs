@@ -73,6 +73,56 @@ public class SaveResultReportingTests : IClassFixture<SqliteTestFixture>
     }
 
     /// <summary>
+    /// 학급 일괄 입력은 학생마다 따로 넣어서, 열 번째에서 실패하면 앞의 아홉 명만
+    /// DB 에 남았다. 사용자가 다시 저장을 누르면 그 아홉 명에게 같은 기록이 한 벌
+    /// 더 생겼다. 이제 <c>InsertManyAsync</c> 가 한 트랜잭션으로 넣는다.
+    /// </summary>
+    [Fact]
+    public async Task 누가기록_일괄저장은_하나라도_실패하면_전체_롤백한다()
+    {
+        string studentId = await _db.NewStudentInDbAsync("일괄누가");
+
+        using var service = new StudentLogService(_db.DbPath);
+        using var repo = new StudentLogRepository(_db.DbPath);
+
+        var good = TestData.NewStudentLog(studentId, log: "정상 누가기록");
+
+        // StudentID 가 Student 에 없으면 FK 위반으로 저장이 깨진다
+        // (BaseRepository 가 연결마다 foreign_keys=ON 을 켠다).
+        var ghost = TestData.NewStudentLog("없는학생ID", log: "유령 누가기록");
+
+        await Assert.ThrowsAnyAsync<Exception>(
+            () => service.InsertManyAsync([good, ghost]));
+
+        // 롤백됐으므로 앞의 정상 기록도 남지 않아야 한다
+        var all = await repo.GetByStudentAsync(studentId, TestData.Year);
+        Assert.DoesNotContain(all, l => l.Log == "정상 누가기록");
+    }
+
+    /// <summary>전부 성공하면 전부 남고, 각 기록에 새 No 가 채워진다.</summary>
+    [Fact]
+    public async Task 누가기록_일괄저장은_성공하면_전부_남는다()
+    {
+        string a = await _db.NewStudentInDbAsync("일괄가");
+        string b = await _db.NewStudentInDbAsync("일괄나");
+
+        using var service = new StudentLogService(_db.DbPath);
+        using var repo = new StudentLogRepository(_db.DbPath);
+
+        var logs = new[]
+        {
+            TestData.NewStudentLog(a, log: "가 기록"),
+            TestData.NewStudentLog(b, log: "나 기록"),
+        };
+
+        Assert.Equal(2, await service.InsertManyAsync(logs));
+        Assert.All(logs, l => Assert.True(l.No > 0));
+
+        Assert.Contains(await repo.GetByStudentAsync(a, TestData.Year), l => l.Log == "가 기록");
+        Assert.Contains(await repo.GetByStudentAsync(b, TestData.Year), l => l.Log == "나 기록");
+    }
+
+    /// <summary>
     /// <c>SchoolService.SaveSchoolAsync</c> 는 갱신 결과를 버려서, 저장이 실패해도
     /// 초기 설정·설정 화면이 성공으로 넘어갔다.
     /// </summary>
