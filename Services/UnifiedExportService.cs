@@ -189,11 +189,9 @@ public class UnifiedExportService
             보호자연락처 = vm.Detail?.GetPrimaryContact() ?? string.Empty,
         }).ToList();
 
-        // xlsx 는 인쇄물이 아니라 내보내기 — 다른 xlsx·html·csv 와 같은 Exports 로 간다.
-        var dir = System.IO.Path.Combine(Settings.RootPath, "Exports");
-        if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+        // 저장 자리는 Helpers.ExportPaths 가 정한다 — 확장자가 폴더를 고른다.
         var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-        var filePath = System.IO.Path.Combine(dir, fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         await Task.Run(() => MiniExcelLibs.MiniExcel.SaveAs(filePath, rows));
         return filePath;

@@ -15,13 +15,7 @@ namespace NewSchool.Services;
 /// </summary>
 public class StudentSpecPrintService
 {
-    private static string GetOutputDir()
-    {
-        var dir = Path.Combine(Settings.RootPath, "Prints");
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        return dir;
-    }
+    // 저장 자리를 정하던 GetOutputDir 은 Helpers.ExportPaths 로 올렸다(45차).
 
     // 개인 학생부 PDF(GenerateStudentSpecPdf)와 그것만 쓰던 ComposeSpecTable 은 호출부가 없어
     // 지웠다(39차). 학생부 PDF 는 학급 전체를 한 부로 뽑는 GenerateClassSpecPdf 하나로 나간다.
@@ -34,7 +28,7 @@ public class StudentSpecPrintService
         List<(int Number, string Name, List<StudentSpecial> Specs)> studentSpecs)
     {
         var fileName = $"학생부_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         Document.Create(container =>
         {

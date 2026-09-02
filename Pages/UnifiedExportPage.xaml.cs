@@ -241,15 +241,6 @@ public sealed partial class UnifiedExportPage : Page
         }
     }
 
-    private static void TryOpen(string path)
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-        }
-        catch
-        {
-            // 무시 — 경로는 UI에 표시됨
-        }
-    }
+    // 만든 파일을 여는 것은 Helpers.ExportPaths.TryOpen 한 곳에 모았다(45차).
+    private static void TryOpen(string path) => Helpers.ExportPaths.TryOpen(path);
 }

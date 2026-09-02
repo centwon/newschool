@@ -75,10 +75,19 @@ public static class ExcelHelpers
     }
 
     /// <summary>
-    /// DataTable을 Excel 파일로 저장하고 저장 위치 선택
+    /// DataTable 을 엑셀로 저장한다 — <b>위치를 묻지 않고</b> 다른 내보내기와 같은 자리에
+    /// 둔다(<see cref="ExportPaths"/>).
+    ///
+    /// <para>예전에는 이것만 <c>FileSavePicker</c> 로 위치를 물었다. 같은 앱에서 어떤 출력은
+    /// 묻고 어떤 출력은 안 묻는 상태였고, 내보내기 축에서는 <b>묻지 않는 쪽이 다수</b>였다.
+    /// 알려야 하는 것은 저장이 <b>실패했을 때</b>지 매번 어디에 둘지가 아니다.</para>
+    ///
+    /// <para>⚠ 이웃한 <see cref="SaveExcelFileAsync"/>·<see cref="ExportStudentsToExcelAsync"/>
+    /// 는 그대로 물어본다 — 학생 명단 내보내기처럼 다른 축에서 쓰는 것들이라 여기서 함께
+    /// 바꾸지 않았다.</para>
     /// </summary>
-    public static async Task<FileSaveResult> SaveDataTableToExcelAsync(
-        Window window,
+    /// <returns>저장한 파일 경로. 실패하면 null(자세한 내용은 로그).</returns>
+    public static async Task<string?> SaveDataTableAsync(
         DataTable data,
         string? title = null,
         string? subtitle = null,
@@ -88,39 +97,29 @@ public static class ExcelHelpers
 
         try
         {
-            // 기본 파일명 생성 — title 은 화면의 제목 입력칸에서 그대로 오므로
+            // 파일명 — title 은 화면의 제목 입력칸에서 그대로 오므로
             // "국어/문학 명렬표" 처럼 파일명에 못 쓰는 문자가 섞일 수 있다.
             var safeTitle = Helpers.FileNameHelper.Sanitize(title);
-            string defaultFileName = string.IsNullOrWhiteSpace(safeTitle)
+            string fileName = string.IsNullOrWhiteSpace(safeTitle)
                 ? $"데이터_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
-                : $"{safeTitle}_{DateTime.Now:yyyyMMdd}.xlsx";
+                : $"{safeTitle}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
 
-            // 파일 저장 위치 선택
-            var saveFile = await SaveExcelFileAsync(window, defaultFileName);
-            if (saveFile == null)
-                return FileSaveResult.Canceled;
-
-            // 임시 파일에 먼저 저장
+            // 임시 파일에 먼저 만들고, 다 된 것만 제자리로 옮긴다 —
+            // 도중에 실패했을 때 반쪽짜리 파일이 남지 않게.
             tempPath = await ExcelHelper.WriteDataAsync(data, title, subtitle);
 
-            // 선택한 위치로 복사
-            var tempFile = await StorageFile.GetFileFromPathAsync(tempPath);
-            await tempFile.CopyAndReplaceAsync(saveFile);
+            var filePath = ExportPaths.Resolve(fileName);
+            File.Copy(tempPath, filePath, overwrite: false);
 
-            // 파일 열기
-            if (openAfterSave)
-            {
-                await Launcher.LaunchFileAsync(saveFile);
-            }
+            if (openAfterSave) ExportPaths.TryOpen(filePath);
 
-            return FileSaveResult.Completed;
+            return filePath;
         }
         catch (Exception ex)
         {
-            // 저장 위치까지 고른 뒤의 실패를 "취소" 로 뭉뚱그리면 사용자는 자기가 취소한 줄 안다.
             System.Diagnostics.Debug.WriteLine($"[ExcelHelpers] 엑셀 저장 실패: {ex.Message}");
             NewSchool.Logging.Log.Error("ExcelHelpers", "엑셀 저장 실패", ex);
-            return FileSaveResult.Failed;
+            return null;
         }
         finally
         {

@@ -13,13 +13,7 @@ namespace NewSchool.Services;
 /// </summary>
 public class StudentLogExportService
 {
-    private static string GetOutputDir()
-    {
-        var dir = Path.Combine(Settings.RootPath, "Exports");
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        return dir;
-    }
+    // 저장 자리를 정하던 GetOutputDir 은 Helpers.ExportPaths 로 올렸다(45차).
 
     /// <summary>
     /// 누가기록 엑셀 내보내기
@@ -35,7 +29,7 @@ public class StudentLogExportService
 
         // 엑셀 파일 경로 생성 — 이름은 사용자 입력이라 파일명에 못 쓰는 문자가 섞일 수 있다
         var fileName = $"누가기록_{grade}학년{classNo}반_{number}번_{Helpers.FileNameHelper.Sanitize(studentVm.Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         // 카테고리별로 그룹화
         var groupedLogs = logs.GroupBy(l => l.Category)
@@ -302,7 +296,7 @@ public class StudentLogExportService
         List<(StudentCardViewModel Student, List<StudentLogViewModel> Logs)> studentLogs)
     {
         var fileName = $"누가기록_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         // 학생 정보를 포함한 DTO 리스트 생성
         var allDtos = new List<LogExportDto>();

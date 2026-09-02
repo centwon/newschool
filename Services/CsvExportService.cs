@@ -14,13 +14,8 @@ namespace NewSchool.Services;
 /// </summary>
 public class CsvExportService
 {
-    private static string GetOutputDir()
-    {
-        var dir = Path.Combine(Settings.RootPath, "Exports");
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        return dir;
-    }
+    // 저장 자리를 정하던 GetOutputDir 은 Helpers.ExportPaths 로 올렸다(45차) —
+    // 같은 여섯 줄이 서비스마다 한 벌씩 있었고, 결국 좌석·학생카드만 다른 폴더로 갈라졌다.
 
     /// <summary>학급 전체 누가기록을 CSV 파일로 내보낸다. 경로 반환.</summary>
     public string ExportClassLogsToCsv(
@@ -28,7 +23,7 @@ public class CsvExportService
         List<(StudentCardViewModel Student, List<StudentLogViewModel> Logs)> studentLogs)
     {
         var fileName = $"누가기록_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
         File.WriteAllText(filePath, BuildClassLogsCsv(studentLogs), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         return filePath;
     }
@@ -86,7 +81,7 @@ public class CsvExportService
         List<(int Number, string Name, List<StudentSpecial> Specs)> classSpecs)
     {
         var fileName = $"학생부특기사항_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
         File.WriteAllText(filePath, BuildClassSpecsCsv(grade, classNo, classSpecs), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         return filePath;
     }
@@ -129,7 +124,7 @@ public class CsvExportService
         List<NewSchool.ViewModels.StudentCardViewModel> students)
     {
         var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
         File.WriteAllText(filePath, BuildClassInfoCsv(grade, classNo, students), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         return filePath;
     }

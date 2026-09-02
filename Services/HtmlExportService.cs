@@ -16,13 +16,7 @@ namespace NewSchool.Services;
 /// </summary>
 public class HtmlExportService
 {
-    private static string GetOutputDir()
-    {
-        var dir = Path.Combine(Settings.RootPath, "Exports");
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        return dir;
-    }
+    // 저장 자리를 정하던 GetOutputDir 은 Helpers.ExportPaths 로 올렸다(45차).
 
     #region 공통 스타일
 
@@ -144,7 +138,7 @@ public class HtmlExportService
         List<(StudentCardViewModel Student, List<StudentLogViewModel> Logs)> studentLogs)
     {
         var fileName = $"누가기록_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.html";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
         var html = BuildClassLogsHtml(year, grade, classNo, studentLogs);
         File.WriteAllText(filePath, html, Encoding.UTF8);
         return filePath;
@@ -214,7 +208,7 @@ public class HtmlExportService
         List<(int Number, string Name, List<StudentSpecial> Specs)> studentSpecs)
     {
         var fileName = $"학생부_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.html";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
         var html = BuildClassSpecsHtml(year, grade, classNo, studentSpecs);
         File.WriteAllText(filePath, html, Encoding.UTF8);
         return filePath;
@@ -266,7 +260,7 @@ public class HtmlExportService
         List<NewSchool.ViewModels.StudentCardViewModel> students)
     {
         var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.html";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
         File.WriteAllText(filePath, BuildClassInfoHtml(year, grade, classNo, students), Encoding.UTF8);
         return filePath;
     }
@@ -298,7 +292,7 @@ public class HtmlExportService
         List<StudentCardViewModel> students)
     {
         var fileName = $"학생카드_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.html";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
         var html = BuildClassCardsHtml(year, grade, classNo, students);
         File.WriteAllText(filePath, html, Encoding.UTF8);
         return filePath;

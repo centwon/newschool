@@ -337,25 +337,18 @@ public sealed partial class PageStudentInfo : Page, IDisposable
 
             // PDF 생성
             var printService = new StudentCardPrintService();
+            // 다른 출력물과 같이 묻지 않고 정해진 자리에 저장한다(Helpers.ExportPaths).
             var pdfPath = await printService.GenerateStudentCardPdfAsync(
                 SCard.ViewModel,
-                window,
                 includeDetailInfo,
                 logsToInclude);
 
-            // pdfPath가 null인 경우 처리
-            if (pdfPath == null)
-            {
-                return; // 사용자가 취소함
-            }
-
-            // PDF를 시스템 기본 뷰어로 열기
+            // 만들어졌으면 바로 띄운다. 여는 데 실패해도 파일은 이미 있으므로
+            // 오류가 아니라 어디에 뒀는지만 알린다.
             var uri = new Uri($"file:///{pdfPath.Replace("\\", "/")}");
-            var success = await Windows.System.Launcher.LaunchUriAsync(uri);
-
-            if (!success)
+            if (!await Windows.System.Launcher.LaunchUriAsync(uri))
             {
-                await MessageBox.ShowAsync($"PDF 파일을 열 수 없습니다.\n경로: {pdfPath}", "오류");
+                await MessageBox.ShowAsync($"PDF 를 저장했습니다.\n{pdfPath}", "저장 완료");
             }
         }
         catch (Exception ex)

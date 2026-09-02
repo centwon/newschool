@@ -3,15 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.UI.Xaml;
 using NewSchool.Models;
 using NewSchool.Pages;
 using NewSchool.ViewModels;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 
 namespace NewSchool.Services;
 
@@ -28,15 +25,21 @@ public class StudentCardPrintService
     private static readonly string LabelColor = Colors.Grey.Darken2;
     private static readonly string BorderColor = Colors.Grey.Lighten1;
 
-    public async Task<string?> GenerateStudentCardPdfAsync(
+    /// <summary>
+    /// 개인 학생카드 PDF 를 만든다.
+    ///
+    /// <para>다른 출력물과 같이 <b>묻지 않고</b> 정해진 자리에 저장한다
+    /// (<see cref="Helpers.ExportPaths"/>). 예전에는 이것만 <c>FileSavePicker</c> 로
+    /// 위치를 물었다 — 같은 앱에서 어떤 출력은 묻고 어떤 출력은 안 묻는 상태였고,
+    /// 물어보는 쪽이 오히려 소수였다. 알릴 것은 <b>저장이 실패했을 때</b>지
+    /// 매번 어디에 둘지가 아니다.</para>
+    /// </summary>
+    /// <returns>만들어진 파일 경로. 실패하면 예외를 올린다.</returns>
+    public async Task<string> GenerateStudentCardPdfAsync(
         StudentCardViewModel viewModel,
-        Window window,
         bool includeDetailInfo = true,
         List<StudentLogViewModel>? studentLogs = null)
     {
-        if (window == null)
-            throw new ArgumentNullException(nameof(window));
-
         ConfigureKoreanFont();
 
         var grade = viewModel.Enrollment?.Grade ?? 0;
@@ -44,21 +47,9 @@ public class StudentCardPrintService
         var number = viewModel.Enrollment?.Number ?? 0;
         var year = viewModel.Enrollment?.Year ?? Settings.WorkYear.Value;
 
-        var suggestedFileName = $"학생정보_{grade}학년{classNo}반_{number}번_{Helpers.FileNameHelper.Sanitize(viewModel.Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-
-        var savePicker = new FileSavePicker();
-        var hwnd = WindowNative.GetWindowHandle(window);
-        InitializeWithWindow.Initialize(savePicker, hwnd);
-
-        savePicker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-        savePicker.FileTypeChoices.Add("PDF 문서", new List<string>() { ".pdf" });
-        savePicker.SuggestedFileName = suggestedFileName;
-
-        var file = await savePicker.PickSaveFileAsync();
-        if (file == null)
-            return null;
-
-        var filePath = file.Path;
+        // 이름은 사용자 입력이라 파일명에 못 쓰는 문자가 섞일 수 있다
+        var fileName = $"학생정보_{grade}학년{classNo}반_{number}번_{Helpers.FileNameHelper.Sanitize(viewModel.Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         await Task.Run(() =>
         {
@@ -468,7 +459,6 @@ public class StudentCardPrintService
     // ── 학급 전체 학생카드 PDF (통합 내보내기) ──
     /// <summary>
     /// 학급 전체 학생카드를 단일 PDF로 생성 (학생당 1 페이지 세트).
-    /// FileSavePicker 미사용 — 고정 경로에 저장.
     /// </summary>
     public async Task<string?> GenerateClassCardsPdfFromDbAsync(int year, int grade, int classNo)
     {
@@ -477,10 +467,8 @@ public class StudentCardPrintService
         var students = await LoadClassStudentsAsync(year, grade, classNo);
         if (students.Count == 0) return null;
 
-        var dir = Path.Combine(Settings.RootPath, "Prints");
-        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"학생카드_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(dir, fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         await Task.Run(() =>
         {
@@ -552,10 +540,8 @@ public class StudentCardPrintService
             메모 = vm.Detail?.Memo ?? string.Empty,
         }).ToList();
 
-        var dir = Path.Combine(Settings.RootPath, "Prints");
-        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"학생카드_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-        var filePath = Path.Combine(dir, fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         await Task.Run(() => MiniExcelLibs.MiniExcel.SaveAs(filePath, rows));
         return filePath;
@@ -601,10 +587,8 @@ public class StudentCardPrintService
         var students = await LoadClassStudentsAsync(year, grade, classNo);
         if (students.Count == 0) return null;
 
-        var dir = Path.Combine(Settings.RootPath, "Prints");
-        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"학생정보_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(dir, fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         await Task.Run(() =>
         {

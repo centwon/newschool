@@ -115,10 +115,8 @@ public class SeatsPrintService
 
         var html = BuildSeatsHtml(cells, grade, classNo, jul, jjak, message, showPhoto, orientation, includeRoster);
 
-        var dir = Path.Combine(Settings.RootPath, "Prints");
-        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"좌석배정표_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.html";
-        var filePath = Path.Combine(dir, fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
         File.WriteAllText(filePath, html, Encoding.UTF8);
         return filePath;
     }
@@ -172,10 +170,8 @@ public class SeatsPrintService
             .Select(s => new RosterExportDto { 번호 = s.Number, 이름 = s.Name })
             .ToList();
 
-        var dir = Path.Combine(Settings.RootPath, "Prints");
-        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var fileName = $"좌석배정표_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-        var filePath = Path.Combine(dir, fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         var sheets = new Dictionary<string, object>
         {
@@ -289,10 +285,7 @@ public class SeatsPrintService
         bool includeRoster = false)
     {
         var fileName = $"좌석배정표_{grade}학년{classRoom}반_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var printsDir = Path.Combine(Settings.RootPath, "Prints");
-        if (!Directory.Exists(printsDir))
-            Directory.CreateDirectory(printsDir);
-        var filePath = Path.Combine(printsDir, fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         // 그리드 크기
         // 호출부가 DB 값을 그대로 넘길 수 있어 여기서도 보정한다(0 이면 나눗셈이 깨진다)

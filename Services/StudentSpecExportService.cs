@@ -12,13 +12,7 @@ namespace NewSchool.Services;
 /// </summary>
 public class StudentSpecExportService
 {
-    private static string GetOutputDir()
-    {
-        var dir = Path.Combine(Settings.RootPath, "Exports");
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        return dir;
-    }
+    // 저장 자리를 정하던 GetOutputDir 은 Helpers.ExportPaths 로 올렸다(45차).
 
     /// <summary>
     /// 학급 전체 학생부를 하나의 엑셀 파일로 내보내기
@@ -28,7 +22,7 @@ public class StudentSpecExportService
         List<(int Number, string Name, List<StudentSpecial> Specs)> studentSpecs)
     {
         var fileName = $"학생부_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         var allDtos = new List<SpecExportDto>();
 

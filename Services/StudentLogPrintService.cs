@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -18,13 +18,7 @@ public class StudentLogPrintService
     private static readonly float FontSize = 8f;
     private static readonly float HeaderFontSize = 9f;
 
-    private static string GetOutputDir()
-    {
-        var dir = Path.Combine(Settings.RootPath, "Prints");
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        return dir;
-    }
+    // 저장 자리를 정하던 GetOutputDir 은 Helpers.ExportPaths 로 올렸다(45차).
 
     /// <summary>
     /// 개인 누가기록 PDF 생성
@@ -40,7 +34,7 @@ public class StudentLogPrintService
 
         // 이름은 사용자 입력이라 파일명에 못 쓰는 문자가 섞일 수 있다
         var fileName = $"누가기록_{grade}학년{classNo}반_{number}번_{Helpers.FileNameHelper.Sanitize(studentVm.Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         Document.Create(container =>
         {
@@ -88,7 +82,7 @@ public class StudentLogPrintService
         List<(StudentCardViewModel Student, List<StudentLogViewModel> Logs)> studentLogs)
     {
         var fileName = $"누가기록_{grade}학년{classNo}반_일괄_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-        var filePath = Path.Combine(GetOutputDir(), fileName);
+        var filePath = Helpers.ExportPaths.Resolve(fileName);
 
         Document.Create(container =>
         {

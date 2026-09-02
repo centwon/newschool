@@ -551,24 +551,17 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
                 ? $"{year}학년도 {grade}학년 전체"
                 : $"{year}학년도 {grade}학년 {classNo}반";
 
-            var window = App.MainWindow;
-            if (window == null)
-            {
-                await MessageBox.ShowAsync("메인 윈도우를 찾을 수 없습니다.");
-                return;
-            }
-
-            var saveResult = await ExcelHelpers.SaveDataTableToExcelAsync(
-                window,
+            // 다른 내보내기와 같이 묻지 않고 정해진 자리에 저장한다(Helpers.ExportPaths).
+            var savedPath = await ExcelHelpers.SaveDataTableAsync(
                 _data,
                 title: title,
                 subtitle: subtitle,
                 openAfterSave: true
             );
 
-            // 취소는 사용자가 한 일이라 알리지 않는다 — 예전에는 실패와 한 문장으로 묶여
-            // "취소되었거나 실패했습니다" 라고만 말했다.
-            if (saveResult == Helpers.FileSaveResult.Failed)
+            // 알리는 것은 실패했을 때뿐이다. 성공하면 파일이 곧바로 열리므로
+            // 거기에 더해 확인 창까지 띄우면 누르고 지나가야 할 것만 늘어난다.
+            if (savedPath == null)
             {
                 await MessageBox.ShowAsync(
                     "엑셀 파일을 저장하지 못했습니다.\n" +
