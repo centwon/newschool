@@ -16,9 +16,13 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
+            <!-- 문구는 코드가 읽기 전용 여부에 맞춰 다시 넣는다. 여기 값은 디자이너용
+                 자리표시자일 뿐이라, 실제로 뜨는 문구와 같게 적어 둔다 — 예전에는
+                 "첨부파일"만 있어서, IsReadOnly 를 건드리지 않는 화면에서는 '+' 안내가
+                 영영 나오지 않았다. -->
             <TextBlock x:Name="HeaderTextBlock"
                        Grid.Column="0"
-                       Text="첨부파일"
+                       Text="첨부파일 — '+' 로 붙입니다"
                        FontSize="12"
                        VerticalAlignment="Center"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
