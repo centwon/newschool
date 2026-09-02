@@ -451,6 +451,49 @@ public sealed partial class StudentManagementPage : Page, IDisposable
     /// <summary>
     /// 선택된 학생 삭제
     /// </summary>
+    /// <summary>
+    /// 고른 것 중 <b>그 학생의 마지막 학적</b>인 것들의 이름.
+    ///
+    /// <para>학적을 빼도 <c>Student</c> 행은 남는다(그게 맞다 — 다른 학년도 기록을 지키기
+    /// 위해서다). 다만 그것이 <b>마지막</b> 학적이면 그 학생은 어느 학년도 명부에도 나타나지
+    /// 않게 된다. 되돌릴 방법이 화면에 없으므로 빼기 전에 알린다.</para>
+    ///
+    /// <para>조회에 실패하면 <b>알리지 않고 넘어간다</b> — 이 경고는 거들 뿐이라,
+    /// 이것 때문에 빼기 자체가 막히면 안 된다.</para>
+    /// </summary>
+    private static async Task<List<string>> FindLastEnrollmentsAsync(
+        EnrollmentRepository repo, List<StudentManagementViewModel> selected)
+    {
+        var names = new List<string>();
+
+        // 같은 학생을 여러 줄 고를 수 있다(학년도가 다르면 다른 학적이다) — 한 번만 센다.
+        foreach (var studentId in selected.Select(s => s.StudentID).Distinct())
+        {
+            try
+            {
+                var history = await repo.GetHistoryByStudentIdAsync(studentId);
+
+                // 이번에 빼는 것을 뺀 나머지가 없으면 마지막이다.
+                var removing = selected.Where(s => s.StudentID == studentId)
+                                       .Select(s => s.EnrollmentNo)
+                                       .ToHashSet();
+
+                if (history.All(h => removing.Contains(h.No)))
+                {
+                    var name = selected.First(s => s.StudentID == studentId).Name;
+                    names.Add(string.IsNullOrWhiteSpace(name) ? studentId : name);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[StudentManagement] 학적 이력 확인 실패({studentId}): {ex.Message}");
+            }
+        }
+
+        return names;
+    }
+
     private async Task DeleteStudentsAsync()
     {
         try
@@ -459,21 +502,38 @@ public sealed partial class StudentManagementPage : Page, IDisposable
 
             if (selectedStudents.Count == 0)
             {
-                await MessageBox.ShowAsync("삭제할 학생을 선택하세요.", "알림");
+                await MessageBox.ShowAsync("명부에서 뺄 학생을 선택하세요.", "알림");
                 return;
             }
 
-            // 확인 대화상자
+            // ⭐ SchoolDatabase.DbPath 사용
+            using var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
+
+            // ⚠ 이 버튼이 지우는 것은 <b>그 학년도의 학적</b> 하나뿐이다.
+            //   Student·StudentDetail·누가기록·학생부·사진·첨부는 그대로 남는다.
+            //   그게 맞다 — 다른 학년도 학적이 있는 학생의 Student 행을 지우면 그 학년도
+            //   기록까지 CASCADE 로 날아간다. 틀린 것은 말이었다: 예전 문구는
+            //   "학생을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다" 였고,
+            //   끝나면 "N명의 학생이 삭제되었습니다" 라고 했다.
+            var lastOnes = await FindLastEnrollmentsAsync(enrollmentRepo, selectedStudents);
+
+            string message =
+                $"선택한 {selectedStudents.Count}명을 {YearSemPicker.Year}학년도 명부에서 뺍니다.\n" +
+                "학생 정보와 기록(누가기록·학생부·사진)은 지워지지 않습니다.";
+
+            if (lastOnes.Count > 0)
+            {
+                message +=
+                    $"\n\n다만 다음 {lastOnes.Count}명은 이것이 마지막 학적이라, 빼고 나면\n" +
+                    "어느 학년도 명부에도 나타나지 않습니다.\n" +
+                    string.Join(", ", lastOnes);
+            }
+
             var confirmed = await MessageBox.ShowConfirmAsync(
-                $"선택한 {selectedStudents.Count}명의 학생을 삭제하시겠습니까?\n\n" +
-                "이 작업은 되돌릴 수 없습니다.",
-                "학생 삭제", "삭제", "취소");
+                message, "명부에서 빼기", "빼기", "취소");
             if (!confirmed) return;
 
             int successCount = 0;
-            // ⭐ SchoolDatabase.DbPath 사용
-            using var enrollmentRepo = new EnrollmentRepository(SchoolDatabase.DbPath);
-            using var studentRepo = new StudentRepository(SchoolDatabase.DbPath);
 
             foreach (var vm in selectedStudents)
             {
@@ -488,8 +548,10 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                         continue;
                     }
 
-                    // Student 삭제 (선택적 - 다른 학적이 없는 경우만)
-                    // await studentRepo.DeleteAsync(vm.StudentID);
+                    // Student 는 지우지 않는다. 다른 학년도 학적이 있는 학생의 Student
+                    // 행을 지우면 그 학년도 기록까지 CASCADE 로 날아가기 때문이다.
+                    // (예전에는 주석 처리된 호출 한 줄만 남아 있어, 읽는 사람이
+                    //  "하려다 만 것" 인지 "안 하기로 한 것" 인지 알 수 없었다.)
 
                     Students.Remove(vm);
                     successCount++;
@@ -503,18 +565,18 @@ public sealed partial class StudentManagementPage : Page, IDisposable
 
             if (successCount == selectedStudents.Count)
             {
-                await MessageBox.ShowAsync($"{successCount}명의 학생이 삭제되었습니다.", "완료");
+                await MessageBox.ShowAsync($"{successCount}명을 명부에서 뺐습니다.", "완료");
             }
             else
             {
                 await MessageBox.ShowAsync(
-                    $"{selectedStudents.Count}명 중 {successCount}명만 삭제되었습니다.", "삭제 실패");
+                    $"{selectedStudents.Count}명 중 {successCount}명만 뺐습니다.", "일부 실패");
             }
             UpdateUI();
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync($"삭제 중 오류가 발생했습니다.\n{ex.Message}", "오류");
+            await MessageBox.ShowAsync($"명부에서 빼는 중 오류가 발생했습니다.\n{ex.Message}", "오류");
         }
     }
 

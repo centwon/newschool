@@ -84,9 +84,12 @@
                         Padding="16,4"
                         Click="OnEditSelectedClick"/>
 
+                <!-- 이 버튼은 그 학년도의 학적만 뺀다. 학생 정보와 기록은 남는다 —
+                     "삭제" 라고 부르면 사용자가 기대하는 것과 하는 일이 어긋난다. -->
                 <Button x:Name="BtnDelete"
-                        Content="선택 삭제"
+                        Content="명부에서 빼기"
                         Padding="16,4"
+                        ToolTipService.ToolTip="선택한 학생을 이 학년도 명부에서 뺍니다. 학생 정보와 기록은 지워지지 않습니다."
                         Click="OnDeleteClick"/>
 
                 <Button x:Name="BtnAddOne"
