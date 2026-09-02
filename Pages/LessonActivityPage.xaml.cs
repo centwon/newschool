@@ -192,7 +192,6 @@ public sealed partial class LessonActivityPage : Page
         }
 
         var dialog = new StudentLogDialog(
-            SchoolDatabase.DbPath,
             LogCategory.교과활동,
             _selectedYear,
             _selectedSemester,
@@ -272,6 +271,12 @@ public sealed partial class LessonActivityPage : Page
                 ShowInfoBar("저장할 기록을 선택해주세요.", InfoBarSeverity.Warning);
                 return;
             }
+
+            // 학교를 떠난 학생에게 그 뒤 날짜로 기록을 남기려는 것이면 먼저 알린다
+            // (저장 경로마다 따로 적지 않고 EnrollmentGuard 한 곳에서 판단한다).
+            if (!await EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
+                    selectedLogs.Select(v => ((string?)v.StudentLog.StudentID, v.StudentLog.Year, v.StudentLog.Date))))
+                return;
 
             using var logService = new StudentLogService();
 

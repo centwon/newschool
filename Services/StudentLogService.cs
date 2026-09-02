@@ -36,6 +36,45 @@ public class StudentLogService : IDisposable
         return await _repository.CreateAsync(log).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 여러 기록을 <b>한 트랜잭션으로</b> 저장한다 — 하나라도 실패하면 전부 되돌린다.
+    ///
+    /// <para>학급 일괄 입력이 쓴다. 예전에는 학생마다 따로 넣어서, 열 번째에서 실패하면
+    /// 앞의 아홉 명은 DB 에 남고 뒤는 안 들어간 어중간한 상태가 됐다. 사용자는 다시
+    /// 저장을 눌렀고, 그러면 앞의 아홉 명에게 같은 기록이 한 벌 더 생겼다.</para>
+    ///
+    /// <para>학생부 쪽 <c>StudentSpecialService.SaveManyAsync</c> 와 같은 규칙이다.</para>
+    /// </summary>
+    /// <returns>저장한 건수. 실패하면 던지고 아무것도 남기지 않는다.</returns>
+    public async Task<int> InsertManyAsync(IEnumerable<StudentLog> logs)
+    {
+        var list = logs?.ToList() ?? new List<StudentLog>();
+        if (list.Count == 0) return 0;
+
+        try
+        {
+            _repository.BeginTransaction();
+
+            foreach (var log in list)
+            {
+                log.No = await _repository.CreateAsync(log).ConfigureAwait(false);
+
+                // 반영 여부를 봐야 "하나라도 실패하면 전체 롤백"이 실제로 성립한다.
+                if (log.No <= 0)
+                    throw new InvalidOperationException(
+                        $"기록이 저장되지 않았습니다(학생 {log.StudentID}).");
+            }
+
+            _repository.Commit();
+            return list.Count;
+        }
+        catch
+        {
+            _repository.Rollback();
+            throw;
+        }
+    }
+
     #endregion
 
     #region Read/Select

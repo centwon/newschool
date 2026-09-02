@@ -161,31 +161,6 @@ public class StudentSpecialRepository : BaseRepository
     }
 
     /// <summary>
-    /// 학생의 미마감(작성 중) 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetDraftByStudentAsync(string studentId)
-    {
-        const string query = @"
-                SELECT * FROM StudentSpecial 
-                WHERE StudentID = @StudentID 
-                  AND IsActive = 1
-                ORDER BY Year DESC, Date DESC";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@StudentID", studentId);
-
-            return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            LogError($"학생 미마감 기록 조회 실패: StudentID={studentId}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
     /// CourseNo별 학생부 기록 조회
     /// </summary>
     public async Task<List<StudentSpecial>> GetByCourseAsync(int courseNo, int year)
@@ -211,176 +186,17 @@ public class StudentSpecialRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 영역별 학생부 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetByTypeAsync(string type, int year)
-    {
-        const string query = @"
-                SELECT * FROM StudentSpecial 
-                WHERE Type = @Type 
-                  AND Year = @Year
-                ORDER BY Date DESC";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Type", type);
-            cmd.Parameters.AddWithValue("@Year", year);
-
-            return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            LogError($"영역별 학생부 기록 조회 실패: Type={type}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 영역별 미마감(작성 중) 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetDraftByTypeAsync(string type)
-    {
-        const string query = @"
-                SELECT * FROM StudentSpecial 
-                WHERE Type = @Type 
-                  AND IsActive = 1
-                ORDER BY Year DESC, Date DESC";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Type", type);
-
-            return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            LogError($"영역별 미마감 기록 조회 실패: Type={type}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 교사가 작성한 학생부 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetByTeacherAsync(string teacherId, int year)
-    {
-        const string query = @"
-                SELECT * FROM StudentSpecial 
-                WHERE TeacherID = @TeacherID 
-                  AND Year = @Year
-                ORDER BY Date DESC";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@TeacherID", teacherId);
-            cmd.Parameters.AddWithValue("@Year", year);
-
-            return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            LogError($"교사별 학생부 기록 조회 실패: TeacherID={teacherId}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 키워드로 학생부 기록 검색
-    /// </summary>
-    public async Task<List<StudentSpecial>> SearchAsync(string keyword, int year)
-    {
-        const string query = @"
-                SELECT * FROM StudentSpecial 
-                WHERE Year = @Year
-                  AND (Title LIKE @Keyword OR Content LIKE @Keyword OR Tag LIKE @Keyword OR SubjectName LIKE @Keyword)
-                ORDER BY Date DESC
-                LIMIT 100";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Year", year);
-            cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
-
-            return await ExecuteListAsync(cmd, MapStudentSpecial).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            LogError($"학생부 기록 검색 실패: Keyword={keyword}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 영역별 통계 (건수)
-    /// </summary>
-    public async Task<Dictionary<string, int>> GetCountByTypeAsync(int year)
-    {
-        const string query = @"
-                SELECT Type, COUNT(*) as Count 
-                FROM StudentSpecial 
-                WHERE Year = @Year
-                GROUP BY Type";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Year", year);
-
-            var counts = new Dictionary<string, int>();
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                var type = reader.GetString(0);
-                var count = reader.GetInt32(1);
-                counts[type] = count;
-            }
-
-            return counts;
-        }
-        catch (Exception ex)
-        {
-            LogError($"영역별 통계 조회 실패: Year={year}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 미마감 기록 통계
-    /// </summary>
-    public async Task<Dictionary<string, int>> GetDraftCountByTypeAsync()
-    {
-        const string query = @"
-                SELECT Type, COUNT(*) as Count 
-                FROM StudentSpecial 
-                WHERE IsActive = 1
-                GROUP BY Type";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-
-            var counts = new Dictionary<string, int>();
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                var type = reader.GetString(0);
-                var count = reader.GetInt32(1);
-                counts[type] = count;
-            }
-
-            return counts;
-        }
-        catch (Exception ex)
-        {
-            LogError("미마감 기록 통계 조회 실패", ex);
-            throw;
-        }
-    }
+    // 미마감 조회(GetDraftByStudentAsync·GetDraftByTypeAsync)·영역별 조회(GetByTypeAsync)·
+    // 교사별 조회(GetByTeacherAsync)·키워드 검색(SearchAsync)·통계 둘(GetCountByTypeAsync·
+    // GetDraftCountByTypeAsync)은 호출부가 없어 서비스의 짝과 함께 지웠다(44차).
+    // 화면은 학생 단위·수업 단위로만 읽고, 영역·마감 상태는 메모리에서 거른다.
+    //
+    // ⚠ 미마감 조회 셋(IsActive = 1)은 애초에 학년도 조건이 없었다 — 되살린다면
+    //   Year 를 함께 받아야 옛 학년도가 섞이지 않는다.
+    //
+    // 이들이 쓰던 인덱스(idx_studentspecial_type·idx_studentspecial_active·
+    // idx_studentspecial_teacher·idx_studentspecial_date)는 그대로 뒀다 — 지우려면
+    // 손으로 DB 를 고쳐야 하고(이 프로젝트는 ALTER 마이그레이션을 두지 않는다) 이득이 없다.
 
     #endregion
 
@@ -524,6 +340,10 @@ public class StudentSpecialRepository : BaseRepository
         // 두 경우 모두 InvalidCastException 을 냈다.
         var teacherIdIdx = cache.GetOrdinal("TeacherID");
         var tagIdx = cache.GetOrdinal("Tag");
+        // IsActive 도 마찬가지다 — 스키마가 `INTEGER DEFAULT 1` 이라 NOT NULL 이 아니다.
+        // DEFAULT 는 값을 안 주었을 때만 채우므로, NULL 을 명시해 넣은 행이 있으면 그대로 남는다.
+        // 위의 둘과 같은 InvalidCastException 이 날 자리인데 여기만 맨몸이었다.
+        var isActiveIdx = cache.GetOrdinal("IsActive");
 
         return new StudentSpecial
         {
@@ -538,7 +358,8 @@ public class StudentSpecialRepository : BaseRepository
             TeacherID = reader.IsDBNull(teacherIdIdx) ? string.Empty : reader.GetString(teacherIdIdx),
             CourseNo = reader.IsDBNull(courseNoIdx) ? 0 : reader.GetInt32(courseNoIdx),
             SubjectName = reader.IsDBNull(subjectNameIdx) ? string.Empty : reader.GetString(subjectNameIdx),
-            IsFinalized = reader.GetInt32(cache.GetOrdinal("IsActive")) == 0,
+            // NULL 은 "마감 안 됨"으로 본다(DEFAULT 1 = 작성 중 과 같은 뜻).
+            IsFinalized = !reader.IsDBNull(isActiveIdx) && reader.GetInt32(isActiveIdx) == 0,
             Tag = reader.IsDBNull(tagIdx) ? string.Empty : reader.GetString(tagIdx)
         };
     }

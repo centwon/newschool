@@ -311,6 +311,8 @@ public sealed partial class StudentSpecBatchDialog : Window
         IconModified.Visibility = _modifiedIds.Contains(student.StudentID)
             ? Visibility.Visible : Visibility.Collapsed;
 
+        ApplyFinalizedState(spec);
+
         UpdateByteInfo();
         UpdateProgress();
 
@@ -582,6 +584,88 @@ public sealed partial class StudentSpecBatchDialog : Window
         }
 
         this.Close();
+    }
+
+    /// <summary>
+    /// 지금 보고 있는 학생의 기록을 마감 / 마감 해제한다.
+    ///
+    /// <para>여기와 <see cref="Controls.StudentSpecBox"/> 둘이 마감 상태를 바꾸는
+    /// 유일한 자리다. 오랫동안 읽는 곳만 있고 쓰는 곳이 없어서, 일괄 출력에서
+    /// "마감만"을 고르면 언제나 "조건에 맞는 기록이 없습니다"가 떴다.</para>
+    /// </summary>
+    private async void BtnFinalize_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentStudent == null ||
+            !_specCache.TryGetValue(_currentStudent.StudentID, out var spec))
+        {
+            TxtSaveStatus.Text = "학생을 먼저 선택하세요.";
+            return;
+        }
+
+        // 캐시에만 있고 아직 DB 에 없는 기록은 마감할 대상이 없다.
+        SaveCurrentToCache();
+        if (spec.No <= 0)
+        {
+            TxtSaveStatus.Text = "먼저 저장한 뒤에 마감할 수 있습니다.";
+            return;
+        }
+
+        bool toFinalize = !spec.IsFinalized;
+
+        // 저장하지 않은 편집을 두고 마감하면 그 편집은 영영 못 넣는다.
+        if (toFinalize && _modifiedIds.Contains(spec.StudentID))
+        {
+            TxtSaveStatus.Text = "저장하지 않은 변경이 있습니다. 저장한 뒤에 마감해 주세요.";
+            return;
+        }
+
+        var confirmed = await MessageBox.ShowConfirmAsync(
+            toFinalize
+                ? $"{_currentStudent.Name} 학생의 이 기록을 마감합니다.\n마감하면 수정과 삭제가 잠깁니다(언제든 해제할 수 있습니다)."
+                : $"{_currentStudent.Name} 학생의 이 기록의 마감을 해제합니다.",
+            toFinalize ? "마감 확인" : "마감 해제 확인",
+            toFinalize ? "마감" : "마감 해제", "취소");
+
+        if (!confirmed) return;
+
+        try
+        {
+            using var service = new StudentSpecialService();
+
+            // 반영된 것만 화면에 옮긴다 — 결과를 버리면 잠기지도 않았는데 잠긴 것처럼 보인다.
+            if (!await service.UpdateFinalizedStatusAsync(spec.No, toFinalize))
+            {
+                TxtSaveStatus.Text = "상태가 바뀌지 않았습니다. 이미 지워진 기록일 수 있습니다.";
+                return;
+            }
+
+            spec.IsFinalized = toFinalize;
+            ApplyFinalizedState(spec);
+            TxtSaveStatus.Text = toFinalize ? "마감했습니다." : "마감을 해제했습니다.";
+        }
+        catch (Exception ex)
+        {
+            TxtSaveStatus.Text = $"마감 상태 변경 실패: {ex.Message}";
+            await Controls.UserErrorReporter.ReportAsync("마감 상태 변경", ex);
+        }
+    }
+
+    /// <summary>마감 여부를 편집칸과 버튼에 반영한다.</summary>
+    private void ApplyFinalizedState(StudentSpecial spec)
+    {
+        bool finalized = spec.IsFinalized;
+
+        TxtContent.IsEnabled = !finalized;
+        if (TxtTitleInput.Visibility == Visibility.Visible)
+            TxtTitleInput.IsEnabled = !finalized;
+
+        // 마감이면 잠긴 자물쇠, 아니면 열린 자물쇠. 사용자 영역 문자를 그대로 넣으면
+        // 편집기·도구를 지나며 깨지므로 코드포인트로 적는다.
+        IconFinalize.Glyph = ((char)(finalized ? 0xE72E : 0xE785)).ToString();
+        TxtFinalize.Text = finalized ? "마감 해제" : "마감";
+        ToolTipService.SetToolTip(BtnFinalize,
+            finalized ? "이 학생의 기록 마감을 해제" : "이 학생의 기록을 마감");
+        BtnFinalize.IsEnabled = spec.No > 0;
     }
 
     private async void BtnSpellCheck_Click(object sender, RoutedEventArgs e)

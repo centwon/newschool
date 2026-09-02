@@ -120,6 +120,17 @@
                             Padding="8,4">
                         <FontIcon Glyph="&#xE74D;" FontSize="18"/>
                     </Button>
+
+                    <!-- 마감 / 마감 해제.
+                         마감하면 이 칸이 읽기 전용이 되고 저장·삭제가 잠긴다.
+                         아이콘과 설명은 코드에서 현재 상태에 맞춰 바꾼다. -->
+                    <Button x:Name="BtnFinalize"
+                            Click="OnFinalizeClick"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8,4">
+                        <FontIcon x:Name="IconFinalize" Glyph="&#xE72E;" FontSize="18"/>
+                    </Button>
                 </StackPanel>
             </Grid>
 

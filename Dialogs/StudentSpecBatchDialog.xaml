@@ -199,6 +199,17 @@
                             <TextBlock Text="초안 자동 생성" FontSize="12"/>
                         </StackPanel>
                     </Button>
+
+                    <!-- 지금 보고 있는 학생의 기록을 마감 / 마감 해제.
+                         마감하면 그 기록은 수정·삭제가 잠긴다(판정은 StudentSpecialService). -->
+                    <Button x:Name="BtnFinalize"
+                            Click="BtnFinalize_Click"
+                            ToolTipService.ToolTip="이 학생의 기록을 마감">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon x:Name="IconFinalize" Glyph="&#xE785;" FontSize="14"/>
+                            <TextBlock x:Name="TxtFinalize" Text="마감" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <!-- 누가기록 참조 패널 -->

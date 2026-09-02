@@ -182,7 +182,7 @@
 
                                     <!-- 과목 -->
                                     <TextBlock Grid.Column="4"
-                                               Text="{x:Bind SubjectName, Mode=OneWay}"
+                                               Text="{x:Bind SubjectOrClubDisplay, Mode=OneWay}"
                                                Visibility="{x:Bind SubjectColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"

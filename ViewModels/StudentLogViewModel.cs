@@ -316,6 +316,7 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
                 OnPropertyChanged(nameof(CategoryColor));
                 OnPropertyChanged(nameof(CourseNo));
                 OnPropertyChanged(nameof(SubjectName));
+                OnPropertyChanged(nameof(SubjectOrClubDisplay));
                 OnPropertyChanged(nameof(Log));
                 OnPropertyChanged(nameof(Tag));
                 OnPropertyChanged(nameof(IsImportant));
@@ -457,9 +458,16 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
             {
                 _studentlog.SubjectName = value;
                 OnPropertyChanged(nameof(SubjectName));
+                OnPropertyChanged(nameof(SubjectOrClubDisplay));
             }
         }
     }
+
+    /// <summary>
+    /// 목록의 "과목/동아리" 칸 표시값. 판단은 <see cref="StudentLog.SubjectOrClubDisplay"/>
+    /// 한 곳에만 있고 화면·인쇄·내보내기가 그것을 함께 쓴다.
+    /// </summary>
+    public string SubjectOrClubDisplay => _studentlog.SubjectOrClubDisplay;
 
     /// <summary>기록 내용</summary>
     public string Log
@@ -731,6 +739,7 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
         OnPropertyChanged(nameof(CategoryLabel));
         OnPropertyChanged(nameof(CategoryColor));
         OnPropertyChanged(nameof(SubjectName));
+        OnPropertyChanged(nameof(SubjectOrClubDisplay));
         OnPropertyChanged(nameof(Log));
         OnPropertyChanged(nameof(Tag));
         OnPropertyChanged(nameof(IsImportant));

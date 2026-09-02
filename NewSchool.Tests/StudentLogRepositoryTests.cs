@@ -144,16 +144,47 @@ public class StudentLogRepositoryTests : IClassFixture<SqliteTestFixture>
         Assert.Equal(2, s2Only[id][0].Semester);
     }
 
+    /// <summary>
+    /// <b>규칙: 기간 조회는 마지막 날을 포함한다.</b>
+    ///
+    /// <para><c>Date</c> 는 TEXT 라, 시각이 붙은 행("2026-03-31 10:00")이 있으면
+    /// 문자열 비교 <c>&lt;= '2026-03-31'</c> 에 걸리지 않아 마지막 날이 통째로 빠졌다.
+    /// 하루 조회는 처음부터 <c>date()</c> 로 감쌌는데 기간 조회만 맨몸이었다 —
+    /// 한 파일 안의 형제 함수가 서로 다른 규칙을 쓰고 있었다.</para>
+    /// </summary>
     [Fact]
-    public async Task 카테고리별_조회()
+    public async Task 기간_조회는_시각이_붙은_행도_마지막_날에_포함한다()
     {
         using var repo = new StudentLogRepository(_db.DbPath);
-        var id = await _db.NewStudentInDbAsync("카테고리");
-        await repo.CreateAsync(TestData.NewStudentLog(id, category: LogCategory.자율활동));
-        await repo.CreateAsync(TestData.NewStudentLog(id, category: LogCategory.진로활동));
+        using var enrollRepo = new EnrollmentRepository(_db.DbPath);
 
-        var career = await repo.GetByCategoryAsync(id, TestData.Year, 1, LogCategory.진로활동);
-        Assert.Single(career);
-        Assert.Equal(LogCategory.진로활동, career[0].Category);
+        var id = await _db.NewStudentInDbAsync("기간조회");
+        await enrollRepo.CreateAsync(TestData.NewEnrollment(id, name: "기간조회", grade: 3, classNum: 7));
+
+        var end = new DateTime(TestData.Year, 3, 31);
+        await repo.CreateAsync(TestData.NewStudentLog(id, date: end));
+
+        // 지금 저장 경로는 날짜만 넣는다. 그렇지 않던 시절의 행을 흉내 내어,
+        // 문자열 비교였다면 마지막 날에서 빠졌을 값을 직접 넣는다.
+        using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_db.DbPath}"))
+        {
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE StudentLog SET Date = @d WHERE StudentID = @s";
+            cmd.Parameters.AddWithValue("@d", $"{end:yyyy-MM-dd} 10:00:00");
+            cmd.Parameters.AddWithValue("@s", id);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var found = await repo.GetByClassAndDateRangeAsync(
+            TestData.SchoolCode, TestData.Year, grade: 3, classroom: 7,
+            new DateTime(TestData.Year, 3, 1), end);
+
+        Assert.Single(found);
     }
+
+    // 카테고리별 조회 테스트는 GetByCategoryAsync 와 함께 지웠다(44차).
+    // 그 메서드는 어느 화면에서도 부르지 않았고 서비스에 감싼 것도 없어, 이 테스트만이
+    // 유일한 호출부였다 — 아무도 쓰지 않는 코드를 테스트가 붙들고 있던 셈이다.
+    // 카테고리 거르기는 화면이 학기 전체를 받아 메모리에서 한다.
 }

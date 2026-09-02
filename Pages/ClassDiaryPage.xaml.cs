@@ -257,7 +257,6 @@ public sealed partial class ClassDiaryPage : Page
         }
 
         var logDialog = new Dialogs.StudentLogDialog(
-            SchoolDatabase.DbPath,
             LogCategory.기타,
             _currentYear,
             _currentSemester,
