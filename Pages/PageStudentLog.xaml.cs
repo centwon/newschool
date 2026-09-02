@@ -530,7 +530,6 @@ public sealed partial class PageStudentLog : Page, IDisposable
         try
         {
             var dialog = new StudentLogDialog(
-                SchoolDatabase.DbPath,
                 batchCategory,
                 _year,
                 _semester == 0 ? 1 : _semester,

@@ -192,7 +192,6 @@ public sealed partial class LessonActivityPage : Page
         }
 
         var dialog = new StudentLogDialog(
-            SchoolDatabase.DbPath,
             LogCategory.교과활동,
             _selectedYear,
             _selectedSemester,

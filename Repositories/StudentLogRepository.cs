@@ -202,97 +202,16 @@ public class StudentLogRepository : BaseRepository
     // 학년도를 가리지 않는 전체 조회(GetAllByStudentAsync)는 이를 부르던
     // StudentLogService.GetAllStudentLogsAsync 와 함께 지웠다(39차).
 
-    /// <summary>
-    /// 카테고리별 기록 조회
-    /// </summary>
-    public async Task<List<StudentLog>> GetByCategoryAsync(
-        string studentId, int year, int semester, LogCategory category)
-    {
-        const string query = @"
-                SELECT * FROM StudentLog 
-                WHERE StudentID = @StudentID 
-                  AND Year = @Year 
-                  AND Semester = @Semester
-                  AND Category = @Category
-                ORDER BY Date DESC";
+    // 카테고리별(GetByCategoryAsync)·교사별(GetByTeacherAsync)·수업별(GetByCourseAsync)·
+    // 키워드 검색(SearchAsync)·날짜 범위(GetByDateRangeAsync) 조회는 호출부가 없어 지웠다(44차).
+    // 서비스에도 이들을 감싼 메서드가 없었으므로 화면에서 닿을 방법이 아예 없었다
+    // — GetByCategoryAsync 만 테스트가 하나 붙들고 있었고 그 테스트도 함께 지웠다.
+    // 화면은 학년도·학기로 좁힌 GetByStudentAsync·GetByStudentIdsAsync 와 학급 단위 조회를 쓴다.
+    //
+    // ⚠ 이들이 쓰던 인덱스(idx_studentlog_category·idx_studentlog_teacher·
+    //   idx_studentlog_course·idx_studentlog_date)는 그대로 뒀다. 지우려면 손으로 DB 를
+    //   고쳐야 하는데(이 프로젝트는 ALTER 마이그레이션을 두지 않는다), 이득이 없다.
 
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@StudentID", studentId);
-            cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
-            cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
-            cmd.Parameters.Add("@Category", SqliteType.Integer).Value = (int)category;
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await ReadAllLogsAsync(reader);
-        }
-        catch (Exception ex)
-        {
-            LogError($"카테고리별 기록 조회 실패: Category={category}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 교사가 작성한 기록 조회
-    /// </summary>
-    public async Task<List<StudentLog>> GetByTeacherAsync(
-        string teacherId, int year, int semester)
-    {
-        const string query = @"
-                SELECT * FROM StudentLog 
-                WHERE TeacherID = @TeacherID 
-                  AND Year = @Year 
-                  AND Semester = @Semester
-                ORDER BY Date DESC";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@TeacherID", teacherId);
-            cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
-            cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await ReadAllLogsAsync(reader);
-        }
-        catch (Exception ex)
-        {
-            LogError($"교사별 기록 조회 실패: TeacherID={teacherId}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// CourseNo별 기록 조회
-    /// </summary>
-    public async Task<List<StudentLog>> GetByCourseAsync(
-        int courseNo, int year, int semester)
-    {
-        const string query = @"
-                SELECT * FROM StudentLog 
-                WHERE CourseNo = @CourseNo
-                  AND Year = @Year 
-                  AND Semester = @Semester
-                ORDER BY Date DESC";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.Add("@CourseNo", SqliteType.Integer).Value = courseNo;
-            cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
-            cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await ReadAllLogsAsync(reader);
-        }
-        catch (Exception ex)
-        {
-            LogError($"수업별 기록 조회 실패: CourseNo={courseNo}", ex);
-            throw;
-        }
-    }
     /// <summary>
     /// 학년 반별 기록 조회 (Enrollment JOIN으로 최적화)
     /// 특정 날짜의 특정 학급 전체 학생 기록을 단일 쿼리로 조회
@@ -339,6 +258,12 @@ public class StudentLogRepository : BaseRepository
 
     /// <summary>
     /// 학년 반별 기간 기록 조회 (Enrollment JOIN으로 최적화)
+    ///
+    /// <para>⚠ 날짜는 <c>date()</c> 로 감싸 비교한다 — 바로 위의 하루 조회와 같은 규칙이다.
+    /// 예전에는 여기만 문자열로 견줬는데, <c>Date</c> 는 TEXT 라 시각이 붙은 행
+    /// ("2026-03-31 10:00")이 있으면 <c>&lt;= '2026-03-31'</c> 에 걸리지 않아
+    /// <b>마지막 날이 통째로 빠졌다</b>. 지금 저장 경로는 날짜만 넣지만, 그렇지 않던 시절의
+    /// 행이 남아 있을 수 있고 형제 함수와 규칙이 달라야 할 이유도 없다.</para>
     /// </summary>
     public async Task<List<StudentLog>> GetByClassAndDateRangeAsync(
         string schoolCode, int year, int grade, int classroom, DateTime startDate, DateTime endDate)
@@ -351,8 +276,8 @@ public class StudentLogRepository : BaseRepository
                   AND e.Grade = @Grade
                   AND e.Class = @Class
                   AND sl.Year = @Year
-                  AND sl.Date >= @StartDate
-                  AND sl.Date <= @EndDate
+                  AND date(sl.Date) >= date(@StartDate)
+                  AND date(sl.Date) <= date(@EndDate)
                 ORDER BY sl.Date DESC, e.Number";
 
         try
@@ -383,86 +308,6 @@ public class StudentLogRepository : BaseRepository
     // 중요 기록만(GetImportantAsync)·구조화 기록만(GetStructuredAsync) 조회는 호출부가 없어
     // 지웠다(39차). 목록은 학기 전체를 받아 화면에서 별표·항목 유무로 거른다.
 
-    /// <summary>
-    /// 키워드로 기록 검색 (모든 필드 대상)
-    /// </summary>
-    public async Task<List<StudentLog>> SearchAsync(
-        string keyword, int year, int semester)
-    {
-        const string query = @"
-                SELECT * FROM StudentLog 
-                WHERE Year = @Year 
-                  AND Semester = @Semester
-                  AND (Log LIKE @Keyword 
-                    OR Tag LIKE @Keyword 
-                    OR SubjectName LIKE @Keyword
-                    OR ActivityName LIKE @Keyword
-                    OR Topic LIKE @Keyword
-                    OR Description LIKE @Keyword
-                    OR Role LIKE @Keyword
-                    OR SkillDeveloped LIKE @Keyword
-                    OR StrengthShown LIKE @Keyword
-                    OR ResultOrOutcome LIKE @Keyword)
-                ORDER BY Date DESC
-                LIMIT 100";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
-            cmd.Parameters.Add("@Semester", SqliteType.Integer).Value = semester;
-            cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await ReadAllLogsAsync(reader);
-        }
-        catch (Exception ex)
-        {
-            LogError($"기록 검색 실패: Keyword={keyword}", ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// 날짜 범위로 기록 조회
-    /// </summary>
-    public async Task<List<StudentLog>> GetByDateRangeAsync(
-        string studentId, string startDate, string endDate, int year = 0)
-    {
-        // Year가 지정된 경우 Year 조건도 추가
-        string query = year > 0
-            ? @"SELECT * FROM StudentLog
-                    WHERE StudentID = @StudentID
-                      AND Year = @Year
-                      AND Date >= @StartDate
-                      AND Date <= @EndDate
-                    ORDER BY Date DESC"
-            : @"SELECT * FROM StudentLog
-                    WHERE StudentID = @StudentID
-                      AND Date >= @StartDate
-                      AND Date <= @EndDate
-                    ORDER BY Date DESC";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@StudentID", studentId);
-            cmd.Parameters.AddWithValue("@StartDate", startDate);
-            cmd.Parameters.AddWithValue("@EndDate", endDate);
-            if (year > 0)
-            {
-                cmd.Parameters.Add("@Year", SqliteType.Integer).Value = year;
-            }
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await ReadAllLogsAsync(reader);
-        }
-        catch (Exception ex)
-        {
-            LogError($"날짜 범위 기록 조회 실패: StudentID={studentId}, Year={year}", ex);
-            throw;
-        }
-    }
 
     #endregion
 

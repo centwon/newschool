@@ -205,6 +205,20 @@ public class StudentLogAxisAuditTests
     }
 
     /// <summary>
+    /// <c>ToString()</c> 도 같은 함정에 걸려 있었다 — <c>ActivityName ?? Topic</c> 은
+    /// 활동명이 비어도 절대 물러서지 않아 늘 빈칸이 찍혔다.
+    /// </summary>
+    [Fact]
+    public void ToString_은_비어있지_않은_첫_칸을_보여준다()
+    {
+        var onlyTopic = new StudentLog { Category = LogCategory.자율활동, Topic = "기후변화" };
+        Assert.Contains("기후변화", onlyTopic.ToString());
+
+        var onlyLog = new StudentLog { Category = LogCategory.상담기록, Log = "진학 상담" };
+        Assert.Contains("진학 상담", onlyLog.ToString());
+    }
+
+    /// <summary>
     /// <b>규칙: 진로활동의 <c>Title</c>(희망분야)은 자동으로 채우지 않는다.</b>
     ///
     /// <para><c>NeisHelper</c> 정의표에서 진로활동만 <c>TitleCountsInBytes</c> 라,

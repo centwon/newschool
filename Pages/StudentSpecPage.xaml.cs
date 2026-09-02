@@ -102,7 +102,8 @@ public sealed partial class StudentSpecPage : Page, IDisposable
         {
             _selectedCategory = category;
             SpecListViewer.Category = category;
-            UpdateUIByCategory();
+            // 예전에는 여기서 UpdateUIByCategory() 를 불렀는데 그 메서드는 몸통이 비어 있었다
+            // — 영역별 화면 조정은 SpecListViewer.Category 가 전부 한다. 함께 지웠다(44차).
         }
     }
 
@@ -456,10 +457,6 @@ public sealed partial class StudentSpecPage : Page, IDisposable
     #endregion
 
     #region Helper Methods
-
-    private void UpdateUIByCategory()
-    {
-    }
 
     private bool IsAutoCreateCategory(LogCategory category)
     {

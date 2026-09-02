@@ -120,8 +120,8 @@ public sealed partial class LogListViewer : UserControl
 
     // SelectedCount 는 쓰는 곳이 없어 지웠다(39차) — 선택 결과는 SelectedLogs 로 받아 센다.
 
-    /// <summary>로그 편집 후 변경됨 이벤트 (외부에서 목록 새로고침용)</summary>
-    public event EventHandler<StudentLog>? LogEdited;
+    // 편집 완료 이벤트(LogEdited)는 발행만 하고 구독자가 하나도 없어 지웠다(44차).
+    // 편집 창은 닫힐 때 각 화면이 스스로 목록을 다시 읽으므로 이 통로가 필요 없었다.
 
     #endregion
 
@@ -540,10 +540,8 @@ public sealed partial class LogListViewer : UserControl
             dialog.Closed -= OnEditDialogClosed;
             if (dialog.IsSuccess && dialog.SavedLogs.Count > 0)
             {
-                var saved = dialog.SavedLogs[0];
                 capturedVm.RefreshFromLog();
                 capturedVm.IsSelected = false;
-                LogEdited?.Invoke(this, saved);
             }
         }
         dialog.Closed += OnEditDialogClosed;

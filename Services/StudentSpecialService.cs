@@ -64,16 +64,12 @@ public sealed class StudentSpecialService : IDisposable
         return await _repository.GetByStudentIdsAsync(studentIds, year);
     }
 
-    /// <summary>
-    /// 학생의 미마감(작성 중) 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetDraftByStudentAsync(string studentId)
-    {
-        if (string.IsNullOrWhiteSpace(studentId))
-            throw new ArgumentException("학생 ID가 필요합니다.", nameof(studentId));
-
-        return await _repository.GetDraftByStudentAsync(studentId);
-    }
+    // 미마감 조회(GetDraftByStudentAsync·GetDraftByTypeAsync)·영역별 조회(GetByTypeAsync
+    // 두 오버로드)·교사별 조회(GetByTeacherAsync)·키워드 검색(SearchAsync)은 호출부가 없어
+    // 지웠다(44차). 화면은 학생 단위(GetByStudentAsync·GetByStudentIdsAsync)와 수업 단위로만
+    // 읽고, 영역·마감 상태는 받아 온 목록을 메모리에서 거른다.
+    //
+    // ⚠ 미마감 조회 셋은 애초에 학년도 조건이 없었다 — 되살린다면 옛 학년도가 섞여 나온다.
 
     /// <summary>
     /// 수업별 학생부 기록 조회
@@ -83,63 +79,6 @@ public sealed class StudentSpecialService : IDisposable
         return await _repository.GetByCourseAsync(courseNo, year);
     }
 
-    /// <summary>
-    /// 영역별 학생부 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetByTypeAsync(string type, int year)
-    {
-        if (string.IsNullOrWhiteSpace(type))
-            throw new ArgumentException("영역이 필요합니다.", nameof(type));
-
-        return await _repository.GetByTypeAsync(type, year);
-    }
-
-    /// <summary>
-    /// 학생의 영역별 학생부 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetByTypeAsync(string studentId, int year, string type)
-    {
-        if (string.IsNullOrWhiteSpace(studentId))
-            throw new ArgumentException("학생 ID가 필요합니다.", nameof(studentId));
-        if (string.IsNullOrWhiteSpace(type))
-            throw new ArgumentException("영역이 필요합니다.", nameof(type));
-
-        var allSpecs = await _repository.GetByStudentAsync(studentId, year);
-        return allSpecs.Where(s => s.Type == type).ToList();
-    }
-
-    /// <summary>
-    /// 영역별 미마감(작성 중) 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetDraftByTypeAsync(string type)
-    {
-        if (string.IsNullOrWhiteSpace(type))
-            throw new ArgumentException("영역이 필요합니다.", nameof(type));
-
-        return await _repository.GetDraftByTypeAsync(type);
-    }
-
-    /// <summary>
-    /// 교사가 작성한 학생부 기록 조회
-    /// </summary>
-    public async Task<List<StudentSpecial>> GetByTeacherAsync(string teacherId, int year)
-    {
-        if (string.IsNullOrWhiteSpace(teacherId))
-            throw new ArgumentException("교사 ID가 필요합니다.", nameof(teacherId));
-
-        return await _repository.GetByTeacherAsync(teacherId, year);
-    }
-
-    /// <summary>
-    /// 키워드로 학생부 기록 검색
-    /// </summary>
-    public async Task<List<StudentSpecial>> SearchAsync(string keyword, int year)
-    {
-        if (string.IsNullOrWhiteSpace(keyword))
-            return new List<StudentSpecial>();
-
-        return await _repository.SearchAsync(keyword, year);
-    }
 
     /// <summary>
     /// 학생부 기록 수정 (마감된 기록은 거부)
@@ -235,25 +174,8 @@ public sealed class StudentSpecialService : IDisposable
 
     #endregion
 
-    #region Statistics
-
-    /// <summary>
-    /// 영역별 통계 조회
-    /// </summary>
-    public async Task<Dictionary<string, int>> GetCountByTypeAsync(int year)
-    {
-        return await _repository.GetCountByTypeAsync(year);
-    }
-
-    /// <summary>
-    /// 미마감 기록 통계
-    /// </summary>
-    public async Task<Dictionary<string, int>> GetDraftCountByTypeAsync()
-    {
-        return await _repository.GetDraftCountByTypeAsync();
-    }
-
-    #endregion
+    // 영역별 통계(GetCountByTypeAsync)·미마감 통계(GetDraftCountByTypeAsync) 는
+    // 호출부가 없어 지웠다(44차). 통계를 보여 주는 화면이 처음부터 없었다.
 
     #region Validation
 

@@ -109,15 +109,18 @@ public class StudentSpecialRepositoryTests : IClassFixture<SqliteTestFixture>
     }
 
     [Fact]
-    public async Task GetByType_유형과_연도로_필터()
+    public async Task 학생별_조회는_영역을_가리지_않고_전부_준다()
     {
         using var repo = new StudentSpecialRepository(_db.DbPath);
         var id = await _db.NewStudentInDbAsync("유형세특");
         await repo.CreateAsync(TestData.NewSpecial(id, type: "동아리활동", title: "동아리"));
         await repo.CreateAsync(TestData.NewSpecial(id, type: "자율활동", title: "자율"));
 
-        var club = await repo.GetByTypeAsync("동아리활동", TestData.Year);
-        Assert.All(club, s => Assert.Equal("동아리활동", s.Type));
-        Assert.Contains(club, s => s.Title == "동아리");
+        // 영역별 조회(GetByTypeAsync)는 호출부가 없어 지웠다(44차) — 화면은 학생 단위로
+        // 전부 받아 메모리에서 거른다. 그 전제가 깨지지 않는지 여기서 본다.
+        var all = await repo.GetByStudentAsync(id, TestData.Year);
+
+        Assert.Contains(all, s => s.Type == "동아리활동" && s.Title == "동아리");
+        Assert.Contains(all, s => s.Type == "자율활동" && s.Title == "자율");
     }
 }

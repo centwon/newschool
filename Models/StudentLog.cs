@@ -399,13 +399,31 @@ public class StudentLog : NotifyPropertyChangedBase
                !string.IsNullOrWhiteSpace(ResultOrOutcome);
     }
 
+    /// <summary>
+    /// 디버거·로그에서 이 기록이 무엇인지 알아볼 만한 한 줄.
+    ///
+    /// <para>예전 코드는 <c>ActivityName ?? Topic ?? Description</c> 이었는데, 이 칸들은
+    /// 초기값이 <c>string.Empty</c> 라 <b>널 병합이 한 번도 물러서지 않았다</b> — 활동명이
+    /// 비면 늘 빈칸이 찍혔다. 같은 함정이 내보내기에서는 실제 데이터를 지웠다(44차).</para>
+    /// </summary>
     public override string ToString()
     {
-        if (HasStructuredData())
-        {
-            return $"[{Category}] {ActivityName ?? Topic ?? Description?.Substring(0, Math.Min(20, Description.Length))}";
-        }
-        return $"[{Category}] {Log?.Substring(0, Math.Min(20, Log?.Length ?? 0))}...";
+        string head = HasStructuredData()
+            ? FirstFilled(ActivityName, Topic, Description, Role)
+            : Log;
+
+        head ??= string.Empty;
+        if (head.Length > 20) head = head.Substring(0, 20) + "…";
+
+        return $"[{Category}] {head}";
+    }
+
+    /// <summary>비어 있지 않은 첫 값. 전부 비었으면 빈 문자열.</summary>
+    private static string FirstFilled(params string?[] values)
+    {
+        foreach (var v in values)
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+        return string.Empty;
     }
 
     #endregion

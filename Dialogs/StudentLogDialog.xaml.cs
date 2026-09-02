@@ -134,7 +134,7 @@ public sealed partial class StudentLogDialog : Window
     /// <summary>
     /// 2. 학급별 일괄 입력 (자율/봉사/진로/종합의견/상담/기타)
     /// </summary>
-    public StudentLogDialog(string dbPath, LogCategory category, int year, int semester, int grade, int classNum)
+    public StudentLogDialog(LogCategory category, int year, int semester, int grade, int classNum)
     {
         this.InitializeComponent();
 
@@ -169,7 +169,7 @@ public sealed partial class StudentLogDialog : Window
     /// <summary>
     /// 3. 교과활동 - 과목별 입력
     /// </summary>
-    public StudentLogDialog(string dbPath, LogCategory category, int year, int semester, int courseNo, string teacherId)
+    public StudentLogDialog(LogCategory category, int year, int semester, int courseNo, string teacherId)
     {
         this.InitializeComponent();
 
@@ -203,7 +203,10 @@ public sealed partial class StudentLogDialog : Window
     /// <summary>
     /// 4. 동아리활동 - 동아리별 입력
     /// </summary>
-    public StudentLogDialog(string dbPath, int year, int semester, int clubNo, string schoolCode)
+    // ⚠ 생성자 셋이 받던 dbPath 는 지웠다(44차) — 안에서는 언제나
+    //   SchoolDatabase.DbPath 를 쓰고 그 값은 한 번도 읽히지 않았다.
+    //   테스트에서 임시 DB 를 물릴 수 있는 것처럼 보이기만 했다.
+    public StudentLogDialog(int year, int semester, int clubNo, string schoolCode)
     {
         this.InitializeComponent();
 
