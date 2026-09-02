@@ -371,6 +371,27 @@ public sealed class DatabaseInitializer : IDisposable
         Debug.WriteLine("[DatabaseInitializer] StudentLog 테이블 생성 완료");
 
         // ==========================================
+        // 14-b. StudentLogFile 테이블 (누가기록 첨부)
+        //
+        // 실물은 Data\StudentLogFiles\{Year}\{StudentID}\{FileName} 에 산다.
+        // Year·StudentID 를 여기에 둔 것은 기록이 CASCADE 로 사라진 뒤에도 실물을 치울
+        // 경로를 알기 위해서다 — CASCADE 는 DB 행만 지우고 파일은 남긴다.
+        // ==========================================
+        cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS StudentLogFile (
+                    No INTEGER PRIMARY KEY AUTOINCREMENT,
+                    LogNo INTEGER NOT NULL,
+                    Year INTEGER NOT NULL,
+                    StudentID TEXT NOT NULL,
+                    FileName TEXT NOT NULL,
+                    FileSize INTEGER DEFAULT 0,
+                    DateTime TEXT NOT NULL DEFAULT '',
+                    FOREIGN KEY (LogNo) REFERENCES StudentLog(No) ON DELETE CASCADE
+                );";
+        await cmd.ExecuteNonQueryAsync();
+        Debug.WriteLine("[DatabaseInitializer] StudentLogFile 테이블 생성 완료");
+
+        // ==========================================
         // 15. StudentSpecial 테이블 (학생 특이사항) - ⭐ 수정
         // ==========================================
         cmd.CommandText = @"
@@ -702,6 +723,9 @@ public sealed class DatabaseInitializer : IDisposable
                 CREATE INDEX IF NOT EXISTS idx_studentlog_composite ON StudentLog(StudentID, Year, Semester, Date DESC);
                 CREATE INDEX IF NOT EXISTS idx_studentlog_search ON StudentLog(StudentID, Category, Date DESC);
 
+                -- 누가기록 첨부: 기록 하나의 첨부를 모아 읽는 것이 유일한 조회 형태다
+                CREATE INDEX IF NOT EXISTS idx_studentlogfile_log ON StudentLogFile(LogNo);
+
                 -- StudentSpecial 인덱스 (수정)
                 CREATE INDEX IF NOT EXISTS idx_studentspecial_student ON StudentSpecial(StudentID, Year);
                 CREATE INDEX IF NOT EXISTS idx_studentspecial_course ON StudentSpecial(CourseNo);
@@ -868,6 +892,12 @@ public sealed class DatabaseInitializer : IDisposable
                        OR CourseNo NOT IN (SELECT No FROM Course);
                 DELETE FROM Lesson WHERE Course NOT IN (SELECT No FROM Course);
                 DELETE FROM StudentLog WHERE StudentID NOT IN (SELECT StudentID FROM Student);
+                -- 누가기록 첨부는 StudentLog 뒤에 지운다(부모→자식 순서). 위 DELETE 가
+                -- CASCADE 로 함께 지워 주기를 기대하지 않는다 — 이 연결에 foreign_keys 가
+                -- 켜져 있는지에 결과가 달라지면 안 된다.
+                -- ⚠ 여기서 사라지는 것은 DB 행뿐이다. 폴더에 남은 실물은
+                --   StudentLogAttachments.CleanupOrphanFilesAsync 가 치운다.
+                DELETE FROM StudentLogFile WHERE LogNo NOT IN (SELECT No FROM StudentLog);
                 DELETE FROM StudentSpecial WHERE StudentID NOT IN (SELECT StudentID FROM Student);
                 DELETE FROM Club WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);
                 DELETE FROM ClubEnrollment
