@@ -179,33 +179,38 @@ public class StudentLog : NotifyPropertyChangedBase
     public string Role
     {
         get => _role;
-        set { if (SetProperty(ref _role, value)) Notify(nameof(Summary)); }
+        set { if (SetProperty(ref _role, value)) NotifySummary(); }
     }
 
     /// <summary>기른 능력 (예: "협업 능력", "논리적 사고력")</summary>
     public string SkillDeveloped
     {
         get => _skillDeveloped;
-        set { if (SetProperty(ref _skillDeveloped, value)) Notify(nameof(Summary)); }
+        set { if (SetProperty(ref _skillDeveloped, value)) NotifySummary(); }
     }
 
     /// <summary>드러난 장점 (예: "주도성", "성실성", "창의성")</summary>
     public string StrengthShown
     {
         get => _strengthShown;
-        set { if (SetProperty(ref _strengthShown, value)) Notify(nameof(Summary)); }
+        set { if (SetProperty(ref _strengthShown, value)) NotifySummary(); }
     }
 
     /// <summary>성취 및 결과 (예: "발표 성공", "우수 평가 획득")</summary>
     public string ResultOrOutcome
     {
         get => _resultOrOutcome;
-        set { if (SetProperty(ref _resultOrOutcome, value)) Notify(nameof(Summary)); }
+        set { if (SetProperty(ref _resultOrOutcome, value)) NotifySummary(); }
     }
 
     /// <summary>
-    /// <c>Summary</c> 와 <c>DraftSummary</c> 를 함께 먹이는 칸들이 쓴다.
-    /// <c>Role</c>·<c>SkillDeveloped</c> 같은 칸은 <c>Summary</c> 에만 들어가 따로 알린다.
+    /// 구조화된 활동 기록 <b>일곱 칸 전부</b>가 쓴다 — <c>Summary</c> 와 <c>DraftSummary</c>
+    /// 는 둘 다 일곱 칸을 읽기 때문이다.
+    ///
+    /// <para>⚠ 예전에는 <c>Role</c>·<c>SkillDeveloped</c>·<c>StrengthShown</c>·
+    /// <c>ResultOrOutcome</c> 넷이 <c>Summary</c> 만 알렸고, 주석에도 "그 칸들은 Summary 에만
+    /// 들어간다"고 적혀 있었다. 사실이 아니었다 — <c>DraftSummary</c> 의 문장은 그 넷을
+    /// 전부 쓴다. 테스트까지 그 틀린 사실을 못박고 있었다.</para>
     /// </summary>
     private void NotifySummary() => Notify(nameof(Summary), nameof(DraftSummary));
 
@@ -239,12 +244,11 @@ public class StudentLog : NotifyPropertyChangedBase
     {
         get
         {
-            // 구조화된 필드가 하나라도 있는지 확인
-            bool hasStructuredData = !string.IsNullOrWhiteSpace(ActivityName) ||
-                                    !string.IsNullOrWhiteSpace(Topic) ||
-                                    !string.IsNullOrWhiteSpace(Description);
-
-            if (!hasStructuredData)
+            // 판정은 HasStructuredData() 한 곳에만 둔다. 예전에는 여기서 앞의 세 칸만
+            // 따로 보아, 역할·기른 능력만 적은 기록은 HasStructuredData() 가 참인데도
+            // 요약이 Log 로 떨어졌다 — 내보내기·인쇄는 그 참을 믿고 이 값을 "학생부초안"
+            // 칸에 넣었으므로, 교사가 적은 역할·장점이 어디에도 나타나지 않았다.
+            if (!HasStructuredData())
             {
                 // 구조화된 데이터가 없으면 기존 Log 필드 반환
                 return Log ?? string.Empty;
@@ -286,12 +290,8 @@ public class StudentLog : NotifyPropertyChangedBase
     {
         get
         {
-            // 구조화된 필드가 하나라도 있는지 확인
-            bool hasStructuredData = !string.IsNullOrWhiteSpace(ActivityName) ||
-                                    !string.IsNullOrWhiteSpace(Topic) ||
-                                    !string.IsNullOrWhiteSpace(Description);
-
-            if (!hasStructuredData)
+            // 판정은 HasStructuredData() 한 곳에만 둔다(Summary 의 주석 참고).
+            if (!HasStructuredData())
             {
                 // 구조화된 데이터가 없으면 기존 Log 필드 반환
                 return Log ?? string.Empty;
@@ -327,7 +327,7 @@ public class StudentLog : NotifyPropertyChangedBase
             }
             else
             {
-                sb.Append($"{categoryName} {subjectInfo}");
+                sb.Append($"{categoryName} {subjectInfo}".TrimEnd());
             }
 
             if (!string.IsNullOrWhiteSpace(Topic))
@@ -340,28 +340,39 @@ public class StudentLog : NotifyPropertyChangedBase
                 sb.Append($" {Description}");
             }
 
+            // 뒤에 붙는 역할·능력·장점·성취는 원래 쉼표로 잇는다. 다만 앞이 카테고리 이름
+            // 하나뿐이면(역할만 적은 기록 등) "활동 , 팀장." 처럼 쉼표가 붕 뜨므로,
+            // 그때만 공백으로 잇는다.
+            bool hasBody = !string.IsNullOrWhiteSpace(ActivityName)
+                        || !string.IsNullOrWhiteSpace(Topic)
+                        || !string.IsNullOrWhiteSpace(Description);
+            string join = hasBody ? ", " : " ";
+
             // 역할 추가
             if (!string.IsNullOrWhiteSpace(Role))
             {
-                sb.Append($", {Role}");
+                sb.Append($"{join}{Role}");
+                join = ", ";
             }
 
             // 기른 능력 추가
             if (!string.IsNullOrWhiteSpace(SkillDeveloped))
             {
-                sb.Append($", 이를 통해 {SkillDeveloped}을(를) 기름");
+                sb.Append($"{join}이를 통해 {SkillDeveloped}을(를) 기름");
+                join = ", ";
             }
 
             // 드러난 장점 추가
             if (!string.IsNullOrWhiteSpace(StrengthShown))
             {
-                sb.Append($", {StrengthShown}을(를) 발휘");
+                sb.Append($"{join}{StrengthShown}을(를) 발휘");
+                join = ", ";
             }
 
             // 성취 및 결과 추가
             if (!string.IsNullOrWhiteSpace(ResultOrOutcome))
             {
-                sb.Append($", {ResultOrOutcome}");
+                sb.Append($"{join}{ResultOrOutcome}");
             }
 
             sb.Append(".");

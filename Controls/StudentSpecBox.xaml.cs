@@ -136,9 +136,7 @@ public sealed partial class StudentSpecBox : UserControl
         UpdateModifiedIndicator();
 
         // 마감 상태에 따른 UI 제어
-        TxtContent.IsReadOnly = _special.IsFinalized;
-        BtnSave.IsEnabled = !_special.IsFinalized;
-        BtnDelete.IsEnabled = !_special.IsFinalized;
+        ApplyFinalizedState();
 
         // 바이트 정보 업데이트
         UpdateByteInfo();
@@ -166,6 +164,9 @@ public sealed partial class StudentSpecBox : UserControl
         _originalContent = string.Empty;
         _isModified = false;
         UpdateModifiedIndicator();
+
+        // 마감 버튼도 함께 되돌린다 — 안 그러면 앞 학생의 잠금 아이콘이 그대로 남는다.
+        ApplyFinalizedState();
     }
 
     #endregion
@@ -256,6 +257,88 @@ public sealed partial class StudentSpecBox : UserControl
         {
             await MessageBox.ShowAsync($"삭제 실패: {ex.Message}", "오류");
         }
+    }
+
+    /// <summary>
+    /// 마감 / 마감 해제.
+    ///
+    /// <para>마감하면 그 기록은 수정·삭제가 거부된다(판정은
+    /// <see cref="StudentSpecialService"/> 안에 있다 — 화면에서 잠그는 것만으로는
+    /// 다른 화면에서 들어오는 경로를 막지 못한다).</para>
+    ///
+    /// <para>⚠ 이 버튼이 <b>마감 상태를 바꾸는 유일한 자리</b>다. 오랫동안 읽는 곳만
+    /// 다섯이고(읽기 전용 전환·목록 필터·엑셀 "마감" 열·수정 거부 guard) 쓰는 곳이
+    /// 하나도 없어서, 일괄 출력에서 "마감만"을 고르면 언제나 "조건에 맞는 기록이
+    /// 없습니다"가 떴다.</para>
+    /// </summary>
+    private async void OnFinalizeClick(object sender, RoutedEventArgs e)
+    {
+        if (_special == null || _special.No <= 0)
+        {
+            await MessageBox.ShowAsync(
+                "먼저 저장한 뒤에 마감할 수 있습니다.", "알림");
+            return;
+        }
+
+        bool toFinalize = !_special.IsFinalized;
+
+        // 저장하지 않은 편집이 있는 채로 마감하면 그 편집은 영영 못 넣는다 — 먼저 알린다.
+        if (toFinalize && _isModified)
+        {
+            await MessageBox.ShowAsync(
+                "저장하지 않은 변경이 있습니다. 저장한 뒤에 마감해 주세요.", "알림");
+            return;
+        }
+
+        var confirmed = await MessageBox.ShowConfirmAsync(
+            toFinalize
+                ? "이 기록을 마감합니다. 마감하면 수정과 삭제가 잠깁니다.\n(언제든 마감을 해제할 수 있습니다)"
+                : "이 기록의 마감을 해제합니다. 다시 수정할 수 있게 됩니다.",
+            toFinalize ? "마감 확인" : "마감 해제 확인",
+            toFinalize ? "마감" : "마감 해제", "취소");
+
+        if (!confirmed) return;
+
+        try
+        {
+            using var service = new StudentSpecialService();
+
+            // 반영된 것만 화면에 옮긴다 — 결과를 버리면 잠기지도 않았는데 잠긴 것처럼 보인다.
+            if (!await service.UpdateFinalizedStatusAsync(_special.No, toFinalize))
+            {
+                await MessageBox.ShowAsync(
+                    "상태가 바뀌지 않았습니다. 이미 지워진 기록일 수 있습니다.", "실패");
+                return;
+            }
+
+            _special.IsFinalized = toFinalize;
+            ApplyFinalizedState();
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync($"마감 상태 변경 실패: {ex.Message}", "오류");
+        }
+    }
+
+    /// <summary>
+    /// 마감 여부를 화면에 반영한다. 편집칸을 잠그고 버튼의 아이콘·설명을 바꾼다.
+    /// </summary>
+    private void ApplyFinalizedState()
+    {
+        bool finalized = _special?.IsFinalized == true;
+
+        TxtContent.IsReadOnly = finalized;
+        TxtTitleInput.IsReadOnly = finalized;
+        BtnSave.IsEnabled = !finalized;
+        BtnDelete.IsEnabled = !finalized;
+
+        // 아직 저장하지 않은 기록은 마감할 대상이 없다 — 눌러도 안내만 뜨므로 아예 잠근다.
+        BtnFinalize.IsEnabled = _special != null && _special.No > 0;
+
+        // 마감이면 잠긴 자물쇠, 아니면 열린 자물쇠. 글리프는 코드포인트로 적는다
+        // — 사용자 영역 문자를 그대로 넣으면 편집기·도구를 지나며 깨진다.
+        IconFinalize.Glyph = ((char)(finalized ? 0xE72E : 0xE785)).ToString();
+        ToolTipService.SetToolTip(BtnFinalize, finalized ? "마감 해제" : "마감");
     }
 
     /// <summary>

@@ -147,11 +147,17 @@ public class ComputedPropertyNotifyTests
         AssertNotifies(log, () => log.Description = "설명",
             nameof(StudentLog.Summary), nameof(StudentLog.DraftSummary));
 
-        // 나머지 넷은 Summary 에만 들어간다
-        AssertNotifies(log, () => log.Role = "사회자", nameof(StudentLog.Summary));
-        AssertNotifies(log, () => log.SkillDeveloped = "발표력", nameof(StudentLog.Summary));
-        AssertNotifies(log, () => log.StrengthShown = "배려", nameof(StudentLog.Summary));
-        AssertNotifies(log, () => log.ResultOrOutcome = "우수", nameof(StudentLog.Summary));
+        // ⚠ 나머지 넷도 마찬가지다. 예전 이 자리에는 "나머지 넷은 Summary 에만 들어간다"고
+        // 적혀 있었지만 사실이 아니었다 — DraftSummary 의 문장은 역할·기른 능력·장점·성취를
+        // 전부 쓴다. 모델 주석도 같은 오해를 적어 두었고, 테스트가 그것을 못박고 있었다.
+        AssertNotifies(log, () => log.Role = "사회자",
+            nameof(StudentLog.Summary), nameof(StudentLog.DraftSummary));
+        AssertNotifies(log, () => log.SkillDeveloped = "발표력",
+            nameof(StudentLog.Summary), nameof(StudentLog.DraftSummary));
+        AssertNotifies(log, () => log.StrengthShown = "배려",
+            nameof(StudentLog.Summary), nameof(StudentLog.DraftSummary));
+        AssertNotifies(log, () => log.ResultOrOutcome = "우수",
+            nameof(StudentLog.Summary), nameof(StudentLog.DraftSummary));
     }
 
     /// <summary>

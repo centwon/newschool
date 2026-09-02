@@ -405,20 +405,20 @@ public class StudentLogPrintService
 
     #endregion
 
-    /// <summary>카테고리별 색상</summary>
+    /// <summary>
+    /// 카테고리별 색상 — <b>화면 목록과 같은 표를 쓴다</b>
+    /// (<see cref="StudentLogViewModel.ToCategoryColor"/>).
+    ///
+    /// <para>예전에는 여기에 색표가 하나 더 있어 종이와 화면이 어긋났다. 자율활동은
+    /// 화면에서 하늘색인데 인쇄하면 녹색, 동아리활동은 보라인데 주황, 봉사활동은
+    /// 녹색인데 분홍이었다 — 색으로 영역을 구분하던 사람에게는 같은 기록이 두 얼굴이었다.</para>
+    /// </summary>
     private string GetCategoryColor(LogCategory category)
     {
-        return category switch
-        {
-            LogCategory.교과활동 => Colors.Blue.Medium,
-            LogCategory.개인별세특 => Colors.Indigo.Medium,
-            LogCategory.자율활동 => Colors.Green.Medium,
-            LogCategory.동아리활동 => Colors.Orange.Medium,
-            LogCategory.봉사활동 => Colors.Pink.Medium,
-            LogCategory.진로활동 => Colors.Purple.Medium,
-            LogCategory.종합의견 => Colors.Teal.Medium,
-            LogCategory.상담기록 => Colors.Cyan.Medium,
-            _ => Colors.Grey.Medium
-        };
+        // 화면 표는 #AARRGGBB, QuestPDF 는 #RRGGBB 를 쓴다. 앞의 알파 두 자리만 떼면 된다.
+        var argb = StudentLogViewModel.ToCategoryColor(category);
+        return argb.Length == 9 && argb[0] == '#'
+            ? "#" + argb.Substring(3)
+            : argb;
     }
 }

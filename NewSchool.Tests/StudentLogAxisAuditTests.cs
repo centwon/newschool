@@ -141,6 +141,70 @@ public class StudentLogAxisAuditTests
     }
 
     /// <summary>
+    /// <b>규칙: "구조화된 기록인가"는 <see cref="StudentLog.HasStructuredData"/> 한 곳에서만 본다.</b>
+    ///
+    /// <para>예전에는 <c>Summary</c>·<c>DraftSummary</c> 가 앞의 세 칸(활동명·주제·활동내용)만
+    /// 따로 보았다. 그래서 역할이나 기른 능력만 적은 기록은 <c>HasStructuredData()</c> 가
+    /// 참인데도 요약이 <c>Log</c> 로 떨어졌고 — 내보내기·인쇄는 그 참을 믿고 이 값을
+    /// "학생부초안" 칸에 넣었으므로, 교사가 적은 역할·장점이 어디에도 나타나지 않았다.</para>
+    /// </summary>
+    [Fact]
+    public void 역할만_적어도_요약에_들어간다()
+    {
+        var log = new StudentLog
+        {
+            Category = LogCategory.자율활동,
+            Role = "팀장",
+            StrengthShown = "주도성"
+        };
+
+        Assert.True(log.HasStructuredData());
+
+        // 예전에는 둘 다 빈 Log 를 돌려주어 입력이 통째로 사라졌다.
+        Assert.Contains("팀장", log.Summary);
+        Assert.Contains("팀장", log.DraftSummary);
+        Assert.Contains("주도성", log.DraftSummary);
+    }
+
+    /// <summary>
+    /// 앞머리(활동명·주제·활동내용)가 없으면 쉼표가 붕 뜬다 —
+    /// "자율활동 , 팀장." 이 아니라 "자율활동 팀장…" 으로 이어야 한다.
+    /// </summary>
+    [Fact]
+    public void 앞머리가_없으면_쉼표로_잇지_않는다()
+    {
+        var log = new StudentLog { Category = LogCategory.자율활동, Role = "팀장" };
+
+        Assert.DoesNotContain(" , ", log.DraftSummary);
+        Assert.DoesNotContain("  ", log.DraftSummary);
+    }
+
+    /// <summary>
+    /// <b>규칙: 카테고리 색은 화면과 인쇄가 같은 표를 쓴다.</b>
+    ///
+    /// <para>예전에는 인쇄 서비스가 색표를 하나 더 들고 있어 종이와 화면이 어긋났다 —
+    /// 자율활동은 화면에서 하늘색인데 인쇄하면 녹색, 동아리활동은 보라인데 주황,
+    /// 봉사활동은 녹색인데 분홍이었다.</para>
+    ///
+    /// <para>여기서는 표가 <b>QuestPDF 가 받을 수 있는 꼴</b>인지만 본다 — 인쇄 쪽은
+    /// 알파 두 자리만 떼어 그대로 쓰므로, 이 형식이 지켜지면 두 곳이 갈라질 수 없다.</para>
+    /// </summary>
+    [Theory]
+    [InlineData(LogCategory.자율활동)]
+    [InlineData(LogCategory.동아리활동)]
+    [InlineData(LogCategory.봉사활동)]
+    [InlineData(LogCategory.개인별세특)]
+    [InlineData(LogCategory.전체)]
+    public void 카테고리_색은_알파를_뗄_수_있는_꼴이다(LogCategory category)
+    {
+        var argb = StudentLogViewModel.ToCategoryColor(category);
+
+        Assert.StartsWith("#", argb);
+        Assert.Equal(9, argb.Length);                     // #AARRGGBB
+        Assert.Equal(7, ("#" + argb.Substring(3)).Length); // → #RRGGBB
+    }
+
+    /// <summary>
     /// <b>규칙: 진로활동의 <c>Title</c>(희망분야)은 자동으로 채우지 않는다.</b>
     ///
     /// <para><c>NeisHelper</c> 정의표에서 진로활동만 <c>TitleCountsInBytes</c> 라,
