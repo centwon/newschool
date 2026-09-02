@@ -318,6 +318,7 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
                 OnPropertyChanged(nameof(SubjectName));
                 OnPropertyChanged(nameof(SubjectOrClubDisplay));
                 OnPropertyChanged(nameof(Log));
+                OnPropertyChanged(nameof(ContentDigest));
                 OnPropertyChanged(nameof(Tag));
                 OnPropertyChanged(nameof(IsImportant));
                 OnPropertyChanged(nameof(ActivityName));
@@ -469,6 +470,12 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
     /// </summary>
     public string SubjectOrClubDisplay => _studentlog.SubjectOrClubDisplay;
 
+    /// <summary>
+    /// 내용 칸이 하나뿐인 출력물(HTML 표·학생카드 PDF)이 쓰는 값.
+    /// 판단은 <see cref="StudentLog.ContentDigest"/> 한 곳에만 있다.
+    /// </summary>
+    public string ContentDigest => _studentlog.ContentDigest;
+
     /// <summary>기록 내용</summary>
     public string Log
     {
@@ -479,6 +486,7 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
             {
                 _studentlog.Log = value;
                 OnPropertyChanged(nameof(Log));
+                OnPropertyChanged(nameof(ContentDigest));
             }
         }
     }
@@ -549,6 +557,7 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
             {
                 _studentlog.Description = value;
                 OnPropertyChanged(nameof(Description));
+                OnPropertyChanged(nameof(ContentDigest));
             }
         }
     }
@@ -741,6 +750,7 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
         OnPropertyChanged(nameof(SubjectName));
         OnPropertyChanged(nameof(SubjectOrClubDisplay));
         OnPropertyChanged(nameof(Log));
+        OnPropertyChanged(nameof(ContentDigest));
         OnPropertyChanged(nameof(Tag));
         OnPropertyChanged(nameof(IsImportant));
         OnPropertyChanged(nameof(ActivityName));

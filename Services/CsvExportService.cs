@@ -62,7 +62,9 @@ public class CsvExportService
                     logVm.DateString,
                     logVm.Semester.ToString(),
                     logVm.Category.ToString(),
-                    logVm.SubjectName ?? string.Empty,
+                    // 동아리활동이면 동아리명 — 화면 목록·인쇄·엑셀과 같은 기준.
+                    // 이 파일만 SubjectName 을 그대로 읽고 있어서 동아리 기록의 과목 칸이 늘 비었다.
+                    logVm.SubjectOrClubDisplay,
                     logVm.ActivityName ?? string.Empty,
                     logVm.Log ?? string.Empty,
                     logVm.Topic ?? string.Empty,

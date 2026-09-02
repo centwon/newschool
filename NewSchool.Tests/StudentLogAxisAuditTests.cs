@@ -205,6 +205,70 @@ public class StudentLogAxisAuditTests
     }
 
     /// <summary>
+    /// <b>규칙: 내용 칸이 하나뿐인 출력물은 교사가 적은 것을 버리지 않는다.</b>
+    ///
+    /// <para>엑셀·CSV 는 "기록"과 "활동 내용"을 별도 열로 내지만 HTML 표와 학생카드 PDF 는
+    /// 칸이 하나다. 예전에는 고르는 방법이 달랐다 — HTML 은 활동 내용이 있으면 그것만 쓰고
+    /// 기록을 버렸고, 학생카드 PDF 는 기록만 찍어 활동 상세만 적은 기록을 통째로 비웠다.
+    /// 이제 <see cref="StudentLog.ContentDigest"/> 한 곳이 정한다(45차).</para>
+    /// </summary>
+    [Fact]
+    public void 한_칸짜리_출력은_기록과_활동내용을_둘_다_낸다()
+    {
+        var both = new StudentLog { Log = "기록 쪽 내용", Description = "활동 쪽 내용" };
+
+        Assert.Contains("기록 쪽 내용", both.ContentDigest);
+        Assert.Contains("활동 쪽 내용", both.ContentDigest);
+    }
+
+    [Fact]
+    public void 한_쪽만_있으면_그것만_낸다()
+    {
+        Assert.Equal("기록만", new StudentLog { Log = "기록만" }.ContentDigest);
+        Assert.Equal("활동만", new StudentLog { Description = "활동만" }.ContentDigest);
+    }
+
+    /// <summary>
+    /// 두 칸이 다 비었는데 역할·기른 능력만 적힌 기록은, 물러설 곳이 없으면 출력에서
+    /// 통째로 사라진다. <see cref="StudentLog.Summary"/> 로 물러선다.
+    /// </summary>
+    [Fact]
+    public void 구조화_항목만_있으면_요약으로_물러선다()
+    {
+        var log = new StudentLog { Category = LogCategory.자율활동, Role = "팀장" };
+
+        Assert.True(log.HasStructuredData());
+        Assert.Contains("팀장", log.ContentDigest);
+    }
+
+    [Fact]
+    public void 아무것도_없으면_빈칸이다()
+        => Assert.Equal(string.Empty, new StudentLog().ContentDigest);
+
+    [Fact]
+    public void 내용_규칙도_자기_입력이_바뀌면_알린다()
+    {
+        var log = new StudentLog();
+
+        Assert.Contains(nameof(StudentLog.ContentDigest),
+            Capture(log, () => log.Log = "기록"));
+        Assert.Contains(nameof(StudentLog.ContentDigest),
+            Capture(log, () => log.Description = "활동"));
+        Assert.Contains(nameof(StudentLog.ContentDigest),
+            Capture(log, () => log.Role = "팀장"));
+    }
+
+    /// <summary>ViewModel 은 판단을 다시 하지 않고 모델의 한 벌을 통과시킨다.</summary>
+    [Fact]
+    public void ViewModel_은_모델의_내용_규칙을_그대로_쓴다()
+    {
+        var log = new StudentLog { Log = "가", Description = "나" };
+        var vm = new StudentLogViewModel(log);
+
+        Assert.Equal(log.ContentDigest, vm.ContentDigest);
+    }
+
+    /// <summary>
     /// <c>ToString()</c> 도 같은 함정에 걸려 있었다 — <c>ActivityName ?? Topic</c> 은
     /// 활동명이 비어도 절대 물러서지 않아 늘 빈칸이 찍혔다.
     /// </summary>

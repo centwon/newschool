@@ -389,8 +389,11 @@ public class StudentCardPrintService
                 {
                     TableDataCell(table, log.Date.ToString("MM/dd"));
                     TableDataCell(table, log.Category.ToString());
-                    TableDataCell(table, log.SubjectName ?? "");
-                    TableDataCell(table, log.Log ?? "");
+                    // 동아리활동이면 동아리명 — 화면 목록·인쇄·엑셀과 같은 기준
+                    TableDataCell(table, log.SubjectOrClubDisplay);
+                    // 한 칸에 담는 내용 규칙도 한 벌로 — 예전에는 Log 만 찍어서
+                    // 활동 상세만 적은 기록이 통째로 빈칸이었다.
+                    TableDataCell(table, log.ContentDigest);
                 }
             });
         });

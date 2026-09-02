@@ -285,13 +285,17 @@ public class StudentLogPrintService
                         .Text($"[{logVm.Category}]")
                         .FontSize(11).SemiBold().FontColor(Colors.White);
 
-                    if (!string.IsNullOrWhiteSpace(logVm.SubjectName))
+                    // 동아리활동이면 동아리명 — 화면 목록·표 형식 PDF·엑셀과 같은 기준.
+                    // 이 카드 형식만 SubjectName 을 그대로 읽어, 동아리 기록에는
+                    // 과목 딱지가 아예 붙지 않았다.
+                    var subject = logVm.SubjectOrClubDisplay;
+                    if (!string.IsNullOrWhiteSpace(subject))
                     {
                         row.AutoItem()
                             .PaddingLeft(4)
                             .Background(Colors.Grey.Medium)
                             .Padding(6)
-                            .Text(logVm.SubjectName)
+                            .Text(subject)
                             .FontSize(11).FontColor(Colors.White);
                     }
 

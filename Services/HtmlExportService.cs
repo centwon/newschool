@@ -121,12 +121,13 @@ public class HtmlExportService
                 }
                 sb.Append($"<td class=\"center\">{logVm.Date:yyyy-MM-dd}</td>");
                 sb.Append($"<td class=\"center\">{E(logVm.Category.ToString())}</td>");
-                sb.Append($"<td class=\"center\">{E(logVm.SubjectName)}</td>");
+                // 동아리활동이면 동아리명 — 화면 목록·인쇄·엑셀과 같은 기준
+                sb.Append($"<td class=\"center\">{E(logVm.SubjectOrClubDisplay)}</td>");
                 sb.Append($"<td>{E(logVm.ActivityName)}</td>");
-                var content = !string.IsNullOrWhiteSpace(logVm.Description)
-                    ? logVm.Description
-                    : (logVm.Log ?? string.Empty);
-                sb.Append($"<td>{E(content)}</td>");
+                // 한 칸에 담는 내용 규칙은 StudentLog.ContentDigest 한 곳에만 있다.
+                // 예전에는 여기서 활동 내용이 있으면 그것만 쓰고 기록 칸을 버렸다 —
+                // 열 이름은 "기록/내용" 인데 둘 다 적은 기록은 하나가 사라졌다.
+                sb.Append($"<td>{E(logVm.ContentDigest)}</td>");
                 sb.Append($"<td>{E(model.HasStructuredData() ? model.DraftSummary : string.Empty)}</td>");
                 sb.AppendLine("</tr>");
             }

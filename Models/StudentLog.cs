@@ -212,7 +212,8 @@ public class StudentLog : NotifyPropertyChangedBase
     /// 들어간다"고 적혀 있었다. 사실이 아니었다 — <c>DraftSummary</c> 의 문장은 그 넷을
     /// 전부 쓴다. 테스트까지 그 틀린 사실을 못박고 있었다.</para>
     /// </summary>
-    private void NotifySummary() => Notify(nameof(Summary), nameof(DraftSummary));
+    private void NotifySummary() =>
+        Notify(nameof(Summary), nameof(DraftSummary), nameof(ContentDigest));
 
     #endregion
 
@@ -279,6 +280,33 @@ public class StudentLog : NotifyPropertyChangedBase
                 sb.AppendLine($"성취: {ResultOrOutcome}");
 
             return sb.ToString().Trim();
+        }
+    }
+
+    /// <summary>
+    /// <b>내용 칸이 하나뿐인 출력물이 쓰는 한 벌</b>(HTML 표·학생카드 PDF).
+    ///
+    /// <para>엑셀·CSV 는 "기록"과 "활동 내용"을 <b>별도 열</b>로 내지만, 칸이 하나인 곳은
+    /// 둘 중 하나를 골라야 한다. 예전에는 그 고르는 방법이 곳마다 달랐다 —
+    /// HTML 은 <c>Description</c> 이 있으면 그것만 쓰고 <c>Log</c> 를 버렸고,
+    /// 학생카드 PDF 는 <c>Log</c> 만 찍어 활동 상세만 적은 기록을 통째로 비웠다.
+    /// <b>교사가 적은 것을 버리지 않는 것</b>이 유일하게 옳은 규칙이라, 둘 다 있으면 둘 다 낸다.</para>
+    ///
+    /// <para>두 칸이 모두 비었는데 구조화 항목(역할·기른 능력 등)만 적힌 기록은
+    /// <see cref="Summary"/> 로 물러선다 — 그렇지 않으면 적어 둔 것이 어디에도 안 나온다.</para>
+    /// </summary>
+    public string ContentDigest
+    {
+        get
+        {
+            bool hasLog = !string.IsNullOrWhiteSpace(Log);
+            bool hasDescription = !string.IsNullOrWhiteSpace(Description);
+
+            if (hasLog && hasDescription) return $"{Log.Trim()}\n{Description.Trim()}";
+            if (hasLog) return Log.Trim();
+            if (hasDescription) return Description.Trim();
+
+            return HasStructuredData() ? Summary : string.Empty;
         }
     }
 
