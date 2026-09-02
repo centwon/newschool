@@ -14,46 +14,29 @@
         CornerRadius="8"
         Padding="20">
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <!-- 입력칸은 스크롤되고 저장·취소는 늘 맨 아래에 붙어 있게 두 줄로 나눈다.
+             예전에는 버튼까지 ScrollViewer 안에 있어서, 내용이 길면 스크롤을 끝까지
+             내려야 저장 버튼이 나왔다. -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="16">
 
-                <!-- 학생 정보 -->
-                <TextBlock
-                    x:Name="TxtStudentInfo"
-                    Text="학생 정보"
-                    FontSize="12"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <!-- 학년도·학기 + 카테고리 + 날짜 + 중요 (한 줄).
+                     학년도·학기는 목록 화면들과 같은 YearSemesterPicker 를 쓴다 — 예전에는
+                     이 창만 NumberBox 로 아무 해나 넣을 수 있어서, 학적에 없는 학년도로
+                     기록이 저장되면 어느 목록에도 나타나지 않았다.
+                     이 줄은 머리글을 달지 않는다 — 고른 값이 곧 라벨이라(2026학년도·2학기·
+                     기타·날짜) 위에 이름을 또 얹으면 읽을 것만 늘어난다. 머리글이 하나라도
+                     섞이면 그 칸만 키가 커져 줄이 어긋나므로, 달지 않을 거면 전부 뺀다. -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <local:YearSemesterPicker x:Name="YearSemPicker"/>
 
-                <!-- 학년도 + 학기 + 날짜 + 중요 (한 줄) -->
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <NumberBox x:Name="NumYear"
-                               Header="학년도"
-                               SpinButtonPlacementMode="Inline"
-                               Minimum="2000"
-                               Maximum="2100"
-                               MinWidth="140"/>
-
-                    <ComboBox x:Name="CBoxSemester"
-                              Header="학기"
-                              MinWidth="90">
-                        <ComboBoxItem Content="1학기" Tag="1"/>
-                        <ComboBoxItem Content="2학기" Tag="2"/>
-                    </ComboBox>
-
-                    <CalendarDatePicker x:Name="DatePickerLog"
-                                        Header="날짜"
-                                        MinWidth="140"/>
-
-                    <CheckBox x:Name="ChkIsImportant"
-                              Content="중요"
-                              VerticalAlignment="Bottom"
-                              Margin="4,0,0,4"/>
-                </StackPanel>
-
-                <!-- 카테고리 + 과목명 (한 줄) -->
-                <StackPanel Orientation="Horizontal" Spacing="8">
                     <ComboBox x:Name="CBoxCategory"
-                              Header="카테고리"
                               MinWidth="120"
                               SelectionChanged="OnCategoryChanged">
                         <ComboBoxItem Content="전체" Tag="0"/>
@@ -68,10 +51,18 @@
                         <ComboBoxItem Content="기타" Tag="9"/>
                     </ComboBox>
 
+                    <CalendarDatePicker x:Name="DatePickerLog"
+                                        MinWidth="140"/>
+
+                    <CheckBox x:Name="ChkIsImportant"
+                              Content="중요"
+                              VerticalAlignment="Center"
+                              Margin="4,0,0,0"/>
+
                     <TextBox x:Name="TxtSubjectName"
-                             Header="과목명"
-                             PlaceholderText="과목명 입력"
+                             PlaceholderText="과목명"
                              MinWidth="150"
+                             VerticalAlignment="Center"
                              Visibility="Collapsed"/>
                 </StackPanel>
 
@@ -172,12 +163,6 @@
                          Header="태그"
                          PlaceholderText="쉼표로 구분 (예: 협업, 발표, 리더십)"/>
 
-                <!-- 첨부파일.
-                     붙이기·빼기는 여기서 받아만 두고, 실제 복사·삭제는 [저장]을 누를 때
-                     한꺼번에 일어난다(새 기록은 저장 전에 No 가 없어 붙일 자리가 없다). -->
-                <local:StudentLogFileListBox x:Name="FileList"
-                                             MaxHeight="160"/>
-
                 <!-- 자동 생성 -->
                 <Expander HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Stretch"
@@ -226,23 +211,31 @@
                     </Expander.Content>
                 </Expander>
 
-                <!-- 저장/취소 -->
-                <StackPanel Orientation="Horizontal"
-                            Spacing="12"
-                            HorizontalAlignment="Right"
-                            Margin="0,8,0,0">
-                    <Button x:Name="BtnSave"
-                            Content="저장"
-                            Click="OnSaveClick"
-                            Style="{StaticResource AccentButtonStyle}"
-                            MinWidth="100"/>
-                    <Button x:Name="BtnCancel"
-                            Content="취소"
-                            Click="OnCancelClick"
-                            MinWidth="100"/>
-                </StackPanel>
+                <!-- 첨부파일 — 입력칸을 다 지난 맨 아래에 둔다.
+                     붙이기·빼기는 여기서 받아만 두고, 실제 복사·삭제는 [저장]을 누를 때
+                     한꺼번에 일어난다(새 기록은 저장 전에 No 가 없어 붙일 자리가 없다). -->
+                <local:StudentLogFileListBox x:Name="FileList"
+                                             MaxHeight="160"/>
 
             </StackPanel>
         </ScrollViewer>
+
+        <!-- 저장/취소 — 스크롤 밖, 항상 맨 아래 -->
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    Spacing="12"
+                    HorizontalAlignment="Right"
+                    Margin="0,12,0,0">
+            <Button x:Name="BtnSave"
+                    Content="저장"
+                    Click="OnSaveClick"
+                    Style="{StaticResource AccentButtonStyle}"
+                    MinWidth="100"/>
+            <Button x:Name="BtnCancel"
+                    Content="취소"
+                    Click="OnCancelClick"
+                    MinWidth="100"/>
+        </StackPanel>
+        </Grid>
     </Border>
 </UserControl>

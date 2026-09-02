@@ -154,7 +154,6 @@ public sealed partial class StudentLogDialog : Window
         // LogBox 카테고리 설정 + 학년도/학기 잠금
         LogBox.SetCategory(category, locked: false);
         LogBox.LockYearSemester();
-        LogBox.HideStudentInfo();
 
         _ = LoadClassStudentsAsync(year, semester, grade, classNum).ContinueWith(t =>
         {
@@ -188,7 +187,6 @@ public sealed partial class StudentLogDialog : Window
         // LogBox: 교과활동 고정 + 학년도/학기 잠금
         LogBox.SetCategory(LogCategory.교과활동, locked: true);
         LogBox.LockYearSemester();
-        LogBox.HideStudentInfo();
 
         TxtStudentInfo.Text = $"{year}학년도 {semester}학기";
         Title = $"교과활동 기록 일괄 입력 — {year}학년도";
@@ -225,7 +223,6 @@ public sealed partial class StudentLogDialog : Window
         // LogBox: 동아리활동 고정
         LogBox.SetCategory(LogCategory.동아리활동, locked: true);
         LogBox.LockYearSemester();
-        LogBox.HideStudentInfo();
 
         TxtStudentInfo.Text = $"{year}학년도 {semester}학기";
         Title = $"동아리활동 기록 일괄 입력 — {year}학년도";
@@ -241,8 +238,38 @@ public sealed partial class StudentLogDialog : Window
 
     #region Initialization
 
+    /// <summary>
+    /// 창 크기. WinUI 3 <c>Window</c> 는 지정하지 않으면 화면을 크게 차지하는 기본값으로
+    /// 뜬다 — 내용은 위쪽 절반에서 끝나는데 창만 커서 빈 바닥이 넓었다.
+    ///
+    /// <para>단일 편집은 입력칸만 있으면 되고, 일괄 입력은 왼쪽에 학생 목록이 더 붙으므로
+    /// 그만큼 넓게 연다.</para>
+    /// </summary>
+    private const int SingleWidth = 760;
+    private const int BatchWidth = 1060;
+    private const int WindowHeight = 720;
+
+    private void SetWindowSize(int width, int height)
+    {
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+            Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId)
+                .Resize(new Windows.Graphics.SizeInt32(width, height));
+        }
+        catch (Exception ex)
+        {
+            // 크기를 못 정해도 창은 열려야 한다 — 기본 크기로 뜰 뿐이다.
+            Debug.WriteLine($"[StudentLogDialog] 창 크기 지정 실패: {ex.Message}");
+        }
+    }
+
     private void InitializeCommon()
     {
+        // 학생 목록이 없는 단일 편집 기준. 일괄 입력 쪽은 SetupBatchMode 가 넓힌다.
+        SetWindowSize(SingleWidth, WindowHeight);
+
         // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
         Controls.MessageBox.TrackWindow(this);
 
@@ -267,6 +294,10 @@ public sealed partial class StudentLogDialog : Window
     private void SetupBatchMode()
     {
         _isSingleStudentMode = false;
+
+        // 왼쪽에 학생 목록이 한 칸 더 붙으므로 그만큼 넓게 연다.
+        SetWindowSize(BatchWidth, WindowHeight);
+
         ListStudents.ViewMode = ListStudent.View.NumName;
         ListStudents.ShowCheckBox = true;
 

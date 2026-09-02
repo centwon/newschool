@@ -48,6 +48,10 @@ public sealed partial class StudentLogBox : UserControl
     public StudentLogBox()
     {
         this.InitializeComponent();
+
+        // 피커의 비동기 초기화가 끝나는 신호를 받아, 그때 밀린 선택을 맞춘다.
+        YearSemPicker.YearSemesterChanged += OnPickerYearSemesterChanged;
+
         InitializeDefaultValues();
     }
 
@@ -55,13 +59,67 @@ public sealed partial class StudentLogBox : UserControl
 
     #region Initialization
 
+    #region 학년도·학기 피커
+
+    /// <summary>피커 초기화가 끝나면 맞춰 줄 값. 맞추고 나면 비운다.</summary>
+    private (int Year, int Semester)? _pendingYearSemester;
+
+    /// <summary>
+    /// 피커에 학년도·학기를 맞춘다.
+    ///
+    /// <para>⚠ 그냥 <c>TrySelect</c> 만 부르면 안 된다. <see cref="YearSemesterPicker"/> 는
+    /// <c>Loaded</c> 뒤에 <b>비동기로</b> 학년도 목록을 채우고, 그 끝에서 스스로
+    /// <c>Settings.WorkYear</c> 를 고른다. 이 컨트롤의 <c>LoadLog</c>·<c>CreateNew</c> 는
+    /// 창 생성자에서 불리므로 그보다 <b>먼저</b>다 — 지금 고르면 목록이 비어 있어 아무
+    /// 일도 안 일어나고, 잠시 뒤 비동기 초기화가 엉뚱한 해로 덮어쓴다. 그래서 값을
+    /// 적어 두었다가 초기화가 끝났다는 신호(첫 <c>YearSemesterChanged</c>)에 맞춘다.</para>
+    /// </summary>
+    private void RequestYearSemester(int year, int semester)
+    {
+        _pendingYearSemester = (year, semester);
+
+        // 이미 초기화가 끝난 뒤라면(창을 재사용하는 경로) 지금 바로 먹는다.
+        YearSemPicker.TrySelect(year, semester);
+        if (YearSemPicker.Year == year && (semester <= 0 || YearSemPicker.Semester == semester))
+            _pendingYearSemester = null;
+    }
+
+    private void OnPickerYearSemesterChanged(object? sender, YearSemesterChangedEventArgs e)
+    {
+        if (_pendingYearSemester is not { } want) return;   // 사용자가 바꾼 것이면 건드리지 않는다
+
+        _pendingYearSemester = null;
+        YearSemPicker.TrySelect(want.Year, want.Semester);
+    }
+
+    /// <summary>
+    /// 저장에 쓸 학년도. 피커가 아직·영영 아무것도 못 고른 경우(학교 코드 미설정 등)
+    /// 0 을 돌려주는데, 그대로 저장하면 <b>어느 목록에도 안 나오는 기록</b>이 된다.
+    /// 그럴 때는 원래 값을 지킨다.
+    /// </summary>
+    private int EffectiveYear(int fallback)
+    {
+        int v = YearSemPicker.Year;
+        if (v > 0) return v;
+        return fallback > 0 ? fallback : Settings.WorkYear.Value;
+    }
+
+    /// <inheritdoc cref="EffectiveYear"/>
+    private int EffectiveSemester(int fallback)
+    {
+        int v = YearSemPicker.Semester;
+        if (v is 1 or 2) return v;
+        return fallback is 1 or 2 ? fallback : DateTimeHelper.SemesterOf(DateTime.Today);
+    }
+
+    #endregion
+
     /// <summary>기본값 초기화</summary>
     private void InitializeDefaultValues()
     {
-        NumYear.Value = DateTime.Today.Year;
         // 학기 규칙은 DateTimeHelper 한 곳에서만 정한다(여기 있던 `Month <= 6` 은
         // 7·8월과 1·2월에 학기를 뒤집었다 — 3~8월이 1학기다).
-        CBoxSemester.SelectedIndex = DateTimeHelper.SemesterOf(DateTime.Today) - 1;
+        RequestYearSemester(Settings.WorkYear.Value, DateTimeHelper.SemesterOf(DateTime.Today));
         DatePickerLog.Date = DateTimeOffset.Now;
         CBoxCategory.SelectedIndex = 0;
     }
@@ -78,8 +136,7 @@ public sealed partial class StudentLogBox : UserControl
         _currentLog = log;
 
         // UI에 데이터 바인딩
-        NumYear.Value = log.Year;
-        CBoxSemester.SelectedIndex = log.Semester - 1;
+        RequestYearSemester(log.Year, log.Semester);
 
         // string Date → DateTimeOffset 변환
         DatePickerLog.Date = new DateTimeOffset(log.Date);
@@ -111,9 +168,6 @@ public sealed partial class StudentLogBox : UserControl
         {
             ExpanderStructured.IsExpanded = true;
         }
-
-        // 학생 정보 표시
-        TxtStudentInfo.Text = $"학생 ID: {log.StudentID}";
 
         UpdateLogByteInfo();
 
@@ -184,11 +238,8 @@ public sealed partial class StudentLogBox : UserControl
         // UI 초기화
         ClearFields();
 
-        NumYear.Value = year;
-        CBoxSemester.SelectedIndex = semester - 1;
+        RequestYearSemester(year, semester);
         DatePickerLog.Date = DateTimeOffset.Now;
-
-        TxtStudentInfo.Text = $"학생 ID: {studentId}";
 
         // 새 기록은 아직 딸린 첨부가 없다. 앞 기록의 목록이 남지 않게 비운다.
         FileList.LoadFiles(Array.Empty<StudentLogFile>());
@@ -229,17 +280,12 @@ public sealed partial class StudentLogBox : UserControl
     /// </summary>
     public void LockYearSemester(bool locked = true)
     {
-        NumYear.IsEnabled = !locked;
-        CBoxSemester.IsEnabled = !locked;
+        YearSemPicker.IsEnabled = !locked;
     }
 
-    /// <summary>
-    /// 학생 정보 표시 숨김 (일괄 입력 시 학생 ID 불필요)
-    /// </summary>
-    public void HideStudentInfo()
-    {
-        TxtStudentInfo.Visibility = Visibility.Collapsed;
-    }
+    // 학생 ID 를 보여 주던 줄(TxtStudentInfo)과 그것을 감추던 HideStudentInfo 는 지웠다.
+    // 창 제목 아래에 이미 "학생: 홍길동" 이 있어 중복이었고, 사람이 읽을 일 없는
+    // 내부 식별자였다.
 
     /// <summary>
     /// 입력 필드 초기화
@@ -399,8 +445,8 @@ public sealed partial class StudentLogBox : UserControl
     {
         return new StudentLog
         {
-            Year = (int)NumYear.Value,
-            Semester = CBoxSemester.SelectedIndex + 1,
+            Year = EffectiveYear(_currentLog?.Year ?? 0),
+            Semester = EffectiveSemester(_currentLog?.Semester ?? 0),
             Date = (DatePickerLog.Date ?? DateTimeOffset.Now).LocalDateTime,
             Category = (LogCategory)CBoxCategory.SelectedIndex,
             SubjectName = TxtSubjectName.Text,
@@ -422,8 +468,8 @@ public sealed partial class StudentLogBox : UserControl
     {
         if (_currentLog == null) return;
 
-        _currentLog.Year = (int)NumYear.Value;
-        _currentLog.Semester = CBoxSemester.SelectedIndex + 1;
+        _currentLog.Year = EffectiveYear(_currentLog.Year);
+        _currentLog.Semester = EffectiveSemester(_currentLog.Semester);
         _currentLog.Date = (DatePickerLog.Date ?? DateTimeOffset.Now).LocalDateTime;
         _currentLog.Category = (LogCategory)CBoxCategory.SelectedIndex;
         _currentLog.SubjectName = TxtSubjectName.Text;
