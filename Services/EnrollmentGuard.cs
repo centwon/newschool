@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -71,6 +72,41 @@ public static class EnrollmentGuard
             System.Diagnostics.Debug.WriteLine($"[EnrollmentGuard] 판정 실패: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// 저장하려는 기록 중 <b>학교를 떠난 학생</b>의 것이 있으면 물어본다.
+    ///
+    /// <para>학생마다 따로 묻지 않고 한 번에 모아 묻는다 — 반 전체를 저장할 때 대화상자가
+    /// 연달아 뜨면 사람이 읽지 않고 넘긴다. 같은 학생이 여러 번 들어 있어도 한 번만 묻는다.</para>
+    ///
+    /// <para>⚠ <b>누가기록·학생부를 저장하는 모든 경로가 이것을 불러야 한다.</b> 예전에는
+    /// 같은 검사가 <c>LogListViewer</c> 안에 갇혀 있었고, 주석은 "이 컨트롤을 쓰는 화면
+    /// 다섯 곳이 한꺼번에 받는다"고 했지만 실제로 그 경로를 타는 화면은 하나뿐이었다 —
+    /// 누가기록 전용 화면·동아리활동·수업활동·입력 창은 각자 저장 루프를 갖고 있어
+    /// 전출 학생에게 그 뒤 날짜로 기록이 조용히 남았다. 저장 루프를 새로 만들면
+    /// 여기부터 부를 것.</para>
+    /// </summary>
+    /// <param name="records">저장 대상의 (학생 ID, 학년도, 기록 날짜).</param>
+    /// <returns>계속 저장해도 되면 true, 사용자가 취소했으면 false.</returns>
+    public static async Task<bool> ConfirmRecordsAfterLeavingAsync(
+        IEnumerable<(string? StudentID, int Year, DateTime Date)> records)
+    {
+        var notices = new List<string>();
+        var asked = new HashSet<string>();
+
+        foreach (var (studentId, year, date) in records)
+        {
+            if (string.IsNullOrWhiteSpace(studentId) || !asked.Add(studentId)) continue;
+
+            var notice = await DescribeRecordAfterLeavingAsync(studentId, year, date);
+            if (notice != null) notices.Add(notice);
+        }
+
+        if (notices.Count == 0) return true;
+
+        return await Controls.MessageBox.ShowConfirmAsync(
+            string.Join("\n\n", notices), "학적 확인", "계속", "취소");
     }
 
     /// <summary>

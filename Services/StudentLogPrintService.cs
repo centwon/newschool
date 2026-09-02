@@ -221,7 +221,8 @@ public class StudentLogPrintService
 
                     DataCell(table.Cell(), logVm.Date.ToString("yyyy-MM-dd"));
                     DataCell(table.Cell(), logVm.Category.ToString());
-                    DataCell(table.Cell(), logVm.SubjectName ?? string.Empty);
+                    // 동아리활동은 동아리명 — 화면 목록·엑셀과 같은 기준(StudentLog.SubjectOrClubDisplay)
+                    DataCell(table.Cell(), logVm.SubjectOrClubDisplay);
                     DataCell(table.Cell(), logVm.ActivityName ?? string.Empty);
                     DataCell(table.Cell(), logVm.Log ?? string.Empty);
                     DataCell(table.Cell(), logVm.Topic ?? string.Empty);

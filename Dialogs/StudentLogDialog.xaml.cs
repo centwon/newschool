@@ -542,14 +542,21 @@ public sealed partial class StudentLogDialog : Window
 
     #region Event Handlers — LogBox
 
+    /// <summary>
+    /// ⚠ <b>저장에 실패했으면 창을 닫지 않는다.</b> 예전에는 저장 함수가 안내만 띄우고
+    /// 돌아와도 여기서 무조건 <c>IsSuccess = true; Close();</c> 를 실행했다 — 학급 일괄
+    /// 입력에서 학생을 안 고르고 [저장]을 누르면 "학생을 선택해주세요"가 뜬 뒤 창이 그대로
+    /// 닫히면서 입력한 내용이 통째로 사라졌다(교사 미등록 경로도 같았다).
+    /// </summary>
     private async void OnLogBoxSaved(object? sender, StudentLog log)
     {
         try
         {
-            if (_isSingleStudentMode)
-                await SaveSingleLogAsync(log);
-            else
-                await SaveMultipleLogsAsync(log);
+            bool ok = _isSingleStudentMode
+                ? await SaveSingleLogAsync(log)
+                : await SaveMultipleLogsAsync(log);
+
+            if (!ok) return;   // 안내는 저장 함수가 이미 띄웠다
 
             IsSuccess = true;
             this.Close();
@@ -569,17 +576,36 @@ public sealed partial class StudentLogDialog : Window
 
     #region Save Logic
 
-    private async Task SaveSingleLogAsync(StudentLog log)
+    /// <returns>실제로 반영됐으면 true. false 면 안내를 띄운 뒤이므로 창을 닫지 않는다.</returns>
+    private async Task<bool> SaveSingleLogAsync(StudentLog log)
     {
+        // 학교를 떠난 학생에게 그 뒤 날짜로 기록을 남기려는 것이면 먼저 알린다.
+        if (!await Services.EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
+                [((string?)log.StudentID, log.Year, log.Date)]))
+            return false;
+
         using var svc = new StudentLogService();
-        if (log.No > 0) await svc.UpdateAsync(log);
-        else await svc.InsertAsync(log);
+
+        // 반영 여부를 확인한다 — 예전에는 결과를 버려서, 이미 지워진 기록을 고쳐도
+        // 창이 "저장됨"으로 닫히고 편집 내용이 조용히 사라졌다.
+        bool ok = log.No > 0
+            ? await svc.UpdateAsync(log)
+            : (log.No = await svc.InsertAsync(log)) > 0;
+
+        if (!ok)
+        {
+            await ShowErrorAsync("저장 실패",
+                "저장되지 않았습니다. 이미 지워진 기록일 수 있습니다.");
+            return false;
+        }
 
         _logs.Clear();
         _logs.Add(log);
+        return true;
     }
 
-    private async Task SaveMultipleLogsAsync(StudentLog templateLog)
+    /// <returns>전원 저장에 성공했으면 true. false 면 안내를 띄운 뒤이므로 창을 닫지 않는다.</returns>
+    private async Task<bool> SaveMultipleLogsAsync(StudentLog templateLog)
     {
         _logs.Clear();
         var selected = ListStudents.GetSelectedStudents().ToList();
@@ -587,7 +613,7 @@ public sealed partial class StudentLogDialog : Window
         if (selected.Count == 0)
         {
             await ShowErrorAsync("학생 선택 필요", "로그를 저장할 학생을 선택해주세요.");
-            return;
+            return false;
         }
 
         string teacherId = !string.IsNullOrWhiteSpace(templateLog.TeacherID)
@@ -596,7 +622,7 @@ public sealed partial class StudentLogDialog : Window
         if (string.IsNullOrWhiteSpace(teacherId))
         {
             await ShowErrorAsync("교사 정보 없음", "Settings에서 사용자 정보를 등록해주세요.");
-            return;
+            return false;
         }
 
         using (var repo = new TeacherRepository(SchoolDatabase.DbPath))
@@ -604,12 +630,28 @@ public sealed partial class StudentLogDialog : Window
             if (await repo.GetByTeacherIdAsync(teacherId) == null)
             {
                 await ShowErrorAsync("교사 ID 오류", $"교사 '{teacherId}'가 등록되어 있지 않습니다.");
-                return;
+                return false;
             }
         }
 
+        // 학교를 떠난 학생에게 그 뒤 날짜로 기록을 남기려는 것이면 먼저 알린다.
+        if (!await Services.EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
+                selected.Select(en => ((string?)en.StudentID,
+                                       en.Year > 0 ? en.Year : _year,
+                                       templateLog.Date))))
+            return false;
+
         int courseNo = (_category == LogCategory.교과활동 || _category == LogCategory.개인별세특)
             ? _selectedCourseNo : 0;
+
+        // 동아리활동은 동아리를 전용 칸(ClubNo·ClubName)에 넣는다. 예전에는 활동명 칸에
+        // 동아리명을 덮어써서 교사가 적은 활동명이 사라졌고, 목록·내보내기가 읽는
+        // 칸은 또 달라 "동아리" 열이 늘 비어 있었다.
+        var selectedClub = CBoxClub.SelectedItem as Club;
+
+        // 연결은 한 번만 연다 — 예전에는 학생마다 새로 열어 반 30명이면 30개가 열렸다.
+        using var svc = new StudentLogService();
+        int savedCount = 0;
 
         foreach (var enrollment in selected)
         {
@@ -624,11 +666,13 @@ public sealed partial class StudentLogDialog : Window
                 Category = templateLog.Category,
                 CourseNo = courseNo,
                 SubjectName = templateLog.SubjectName,
+                ClubNo = _category == LogCategory.동아리활동 ? (selectedClub?.No ?? _selectedClubNo) : 0,
+                ClubName = _category == LogCategory.동아리활동
+                    ? (selectedClub?.ClubName ?? string.Empty) : string.Empty,
                 Log = templateLog.Log,
                 Tag = templateLog.Tag,
                 IsImportant = templateLog.IsImportant,
-                ActivityName = _category == LogCategory.동아리활동 && CBoxClub.SelectedItem is Club club
-                    ? club.ClubName : templateLog.ActivityName,
+                ActivityName = templateLog.ActivityName,
                 Topic = templateLog.Topic,
                 Description = templateLog.Description,
                 Role = templateLog.Role,
@@ -639,17 +683,27 @@ public sealed partial class StudentLogDialog : Window
 
             try
             {
-                using var svc = new StudentLogService();
-                await svc.InsertAsync(log);
+                log.No = await svc.InsertAsync(log);
+                if (log.No <= 0)
+                    throw new InvalidOperationException("기록이 저장되지 않았습니다.");
+
                 _logs.Add(log);
+                savedCount++;
             }
             catch (Exception ex)
             {
+                // 여기서 다시 던지면 호출부가 같은 내용을 한 번 더 띄운다 — 안내는 한 번만 하고
+                // 창은 닫지 않는다. 앞선 학생들의 기록은 이미 저장돼 있으므로 몇 명까지
+                // 되었는지 함께 알려 사용자가 다시 누를 때 무엇이 남았는지 알게 한다.
                 Debug.WriteLine($"[오류] {enrollment.Name} 저장 실패: {ex.Message}");
-                await ShowErrorAsync("저장 실패", $"'{enrollment.Name}' 저장 실패:\n{ex.Message}");
-                throw;
+                await ShowErrorAsync("저장 실패",
+                    $"'{enrollment.Name}' 저장에 실패했습니다.\n{ex.Message}\n\n" +
+                    $"앞선 {savedCount}명은 저장됐습니다. 창을 닫지 않았으니 다시 저장해 주세요.");
+                return false;
             }
         }
+
+        return true;
     }
 
     #endregion

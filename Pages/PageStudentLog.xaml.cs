@@ -255,6 +255,13 @@ public sealed partial class PageStudentLog : Page, IDisposable
         try
         {
             var selectedLogs = LogList.SelectedLogs.ToList();
+
+            // 학교를 떠난 학생에게 그 뒤 날짜로 기록을 남기려는 것이면 먼저 알린다
+            // (저장 경로마다 따로 적지 않고 EnrollmentGuard 한 곳에서 판단한다).
+            if (!await EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
+                    selectedLogs.Select(v => ((string?)v.StudentLog.StudentID, v.StudentLog.Year, v.StudentLog.Date))))
+                return;
+
             using var service = new StudentLogService();
 
             int saved = 0;
@@ -682,8 +689,15 @@ public sealed partial class PageStudentLog : Page, IDisposable
                 {
                     StudentID = _selectedStudent.StudentID,
                     Year = _year,
+                    // 교과 세특만 학기별. 이 화면이 띄우는 넷은 전부 학년 단위라 0 이다.
+                    Semester = Helpers.NeisHelper.IsSemesterScoped(type) ? _semester : 0,
                     Type = type,
-                    Title = $"{_selectedStudent.Name} {type}",
+                    // ⚠ Title 을 비워 둔다. 진로활동에서 Title 은 "희망분야"이고 특기사항과
+                    // 합쳐 한도(연간 500자)를 먹는다(NeisHelper.Areas 의 TitleCountsInBytes).
+                    // 예전에는 "{학생이름} {영역}" 을 넣어, 희망분야 칸에 "홍길동 진로활동"이
+                    // 뜨고 그만큼 분량이 깎였다. 다른 두 곳(StudentSpecPage·일괄 입력 창)은
+                    // 처음부터 비워 두거나 교과목에서 채운다.
+                    Title = string.Empty,
                     Date = DateTime.Now.ToString("yyyy-MM-dd"),
                     TeacherID = Settings.User.Value,
                     IsFinalized = false
@@ -707,6 +721,12 @@ public sealed partial class PageStudentLog : Page, IDisposable
         try
         {
             var modifiedLogs = LogList.Logs.Where(vm => vm.IsSelected).ToList();
+            if (modifiedLogs.Count == 0) return;
+
+            // 학생을 바꾸기 직전의 저장도 같은 학적 검사를 받는다.
+            if (!await EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
+                    modifiedLogs.Select(v => ((string?)v.StudentLog.StudentID, v.StudentLog.Year, v.StudentLog.Date))))
+                return;
 
             foreach (var logViewModel in modifiedLogs)
             {

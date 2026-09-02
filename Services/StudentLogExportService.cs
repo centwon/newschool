@@ -129,7 +129,8 @@ public class StudentLogExportService
                 날짜 = logVm.DateString,
                 학기 = logVm.Semester,
                 카테고리 = logVm.Category.ToString(),
-                과목 = logVm.SubjectName ?? string.Empty,
+                // 동아리활동이면 동아리명 — 화면 목록·인쇄와 같은 기준
+                과목 = logVm.SubjectOrClubDisplay,
                 활동명 = logVm.ActivityName ?? string.Empty,
                 기록 = logVm.Log ?? string.Empty,
                 주제 = logVm.Topic ?? string.Empty,
@@ -144,6 +145,18 @@ public class StudentLogExportService
             };
         }).ToList();
     }
+    /// <summary>
+    /// 앞의 것이 비어 있으면 뒤의 것을 쓴다.
+    ///
+    /// <para>⚠ <c>a ?? b</c> 로 쓰면 안 된다 — <see cref="Models.StudentLog"/> 의 문자열은
+    /// 초기값이 <c>string.Empty</c> 이고 저장소 매퍼가 DBNull 도 <c>""</c> 로 되돌리므로
+    /// <b>절대 null 이 되지 않는다</b>. 그래서 널 병합은 한 번도 물러서지 않았고,
+    /// "기록" 칸에만 적은 상담 내용이 엑셀에서 통째로 빈칸이 됐다.</para>
+    /// </summary>
+    private static string FirstFilled(string? primary, string? fallback) =>
+        !string.IsNullOrWhiteSpace(primary) ? primary
+        : (fallback ?? string.Empty);
+
     /// <summary>카테고리별 시트 생성 (Native AOT 호환)</summary>
     /// <returns>카테고리별 DTO 리스트 (List<object>로 반환하여 범용성 확보)</returns>
     private List<object> CreateCategorySheet(List<StudentLogViewModel> logs)
@@ -173,7 +186,10 @@ public class StudentLogExportService
                         기른능력 = model.SkillDeveloped ?? string.Empty,
                         장점 = model.StrengthShown ?? string.Empty,
                         성취 = model.ResultOrOutcome ?? string.Empty,
-                        학생부초안 = model.DraftSummary ?? string.Empty,
+                        // "전체" 시트·인쇄물과 같은 규칙 — 구조화 항목이 없으면 비운다.
+                        // 예전에는 무조건 DraftSummary 를 넣어, 항목 없이 쓴 기록은
+                        // 초안 열에 기록 원문이 그대로 복사됐다.
+                        학생부초안 = model.HasStructuredData() ? model.DraftSummary : string.Empty,
                         중요 = model.IsImportant ? "★" : string.Empty
                     };
                 }).Cast<object>().ToList(); // List<SubjectActivityExportDto> -> List<object>
@@ -186,12 +202,17 @@ public class StudentLogExportService
                     {
                         날짜 = logVm.DateString,
                         학기 = model.Semester,
-                        동아리 = model.SubjectName ?? string.Empty, // 과목명을 동아리명으로 사용
+                        // 동아리명은 ClubName 에 있다 — 화면 목록·인쇄와 같은 기준.
+                        // 예전에는 SubjectName 을 읽었는데 그 칸을 채우는 경로가 없어 늘 빈칸이었다.
+                        동아리 = model.SubjectOrClubDisplay,
                         활동명 = model.ActivityName ?? string.Empty,
                         주제 = model.Topic ?? string.Empty,
                         활동내용 = model.Description ?? string.Empty,
                         역할 = model.Role ?? string.Empty,
-                        학생부초안 = model.DraftSummary ?? string.Empty,
+                        // "전체" 시트·인쇄물과 같은 규칙 — 구조화 항목이 없으면 비운다.
+                        // 예전에는 무조건 DraftSummary 를 넣어, 항목 없이 쓴 기록은
+                        // 초안 열에 기록 원문이 그대로 복사됐다.
+                        학생부초안 = model.HasStructuredData() ? model.DraftSummary : string.Empty,
                         중요 = model.IsImportant ? "★" : string.Empty
                     };
                 }).Cast<object>().ToList();
@@ -212,7 +233,10 @@ public class StudentLogExportService
                         역할 = model.Role ?? string.Empty,
                         장점 = model.StrengthShown ?? string.Empty,
                         성취 = model.ResultOrOutcome ?? string.Empty,
-                        학생부초안 = model.DraftSummary ?? string.Empty,
+                        // "전체" 시트·인쇄물과 같은 규칙 — 구조화 항목이 없으면 비운다.
+                        // 예전에는 무조건 DraftSummary 를 넣어, 항목 없이 쓴 기록은
+                        // 초안 열에 기록 원문이 그대로 복사됐다.
+                        학생부초안 = model.HasStructuredData() ? model.DraftSummary : string.Empty,
                         중요 = model.IsImportant ? "★" : string.Empty
                     };
                 }).Cast<object>().ToList();
@@ -226,8 +250,12 @@ public class StudentLogExportService
                         날짜 = logVm.DateString,
                         학기 = model.Semester,
                         주제 = model.Topic ?? string.Empty,
-                        // 원본 코드: Description이 없으면 Log 사용
-                        상담내용 = model.Description ?? model.Log ?? string.Empty,
+                        // 활동 내용이 비었으면 기록 칸을 쓴다.
+                        // ⚠ 예전 `Description ?? Log` 는 한 번도 물러선 적이 없다 — 모델의
+                        // 문자열은 초기값이 string.Empty 이고 매퍼가 DBNull 을 ""로 되돌려
+                        // 절대 null 이 아니다. 그래서 상담 내용을 "기록" 칸에만 적은 기록은
+                        // 엑셀 상담내용 열이 통째로 비어 나갔다.
+                        상담내용 = FirstFilled(model.Description, model.Log),
                         중요 = model.IsImportant ? "★" : string.Empty
                     };
                 }).Cast<object>().ToList();
@@ -240,9 +268,12 @@ public class StudentLogExportService
                     {
                         날짜 = logVm.DateString,
                         학기 = model.Semester,
-                        // 원본 코드: Log가 없으면 Description 사용
-                        의견 = model.Log ?? model.Description ?? string.Empty,
-                        학생부초안 = model.DraftSummary ?? string.Empty,
+                        // 기록 칸이 비었으면 활동 내용을 쓴다(상담내용과 같은 이유 — 위 주석 참고).
+                        의견 = FirstFilled(model.Log, model.Description),
+                        // "전체" 시트·인쇄물과 같은 규칙 — 구조화 항목이 없으면 비운다.
+                        // 예전에는 무조건 DraftSummary 를 넣어, 항목 없이 쓴 기록은
+                        // 초안 열에 기록 원문이 그대로 복사됐다.
+                        학생부초안 = model.HasStructuredData() ? model.DraftSummary : string.Empty,
                         중요 = model.IsImportant ? "★" : string.Empty
                     };
                 }).Cast<object>().ToList();
@@ -256,8 +287,8 @@ public class StudentLogExportService
                         날짜 = logVm.DateString,
                         학기 = model.Semester,
                         //주제 = model.Topic ?? string.Empty,
-                        // 원본 코드: Log가 없으면 Description 사용
-                        의견 = model.Log ?? model.Description ?? string.Empty,
+                        // 기록 칸이 비었으면 활동 내용을 쓴다(상담내용과 같은 이유 — 위 주석 참고).
+                        의견 = FirstFilled(model.Log, model.Description),
                         중요 = model.IsImportant ? "★" : string.Empty
                     };
                 }).Cast<object>().ToList();
@@ -294,7 +325,8 @@ public class StudentLogExportService
                     날짜 = logVm.DateString,
                     학기 = logVm.Semester,
                     카테고리 = logVm.Category.ToString(),
-                    과목 = logVm.SubjectName ?? string.Empty,
+                    // 동아리활동이면 동아리명 — 화면 목록·인쇄와 같은 기준
+                과목 = logVm.SubjectOrClubDisplay,
                     활동명 = logVm.ActivityName ?? string.Empty,
                     기록 = logVm.Log ?? string.Empty,
                     주제 = logVm.Topic ?? string.Empty,

@@ -273,6 +273,12 @@ public sealed partial class LessonActivityPage : Page
                 return;
             }
 
+            // 학교를 떠난 학생에게 그 뒤 날짜로 기록을 남기려는 것이면 먼저 알린다
+            // (저장 경로마다 따로 적지 않고 EnrollmentGuard 한 곳에서 판단한다).
+            if (!await EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
+                    selectedLogs.Select(v => ((string?)v.StudentLog.StudentID, v.StudentLog.Year, v.StudentLog.Date))))
+                return;
+
             using var logService = new StudentLogService();
 
             int saved = 0;

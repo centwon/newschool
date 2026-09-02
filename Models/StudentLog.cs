@@ -95,7 +95,7 @@ public class StudentLog : NotifyPropertyChangedBase
     public LogCategory Category
     {
         get => _category;
-        set => SetProperty(ref _category, value);
+        set { if (SetProperty(ref _category, value)) Notify(nameof(SubjectOrClubDisplay)); }
     }
 
     /// <summary>수업 번호 (FK: Course.No, NULL 허용)</summary>
@@ -109,8 +109,25 @@ public class StudentLog : NotifyPropertyChangedBase
     public string SubjectName
     {
         get => _subjectName;
-        set => SetProperty(ref _subjectName, value);
+        set { if (SetProperty(ref _subjectName, value)) Notify(nameof(SubjectOrClubDisplay)); }
     }
+
+    /// <summary>
+    /// 목록의 "과목/동아리" 칸 표시값 — <b>화면·인쇄·내보내기가 함께 쓰는 한 벌</b>이다.
+    ///
+    /// <para>동아리활동은 <see cref="ClubName"/>, 그 밖에는 <see cref="SubjectName"/>.
+    /// 예전에는 동아리명이 경로마다 다른 칸에 들어가고(단일 입력은 <c>ClubName</c>,
+    /// 일괄 입력은 <c>ActivityName</c>) 읽는 쪽은 또 <c>SubjectName</c> 이어서, 화면 목록의
+    /// "동아리" 칸과 엑셀의 "동아리" 열이 언제나 비어 있었다. 넣는 칸을 <c>ClubName</c> 으로
+    /// 모으고, 읽는 곳은 전부 이 속성을 지나가게 한다.</para>
+    ///
+    /// <para><c>ClubName</c> 이 비어 있으면 <c>SubjectName</c> 으로 물러선다 — 그 규칙이
+    /// 세워지기 전에 저장된 기록이 있기 때문이다.</para>
+    /// </summary>
+    public string SubjectOrClubDisplay =>
+        Category == LogCategory.동아리활동 && !string.IsNullOrWhiteSpace(ClubName)
+            ? ClubName
+            : SubjectName ?? string.Empty;
 
     /// <summary>동아리 번호 (FK: Club.No, NULL 허용)</summary>
     public int ClubNo
@@ -123,7 +140,7 @@ public class StudentLog : NotifyPropertyChangedBase
     public string ClubName
     {
         get => _clubName;
-        set => SetProperty(ref _clubName, value);
+        set { if (SetProperty(ref _clubName, value)) Notify(nameof(SubjectOrClubDisplay)); }
     }
 
     /// <summary>기록 내용 (단순 기록용 또는 전체 내용)</summary>
