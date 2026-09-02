@@ -93,6 +93,7 @@ public class HtmlExportService
         sb.AppendLine("<th style=\"width:100px\">활동명</th>");
         sb.AppendLine("<th>기록/내용</th>");
         sb.AppendLine("<th>학생부초안</th>");
+        sb.AppendLine("<th style=\"width:34px\">중요</th>");
         sb.AppendLine("</tr></thead><tbody>");
 
         foreach (var (studentVm, logs) in studentLogs)
@@ -123,6 +124,9 @@ public class HtmlExportService
                 // 열 이름은 "기록/내용" 인데 둘 다 적은 기록은 하나가 사라졌다.
                 sb.Append($"<td>{E(logVm.ContentDigest)}</td>");
                 sb.Append($"<td>{E(model.HasStructuredData() ? model.DraftSummary : string.Empty)}</td>");
+                // 교사가 직접 켠 표시다. 한 글자짜리 열이라 지면 부담이 없는데도
+                // 종이·HTML 로 뽑으면 사라지고 있었다.
+                sb.Append($"<td class=\"center\">{(logVm.IsImportant ? "★" : string.Empty)}</td>");
                 sb.AppendLine("</tr>");
             }
         }
@@ -232,6 +236,7 @@ public class HtmlExportService
         sb.AppendLine("<th style=\"width:110px\">연락처</th>");
         sb.AppendLine("<th>주소</th>");
         sb.AppendLine("<th style=\"width:70px\">보호자</th>");
+        sb.AppendLine("<th style=\"width:50px\">관계</th>");
         sb.AppendLine("<th style=\"width:110px\">보호자 연락처</th>");
         sb.AppendLine("</tr></thead><tbody>");
 
@@ -244,8 +249,11 @@ public class HtmlExportService
             sb.Append($"<td class=\"center\">{vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? ""}</td>");
             sb.Append($"<td>{E(vm.Student?.Phone)}</td>");
             sb.Append($"<td>{E(vm.Student?.Address)}</td>");
-            sb.Append($"<td class=\"center\">{E(vm.Detail?.GetPrimaryGuardianName())}</td>");
-            sb.Append($"<td>{E(vm.Detail?.GetPrimaryContact())}</td>");
+            // 이름·관계·연락처를 한 번에 고른다 — 따로 고르면 서로 다른 사람이 한 줄에 실린다.
+            var guardian = vm.Detail?.ResolvePrimaryGuardian() ?? (string.Empty, string.Empty, string.Empty);
+            sb.Append($"<td class=\"center\">{E(guardian.Name)}</td>");
+            sb.Append($"<td class=\"center\">{E(guardian.Relation)}</td>");
+            sb.Append($"<td>{E(guardian.Phone)}</td>");
             sb.AppendLine("</tr>");
         }
         sb.AppendLine("</tbody></table>");

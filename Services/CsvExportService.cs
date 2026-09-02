@@ -38,7 +38,7 @@ public class CsvExportService
             "날짜", "학기", "카테고리", "과목",
             "활동명", "기록", "주제", "활동내용",
             "역할", "기른능력", "장점", "성취",
-            "태그", "중요");
+            "태그", "중요", "학생부초안");
 
         foreach (var (studentVm, logs) in studentLogs)
         {
@@ -49,6 +49,11 @@ public class CsvExportService
 
             foreach (var logVm in logs)
             {
+                // 엑셀·인쇄물과 같은 규칙 — 구조화 항목이 없으면 비운다.
+                // CSV 는 엑셀·구글시트에 붙여넣으려고 쓰는데 가장 손이 많이 가는
+                // 이 열만 빠져 있었다(지면 제약도 없는 형식이라 설계가 아니라 누락이었다).
+                var model = logVm.StudentLog;
+
                 AppendRow(sb,
                     sGrade.ToString(),
                     sClass.ToString(),
@@ -69,7 +74,8 @@ public class CsvExportService
                     logVm.StrengthShown ?? string.Empty,
                     logVm.ResultOrOutcome ?? string.Empty,
                     logVm.Tag ?? string.Empty,
-                    logVm.IsImportant ? "★" : string.Empty);
+                    logVm.IsImportant ? "★" : string.Empty,
+                    model.HasStructuredData() ? model.DraftSummary : string.Empty);
             }
         }
         return sb.ToString();
@@ -137,10 +143,13 @@ public class CsvExportService
         var sb = new StringBuilder();
         AppendRow(sb,
             "학년", "반", "번호", "이름", "성별", "생년월일",
-            "연락처", "이메일", "주소", "보호자", "보호자 연락처");
+            "연락처", "이메일", "주소", "보호자", "관계", "보호자 연락처");
 
         foreach (var vm in students)
         {
+            // 이름·관계·연락처를 한 번에 고른다 — 따로 고르면 서로 다른 사람이 한 줄에 실린다.
+            var guardian = vm.Detail?.ResolvePrimaryGuardian() ?? (string.Empty, string.Empty, string.Empty);
+
             AppendRow(sb,
                 (vm.Enrollment?.Grade ?? grade).ToString(),
                 (vm.Enrollment?.Class ?? classNo).ToString(),
@@ -151,8 +160,9 @@ public class CsvExportService
                 vm.Student?.Phone ?? string.Empty,
                 vm.Student?.Email ?? string.Empty,
                 vm.Student?.Address ?? string.Empty,
-                vm.Detail?.GetPrimaryGuardianName() ?? string.Empty,
-                vm.Detail?.GetPrimaryContact() ?? string.Empty);
+                guardian.Name,
+                guardian.Relation,
+                guardian.Phone);
         }
         return sb.ToString();
     }

@@ -188,15 +188,51 @@ public class SeatsPrintService
         public string 이름 { get; init; } = string.Empty;
     }
 
+    /// <summary>좌석 한 칸이 무엇인가. 세 형식(Excel·PDF·HTML)이 이 판정을 함께 쓴다.</summary>
+    private enum SeatKind
+    {
+        /// <summary>보이지 않게 해 둔 자리 — 아무것도 그리지 않는다.</summary>
+        Hidden,
+        /// <summary>쓰지 않는 자리 — × 를 그린다.</summary>
+        Unused,
+        /// <summary>쓰지만 아직 아무도 앉지 않은 자리.</summary>
+        Empty,
+        /// <summary>학생이 앉은 자리.</summary>
+        Student,
+    }
+
+    /// <summary>
+    /// 좌석 한 칸의 종류를 가린다.
+    ///
+    /// <para>⚠ 예전에는 이 네 갈래가 <b>세 벌로 따로</b> 적혀 있었다(Excel·PDF·HTML).
+    /// 순서까지 우연히 일치해 지금은 같게 보였지만, 한쪽만 고치면 조용히 갈라지는 자리였다.
+    /// 좌석은 데이터 읽기(<c>LoadCellsAsync</c>)와 줄·짝 보정(<c>SafeJul</c>·<c>SafeJjak</c>)을
+    /// 이미 한 곳에 모아 두었으므로 판정만 남아 있었다.</para>
+    /// </summary>
+    private static SeatKind Classify(SeatCellData? card)
+    {
+        if (card != null && card.IsHidden) return SeatKind.Hidden;
+        if (card == null || card.IsUnUsed) return SeatKind.Unused;
+        if (card.StudentData == null) return SeatKind.Empty;
+        return SeatKind.Student;
+    }
+
+    /// <summary>학생이 앉은 칸에 적을 이름표 — <c>이름(번호)</c>, 고정석이면 📌.</summary>
+    private static string SeatLabel(SeatCellData card)
+    {
+        var s = card.StudentData!;
+        return $"{s.Name}({s.Number}){(card.IsFixed ? " 📌" : "")}";
+    }
+
     /// <summary>좌석 셀의 Excel 표시 텍스트 (HTML 셀과 동일 규칙).</summary>
     private static string SeatCellText(SeatCellData? card)
     {
-        if (card != null && card.IsHidden) return string.Empty;
-        if (card == null || card.IsUnUsed) return "×";
-        if (card.StudentData == null) return string.Empty;
-
-        var s = card.StudentData;
-        return $"{s.Name}({s.Number}){(card.IsFixed ? " 📌" : "")}";
+        return Classify(card) switch
+        {
+            SeatKind.Unused => "×",
+            SeatKind.Student => SeatLabel(card!),
+            _ => string.Empty,          // 숨김·빈자리는 아무것도 적지 않는다
+        };
     }
 
     /// <summary>
@@ -538,12 +574,14 @@ public class SeatsPrintService
     private void RenderSeatCell(IContainer container, SeatCellData? card,
         bool showPhoto, float photoW, float photoH, float fontSize)
     {
+        var kind = Classify(card);
+
         // 미표시 좌석
-        if (card != null && card.IsHidden)
+        if (kind == SeatKind.Hidden)
             return;
 
         // 미사용 좌석
-        if (card == null || card.IsUnUsed)
+        if (kind == SeatKind.Unused)
         {
             container.AlignMiddle().AlignCenter()
                 .Text("×").FontSize(12).FontColor(Colors.Grey.Darken1);
@@ -551,12 +589,11 @@ public class SeatsPrintService
         }
 
         // 빈 좌석 (학생 미배정)
-        if (card.StudentData == null)
+        if (kind == SeatKind.Empty)
             return;
 
-        var student = card.StudentData;
-        var pin = card.IsFixed ? " 📌" : "";
-        var label = $"{student.Name}({student.Number}){pin}";
+        var student = card!.StudentData!;
+        var label = SeatLabel(card);
 
         if (showPhoto)
         {
@@ -740,25 +777,19 @@ public class SeatsPrintService
     {
         var cls = showPhoto ? "seat photo" : "seat";
 
-        if (card != null && card.IsHidden)
+        switch (Classify(card))
         {
-            sb.Append($"<td class=\"{cls} empty\"></td>");
-            return;
-        }
-        if (card == null || card.IsUnUsed)
-        {
-            sb.Append($"<td class=\"{cls} unused\">×</td>");
-            return;
-        }
-        if (card.StudentData == null)
-        {
-            sb.Append($"<td class=\"{cls} empty\"></td>");
-            return;
+            case SeatKind.Hidden:
+            case SeatKind.Empty:
+                sb.Append($"<td class=\"{cls} empty\"></td>");
+                return;
+            case SeatKind.Unused:
+                sb.Append($"<td class=\"{cls} unused\">×</td>");
+                return;
         }
 
-        var s = card.StudentData;
-        var pin = card.IsFixed ? " 📌" : "";
-        var label = $"{E(s.Name)}({s.Number}){pin}";
+        var s = card!.StudentData!;
+        var label = E(SeatLabel(card));
 
         if (showPhoto)
         {

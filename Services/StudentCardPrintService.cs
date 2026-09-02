@@ -256,24 +256,31 @@ public class StudentCardPrintService
                     c.ConstantColumn(LabelWidth);
                     c.RelativeColumn(1);
                     c.ConstantColumn(50);
-                    c.RelativeColumn(2);
+                    c.RelativeColumn(1);
+                    c.ConstantColumn(50);
+                    c.RelativeColumn(1);
                 });
 
-                // 아버지
+                // 아버지 — 직업은 엑셀에만 있고 PDF 에는 없었다. 같은 학생카드인데
+                // 형식에 따라 정보가 다를 이유가 없어 여기에도 넣는다.
                 LabelCell(table, "아버지");
                 ValueCell(table, vm.Detail?.FatherName);
                 LabelCell(table, "연락처");
                 ValueCell(table, vm.Detail?.FatherPhone);
+                LabelCell(table, "직업");
+                ValueCell(table, vm.Detail?.FatherJob);
 
                 // 어머니
                 LabelCell(table, "어머니");
                 ValueCell(table, vm.Detail?.MotherName);
                 LabelCell(table, "연락처");
                 ValueCell(table, vm.Detail?.MotherPhone);
+                LabelCell(table, "직업");
+                ValueCell(table, vm.Detail?.MotherJob);
 
                 // 가족구성
                 LabelCell(table, "가족구성");
-                ValueCellSpan(table, vm.Detail?.FamilyInfo, 3);
+                ValueCellSpan(table, vm.Detail?.FamilyInfo, 5);
             });
         });
     }
@@ -520,6 +527,10 @@ public class StudentCardPrintService
             연락처 = vm.Student?.Phone ?? string.Empty,
             이메일 = vm.Student?.Email ?? string.Empty,
             주소 = vm.Student?.Address ?? string.Empty,
+            // 기본정보의 메모는 PDF 에만 있고 엑셀에는 없었다.
+            // ⚠ 아래 "상세메모"(StudentDetail.Memo)와 다른 칸이다 — 이름이 겹치면
+            //   어느 쪽이 어느 칸인지 열 제목만 보고 알 수 없다.
+            기본메모 = vm.Student?.Memo ?? string.Empty,
             부이름 = vm.Detail?.FatherName ?? string.Empty,
             부연락처 = vm.Detail?.FatherPhone ?? string.Empty,
             부직업 = vm.Detail?.FatherJob ?? string.Empty,
@@ -537,7 +548,7 @@ public class StudentCardPrintService
             건강정보 = vm.Detail?.HealthInfo ?? string.Empty,
             알레르기 = vm.Detail?.Allergies ?? string.Empty,
             특별지원 = vm.Detail?.SpecialNeeds ?? string.Empty,
-            메모 = vm.Detail?.Memo ?? string.Empty,
+            상세메모 = vm.Detail?.Memo ?? string.Empty,
         }).ToList();
 
         var fileName = $"학생카드_{grade}학년{classNo}반_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
@@ -558,6 +569,7 @@ public class StudentCardPrintService
         public string 연락처 { get; init; } = string.Empty;
         public string 이메일 { get; init; } = string.Empty;
         public string 주소 { get; init; } = string.Empty;
+        public string 기본메모 { get; init; } = string.Empty;
         public string 부이름 { get; init; } = string.Empty;
         public string 부연락처 { get; init; } = string.Empty;
         public string 부직업 { get; init; } = string.Empty;
@@ -575,7 +587,7 @@ public class StudentCardPrintService
         public string 건강정보 { get; init; } = string.Empty;
         public string 알레르기 { get; init; } = string.Empty;
         public string 특별지원 { get; init; } = string.Empty;
-        public string 메모 { get; init; } = string.Empty;
+        public string 상세메모 { get; init; } = string.Empty;
     }
 
     /// <summary>
@@ -620,6 +632,7 @@ public class StudentCardPrintService
                             columns.ConstantColumn(92);   // 연락처
                             columns.RelativeColumn(3);    // 주소
                             columns.ConstantColumn(64);   // 보호자
+                            columns.ConstantColumn(40);   // 관계
                             columns.ConstantColumn(92);   // 보호자 연락처
                         });
 
@@ -631,7 +644,7 @@ public class StudentCardPrintService
 
                         table.Header(header =>
                         {
-                            foreach (var h in new[] { "번호", "이름", "성별", "생년월일", "연락처", "주소", "보호자", "보호자 연락처" })
+                            foreach (var h in new[] { "번호", "이름", "성별", "생년월일", "연락처", "주소", "보호자", "관계", "보호자 연락처" })
                                 header.Cell().Element(Head).Text(h).FontSize(9).Bold();
                         });
 
@@ -643,8 +656,11 @@ public class StudentCardPrintService
                             table.Cell().Element(Cell).AlignCenter().Text(vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? "").FontSize(9);
                             table.Cell().Element(Cell).Text(vm.Student?.Phone ?? "").FontSize(9);
                             table.Cell().Element(Cell).Text(vm.Student?.Address ?? "").FontSize(9);
-                            table.Cell().Element(Cell).Text(vm.Detail?.GetPrimaryGuardianName() ?? "").FontSize(9);
-                            table.Cell().Element(Cell).Text(vm.Detail?.GetPrimaryContact() ?? "").FontSize(9);
+                            // 이름·관계·연락처를 한 번에 고른다 — 따로 고르면 서로 다른 사람이 한 줄에 실린다.
+                            var guardian = vm.Detail?.ResolvePrimaryGuardian() ?? (string.Empty, string.Empty, string.Empty);
+                            table.Cell().Element(Cell).Text(guardian.Name).FontSize(9);
+                            table.Cell().Element(Cell).AlignCenter().Text(guardian.Relation).FontSize(9);
+                            table.Cell().Element(Cell).Text(guardian.Phone).FontSize(9);
                         }
                     });
 

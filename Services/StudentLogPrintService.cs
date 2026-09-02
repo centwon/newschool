@@ -150,6 +150,7 @@ public class StudentLogPrintService
                 columns.ConstantColumn(60);   // 주제
                 columns.RelativeColumn(2);    // 활동내용
                 columns.RelativeColumn(2);    // 학생부초안
+                columns.ConstantColumn(24);   // 중요
             });
 
             // 헤더 행
@@ -174,6 +175,7 @@ public class StudentLogPrintService
                 HeaderCell(header.Cell().RowSpan(1).ColumnSpan(1), "주제");
                 HeaderCell(header.Cell().RowSpan(1).ColumnSpan(1), "활동내용");
                 HeaderCell(header.Cell().RowSpan(1).ColumnSpan(1), "학생부초안");
+                HeaderCell(header.Cell().RowSpan(1).ColumnSpan(1), "중요");
             });
 
             // 데이터 행
@@ -223,6 +225,9 @@ public class StudentLogPrintService
                     DataCell(table.Cell(), logVm.Description ?? string.Empty);
                     DataCell(table.Cell(),
                         model.HasStructuredData() ? model.DraftSummary : string.Empty);
+                    // 교사가 직접 켠 표시다. 한 글자짜리 열이라 지면 부담이 없는데도
+                    // 종이로 뽑으면 사라지고 있었다.
+                    DataCell(table.Cell(), model.IsImportant ? "★" : string.Empty);
                 }
 
                 currentRow++;

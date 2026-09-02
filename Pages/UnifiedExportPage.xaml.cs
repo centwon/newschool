@@ -239,6 +239,34 @@ public sealed partial class UnifiedExportPage : Page
             RbFmtCsv.IsChecked = false;
             RbFmtPdf.IsChecked = true;
         }
+
+        UpdateTypeHint();
+    }
+
+    /// <summary>
+    /// 고른 종류에 대한 한 줄 안내.
+    ///
+    /// <para>이 화면의 학생정보는 <b>정해진 열을 통째로</b> 내보낸다. 항목을 골라
+    /// 명렬표를 만드는 것은 [학생 정보 출력] 화면의 일이다 — 둘은 겹치는 기능이 아니라
+    /// 다른 도구인데, 그 화면이 있다는 것을 모르면 여기서 찾다가 못 찾는다.</para>
+    /// </summary>
+    private void UpdateTypeHint()
+    {
+        if (TxtTypeHint == null) return;
+
+        string hint = GetSelectedDataType() switch
+        {
+            UnifiedExportService.DataType.StudentInfo =>
+                "번호·이름·연락처·보호자를 정해진 열로 내보냅니다. "
+                + "항목을 골라 명렬표를 만들려면 [학급 → 학생정보 출력] 을 쓰세요.",
+            UnifiedExportService.DataType.Seats or UnifiedExportService.DataType.StudentCard =>
+                "표가 아니라 배치·카드 모양이라 CSV·클립보드 복사는 쓸 수 없습니다.",
+            _ => string.Empty,
+        };
+
+        TxtTypeHint.Text = hint;
+        TxtTypeHint.Visibility = string.IsNullOrEmpty(hint)
+            ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // 만든 파일을 여는 것은 Helpers.ExportPaths.TryOpen 한 곳에 모았다(45차).

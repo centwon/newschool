@@ -54,9 +54,16 @@
                     <RadioButton x:Name="RbStudentInfo"
                                  Content="학생정보"
                                  GroupName="DataType"
-                                 ToolTipService.ToolTip="번호·이름·연락처·보호자 명렬표 (항목을 직접 고르려면 '학생 정보 출력' 페이지 이용)"
                                  Checked="DataType_Checked"/>
                 </StackPanel>
+
+                <!-- 고른 종류에 대한 한 줄 안내. 툴팁으로만 두면 마우스를 정확히 올려야
+                     보이고, 그 화면이 따로 있다는 것 자체를 모르는 사람은 끝내 못 찾는다. -->
+                <TextBlock x:Name="TxtTypeHint"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Visibility="Collapsed"/>
             </StackPanel>
         </Border>
 

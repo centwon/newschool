@@ -174,19 +174,26 @@ public class UnifiedExportService
     private static async Task<string?> ExportClassInfoToExcelAsync(
         int year, int grade, int classNo, List<StudentCardViewModel> students)
     {
-        var rows = students.Select(vm => new InfoExportDto
+        var rows = students.Select(vm =>
         {
-            학년 = vm.Enrollment?.Grade ?? grade,
-            반 = vm.Enrollment?.Class ?? classNo,
-            번호 = vm.Enrollment?.Number ?? 0,
-            이름 = vm.Student?.Name ?? string.Empty,
-            성별 = vm.Student?.Sex ?? string.Empty,
-            생년월일 = vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? string.Empty,
-            연락처 = vm.Student?.Phone ?? string.Empty,
-            이메일 = vm.Student?.Email ?? string.Empty,
-            주소 = vm.Student?.Address ?? string.Empty,
-            보호자 = vm.Detail?.GetPrimaryGuardianName() ?? string.Empty,
-            보호자연락처 = vm.Detail?.GetPrimaryContact() ?? string.Empty,
+            // 이름·관계·연락처를 한 번에 고른다(StudentDetail.ResolvePrimaryGuardian).
+            var guardian = vm.Detail?.ResolvePrimaryGuardian() ?? (string.Empty, string.Empty, string.Empty);
+
+            return new InfoExportDto
+            {
+                학년 = vm.Enrollment?.Grade ?? grade,
+                반 = vm.Enrollment?.Class ?? classNo,
+                번호 = vm.Enrollment?.Number ?? 0,
+                이름 = vm.Student?.Name ?? string.Empty,
+                성별 = vm.Student?.Sex ?? string.Empty,
+                생년월일 = vm.Student?.BirthDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+                연락처 = vm.Student?.Phone ?? string.Empty,
+                이메일 = vm.Student?.Email ?? string.Empty,
+                주소 = vm.Student?.Address ?? string.Empty,
+                보호자 = guardian.Name,
+                관계 = guardian.Relation,
+                보호자연락처 = guardian.Phone,
+            };
         }).ToList();
 
         // 저장 자리는 Helpers.ExportPaths 가 정한다 — 확장자가 폴더를 고른다.
@@ -208,7 +215,9 @@ public class UnifiedExportService
         public string 연락처 { get; init; } = string.Empty;
         public string 이메일 { get; init; } = string.Empty;
         public string 주소 { get; init; } = string.Empty;
+        // ⚠ MiniExcel 은 이 선언 순서를 그대로 열 순서로 쓴다 — 보호자·관계·연락처 순.
         public string 보호자 { get; init; } = string.Empty;
+        public string 관계 { get; init; } = string.Empty;
         public string 보호자연락처 { get; init; } = string.Empty;
     }
 
