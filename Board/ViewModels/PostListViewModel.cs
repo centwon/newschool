@@ -472,14 +472,11 @@ public class PostItemViewModel : NotifyPropertyChangedBase
     public bool HasComment => _post.HasComment;
     public bool IsCompleted => _post.IsCompleted;
 
-    /// <summary>
-    /// 중요 글 여부. 목록에서 이 글이 맨 앞으로 온다.
-    ///
-    /// <para>목록에서 켜고 끄는 자리는 없다(글쓰기·수정 화면의 체크박스로만 바뀐다) —
-    /// 쓰는 곳이 없던 setter 는 지웠다(2026-08-31). 목록에서 바로 토글하게 만들려면
-    /// setter 와 함께 <c>SavePostAsync</c> 반영·캐시 무효화까지 붙여야 한다.</para>
-    /// </summary>
-    public bool IsPinned => _post.IsPinned;
+    // 중요 글 여부(IsPinned)를 그대로 내주던 속성도 읽는 곳이 없어 지웠다(2026-09-04).
+    // 목록이 쓰는 것은 아래 PinIconVisibility 하나고, 정렬은 SQL 이 한다
+    // (ORDER BY IsPinned DESC). 값 자체가 필요해지면 _post.IsPinned 를 쓰면 된다.
+    // 목록에서 바로 켜고 끄게 만들려면 setter 와 함께 SavePostAsync 반영·캐시 무효화까지
+    // 붙여야 한다(그래서 setter 도 2026-08-31 에 지웠다).
 
     // UI 바인딩용 속성
     public Visibility FileIconVisibility => _post.FileIconVisibility;

@@ -36,6 +36,12 @@ public class PhotoService
         _baseDirectory = Settings.UserDataPath;
     }
 
+    /// <summary>
+    /// 사진 폴더를 직접 지정한다. <b>앱에서 부르는 곳은 없다 — 지우지 말 것.</b>
+    /// 테스트가 실제 데이터 폴더 대신 임시 폴더를 보게 하는 이음매다
+    /// (<c>StudentCardDirtyFlagTests</c>). 이것을 지우면 테스트가 사용자의 진짜 사진 폴더에
+    /// 쓰게 된다. "미참조 공개 멤버" 로 두 번 걸렸기에 여기 근거를 남긴다(2026-09-04).
+    /// </summary>
     public PhotoService(string baseDirectory)
     {
         _baseDirectory = baseDirectory;

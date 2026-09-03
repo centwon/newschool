@@ -5,7 +5,7 @@ using Xunit;
 
 namespace NewSchool.Tests;
 
-/// <summary>학생 ID 생성 규칙 + 주차 계산 테스트 (TEST_PLAN 3단계).</summary>
+/// <summary>학생 ID 생성 규칙 + 날짜→학기·학년도 판정 테스트 (TEST_PLAN 3단계).</summary>
 public class StudentIdAndDateTests
 {
     [Fact]
@@ -42,23 +42,10 @@ public class StudentIdAndDateTests
     public void GenerateStudentID_일련번호_범위밖이면_예외(int seq)
         => Assert.Throws<ArgumentException>(() => Student.GenerateStudentID("7530072", 2026, seq));
 
-    [Fact]
-    public void GenerateStudentID_ParseStudentID_왕복()
-    {
-        var id = Student.GenerateStudentID("7530072", 2026, 42);
-        var parsed = new Student { StudentID = id }.ParseStudentID();
-        Assert.Equal("7530072", parsed.SchoolCode);
-        Assert.Equal(2026, parsed.EnrollmentYear);
-        Assert.Equal(42, parsed.Sequence);
-    }
-
-    [Theory]
-    [InlineData("2026-03-02", "2026-03-02", 1)]  // 시작일 = 1주차
-    [InlineData("2026-03-08", "2026-03-02", 1)]  // +6일 = 아직 1주차
-    [InlineData("2026-03-09", "2026-03-02", 2)]  // +7일 = 2주차
-    [InlineData("2026-03-16", "2026-03-02", 3)]  // +14일 = 3주차
-    public void WeekNumber_학기시작일_기준_주차(string date, string start, int expected)
-        => Assert.Equal(expected, DateTimeHelper.WeekNumber(DateTime.Parse(date), DateTime.Parse(start)));
+    // 왕복 테스트(GenerateStudentID_ParseStudentID_왕복)와 주차 테스트
+    // (WeekNumber_학기시작일_기준_주차)는 검사 대상인 Student.ParseStudentID·
+    // DateTimeHelper.WeekNumber 와 함께 지웠다(2026-09-04) — 둘 다 앱에서 부르는 곳이
+    // 없었다. ID 형식은 바로 위 두 테스트가 문자열로 못박고 있어 덮이는 범위는 그대로다.
 
     /// <summary>
     /// 1학기 = 3~8월, 2학기 = 9~다음해 2월. 열두 달을 모두 고정한다.

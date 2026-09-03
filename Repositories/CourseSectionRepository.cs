@@ -221,30 +221,8 @@ public class CourseSectionRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 과목의 총 예상 차시 조회
-    /// </summary>
-    public async Task<int> GetTotalEstimatedHoursAsync(int courseNo)
-    {
-        const string query = @"
-            SELECT COALESCE(SUM(EstimatedHours), 0)
-            FROM CourseSection
-            WHERE Course = @Course";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@Course", courseNo);
-
-            var result = await cmd.ExecuteScalarAsync();
-            return Convert.ToInt32(result);
-        }
-        catch (Exception ex)
-        {
-            LogError($"총 예상 차시 조회 실패: Course={courseNo}", ex);
-            throw;
-        }
-    }
+    // 총 예상 차시를 세던 GetTotalEstimatedHoursAsync 도 호출부가 없어 지웠다(2026-09-04).
+    // 차시 합계가 필요한 화면(수업 시수)은 WeeklyHoursCalculator 쪽 규칙을 따로 쓴다.
 
     // 대단원 목록만 뽑는 GetUnitsAsync 는 호출부가 없어 지웠다(39차).
     // 화면은 단원 전체(GetByCourseAsync)를 받아 대단원으로 묶는다.

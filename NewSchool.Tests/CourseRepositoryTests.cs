@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Linq;
+using System.Threading.Tasks;
 using NewSchool.Repositories;
 using NewSchool.Tests.Infrastructure;
 using Xunit;
@@ -103,9 +104,7 @@ public class CourseRepositoryTests : IClassFixture<SqliteTestFixture>
 
         var sections = await sectionRepo.GetByCourseAsync(courseNo);
         Assert.Equal(2, sections.Count);
-
-        int totalHours = await sectionRepo.GetTotalEstimatedHoursAsync(courseNo);
-        Assert.Equal(5, totalHours);
+        Assert.Equal(5, sections.Sum(s => s.EstimatedHours));   // 2 + 3
     }
 
 }

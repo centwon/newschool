@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NewSchool.Repositories;
@@ -54,21 +55,21 @@ public class ClassTimetableRepositoryTests : IClassFixture<SqliteTestFixture>
         Assert.False(await repo.IsDuplicateAsync(TestData.SchoolCode, TestData.Year, 1, 2, 3, 2, 6));
     }
 
+    /// <summary>
+    /// 넣은 순서와 상관없이 <b>요일·교시 순</b>으로 돌려준다.
+    /// (일괄 삽입 메서드는 호출부가 없어 지웠으므로 한 칸씩 넣는다 — 2026-09-04.)
+    /// </summary>
     [Fact]
-    public async Task 배치삽입_후_반별조회_요일교시_정렬()
+    public async Task 반별조회는_요일교시_순으로_돌려준다()
     {
         using var repo = new ClassTimetableRepository(_db.DbPath);
-        var slots = new List<Models.ClassTimetable>
-        {
-            TestData.NewTimetableSlot(grade: 3, classNum: 1, dayOfWeek: 2, period: 2, subject: "화2"),
-            TestData.NewTimetableSlot(grade: 3, classNum: 1, dayOfWeek: 1, period: 1, subject: "월1"),
-            TestData.NewTimetableSlot(grade: 3, classNum: 1, dayOfWeek: 1, period: 2, subject: "월2"),
-        };
-        int created = await repo.CreateBatchAsync(slots);
-        Assert.Equal(3, created);
+        await repo.CreateAsync(TestData.NewTimetableSlot(grade: 3, classNum: 1, dayOfWeek: 2, period: 2, subject: "화2"));
+        await repo.CreateAsync(TestData.NewTimetableSlot(grade: 3, classNum: 1, dayOfWeek: 1, period: 1, subject: "월1"));
+        await repo.CreateAsync(TestData.NewTimetableSlot(grade: 3, classNum: 1, dayOfWeek: 1, period: 2, subject: "월2"));
 
         var list = await repo.GetByClassAsync(TestData.SchoolCode, TestData.Year, 1, 3, 1);
-        Assert.Equal(3, list.Count);
+
+        Assert.Equal(new[] { "월1", "월2", "화2" }, list.Select(t => t.SubjectName));
     }
 
     [Fact]

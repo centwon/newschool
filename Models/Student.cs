@@ -190,21 +190,9 @@ public class Student : NotifyPropertyChangedBase
         return $"{schoolCode}{enrollmentYear:D4}{sequence:D4}";
     }
 
-    /// <summary>
-    /// StudentID 파싱
-    /// </summary>
-    /// <returns>(학교코드, 입학년도, 일련번호)</returns>
-    public (string SchoolCode, int EnrollmentYear, int Sequence) ParseStudentID()
-    {
-        if (string.IsNullOrEmpty(StudentID) || StudentID.Length != 15)
-            return (string.Empty, 0, 0);
-
-        string schoolCode = StudentID.Substring(0, 7);
-        int enrollmentYear = int.Parse(StudentID.Substring(7, 4));
-        int sequence = int.Parse(StudentID.Substring(11, 4));
-
-        return (schoolCode, enrollmentYear, sequence);
-    }
+    // 학생 ID 를 (학교코드·입학년도·일련번호) 로 되돌리던 ParseStudentID 는 호출부가 없어
+    // 지웠다(2026-09-04). 세 조각이 필요한 화면은 Student 의 해당 필드를 직접 읽는다
+    // — ID 를 쪼개 읽는 길이 따로 있으면 둘이 어긋날 수 있다.
 
     /// <summary>
     /// 나이 계산

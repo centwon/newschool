@@ -49,33 +49,9 @@ public class ClassTimetableRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 학급 시간표 일괄 생성
-    /// </summary>
-    public async Task<int> CreateBatchAsync(List<ClassTimetable> timetables)
-    {
-        if (timetables == null || timetables.Count == 0)
-            return 0;
-
-        int count = 0;
-
-        try
-        {
-            foreach (var timetable in timetables)
-            {
-                await CreateAsync(timetable);
-                count++;
-            }
-
-            LogInfo($"학급 시간표 일괄 생성 완료: {count}개");
-            return count;
-        }
-        catch (Exception ex)
-        {
-            LogError($"학급 시간표 일괄 생성 실패", ex);
-            throw;
-        }
-    }
+    // 여러 칸을 한 번에 넣던 CreateBatchAsync 는 호출부가 없어 지웠다(2026-09-04).
+    // 트랜잭션으로 묶지도 않고 CreateAsync 를 그냥 도는 함수라, 필요해지면 그때
+    // 트랜잭션과 함께 다시 세우는 편이 낫다(시간표 편집 화면은 칸 단위로 저장한다).
 
     #endregion
 

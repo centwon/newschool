@@ -9,12 +9,9 @@ namespace NewSchool;
 /// </summary>
 public static class DateTimeHelper
 {
-    /// <summary>
-    /// 학기 시작일 기준 주차(1-based). 시작일과 같은 날은 1주차, 7일 뒤는 2주차.
-    /// (연간 수업 계획의 주차 표시에 사용)
-    /// </summary>
-    public static int WeekNumber(DateTime date, DateTime startDate)
-        => (int)((date.Date - startDate.Date).TotalDays / 7) + 1;
+    // 학기 시작일 기준 주차를 세던 WeekNumber 는 호출부가 없어 지웠다(2026-09-04).
+    // 연간 수업 계획의 주차 표시에 쓰려던 것인데, 그 화면은 계획 행이 들고 있는
+    // 주차 값을 그대로 쓴다(날짜에서 되계산하지 않는다).
 
     /// <summary>
     /// 그 날짜가 속한 학기(1 또는 2). **1학기 = 3~8월, 2학기 = 9~다음해 2월**.
