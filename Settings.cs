@@ -687,7 +687,10 @@ public static class Settings
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Settings] 백업 오류: {ex.Message}");
+            // ⚠ Debug.WriteLine 만 남기면 안 된다 — [Conditional("DEBUG")] 라 배포본에서는
+            //    통째로 사라진다. 자동 백업은 백그라운드에서 조용히 도는데, 실패가 어디에도
+            //    남지 않으면 사용자는 몇 달이고 "백업되고 있다" 고 믿는다.
+            Logging.Log.Error("Settings", "백업 실패", ex);
             return null;
         }
         finally
@@ -785,6 +788,14 @@ public static class Settings
     }
 
     /// <summary>
+    /// 이 폴더에 <b>되돌릴 것이 하나라도</b> 있는가(= 아는 DB 이름이 하나라도 있는가).
+    /// 복원이 아무것도 하지 않고 "완료" 로 끝나는 것을 막는 문지기다.
+    /// (파일 검사뿐이라 데이터 폴더를 건드리지 않는다 — 그래서 테스트가 직접 부른다.)
+    /// </summary>
+    internal static bool ContainsRestorableDb(string dir)
+        => BackupDbFileNames().Any(name => File.Exists(Path.Combine(dir, name)));
+
+    /// <summary>
     /// 백업에서 전체 복원 — ZIP 파일(신규), 백업 폴더(구버전), 단일 .db(하위호환) 모두 지원
     /// </summary>
     public static bool Restore(string backupDirOrFile)
@@ -809,8 +820,23 @@ public static class Settings
             }
 
             // 단일 파일이면 기존 Settings.db 복원 (하위호환)
-            if (File.Exists(backupDirOrFile) && backupDirOrFile.EndsWith(".db"))
+            //
+            // ⚠ 고른 파일이 정말 설정 DB 인지 먼저 본다. 예전에는 이름이 .db 로 끝나기만 하면
+            //   그대로 Settings.db 위에 복사했다. 파일 선택기가 .db 를 열어 주고,
+            //   [데이터 폴더 열기] 로 보게 되는 폴더에 school.db·board.db·scheduler.db 가
+            //   나란히 있어서, 하나만 잘못 골라도 설정이 통째로 사라졌다 — 되돌릴 사본도 없고,
+            //   뒤이은 CREATE TABLE IF NOT EXISTS 가 성공시켜 줘서 "복원 완료" 로 끝났다.
+            //   (.db 비교는 .zip 과 마찬가지로 대소문자를 가리지 않는다.)
+            if (File.Exists(backupDirOrFile) &&
+                backupDirOrFile.EndsWith(".db", StringComparison.OrdinalIgnoreCase))
             {
+                if (!SettingsDb.LooksLikeSettingsDb(backupDirOrFile))
+                {
+                    Logging.Log.Error("Settings",
+                        $"설정 DB 가 아닌 파일이라 복원하지 않는다: {Path.GetFileName(backupDirOrFile)}");
+                    return false;
+                }
+
                 bool success = SettingsDb.Restore(backupDirOrFile);
                 if (success) LoadAll();
                 return success;
@@ -818,6 +844,18 @@ public static class Settings
 
             // 폴더 복원
             if (!Directory.Exists(backupDirOrFile)) return false;
+
+            // 되돌릴 것이 하나라도 있는지 <b>먼저</b> 본다. 예전에는 아는 DB 이름이 하나도
+            // 없어도 루프를 통째로 건너뛰고 "복원 완료" 로 끝났다 — 엉뚱한 ZIP, 손으로 다시
+            // 압축해 폴더가 한 겹 생긴 백업, 빈 폴더가 전부 성공으로 보고됐다. 손상 복구
+            // 흐름은 그 말을 믿고 재시작하는데 DB 는 여전히 손상이라, 같은 대화상자가
+            // 끝없이 다시 떴다. 여기서 걸러야 아무것도 건드리지 않은 채로 실패를 알린다.
+            if (!ContainsRestorableDb(backupDirOrFile))
+            {
+                Logging.Log.Error("Settings",
+                    $"백업에서 되돌릴 DB 를 찾지 못했다: {backupDirOrFile}");
+                return false;
+            }
 
             Directory.CreateDirectory(UserDataPath);
 
@@ -1139,29 +1177,95 @@ internal static class SettingsDb
     // 지금 백업 규칙(Backups\ + BackupDbFileNames 화이트리스트)과도 어긋났다.
     // 설정 DB 는 Settings.Backup 이 다른 DB 와 함께 담는다.
 
+    /// <summary>
+    /// 이 파일이 <b>설정 DB</b> 인가 — Settings 테이블이 있는 SQLite 파일인지 본다.
+    ///
+    /// <para>덮어쓰기 전에 물어야 하는 질문이다. 데이터 폴더에는 school.db·board.db·
+    /// scheduler.db 가 나란히 있고, 그중 하나를 골라도 <c>CREATE TABLE IF NOT EXISTS</c> 가
+    /// 뒤에서 성공시켜 주기 때문에 "복원 완료" 로 끝나 버렸다. 읽기 전용으로만 열어 본다.</para>
+    /// </summary>
+    internal static bool LooksLikeSettingsDb(string dbPath)
+    {
+        try
+        {
+            using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;Pooling=False");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='Settings' LIMIT 1;";
+            return cmd.ExecuteScalar() != null;
+        }
+        catch (Exception ex)
+        {
+            // SQLite 가 아니거나 열 수 없는 파일 — 복원 대상이 아니다.
+            System.Diagnostics.Debug.WriteLine($"[SettingsDb] 설정 DB 판정 실패({Path.GetFileName(dbPath)}): {ex.Message}");
+            return false;
+        }
+    }
+
     public static bool Restore(string backupPath)
     {
         lock (_lock)
         {
+            if (!File.Exists(backupPath)) return false;
+
+            // 덮어쓰기 전에 현재 것을 옆에 떠 둔다. 폴더 복원에는 되돌릴 자리가 있는데
+            // 이 경로에만 없어서, 복사가 도중에 깨지면 설정을 살릴 방법이 없었다.
+            var undoPath = Path.Combine(Path.GetTempPath(), $"newschool_settings_undo_{Guid.NewGuid():N}.db");
+            bool undoSaved = false;
+            bool keepUndoCopy = false;   // 되돌리기까지 실패하면 사본을 남긴다 — 손으로 살릴 수 있도록
+
             try
             {
-                if (File.Exists(backupPath))
+                // 이 연결 문자열은 Pooling 기본값(켜짐)이다. 풀에 남은 연결이
+                // 파일을 쥔 채로 덮어쓰면 복사가 막히거나, 성공해도 옛 -wal/-shm 이 남아
+                // 새 파일과 짝이 안 맞는 상태가 된다. 폴더 복원 경로와 같은 준비를 거친다.
+                Settings.PrepareForRestore(DbPath);
+
+                if (File.Exists(DbPath))
                 {
-                    // 이 연결 문자열은 Pooling 기본값(켜짐) + Cache=Shared 다. 풀에 남은 연결이
-                    // 파일을 쥔 채로 덮어쓰면 복사가 막히거나, 성공해도 옛 -wal/-shm 이 남아
-                    // 새 파일과 짝이 안 맞는 상태가 된다. 폴더 복원 경로와 같은 준비를 거친다.
-                    Settings.PrepareForRestore(DbPath);
-                    File.Copy(backupPath, DbPath, true);
-                    _isInitialized = false;
-                    Initialize();
-                    return true;
+                    File.Copy(DbPath, undoPath, true);
+                    undoSaved = true;
                 }
-                return false;
+
+                File.Copy(backupPath, DbPath, true);
+                _isInitialized = false;
+                Initialize();
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
+                Logging.Log.Error("SettingsDb", "설정 DB 복원 실패", ex);
+
+                if (undoSaved) keepUndoCopy = !TryUndo(undoPath);
                 return false;
             }
+            finally
+            {
+                if (!keepUndoCopy)
+                {
+                    try { if (File.Exists(undoPath)) File.Delete(undoPath); }
+                    catch { /* 임시 사본 정리 실패 무시 */ }
+                }
+            }
+        }
+    }
+
+    /// <summary>복원이 깨졌을 때 떠 둔 사본으로 되돌린다. 되돌렸으면 true.</summary>
+    private static bool TryUndo(string undoPath)
+    {
+        try
+        {
+            Settings.PrepareForRestore(DbPath);
+            File.Copy(undoPath, DbPath, true);
+            _isInitialized = false;
+            Initialize();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // 사본을 지우지 않고 위치를 남긴다.
+            Logging.Log.Error("SettingsDb", $"설정 DB 되돌리기 실패 — 사본: {undoPath}", ex);
+            return false;
         }
     }
 

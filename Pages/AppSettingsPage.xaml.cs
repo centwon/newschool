@@ -188,7 +188,13 @@ public sealed partial class AppSettingsPage : Page
                 bool success = await Task.Run(() => Settings.Restore(restorePath));
                 if (success)
                 {
-                    await MessageBox.ShowAsync("복원이 완료되었습니다.\n앱을 재시작해주세요.", "복원 완료");
+                    // 안내만 하고 계속 쓰게 두면 안 된다 — 열려 있는 화면과 캐시가 복원 전
+                    // 데이터를 들고 있어서, 그대로 저장하면 방금 되돌린 것을 다시 덮는다.
+                    // 손상 복구 경로(App.HandleCorruptDatabasesAsync)가 "옛 연결·캐시가 새 DB 에
+                    // 섞이지 않도록" 재시작하는 것과 같은 이유다. 같은 복원이니 같이 처리한다.
+                    await MessageBox.ShowAsync(
+                        "복원이 완료되었습니다.\n앱을 다시 시작합니다.", "복원 완료");
+                    Microsoft.Windows.AppLifecycle.AppInstance.Restart(string.Empty);
                 }
                 else
                 {

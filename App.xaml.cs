@@ -182,7 +182,18 @@ public partial class App : Application
             {
                 var backupResult = Settings.RunAutoBackupIfNeeded();
                 if (backupResult != null)
+                {
                     Debug.WriteLine($"[App] 자동 백업 완료(백그라운드): {backupResult}");
+                    FileLogger.Instance.Info($"[App] 자동 백업 완료: {backupResult}");
+                }
+                else if (Settings.AutoBackup.Value)
+                {
+                    // 자동 백업을 켜 뒀는데 결과가 없다 = 아직 주기가 안 됐거나 실패했다.
+                    // 실패는 Settings.Backup 이 이미 Error 로 남긴다. 여기서는 "켜 놓았는데
+                    // 이번 실행에는 백업이 없었다" 는 사실만 남겨, 로그만 보고도 백업이
+                    // 실제로 돌고 있는지 판단할 수 있게 한다.
+                    Debug.WriteLine("[App] 자동 백업 건너뜀(주기 미도래 또는 실패)");
+                }
             }
             catch (Exception ex)
             {
