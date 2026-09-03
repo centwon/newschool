@@ -109,7 +109,7 @@ public static class ExcelHelpers
             tempPath = await ExcelHelper.WriteDataAsync(data, title, subtitle);
 
             var filePath = ExportPaths.Resolve(fileName);
-            File.Copy(tempPath, filePath, overwrite: false);
+            System.IO.File.Copy(tempPath, filePath, overwrite: false);
 
             if (openAfterSave) ExportPaths.TryOpen(filePath);
 
