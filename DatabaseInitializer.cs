@@ -381,6 +381,13 @@ public sealed class DatabaseInitializer : IDisposable
                 CREATE TABLE IF NOT EXISTS StudentLogFile (
                     No INTEGER PRIMARY KEY AUTOINCREMENT,
                     LogNo INTEGER NOT NULL,
+                    -- ⚠ Year·StudentID 에는 FK 를 걸지 않는다 — 참조가 아니라 폴더 이름이다.
+                    --   실물은 StudentLogFiles\{Year}\{StudentID}\ 에 살고, 이 두 값은 기록이
+                    --   CASCADE 로 사라진 뒤에도 그 실물을 찾아가기 위한 것이다. FK 를 걸어
+                    --   함께 지워지게 하면 정작 파일을 치울 경로를 잃는다.
+                    --   학생과의 연쇄는 LogNo → StudentLog(No) → Student(StudentID) 로 이어진다.
+                    --   (StudentID 를 FK 없이 들고 있는 표는 이것과 좌석 둘뿐이고, 좌석의 근거는
+                    --    docs/enrollment-redesign.md 7.5 에 있다.)
                     Year INTEGER NOT NULL,
                     StudentID TEXT NOT NULL,
                     FileName TEXT NOT NULL,
@@ -443,6 +450,18 @@ public sealed class DatabaseInitializer : IDisposable
                     UpdatedAt TEXT NOT NULL,
                     IsDeleted INTEGER DEFAULT 0,
                     FOREIGN KEY (SchoolCode) REFERENCES School(SchoolCode),
+                    -- ⚠ 교사에 대해 이 표만 CASCADE 다. 다른 곳(StudentLog·StudentSpecial)은
+                    --   TeacherID 를 SET NULL 로 둔다 — 교사가 떠나도 기록은 남아야 하기 때문이다.
+                    --   여기 CASCADE 대로면 교사 행을 지우는 순간 그 교사의 동아리가 통째로
+                    --   사라지고, ClubEnrollment 의 CASCADE 를 타고 부원 배정까지 함께 날아간다.
+                    --
+                    --   지금은 터지지 않는다: TeacherRepository 에 삭제 메서드가 아예 없다.
+                    --   IsDeleted 를 세우는 길(UpdateAsync)만 있고 그건 행을 남기므로 CASCADE 가
+                    --   깨어나지 않는다. 즉 이것은 잠재 결함이다.
+                    --
+                    --   ⚠ 교사 삭제 기능을 만든다면 이 FK 부터 SET NULL 로 바꿔야 한다.
+                    --      (이 프로젝트는 ALTER 마이그레이션을 두지 않으므로, 이미 만들어진
+                    --       DB 는 손으로 고쳐야 한다 — Board.cs 의 IsPinned 사례 참고.)
                     FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID) ON DELETE CASCADE
                 );";
         await cmd.ExecuteNonQueryAsync();
@@ -861,6 +880,22 @@ public sealed class DatabaseInitializer : IDisposable
     /// 외래키(PRAGMA foreign_keys)가 꺼진 채 운영되던 시기에 쌓였을 수 있는 고아 행 정리.
     /// BaseRepository 가 연결마다 foreign_keys=ON 을 켜므로, 기존 위반 데이터를 남겨두면
     /// 이후 UPDATE 시 FK 위반으로 실패한다. 스키마의 CASCADE/SET NULL 의도대로 일괄 보정한다.
+    ///
+    /// <para><b>여기가 보는 방향은 하나뿐이다 — "부모 없는 자식".</b> 반대 방향
+    /// (자식 없는 부모, 특히 <c>Enrollment</c> 가 하나도 없는 <c>Student</c>)은
+    /// <b>일부러 치우지 않는다.</b></para>
+    ///
+    /// <para>학생 관리의 [명부에서 빼기]는 학적만 지우므로, 마지막 학적을 빼면 그런
+    /// <c>Student</c> 행이 생긴다. 그 학생은 어느 학년도 명부에도 안 나오면서 누가기록·
+    /// 학생부·사진을 그대로 달고 DB 에 남는다. 쌓이는 것은 맞다. 그런데 여기서 지우면
+    /// <b>앱을 켜는 순간, 아무도 시키지 않았는데, 되돌릴 수 없게</b> 그 기록들이 함께
+    /// 사라진다(<c>Student</c> 에 걸린 CASCADE 가 전부 깨어난다). 자동 정리가 감당할
+    /// 무게가 아니다.</para>
+    ///
+    /// <para>대신 <b>만들어지기 전에 알린다</b> — 마지막 학적을 빼려 하면 학생 관리 화면이
+    /// 이름을 들어 경고한다(<c>StudentManagementPage.FindLastEnrollmentsAsync</c>).
+    /// 진짜로 지우는 기능이 필요해지면 그때는 사용자가 무엇을 지우는지 보고 고르게 해야
+    /// 한다 — 근거는 <c>FEATURES.md</c> 의 "학생을 완전히 지우는 기능" 항목.</para>
     /// </summary>
     private async Task CleanupOrphansAsync()
     {

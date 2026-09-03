@@ -52,6 +52,14 @@
 - [x] `StudentService.UpdateBasicInfoAsync` — 이름/성별 갱신 시 Enrollment 동기화, 학적 없어도 성공
 - [x] `SchoolScheduleService` — 날짜범위 상한 배타/하한 포함, 학년도 필터
 - [x] NEIS 동기화 중복 제외 — 학교+날짜+행사명 키로 재실행/배치 내 중복 스킵
+- [x] **삭제 축(46차)** — 지우면 무엇이 따라 사라지는가. `DeleteCascadeTests`
+  - 단원→진도, 수업→단원·진도가 CASCADE 로 따라 사라진다(화면 확인 문구가 약속하는 것)
+  - 동아리 **감추기**는 부원 배정을 남긴다 — 이것이 깨지면 확인 문구가 거짓이 된다
+  - **지운 학사일정은 다시 받아도 되살아나지 않는다**(묘비) + 살아 있는 일정 대조군
+  - ⚠ **이 축은 스키마만 봐서는 판정할 수 없다.** FK 선언이 `DatabaseInitializer` 가 아니라
+    각 저장소 파일에 흩어져 있고(감사 중 셋만 보고 오판할 뻔했다), 행을 남기는 연산
+    (`HideAsync`·`MarkRemovedAsync`)은 CASCADE 를 아예 깨우지 않는다. 실제로 지워 보고
+    세는 수밖에 없다
 - [x] `BoardService` — SavePost 왕복, IsCompleted 토글(회귀), GetMemos includeCompleted/카테고리 필터
 - [~] Settings 파서 — 프레임워크 내장 파서(bool/TimeSpan/int.Parse) + 정적 Settings.db 결합이라 ROI 낮아 보류.
       필요 시 SettingProperty 를 in-memory store 로 테스트 가능하게 리팩터링 후 진행
