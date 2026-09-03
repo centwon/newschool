@@ -311,6 +311,9 @@ public partial class App : Application
         MessageBox.Initialize(_window);
         _window.Closed += (s, e) =>
         {
+            // 크기를 바꾸자마자 닫으면 디바운스 타이머가 깨어나지 못한다 — 남은 값을 지금 내린다.
+            (s as MainWindow)?.FlushPendingWindowSize();
+
             _googleSyncService?.Dispose();
             _googleSyncService = null;
 
@@ -378,6 +381,39 @@ public partial class App : Application
         {
             Debug.WriteLine($"[App] Google 동기화 시작 오류: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 일정 설정에서 구글 동기화 설정을 바꾼 뒤 호출 — <b>지금 세션에 바로 반영한다.</b>
+    ///
+    /// <para>예전에는 <see cref="TryStartGoogleSyncAsync"/> 가 앱 시작 때 한 번 읽는 게 전부였다.
+    /// 그래서 자동 동기화를 켜도 그 세션에는 돌지 않았고, 꺼도 이미 도는 타이머는 멈추지 않았으며,
+    /// 간격을 바꿔도 다음 실행까지 옛 간격으로 돌았다. 화면 어디에도 "재시작해야 한다" 는 말은 없었다.</para>
+    /// </summary>
+    internal static void ApplyGoogleSyncSettings()
+    {
+        // 연동 자체를 껐으면 자동 동기화도 없다(설정 화면도 연동이 꺼지면 이 칸들을 잠근다).
+        if (!Settings.UseGoogle.Value || !Settings.GoogleAutoSync.Value)
+        {
+            _googleSyncService?.Dispose();   // 내부에서 StopPeriodicSync 까지 한다
+            _googleSyncService = null;
+            Debug.WriteLine("[App] Google 자동 동기화 중지(설정 변경)");
+            return;
+        }
+
+        int intervalMinutes = Settings.GoogleSyncIntervalMinutes.Value;
+        if (intervalMinutes < 5) intervalMinutes = 15;
+
+        if (_googleSyncService != null)
+        {
+            // StartPeriodicSync 가 먼저 StopPeriodicSync 를 부르므로 간격 변경도 이 한 줄로 끝난다.
+            _googleSyncService.StartPeriodicSync(TimeSpan.FromMinutes(intervalMinutes));
+            Debug.WriteLine($"[App] Google 자동 동기화 재설정: {intervalMinutes}분 간격");
+            return;
+        }
+
+        // 시작할 때는 꺼져 있어 서비스 자체가 없다 — 토큰 확인부터 다시 밟는다.
+        _ = TryStartGoogleSyncAsync();
     }
 
     /// <summary>

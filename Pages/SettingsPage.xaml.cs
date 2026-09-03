@@ -43,7 +43,9 @@ public sealed partial class SettingsPage : Page
             HomeGradeNumberBox.Value = Settings.HomeGrade.Value;
             HomeRoomNumberBox.Value = Settings.HomeRoom.Value;
 
-            WorkYearNumberBox.Value = Settings.WorkYear.Value;
+            // 미설정(0)은 빈 칸으로 둔다. 0 을 그대로 넣으면 NumberBox 가 Minimum(2000) 으로
+            // 끌어올려, 저장값은 0 인데 화면만 "2000학년도" 라고 말하는 상태가 된다.
+            WorkYearNumberBox.Value = Settings.WorkYear.Value > 0 ? Settings.WorkYear.Value : double.NaN;
             WorkSemesterComboBox.SelectedIndex = Settings.WorkSemester.Value - 1;
 
             DayStartingTimePicker.Time = Settings.DayStarting.Value;
@@ -204,40 +206,9 @@ public sealed partial class SettingsPage : Page
         return raw;
     }
 
-    private void OnSchoolNameChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitialized) return;
-        if (SchoolNameTextBox != null)
-            Settings.SchoolName.Set(SchoolNameTextBox.Text);
-    }
-
-    private void OnProvinceCodeChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitialized) return;
-        if (ProvinceCodeTextBox != null)
-            Settings.ProvinceCode.Set(ProvinceCodeTextBox.Text);
-    }
-
-    private void OnSchoolCodeChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitialized) return;
-        if (SchoolCodeTextBox != null)
-            Settings.SchoolCode.Set(SchoolCodeTextBox.Text);
-    }
-
-    private void OnProvinceNameChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitialized) return;
-        if (ProvinceNameTextBox != null)
-            Settings.ProvinceName.Set(ProvinceNameTextBox.Text);
-    }
-
-    private void OnSchoolAddressChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitialized) return;
-        if (SchoolAddressTextBox != null)
-            Settings.SchoolAddress.Set(SchoolAddressTextBox.Text);
-    }
+    // 학교명·시도 코드·학교 코드·시도명·주소의 LostFocus 저장 핸들러 5개는 지웠다(2026-09-04).
+    // 그 다섯 칸은 IsReadOnly 라 사용자가 값을 바꿀 수 없어, 저장이 발동할 길이 없었다.
+    // 이 값들을 바꾸는 길은 [학교 검색](OnSearchSchoolClick) 하나뿐이고 거기서 직접 저장한다.
 
     #endregion
 
@@ -359,7 +330,9 @@ public sealed partial class SettingsPage : Page
                 Header = area.Label,
                 Tag = area.Key,
                 SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline,
-                Minimum = 0,
+                // 0 은 받지 않는다 — 저장은 되지만("영역=0") 읽을 때 걸러져(ParseSpecByteLimits)
+                // 화면을 다시 열면 기본값으로 되돌아가고, 설정 문자열엔 아무도 읽지 않는 항목만 남았다.
+                Minimum = 1,
                 Maximum = 3000,
                 SmallChange = 50,
                 Width = 200,
@@ -396,7 +369,7 @@ public sealed partial class SettingsPage : Page
     private void OnSpecCharCountChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (!_isInitialized) return;
-        if (double.IsNaN(args.NewValue)) return;
+        if (double.IsNaN(args.NewValue) || args.NewValue < 1) return;   // 0 이하는 저장해도 무시된다
         if (sender.Tag is not string type) return;
 
         int bytes = (int)args.NewValue * BytesPerKoreanChar;

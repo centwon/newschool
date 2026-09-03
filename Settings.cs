@@ -14,6 +14,7 @@ public class SettingProperty<T>
 {
     private readonly string _key;
     private T _value;
+    private readonly T _defaultValue;
     private readonly Func<string, T> _parser;
     private readonly Func<T, string> _serializer;
 
@@ -21,6 +22,7 @@ public class SettingProperty<T>
     {
         _key = key;
         _value = defaultValue;
+        _defaultValue = defaultValue;
         _parser = parser;
         _serializer = serializer;
     }
@@ -53,14 +55,37 @@ public class SettingProperty<T>
     }
 
     /// <summary>
-    /// DB에서 다시 로드
+    /// DB에서 다시 로드. <b>저장된 값이 없으면 기본값으로 되돌린다.</b>
+    ///
+    /// <para>예전에는 값이 없을 때 현재 값을 그대로 뒀다. 그래서 [설정 초기화]
+    /// (<see cref="Settings.ResetToDefaults"/>, DB 를 비우고 <c>LoadAll</c>)를 눌러도 실행 중인 앱의
+    /// 설정은 하나도 바뀌지 않았다 — 화면은 옛 값을 그대로 다시 그리면서 "초기화되었습니다" 라고
+    /// 알렸고, 그 뒤 설정 하나만 저장돼도(창 크기를 끌기만 해도) 옛 값이 DB 에 되살아났다.
+    /// 복원도 같은 함수를 쓰므로, 백업에 없던 키가 현재 값으로 남았다.</para>
+    ///
+    /// <para>파싱 실패도 기본값으로 떨어뜨린다. 예전에는 <c>int.Parse</c> 가 그대로 터져
+    /// <see cref="Settings.Initialize"/> → <c>OnLaunched</c>(async void) 로 예외가 빠져나가
+    /// 값 하나가 깨졌을 뿐인데 앱이 안내도 없이 죽었다. 시작 시 무결성 점검은 파일 손상만 본다.</para>
     /// </summary>
-    public void Reload()
+    public void Reload() => _value = Interpret(SettingsDb.Get(_key));
+
+    /// <summary>
+    /// <see cref="Reload"/> 의 순수 함수 부분 — 저장된 문자열 하나를 값으로 옮긴다.
+    /// (저장소와 분리해 두어야 "없을 때·깨졌을 때" 규칙을 DB 없이 테스트할 수 있다.)
+    /// </summary>
+    internal T Interpret(string? stored)
     {
-        string? strValue = SettingsDb.Get(_key);
-        if (!string.IsNullOrEmpty(strValue))
+        if (string.IsNullOrEmpty(stored)) return _defaultValue;
+
+        try
         {
-            _value = _parser(strValue);
+            return _parser(stored);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[Settings] '{_key}' 값을 읽지 못해 기본값으로 되돌린다: {ex.Message}");
+            return _defaultValue;
         }
     }
 
@@ -226,11 +251,13 @@ public static class Settings
     public static SettingProperty<double> TaskFontSize { get; private set; } = null!;
     public static SettingProperty<double> DateFontSize { get; private set; } = null!;
     public static SettingProperty<bool> UseGoogle { get; private set; } = null!;
-    public static SettingProperty<string> GoogleCalendarID { get; private set; } = null!;
+    // 캘린더 ID(GoogleCalendarID)는 읽는 곳도 쓰는 곳도 없어 지웠다(2026-09-04).
+    // 로컬 캘린더와 구글 캘린더의 짝은 Calendar 테이블의 GoogleId 가 들고 있다 — 설정에 둘 자리가 아니다.
 
     // Google OAuth 인증
-    public static SettingProperty<string> GoogleClientId { get; private set; } = null!;
-    public static SettingProperty<string> GoogleClientSecret { get; private set; } = null!;
+    // 클라이언트 ID·시크릿은 여기 두지 않는다 — 실제로 쓰이는 값은 SecretsService(내장 secrets.json)
+    // 하나뿐이다(GoogleAuthService.ClientId/ClientSecret). 설정에도 같은 이름이 있으면
+    // "DB 에 넣으면 되겠지" 하고 넣어도 아무 일도 일어나지 않는다(2026-09-04 제거).
     public static SettingProperty<string> GoogleAccessToken { get; private set; } = null!;
     public static SettingProperty<string> GoogleRefreshToken { get; private set; } = null!;
     public static SettingProperty<string> GoogleTokenExpiry { get; private set; } = null!;
@@ -240,7 +267,10 @@ public static class Settings
 
     // School 관련 설정
     public static SettingProperty<string> SchoolDB { get; private set; } = null!;
-    public static SettingProperty<bool> School_Inited { get; private set; } = null!;
+    // 학교 DB 초기화 완료 플래그(School_Inited/"SchoolDB_Inited")는 세우고 내리기만 할 뿐
+    // 아무것도 가로막지 않아 지웠다(2026-09-04, Board_Inited·Scheduler_Inited 와 같은 이유).
+    // SchoolDatabase.InitAsync 는 이 값을 보지 않고 늘 CREATE TABLE IF NOT EXISTS 를 건다.
+    // (설정 DB 에 남은 옛 행은 아무도 읽지 않으므로 그대로 둔다.)
 
     public static SettingProperty<string> User { get; private set; } = null!;
     public static SettingProperty<int> WorkYear { get; private set; } = null!;
@@ -359,11 +389,8 @@ public static class Settings
         TaskFontSize = new SettingProperty<double>("TaskFontSize", 10.0, double.Parse, d => d.ToString());
         DateFontSize = new SettingProperty<double>("DateFontSize", 12.0, double.Parse, d => d.ToString());
         UseGoogle = new SettingProperty<bool>("UseGoogle", false, bool.Parse, b => b.ToString().ToLower());
-        GoogleCalendarID = new SettingProperty<string>("GoogleCalendarID", "", s => s, s => s);
 
         // Google OAuth
-        GoogleClientId = new SettingProperty<string>("GoogleClientId", "", s => s, s => s);
-        GoogleClientSecret = new SettingProperty<string>("GoogleClientSecret", "", s => s, s => s);
         GoogleAccessToken = new SettingProperty<string>("GoogleAccessToken", "", s => s, s => s);
         GoogleRefreshToken = new SettingProperty<string>("GoogleRefreshToken", "", s => s, s => s);
         GoogleTokenExpiry = new SettingProperty<string>("GoogleTokenExpiry", "", s => s, s => s);
@@ -395,7 +422,6 @@ public static class Settings
         HomeGrade = new SettingProperty<int>("HomeGrade", 0, int.Parse, d => d.ToString());
         HomeRoom = new SettingProperty<int>("HomeRoom", 0, int.Parse, d => d.ToString());
         SchoolDB = new SettingProperty<string>("SchoolDB", "school.db", s => s, s => s);
-        School_Inited = new SettingProperty<bool>("SchoolDB_Inited", false, bool.Parse, b => b.ToString().ToLower());
         Board_DB = new SettingProperty<string>("Board_DB", "board.db", s => s, s => s);
 
 
@@ -461,9 +487,6 @@ public static class Settings
         TaskFontSize.Reload();
         DateFontSize.Reload();
         UseGoogle.Reload();
-        GoogleCalendarID.Reload();
-        GoogleClientId.Reload();
-        GoogleClientSecret.Reload();
         GoogleAccessToken.Reload();
         GoogleRefreshToken.Reload();
         GoogleTokenExpiry.Reload();
@@ -471,7 +494,6 @@ public static class Settings
         GoogleSyncIntervalMinutes.Reload();
         GoogleLastSyncTime.Reload();
         SchoolDB.Reload();
-        School_Inited.Reload();
         User.Reload();
         WorkYear.Reload();
         ProvinceCode.Reload();
@@ -593,10 +615,19 @@ public static class Settings
     }
 
     /// <summary>
-    /// 기본값으로 리셋
+    /// 기본값으로 리셋.
+    ///
+    /// <para>설정 DB 밖에 사는 값이 하나 있다 — Windows 자동 시작은 레지스트리
+    /// (<c>HKCU\...\Run</c>)에 등록된다. 그것까지 지우지 않으면 "모든 설정을 기본값으로" 라고
+    /// 해 놓고 부팅 때마다 계속 뜬다. DB 를 비우기 <b>전에</b> 해제해서, 해제가 쓰는
+    /// <c>StartWithWindows=false</c> 행까지 함께 지워지게 한다.</para>
+    ///
+    /// <para>테마·항상 위·로그 레벨처럼 <b>지금 열려 있는 창에 이미 걸려 있는</b> 설정은
+    /// 값만 되돌려서는 화면이 따라오지 않는다. 그 재적용은 부르는 쪽(설정 화면)이 한다.</para>
     /// </summary>
     public static void ResetToDefaults()
     {
+        SetStartWithWindows(false);
         SettingsDb.ResetToDefaults();
         LoadAll();
     }
@@ -1103,26 +1134,10 @@ internal static class SettingsDb
         }
     }
 
-    public static string? Backup()
-    {
-        lock (_lock)
-        {
-            try
-            {
-                string backupFileName = $"appsettings_backup_{DateTime.Now:yyyyMMdd_HHmmss}.db";
-                string? dir = Path.GetDirectoryName(DbPath);
-                if (string.IsNullOrEmpty(dir))
-                    throw new InvalidOperationException("DbPath의 디렉터리 경로를 확인할 수 없습니다.");
-                string backupPath = Path.Combine(dir, backupFileName);
-                File.Copy(DbPath, backupPath, true);
-                return backupPath;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-    }
+    // 설정 DB 만 따로 뜨던 Backup() 은 호출처가 0건이라 지웠다(2026-09-04).
+    // Data 폴더 안에 appsettings_backup_*.db 를 쌓는 옛 방식이라, 정리 정책도 복원 경로도 없고
+    // 지금 백업 규칙(Backups\ + BackupDbFileNames 화이트리스트)과도 어긋났다.
+    // 설정 DB 는 Settings.Backup 이 다른 DB 와 함께 담는다.
 
     public static bool Restore(string backupPath)
     {

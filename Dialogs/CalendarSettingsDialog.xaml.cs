@@ -50,6 +50,9 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
         Settings.GoogleAutoSync.Set(GoogleAutoSyncToggle.IsOn);
         if (!double.IsNaN(GoogleSyncIntervalNumberBox.Value))
             Settings.GoogleSyncIntervalMinutes.Set((int)GoogleSyncIntervalNumberBox.Value);
+
+        // 저장만 하면 다음 실행에나 반영된다 — 자동 동기화는 지금 켜고 끈다.
+        App.ApplyGoogleSyncSettings();
     }
 
     #region Google 연동

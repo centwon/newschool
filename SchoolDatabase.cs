@@ -57,21 +57,14 @@ public static class SchoolDatabase
 
             Debug.WriteLine($"[SchoolDatabase] DB 경로: {DbPath}");
             Debug.WriteLine($"[SchoolDatabase] DB 존재: {File.Exists(DbPath)}");
-            Debug.WriteLine($"[SchoolDatabase] 초기화 상태: {Settings.School_Inited.Value}");
 
             // 데이터베이스 초기화 (CREATE TABLE IF NOT EXISTS → 항상 안전)
             Debug.WriteLine("[SchoolDatabase] 데이터베이스 초기화 시작");
             bool success = await InitDatabaseAsync();
 
-            if (success)
-            {
-                Settings.School_Inited.Set(true);
-                Debug.WriteLine("[SchoolDatabase] 초기화 완료");
-            }
-            else
-            {
-                Debug.WriteLine("[SchoolDatabase] 데이터베이스 초기화 실패");
-            }
+            Debug.WriteLine(success
+                ? "[SchoolDatabase] 초기화 완료"
+                : "[SchoolDatabase] 데이터베이스 초기화 실패");
         }
         catch (Exception ex)
         {
@@ -122,7 +115,6 @@ public static class SchoolDatabase
             }
 
             // 재초기화
-            Settings.School_Inited.Set(false);
             await InitAsync();
 
             Debug.WriteLine("[SchoolDatabase] 데이터베이스 완전 초기화 완료");

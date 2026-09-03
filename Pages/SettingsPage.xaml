@@ -85,11 +85,13 @@
                                 IsClosable="True"
                                 Margin="0,0,0,8"/>
 
+                            <!-- 아래 다섯 칸은 [학교 검색] 으로만 채워진다(IsReadOnly). 손으로 고칠 수
+                                 없으므로 "입력하세요" 라고 하지 않고, 저장 핸들러도 달지 않는다
+                                 — 달아 봐야 발동하지 않는다. -->
                             <TextBox
                                 x:Name="SchoolNameTextBox"
                                 Header="학교명"
-                                PlaceholderText="학교명을 입력하세요"
-                                LostFocus="OnSchoolNameChanged"
+                                PlaceholderText="[학교 검색] 으로 채워집니다"
                                 IsReadOnly="True"/>
 
                             <Grid ColumnSpacing="12">
@@ -102,31 +104,27 @@
                                     x:Name="ProvinceCodeTextBox"
                                     Grid.Column="0"
                                     Header="시도 코드"
-                                    PlaceholderText="예: B10"
-                                    LostFocus="OnProvinceCodeChanged"
+                                    PlaceholderText="[학교 검색] 으로 채워집니다"
                                     IsReadOnly="True"/>
 
                                 <TextBox
                                     x:Name="SchoolCodeTextBox"
                                     Grid.Column="1"
                                     Header="학교 코드"
-                                    PlaceholderText="학교 코드"
-                                    LostFocus="OnSchoolCodeChanged"
+                                    PlaceholderText="[학교 검색] 으로 채워집니다"
                                     IsReadOnly="True"/>
                             </Grid>
 
                             <TextBox
                                 x:Name="ProvinceNameTextBox"
                                 Header="시도명"
-                                PlaceholderText="예: 서울특별시"
-                                LostFocus="OnProvinceNameChanged"
+                                PlaceholderText="[학교 검색] 으로 채워집니다"
                                 IsReadOnly="True"/>
 
                             <TextBox
                                 x:Name="SchoolAddressTextBox"
                                 Header="학교 주소"
-                                PlaceholderText="학교 주소를 입력하세요"
-                                LostFocus="OnSchoolAddressChanged"
+                                PlaceholderText="[학교 검색] 으로 채워집니다"
                                 IsReadOnly="True"/>
 
                             <!-- NEIS 에서 받아온 추가 학교 정보 (표시 전용, School DB 에서 로드) -->

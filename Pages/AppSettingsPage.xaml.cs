@@ -284,7 +284,8 @@ public sealed partial class AppSettingsPage : Page
         //    LoadAll 이 곧바로 되채운다. "지워진다" 고 말하면 사실과 다르다.
         var confirmed = await MessageBox.ShowConfirmAsync(
             "모든 설정을 기본값으로 초기화하시겠습니까?\n\n" +
-            "학교 정보·구글 계정 연결·시정표·담임 학급까지 함께 지워지며,\n" +
+            "학교 정보·구글 계정 연결·시정표·담임 학급까지 함께 지워지고,\n" +
+            "Windows 자동 실행 등록도 해제됩니다.\n" +
             "다시 시작하면 초기 설정을 처음부터 다시 해야 합니다.\n" +
             "학생·수업·게시글 등 저장된 데이터는 지워지지 않습니다.\n\n" +
             "이 작업은 되돌릴 수 없습니다.",
@@ -292,10 +293,30 @@ public sealed partial class AppSettingsPage : Page
         if (confirmed)
         {
             Settings.ResetToDefaults();
+            ApplySideEffectSettings();
+
             _isInitialized = false;
             AppSettingsPage_Loaded(this, new RoutedEventArgs());
             await MessageBox.ShowAsync("모든 설정이 기본값으로 초기화되었습니다.", "초기화 완료");
         }
+    }
+
+    /// <summary>
+    /// 값만 되돌려서는 따라오지 않는 설정들을 지금 창에 다시 건다.
+    ///
+    /// <para>테마·항상 위·로그 레벨은 저장할 때 각자의 핸들러가 그 자리에서 적용한다. 초기화는
+    /// 그 핸들러를 거치지 않으므로, 다시 걸어 주지 않으면 <b>화면이 말하는 값과 실제 창이 어긋난다</b>
+    /// — 다크로 켜 둔 창은 다크인 채 콤보만 '라이트'로 바뀌고, 그 상태에서는 '라이트'를 다시 골라도
+    /// 선택이 안 바뀌어 SelectionChanged 가 뜨지 않아 빠져나올 수도 없었다.</para>
+    ///
+    /// <para>창 크기(WindowWidth/Height)는 일부러 건드리지 않는다 — 쓰는 도중에 창이 갑자기
+    /// 튀는 편이 더 놀랍고, 다음 실행부터 기본 크기로 열린다.</para>
+    /// </summary>
+    private static void ApplySideEffectSettings()
+    {
+        Helpers.ThemeHelper.Apply(App.MainWindow);
+        MainWindow.SetAlwaysOnTop(App.MainWindow, Settings.TopMost.Value);
+        ApplyLogLevel(Settings.LogLevel.Value);
     }
 
     #endregion

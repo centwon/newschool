@@ -121,8 +121,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             {
                 System.Diagnostics.Debug.WriteLine("[StudentManagement] Enrollment 테이블이 없습니다. 재초기화...");
 
-                // 초기화 플래그 리셋 후 재초기화
-                Settings.School_Inited.Set(false);
+                // CREATE TABLE IF NOT EXISTS 를 다시 걸어 빠진 테이블을 채운다.
                 await SchoolDatabase.InitAsync();
             }
         }

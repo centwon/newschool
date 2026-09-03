@@ -247,21 +247,62 @@ public sealed partial class MainWindow : Window
             presenter.IsAlwaysOnTop = onTop;
     }
 
+    /// <summary>크기 변경이 멎은 뒤에 한 번만 저장하기 위한 타이머(디바운스).</summary>
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _saveWindowSizeTimer;
+
+    /// <summary>타이머가 깨어났을 때 저장할 크기 — 마지막 이벤트의 값.</summary>
+    private Windows.Graphics.SizeInt32 _pendingWindowSize;
+
     /// <summary>
-    /// 창 크기 변경 시 저장
+    /// 창 크기 변경 시 저장.
+    ///
+    /// <para><b>최대화는 걸러야 한다.</b> 최대화한 창도 Presenter 는 여전히 Overlapped 라
+    /// Kind 만 보면 통과한다 — 그래서 최대화한 채 끄면 다음 실행에 '화면만 한 창'이
+    /// 최대화도 아닌 상태로 떴고, 더 작은 모니터로 옮기면 화면 밖으로 넘쳤다.
+    /// 복원 크기로 되돌릴 자리는 <c>OverlappedPresenter.State</c> 가 알려 준다.</para>
+    ///
+    /// <para>저장은 <b>변경이 멎은 뒤 한 번</b>만 한다. 창을 한 번 끌면 이 이벤트가 수십 번 오는데,
+    /// 그때마다 SQLite 연결을 새로 열어 UPSERT 하고 있었다.</para>
     /// </summary>
     private void AppWindow_Changed(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowChangedEventArgs args)
     {
-        // 크기 변경만 처리 (최대화/최소화 상태가 아닐 때)
-        if (args.DidSizeChange && sender.Presenter.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.Overlapped)
+        if (!args.DidSizeChange) return;
+        if (sender.Presenter is not Microsoft.UI.Windowing.OverlappedPresenter presenter) return;
+        if (presenter.State != Microsoft.UI.Windowing.OverlappedPresenterState.Restored) return;
+
+        var size = sender.Size;
+        if (size.Width <= 0 || size.Height <= 0) return;
+
+        _pendingWindowSize = size;
+
+        if (_saveWindowSizeTimer == null)
         {
-            var size = sender.Size;
-            if (size.Width > 0 && size.Height > 0)
+            _saveWindowSizeTimer = DispatcherQueue.CreateTimer();
+            _saveWindowSizeTimer.Interval = System.TimeSpan.FromMilliseconds(500);
+            _saveWindowSizeTimer.IsRepeating = false;
+            _saveWindowSizeTimer.Tick += (_, _) =>
             {
-                Settings.WindowWidth.Set(size.Width);
-                Settings.WindowHeight.Set(size.Height);
-            }
+                Settings.WindowWidth.Set(_pendingWindowSize.Width);
+                Settings.WindowHeight.Set(_pendingWindowSize.Height);
+            };
         }
+
+        // 이미 돌고 있으면 처음부터 다시 — 끄는 손이 멈춘 뒤 500ms 에 한 번만 저장된다.
+        _saveWindowSizeTimer.Stop();
+        _saveWindowSizeTimer.Start();
+    }
+
+    /// <summary>
+    /// 아직 타이머에 걸려 있는 창 크기를 지금 저장한다(창을 닫을 때 호출).
+    /// 크기를 바꾸자마자 창을 닫으면 타이머가 깨어나기 전에 프로세스가 끝나기 때문이다.
+    /// </summary>
+    public void FlushPendingWindowSize()
+    {
+        if (_saveWindowSizeTimer is not { IsRunning: true }) return;
+
+        _saveWindowSizeTimer.Stop();
+        Settings.WindowWidth.Set(_pendingWindowSize.Width);
+        Settings.WindowHeight.Set(_pendingWindowSize.Height);
     }
 
     /// <summary>
