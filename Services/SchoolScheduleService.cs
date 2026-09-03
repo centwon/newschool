@@ -108,16 +108,21 @@ public sealed class SchoolScheduleService : IDisposable
     /// <summary>
     /// 학사일정 삭제(여러 건). 한 건짜리 DeleteScheduleAsync 는 호출부가 없어 지웠다(39차) —
     /// 화면은 선택한 것들을 한꺼번에 지운다.
+    ///
+    /// <para>사용자에게는 "삭제" 지만 저장소는 행을 남기고 <b>지웠다는 표시만</b> 세운다
+    /// (<see cref="SchoolScheduleRepository.MarkRemovedAsync"/>). NEIS 에서 다시 받을 때
+    /// 되살아나지 않게 하는 묘비다 — 사용자에게 그 구분까지 보일 이유는 없으므로
+    /// 이 층에서 말을 바꾼다.</para>
     /// </summary>
     public async Task<(bool Success, string Message, int Count)> DeleteBulkScheduleAsync(List<int> schedules)
     {
-        if (schedules.Count == 0)  
+        if (schedules.Count == 0)
         {
             return (true, "삭제할 학사일정이 없습니다.", 0);
         }
         try
         {
-            var count = await Repository.DeleteBulkAsync(schedules);
+            var count = await Repository.MarkRemovedBulkAsync(schedules);
             if (count == schedules.Count)
             {
                 return (true, "학사일정이 삭제되었습니다.", count);

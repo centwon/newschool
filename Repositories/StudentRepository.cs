@@ -242,12 +242,25 @@ public class StudentRepository : BaseRepository
 
     #endregion
 
-    #region Delete
+    #region MarkRemoved
+
     /// <summary>
-    /// 학생 삭제 (논리 삭제)
-    /// CASCADE로 Enrollment, StudentDetail도 자동 삭제됨
+    /// 학생을 <b>지운 것으로 표시한다</b>(행은 남는다).
+    ///
+    /// <para>행을 남기는 이유는 <b>묘비</b>다. <c>StudentID</c> 에 UNIQUE 제약이 있어,
+    /// 행을 지워 버리면 같은 ID 를 다시 넣을 수 있게 되고 그 순간 옛 기록과 새 학생이
+    /// 뒤엉킨다. 그래서 ID 를 계속 붙들고 있는다
+    /// (<see cref="Services.StudentCreationService.IsIdTakenAsync"/> 가 이것을 본다).</para>
+    ///
+    /// <para>⚠ 예전 주석은 "CASCADE로 Enrollment, StudentDetail도 자동 삭제됨" 이라고
+    /// 했는데 <b>사실이 아니다.</b> 행을 지우지 않으므로 CASCADE 는 깨어나지 않는다.
+    /// 이름이 <c>DeleteAsync</c> 였던 탓에 생긴 오해다.</para>
+    ///
+    /// <para>⚠ <b>지금 이 메서드를 부르는 화면은 없다.</b> 학생 관리의 [명부에서 빼기] 는
+    /// 학적(<c>Enrollment</c>)만 지운다 — 그래야 다른 학년도 기록이 지켜진다.
+    /// 근거는 <c>FEATURES.md</c> 의 "학생을 완전히 지우는 기능" 항목.</para>
     /// </summary>
-    public async Task<bool> DeleteAsync(string studentId)
+    public async Task<bool> MarkRemovedAsync(string studentId)
     {
         const string query = @"
                 UPDATE Student 

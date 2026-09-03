@@ -79,10 +79,19 @@ public class SchoolScheduleRepository : BaseRepository
 
                 foreach (var code in schoolCodes)
                 {
+                    // ⚠ 지운 일정도 "이미 있는 것" 으로 센다(IsDeleted 를 거르지 않는다).
+                    //
+                    // 예전에는 `AND IsDeleted = 0` 이 붙어 있어 사용자가 지운 일정을 없는
+                    // 것으로 보았고, 그래서 NEIS 에서 학사일정을 다시 받을 때마다
+                    // 지운 일정이 그대로 되살아났다. 학사일정이 행을 남기는 이유가 바로
+                    // 그것을 막으려는 묘비인데(MarkRemovedAsync) 정작 묘비를 안 보고 있었다.
+                    //
+                    // 되살리고 싶으면 화면에서 다시 만들면 된다 — 그건 사용자가 뜻을 밝히는
+                    // 일이고, 동기화가 말없이 되돌리는 것과 다르다.
                     const string selectQuery = @"
                             SELECT SD_SCHUL_CODE, AA_YMD, EVENT_NM
                             FROM SchoolSchedule
-                            WHERE SD_SCHUL_CODE = @SchoolCode AND IsDeleted = 0";
+                            WHERE SD_SCHUL_CODE = @SchoolCode";
 
                     using var selectCmd = CreateCommand(selectQuery);
                     selectCmd.Parameters.AddWithValue("@SchoolCode", code);
@@ -119,34 +128,13 @@ public class SchoolScheduleRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 중복 학사일정 체크 (학교코드 + 날짜 + 행사명)
-    /// </summary>
-    private async Task<bool> IsDuplicateAsync(SchoolSchedule schedule)
-    {
-        const string query = @"
-                SELECT EXISTS(SELECT 1 FROM SchoolSchedule
-                WHERE SD_SCHUL_CODE = @SchoolCode
-                AND AA_YMD = @Date
-                AND EVENT_NM = @EventName
-                AND IsDeleted = 0)";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@SchoolCode", schedule.SD_SCHUL_CODE ?? string.Empty);
-            cmd.Parameters.AddWithValue("@Date", schedule.AA_YMD.ToString("yyyyMMdd"));
-            cmd.Parameters.AddWithValue("@EventName", schedule.EVENT_NM ?? string.Empty);
-
-            var result = await cmd.ExecuteScalarAsync();
-            return Convert.ToInt32(result) == 1;
-        }
-        catch (Exception ex)
-        {
-            LogError($"중복 체크 실패: {schedule.AA_YMD:yyyy-MM-dd} - {schedule.EVENT_NM}", ex);
-            return false; // 오류 시 중복으로 간주하지 않음
-        }
-    }
+    // 한 건짜리 중복 체크(IsDuplicateAsync)는 private 인데 부르는 곳이 한 곳도 없어
+    // 지웠다(46차). 중복 판정은 CreateBulkAsync 안에서 키를 일괄로 모아 메모리에서 한다 —
+    // 그쪽이 진짜 경로다.
+    //
+    // ⚠ 이것이 살아 있는 동안 위험했다: 죽은 쪽에는 `AND IsDeleted = 0` 이 있고 산 쪽에도
+    //   같은 조건이 있어, 어느 하나만 고치면 고친 줄 알고 아무것도 안 바뀐다.
+    //   실제로 46차에 죽은 쪽을 먼저 고쳤다가 되짚었다.
 
     #endregion
 
@@ -319,9 +307,17 @@ public class SchoolScheduleRepository : BaseRepository
     #region Delete
 
     /// <summary>
-    /// 학사일정 삭제 (Soft Delete)
+    /// 학사일정을 <b>지운 것으로 표시한다</b>(행은 남는다).
+    ///
+    /// <para>행을 남기는 이유는 <b>묘비</b>다. 학사일정은 NEIS 에서 다시 받아올 수 있는데,
+    /// 사용자가 지운 일정을 다음 동기화가 되살리면 안 된다. 그래서 지웠다는 사실을 행에
+    /// 남겨 두고 <see cref="IsDuplicateAsync"/> 가 그것을 본다.</para>
+    ///
+    /// <para>⚠ 이름이 <c>DeleteAsync</c> 였을 때는 이 목적이 보이지 않았고, 실제로
+    /// 묘비가 제 일을 못 하고 있었다 — 중복 판정이 <c>IsDeleted = 0</c> 인 행만 세어
+    /// 지운 일정을 "없는 것" 으로 보고 다시 받아올 때마다 되살렸다(46차에 함께 고쳤다).</para>
     /// </summary>
-    public async Task<bool> DeleteAsync(int no)
+    public async Task<bool> MarkRemovedAsync(int no)
     {
         const string query = @"
                 UPDATE SchoolSchedule 
@@ -355,9 +351,10 @@ public class SchoolScheduleRepository : BaseRepository
         }
     }
     /// <summary>
-    /// 여러 학사일정 일괄 삭제
+    /// 여러 학사일정을 한 번에 지운 것으로 표시한다.
     /// </summary>
-    public async Task<int> DeleteBulkAsync(List<int> SchoolScheduleNoList)
+    /// <returns>실제로 표시된 건수.</returns>
+    public async Task<int> MarkRemovedBulkAsync(List<int> SchoolScheduleNoList)
     {
         if (SchoolScheduleNoList == null || SchoolScheduleNoList.Count == 0)
             return 0;
@@ -369,8 +366,9 @@ public class SchoolScheduleRepository : BaseRepository
                 int count = 0;
                 foreach (var no in SchoolScheduleNoList)
                 {
-                    await DeleteAsync(no);
-                    count++;
+                    // 반영된 것만 센다 — 예전에는 결과를 버리고 무조건 세어,
+                    // 한 건도 지워지지 않아도 "N개를 삭제했습니다" 라고 알렸다.
+                    if (await MarkRemovedAsync(no)) count++;
                 }
                 return count;
             });
@@ -382,7 +380,7 @@ public class SchoolScheduleRepository : BaseRepository
         }
     }
     // 영구 삭제(PermanentDeleteAsync)와 학년도 단위 삭제(DeleteByYearAsync)는 호출부가 없어
-    // 지웠다(39차). 화면은 고른 것들을 DeleteBulkAsync 로 지운다.
+    // 지웠다(39차). 화면은 고른 것들을 MarkRemovedBulkAsync 로 지운다.
 
     #endregion
 

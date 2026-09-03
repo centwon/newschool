@@ -22,14 +22,15 @@ public class StudentEnrollmentIntegrityTests : IClassFixture<SqliteTestFixture>
     [Fact]
     public async Task 논리삭제된_학생의_StudentID_는_재사용할_수_없다()
     {
-        // StudentID 에 UNIQUE 제약이 있고 삭제는 논리 삭제(행이 남는다)다.
+        // StudentID 에 UNIQUE 제약이 있고, 학생은 지워도 행이 남는다(묘비).
         // 그래서 화면의 ID 중복 검사는 IsDeleted 를 보면 안 된다 — 보면 "쓸 수 있는 ID"로
         // 판정했다가 저장 단계에서 UNIQUE 위반으로 실패한다.
+        // 메서드 이름이 MarkRemovedAsync 인 것도 그 때문이다(46차) — 지우는 것이 아니다.
         using var repo = new StudentRepository(_db.DbPath);
 
         var student = TestData.NewStudent(name: "삭제될학생");
         await repo.CreateAsync(student);
-        Assert.True(await repo.DeleteAsync(student.StudentID));   // 논리 삭제
+        Assert.True(await repo.MarkRemovedAsync(student.StudentID));
 
         var deleted = await repo.GetByIdAsync(student.StudentID);
         Assert.NotNull(deleted);          // 행은 그대로 남아 있다

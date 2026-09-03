@@ -229,16 +229,29 @@ public class ClubRepository : BaseRepository
 
     #endregion
 
-    #region Delete
+    #region Hide
 
     /// <summary>
-    /// 동아리 논리 삭제
+    /// 동아리를 <b>목록에서 감춘다</b>(행은 남는다).
+    ///
+    /// <para>⚠ 이 메서드의 이름이 <c>DeleteAsync</c> 였을 때 실제로 혼란이 생겼다.
+    /// <c>ClubEnrollment.ClubNo</c> 에는 <c>ON DELETE CASCADE</c> 가 걸려 있어 스키마만 보면
+    /// "동아리를 지우면 부원 배정도 지워진다"로 읽힌다. 그런데 화면은 "부원 배정 기록은
+    /// 그대로 보관됩니다" 라고 말한다. 둘 다 맞다 — <b>여기서 행을 지우지 않으므로 CASCADE 가
+    /// 애초에 깨어나지 않기</b> 때문이다. 이름이 <c>Delete</c> 인 동안에는 그 사실을 코드를
+    /// 좇아 들어가야만 알 수 있었다(46차 감사에서 두 번 오판할 뻔했다).</para>
+    ///
+    /// <para>그래서 이름을 <c>Hide</c> 로 바꾼다 — <b>이것은 삭제가 아니다.</b> 호출부는
+    /// 이름만 보고 자식이 살아남는다는 것을 안다.</para>
+    ///
+    /// <para>⚠ 누군가 이것을 진짜 삭제로 바꾸면 <b>부원 배정이 함께 사라지고 화면 문구가
+    /// 거짓이 된다.</b> <c>DeleteCascadeTests.동아리_삭제는_부원_배정을_남긴다</c> 가 먼저 깨진다.</para>
     /// </summary>
-    public async Task<bool> DeleteAsync(int no)
+    public async Task<bool> HideAsync(int no)
     {
         const string query = @"
-                UPDATE Club 
-                SET IsDeleted = 1, UpdatedAt = @UpdatedAt 
+                UPDATE Club
+                SET IsDeleted = 1, UpdatedAt = @UpdatedAt
                 WHERE No = @No";
 
         try
@@ -251,23 +264,20 @@ public class ClubRepository : BaseRepository
             bool success = affected > 0;
 
             if (success)
-                LogInfo($"동아리 논리 삭제 완료: No={no}");
+                LogInfo($"동아리 감춤 완료: No={no}");
             else
-                LogWarning($"동아리 삭제 실패: No={no}");
+                LogWarning($"동아리 감춤 실패: No={no}");
 
             return success;
         }
         catch (Exception ex)
         {
-            LogError($"동아리 삭제 실패: No={no}", ex);
+            LogError($"동아리 감춤 실패: No={no}", ex);
             throw;
         }
     }
 
-    /// <summary>
-    /// 동아리 물리 삭제 (주의!)
-    /// </summary>
-    // 물리 삭제(HardDeleteAsync)는 호출부가 없어 지웠다(39차) — soft-delete 하나로 통일.
+    // 물리 삭제(HardDeleteAsync)는 호출부가 없어 지웠다(39차) — 감추기 하나로 통일.
 
     #endregion
 

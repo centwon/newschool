@@ -188,8 +188,9 @@ public sealed partial class ClubManagementPage : Page
 
         try
         {
+            // 감추기다 — 행은 남고 부원 배정도 살아 있다(위 확인 문구가 약속하는 대로).
             using var repo = new ClubRepository(SchoolDatabase.DbPath);
-            bool success = await repo.DeleteAsync(club.No);
+            bool success = await repo.HideAsync(club.No);
 
             if (success)
             {
