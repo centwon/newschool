@@ -69,7 +69,7 @@ public static class EnrollmentGuard
         catch (Exception ex)
         {
             // 판정에 실패하면 조용히 통과시킨다. 기록을 막는 것이 이 함수의 일이 아니다.
-            System.Diagnostics.Debug.WriteLine($"[EnrollmentGuard] 판정 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("EnrollmentGuard", $"학적 판정에 실패해 경고 없이 통과시킨다: {ex.Message}");
             return null;
         }
     }
@@ -150,7 +150,7 @@ public static class EnrollmentGuard
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[EnrollmentGuard] 기존 기록 확인 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("EnrollmentGuard", $"기존 기록 확인에 실패해 경고 없이 통과시킨다: {ex.Message}");
             return null;
         }
     }

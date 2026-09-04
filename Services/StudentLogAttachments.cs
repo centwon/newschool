@@ -91,7 +91,7 @@ public static class StudentLogAttachments
         {
             // OneDrive 폴더에서 도는 설치가 있어 잠금으로 실패하는 일이 실제로 난다.
             // 조용히 넘기면 화면에는 첨부가 있는데 실물이 없는 기록이 된다.
-            Debug.WriteLine($"[StudentLogAttachments] 파일 저장 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentLogAttachments", "첨부 파일을 저장하지 못했다", ex);
             await Controls.UserErrorReporter.ReportAsync("첨부파일 저장", ex);
             return null;
         }
@@ -178,7 +178,7 @@ public static class StudentLogAttachments
         catch (Exception ex)
         {
             // 목록을 못 읽어도 기록 삭제 자체를 막지는 않는다 — 남은 파일은 고아 정리가 치운다.
-            Debug.WriteLine($"[StudentLogAttachments] 첨부 목록 확인 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("StudentLogAttachments", $"첨부 목록을 읽지 못해 파일이 남는다(고아 정리가 치운다): {ex.Message}");
             return new List<string>();
         }
     }
@@ -197,7 +197,7 @@ public static class StudentLogAttachments
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentLogAttachments] 파일 삭제 실패({path}): {ex.Message}");
+            NewSchool.Logging.Log.Warning("StudentLogAttachments", $"첨부 파일을 지우지 못했다({path}): {ex.Message}");
         }
     }
 
@@ -239,7 +239,7 @@ public static class StudentLogAttachments
         catch (Exception ex)
         {
             // 정리는 거들 뿐이다 — 실패해도 앱이 하려던 일을 막지 않는다.
-            Debug.WriteLine($"[StudentLogAttachments] 고아 첨부 정리 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("StudentLogAttachments", $"고아 첨부 정리에 실패했다: {ex.Message}");
             return 0;
         }
     }

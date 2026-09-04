@@ -111,7 +111,7 @@ public sealed partial class CourseManagementPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseManagementPage] 학년도 조회 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("CourseManagementPage", "학년도 목록을 읽지 못했다", ex);
         }
 
         int workYear = Settings.WorkYear.Value > 0 ? Settings.WorkYear.Value : DateTime.Today.Year;

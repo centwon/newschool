@@ -50,7 +50,7 @@ public static class SecretsService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[SecretsService] secrets 파싱 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("SecretsService", "secrets 를 해석하지 못했다 — 구글·NEIS 기능이 조용히 꺼진다", ex);
         }
     }
 
@@ -69,7 +69,7 @@ public static class SecretsService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[SecretsService] 외부 secrets.json 읽기 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("SecretsService", $"외부 secrets.json 을 읽지 못해 내장본으로 넘어간다: {ex.Message}");
         }
 
         // 2) 내장 리소스 (빌드 시 포함된 secrets.json)
@@ -90,7 +90,7 @@ public static class SecretsService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[SecretsService] 내장 secrets 읽기 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("SecretsService", "내장 secrets 를 읽지 못했다 — 구글·NEIS 기능이 조용히 꺼진다", ex);
         }
 
         return "";

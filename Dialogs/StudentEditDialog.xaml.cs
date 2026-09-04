@@ -113,7 +113,7 @@ public sealed partial class StudentEditDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentEditDialog] 불러오기 실패: {ex}");
+            NewSchool.Logging.Log.Error("StudentEditDialog", "학생 정보를 불러오지 못했다", ex);
             return $"학생 정보를 불러오지 못했습니다.\n{ex.Message}";
         }
     }
@@ -291,7 +291,7 @@ public sealed partial class StudentEditDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentEditDialog] 추가 항목 반영 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentEditDialog", "새 학생의 추가 항목을 저장하지 못했다", ex);
         }
     }
 

@@ -123,7 +123,7 @@ public sealed partial class ClubEnrollmentDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ClubEnrollmentDialog] 데이터 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("ClubEnrollmentDialog", "동아리·학생 자료를 읽지 못했다", ex);
         }
     }
 

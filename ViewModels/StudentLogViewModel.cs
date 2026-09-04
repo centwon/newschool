@@ -111,8 +111,8 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine(
-                $"[StudentLogViewModel] 학생 정보 배치 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("StudentLogViewModel",
+                $"학생 정보를 한꺼번에 읽지 못해 기본값으로 표시한다: {ex.Message}");
             // 실패해도 기본값으로 진행 (개별 InitializeAsync 와 동일한 정책)
         }
 
@@ -158,7 +158,7 @@ public sealed class StudentLogViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentLogViewModel] 학생 정보 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("StudentLogViewModel", $"학생 정보를 읽지 못해 기본값으로 표시한다: {ex.Message}");
             // 실패해도 기본값으로 진행
         }
         finally

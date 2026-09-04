@@ -351,7 +351,8 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentCardViewModel] SaveAsync 오류: {ex.Message}");
+            // 호출부는 "저장에 실패했습니다" 만 띄운다 — 이유는 여기서 남기지 않으면 사라진다.
+            NewSchool.Logging.Log.Error("StudentCardViewModel", $"학생 정보 저장 실패: {Student?.StudentID}", ex);
             return false;
         }
     }
@@ -380,12 +381,16 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
                 return true;
             }
 
+            // 여기까지 왔다 = 파일 선택기에서 아무것도 고르지 않았다(취소).
             return false;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentCardViewModel] AddPhotoAsync 오류: {ex.Message}");
-            return false;
+            // ⚠ 삼켜서 false 를 내면 호출부가 "사진 등록이 취소되었습니다" 라고 말한다 —
+            //   실패를 취소라고 부르면 사용자는 다시 시도하지 않는다. 호출부의 catch 가
+            //   이유까지 붙여 알리도록 그대로 올린다.
+            NewSchool.Logging.Log.Error("StudentCardViewModel", $"사진 등록 실패: {Student?.StudentID}", ex);
+            throw;
         }
     }
 
@@ -399,7 +404,10 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
 
         try
         {
-            await PhotoSvc.DeletePhotoAsync(Student.Photo);
+            // ⚠ 결과를 버리면 파일은 그대로 남은 채 학생 카드에서 연결만 끊기고,
+            //   사용자에게는 "사진이 삭제되었습니다" 로 보인다. 지우지 못했으면 연결도 둔다.
+            if (!await PhotoSvc.DeletePhotoAsync(Student.Photo))
+                return false;
 
             Student.Photo = string.Empty;
             PhotoImage = null;
@@ -409,7 +417,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentCardViewModel] DeletePhotoAsync 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentCardViewModel", $"사진 삭제 실패: {Student?.StudentID}", ex);
             return false;
         }
     }
@@ -428,11 +436,10 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
 
         try
         {
-            // 사진 삭제
-            if (!string.IsNullOrEmpty(Student.Photo))
-            {
-                await PhotoSvc.DeletePhotoAsync(Student.Photo);
-            }
+            // 사진 삭제. 지우지 못했으면 초기화 자체를 멈춘다 — "모두 지웠다" 고 말해 놓고
+            // 사진 파일만 남으면 그것이 어디에 남았는지 사용자가 알 길이 없다.
+            if (!string.IsNullOrEmpty(Student.Photo) && !await PhotoSvc.DeletePhotoAsync(Student.Photo))
+                return false;
 
             // 모든 정보 초기화
             ResetAllInfo();
@@ -442,7 +449,7 @@ public sealed class StudentCardViewModel : NotifyPropertyChangedBase, IDisposabl
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentCardViewModel] ResetAllInfoAsync 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentCardViewModel", $"학생 정보 초기화 실패: {Student?.StudentID}", ex);
             return false;
         }
     }

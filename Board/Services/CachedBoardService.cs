@@ -87,7 +87,7 @@ public class CachedBoardService : BoardService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"조회수 증가(백그라운드) 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("CachedBoardService", $"조회수를 올리지 못했다(배경 작업): {ex.Message}");
         }
     }
 

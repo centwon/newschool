@@ -112,6 +112,8 @@ public sealed partial class SchoolSearchDialog : ContentDialog
         }
         catch (HttpRequestException ex)
         {
+            // 네트워크·타임아웃은 화면에 그대로 안내한다(아래 InfoTextBlock). 흔하고 스스로
+            // 낫는 실패라 파일에는 남기지 않는다 — 남기는 것은 아래의 '알 수 없는 오류' 뿐이다.
             Debug.WriteLine($"[SchoolSearch] HTTP 오류: {ex.Message}");
             InfoTextBlock.Text = "네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.";
             SchoolListView.ItemsSource = null;
@@ -132,7 +134,7 @@ public sealed partial class SchoolSearchDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolSearch] 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("SchoolSearch", "학교 검색에 실패했다", ex);
             InfoTextBlock.Text = $"오류가 발생했습니다: {ex.Message}";
             SchoolListView.ItemsSource = null;
         }
@@ -223,7 +225,8 @@ public sealed partial class SchoolSearchDialog : ContentDialog
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[SchoolSearch] 개별 노드 파싱 오류: {ex.Message}");
+                    // 한 학교만 조용히 목록에서 빠진다 — 찾는 학교가 안 나오는 이유가 된다.
+                    NewSchool.Logging.Log.Warning("SchoolSearch", $"검색 결과 한 건을 해석하지 못해 건너뛴다: {ex.Message}");
                     continue;
                 }
             }

@@ -171,7 +171,7 @@ public sealed partial class TimetableControl : UserControl
         catch (Exception ex)
         {
             // 변경을 못 읽었다고 평소 시간표까지 버리지는 않는다.
-            Debug.WriteLine($"[TimetableControl] 주간 변경 반영 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("TimetableControl", $"주간 변경을 반영하지 못해 평소 시간표만 보인다: {ex.Message}");
         }
     }
 

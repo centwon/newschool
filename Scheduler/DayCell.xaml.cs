@@ -317,7 +317,7 @@ public sealed partial class DayCell : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DayCell] Loaded 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("DayCell", $"날짜 칸을 그리지 못했다: {ex.Message}");
         }
         finally
         {
@@ -354,7 +354,7 @@ public sealed partial class DayCell : UserControl
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"OnDayinfoChanged 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("DayCell", $"날짜 칸 내용을 바꾸지 못했다: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"스택 트레이스: {ex.StackTrace}");
         }
     }
@@ -429,7 +429,7 @@ public sealed partial class DayCell : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DayCell] 작업 체크박스 처리 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("DayCell", "할 일 체크 처리에 실패했다", ex);
         }
     }
 
@@ -495,7 +495,7 @@ public sealed partial class DayCell : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DayCell] 표시 업데이트 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("DayCell", $"날짜 칸 표시를 갱신하지 못했다: {ex.Message}");
             Debug.WriteLine($"[DayCell] 스택: {ex.StackTrace}");
         }
     }
@@ -553,7 +553,7 @@ public sealed partial class DayCell : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DayCell] UpdateDateDisplay 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("DayCell", $"날짜를 표시하지 못했다: {ex.Message}");
         }
     }
 
@@ -586,7 +586,7 @@ public sealed partial class DayCell : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DayCell] UpdateColorDisplay 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("DayCell", $"날짜 칸 색을 칠하지 못했다: {ex.Message}");
         }
     }
 
@@ -699,7 +699,7 @@ public sealed partial class DayCell : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DayCell] UpdateTasksDisplay 오류: {ex.GetType().FullName}");
+            NewSchool.Logging.Log.Warning("DayCell", $"할 일 표시를 갱신하지 못했다: {ex.GetType().FullName} — {ex.Message}");
             Debug.WriteLine($"[DayCell] Message: {ex.Message}");
 
             // 오류 발생 시 안전 모드 — ItemsSource 초기화
@@ -764,7 +764,7 @@ public sealed partial class DayCell : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DayCell] 이벤트 편집 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("DayCell", "일정 편집 창을 열지 못했다 — 눌러도 아무 일이 없어 보인다", ex);
         }
     }
 

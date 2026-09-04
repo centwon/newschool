@@ -57,13 +57,18 @@ internal static class PostAttachments
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[PostAttachments] 첨부 이동 실패({fileName}): {ex.Message}");
+            NewSchool.Logging.Log.Error("PostAttachments", $"첨부를 옮기지 못했다: {oldCategory}/{fileName} → {newCategory}", ex);
 
             // DB 이름만 바뀌고 실물이 안 옮겨졌으면 되돌린다.
             if (targetName != fileName)
             {
                 try { await renameInDb(fileName); }
-                catch (Exception rex) { Debug.WriteLine($"[PostAttachments] 이름 되돌리기 실패: {rex.Message}"); }
+                catch (Exception rex)
+                {
+                    // 여기까지 실패하면 DB 가 없는 파일을 가리킨 채 남는다 — 가장 남겨야 할 자리다.
+                    NewSchool.Logging.Log.Error("PostAttachments",
+                        $"첨부 이름 되돌리기 실패 — DB 는 '{targetName}', 실물은 '{fileName}'", rex);
+                }
             }
 
             return false;

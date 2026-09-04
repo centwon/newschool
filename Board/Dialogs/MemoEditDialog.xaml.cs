@@ -127,7 +127,7 @@ public sealed partial class MemoEditDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[MemoEditDialog] 로드 중 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("MemoEditDialog", "메모를 읽지 못했다 — 빈 메모처럼 보인다", ex);
         }
     }
 
@@ -143,7 +143,7 @@ public sealed partial class MemoEditDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[MemoEditDialog] 파일 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("MemoEditDialog", "첨부 목록을 읽지 못했다 — 첨부가 없는 것처럼 보인다", ex);
         }
     }
 

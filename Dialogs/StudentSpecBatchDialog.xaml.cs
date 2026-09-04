@@ -173,7 +173,7 @@ public sealed partial class StudentSpecBatchDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentSpecBatchDialog] 학생 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentSpecBatch", "학생 명단을 읽지 못했다", ex);
         }
     }
 
@@ -193,7 +193,7 @@ public sealed partial class StudentSpecBatchDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentSpecBatchDialog] 과목 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentSpecBatch", "수업 목록을 읽지 못했다", ex);
         }
     }
 
@@ -507,7 +507,7 @@ public sealed partial class StudentSpecBatchDialog : Window
                 catch (Exception ex)
                 {
                     failCount++;
-                    Debug.WriteLine($"[StudentSpecBatchDialog] 저장 실패 StudentID={studentId}: {ex.Message}");
+                    NewSchool.Logging.Log.Error("StudentSpecBatch", $"학생부 저장 실패: StudentID={studentId}", ex);
                 }
             }
 
@@ -790,7 +790,7 @@ public sealed partial class StudentSpecBatchDialog : Window
         catch (Exception ex)
         {
             TxtLogReference.Text = $"누가기록 로드 실패: {ex.Message}";
-            Debug.WriteLine($"[StudentSpecBatchDialog] 누가기록 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentSpecBatch", "참고할 누가기록을 읽지 못했다", ex);
         }
     }
 

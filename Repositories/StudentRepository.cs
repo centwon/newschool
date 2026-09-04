@@ -407,9 +407,12 @@ public class StudentRepository : BaseRepository
             byte[] encryptedBytes = ProtectedData.Protect(plainBytes, null, DataProtectionScope.CurrentUser);
             return Convert.ToBase64String(encryptedBytes);
         }
-        catch
+        catch (Exception ex)
         {
-            return plainText; // 암호화 실패 시 평문 유지
+            // ⚠ 평문으로 저장된다. 방침·README 가 "암호화해 보관한다" 고 말하는 자리이므로
+            //   그 약속이 지켜지지 않은 사실은 반드시 남아야 한다(값 자체는 절대 남기지 않는다).
+            Logging.Log.Error("StudentRepository", "민감 필드 암호화 실패 — 평문으로 저장된다", ex);
+            return plainText;
         }
     }
 

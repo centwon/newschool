@@ -51,7 +51,7 @@ public static class SchoolProfile
             catch (Exception ex)
             {
                 // 못 읽으면 0(모름) 으로 둔다 — 학사일정 판정이 종전 기준으로 돌아갈 뿐이다.
-                Debug.WriteLine($"[SchoolProfile] 학교급 조회 실패: {ex.Message}");
+                NewSchool.Logging.Log.Warning("SchoolProfile", $"학교급을 읽지 못해 0(모름) 으로 둔다: {ex.Message}");
             }
         }
 

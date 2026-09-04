@@ -30,7 +30,15 @@ Path.Combine(Settings.UserDataPath, "Files");
     #region Initialization
 
 
-    public static async Task InitAsync()
+    /// <summary>
+    /// 게시판 DB 초기화.
+    ///
+    /// <para>실패를 여기서 직접 알리지 않는다 — 이 자리는 <b>창이 아직 하나도 없는</b>
+    /// 시작 경로라, 대화상자를 띄우려 해도 <see cref="MessageBox"/> 가 폴백으로 빠진다.
+    /// 세 DB 의 실패를 <c>App</c> 이 모아 한 번에 알린다.</para>
+    /// </summary>
+    /// <returns>테이블까지 준비되면 true.</returns>
+    public static async Task<bool> InitAsync()
     {
         try
         {
@@ -59,14 +67,16 @@ Path.Combine(Settings.UserDataPath, "Files");
             // 설정째로 지웠다(2026-08-31). 초기화는 어차피 매번 도는 자리다.
             if (!await InitDatabaseAsync())
             {
-                await MessageBox.ShowAsync("데이터베이스 초기화에 실패하였습니다.", "오류");
+                Logging.Log.Error("Board", $"게시판 DB 테이블을 준비하지 못했다: {DbPath}");
+                return false;
             }
+
+            return true;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Board] 초기화 실패: {ex.Message}");
-            Debug.WriteLine($"[Board] StackTrace: {ex.StackTrace}");
-            await MessageBox.ShowAsync($"초기화 오류: {ex.Message}", "오류");
+            Logging.Log.Error("Board", "게시판 DB 초기화 실패", ex);
+            return false;
         }
     }
 
@@ -80,7 +90,7 @@ Path.Combine(Settings.UserDataPath, "Files");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Board] DB 초기화 실패: {ex.Message}");
+            Logging.Log.Error("Board", "게시판 DB 테이블 생성 실패", ex);
             return false;
         }
     }
@@ -183,8 +193,7 @@ internal class DatabaseInitializer : BaseRepository
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DatabaseInitializer] 실패: {ex.Message}");
-            Debug.WriteLine($"[DatabaseInitializer] StackTrace: {ex.StackTrace}");
+            Logging.Log.Error("Board", "게시판 DB 테이블·인덱스 준비 실패", ex);
             return false;
         }
     }

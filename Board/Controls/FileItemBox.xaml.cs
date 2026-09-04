@@ -152,7 +152,7 @@ public sealed partial class FileItemBox : UserControl
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"파일 열기 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("FileItemBox", "첨부 파일을 열지 못했다", ex);
             await ShowDialogAsync("오류", $"파일을 열 수 없습니다.\n{ex.Message}");
         }
     }
@@ -165,7 +165,7 @@ public sealed partial class FileItemBox : UserControl
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"다이얼로그 표시 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("FileItemBox", "안내 대화상자를 띄우지 못했다 — 사용자는 아무 반응도 못 본다", ex);
         }
     }
 }

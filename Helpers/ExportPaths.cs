@@ -81,7 +81,8 @@ public static class ExportPaths
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ExportPaths] 파일 열기 실패({filePath}): {ex.Message}");
+            // 알리지는 않되(위 설명), 왜 안 열렸는지는 남긴다.
+            NewSchool.Logging.Log.Warning("ExportPaths", $"내보낸 파일을 열지 못했다({filePath}): {ex.Message}");
         }
     }
 }

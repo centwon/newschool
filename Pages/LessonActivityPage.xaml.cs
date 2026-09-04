@@ -422,7 +422,7 @@ public sealed partial class LessonActivityPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[LessonActivityPage] 학생부 기록 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("LessonActivityPage", "학생부 기록을 읽지 못해 칸을 감춘다 — 기록이 없는 것처럼 보인다", ex);
             SpecBox.Visibility = Visibility.Collapsed;
         }
     }

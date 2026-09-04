@@ -92,7 +92,10 @@ public static class SingleInstance
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[SingleInstance] 신호 처리 실패: {ex.Message}");
+                    // ⚠ 이 자리(잠금 판정·신호 대기)는 FileLogger 보다 먼저 도는 시작 경로다.
+            //   기록하려고 로거를 만들면 그 생성자가 폴더를 만들다 또 터질 수 있어(49차)
+            //   여기서만은 Debug.WriteLine 으로 둔다.
+            Debug.WriteLine($"[SingleInstance] 신호 처리 실패: {ex.Message}");
                     return;
                 }
             }
@@ -117,7 +120,7 @@ public static class SingleInstance
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SingleInstance] 기존 창 호출 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("SingleInstance", $"이미 떠 있는 창을 불러내지 못했다: {ex.Message}");
         }
     }
 

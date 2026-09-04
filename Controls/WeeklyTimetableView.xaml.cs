@@ -129,7 +129,7 @@ public sealed partial class WeeklyTimetableView : UserControl
         catch (Exception ex)
         {
             // 학사일정이 없으면 휴업일 표시만 빠질 뿐 표는 그대로 쓸 수 있다.
-            Debug.WriteLine($"[WeeklyTimetableView] 학사일정 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("WeeklyTimetableView", $"학사일정을 읽지 못해 휴업일 표시가 빠진다: {ex.Message}");
         }
     }
 
@@ -798,7 +798,7 @@ public sealed partial class WeeklyTimetableView : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[WeeklyTimetableView] 변경 수 집계 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("WeeklyTimetableView", $"앞으로의 변경 수를 세지 못했다: {ex.Message}");
         }
     }
 

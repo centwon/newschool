@@ -75,7 +75,9 @@ public static class MessageBox
         catch (Exception ex)
         {
             // 끝내 표시하지 못한 경우 — 앱을 죽이지 않고 로그만 남긴다.
-            System.Diagnostics.Debug.WriteLine($"[MessageBox] 대화상자 표시 실패: {ex.Message}");
+            // ⚠ 배포본에도 남아야 한다. 안내가 통째로 사라진 채 사용자만 아무 반응 없는
+            //   화면을 보게 되는 자리이므로, 여기까지 왔다는 사실이 로그에 있어야 한다.
+            Logging.Log.Error("MessageBox", "대화상자를 끝내 표시하지 못했다", ex);
             return ContentDialogResult.None;
         }
         finally
@@ -212,8 +214,10 @@ public static class MessageBox
         var xamlRoot = ResolveXamlRoot();
         if (xamlRoot == null)
         {
-            System.Diagnostics.Debug.WriteLine("MessageBox 경고: XamlRoot를 찾을 수 없어 기본 설정으로 표시합니다.");
-            return false;
+            // ⚠ 예전에는 조용히 false(취소)로 끝냈다. 안전한 쪽이긴 하지만 사용자는 자기가
+            //   누른 것이 왜 아무 일도 안 하는지 알 수 없다 — 창 없이도 뜨는 길로 묻는다.
+            var fallback = await ShowFallbackAsync(message, title, MessageBoxButton.OKCancel);
+            return fallback == MessageBoxResult.OK;
         }
 
         var dialog = new ContentDialog()
@@ -325,23 +329,67 @@ public static class MessageBox
         };
     }
 
-    // 폴백 메시지 표시 (XamlRoot 없이)
-    private static async Task<MessageBoxResult> ShowFallbackAsync(string message, string title, MessageBoxButton button)
+    /// <summary>
+    /// 띄울 창이 없을 때의 폴백.
+    ///
+    /// <para>⚠ 예전에는 <c>Debug.WriteLine</c> 한 줄을 찍고 <see cref="MessageBoxResult.OK"/> 를
+    /// 돌려줬다. 그 줄은 <c>[Conditional("DEBUG")]</c> 라 <b>배포본에서는 통째로 사라진다</b> —
+    /// 창이 만들어지기 전(시작 경로)의 안내가 전부 이 길로 떨어지므로, 사용자가 보는 것은
+    /// "아무 일도 일어나지 않음" 뿐이었다. Win32 대화상자는 XamlRoot 없이도 뜨므로
+    /// 그것으로 실제로 보여 주고, 사용자가 고른 답을 그대로 돌려준다.</para>
+    /// </summary>
+    private static Task<MessageBoxResult> ShowFallbackAsync(string message, string title, MessageBoxButton button)
     {
+        Logging.Log.Warning("MessageBox", $"띄울 창이 없어 Win32 대화상자로 안내한다: {title}");
+
         try
         {
-            // 디버그 출력으로 대체
-            System.Diagnostics.Debug.WriteLine($"MessageBox: {title} - {message}");
+            uint type = button switch
+            {
+                MessageBoxButton.OKCancel => MB_OKCANCEL,
+                MessageBoxButton.YesNo => MB_YESNO,
+                MessageBoxButton.YesNoCancel => MB_YESNOCANCEL,
+                _ => MB_OK,
+            };
 
-            // 기본적으로 OK 반환
-            return MessageBoxResult.OK;
+            // MB_SETFOREGROUND — 창이 없는 시점이라 다른 창 뒤에 숨으면 안 보인다.
+            int answer = MessageBoxW(IntPtr.Zero, message, title, type | MB_ICONWARNING | MB_SETFOREGROUND);
+
+            return Task.FromResult(answer switch
+            {
+                IDOK => MessageBoxResult.OK,
+                IDCANCEL => MessageBoxResult.Cancel,
+                IDYES => MessageBoxResult.Yes,
+                IDNO => MessageBoxResult.No,
+                // 0 = 띄우지 못했다(메모리 부족 등). 지어내지 말고 "고르지 않았다" 로 돌려준다.
+                _ => MessageBoxResult.None,
+            });
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"폴백 메시지 표시 실패: {ex.Message}");
-            return MessageBoxResult.None;
+            Logging.Log.Error("MessageBox", $"폴백 안내 표시 실패: {title}", ex);
+            return Task.FromResult(MessageBoxResult.None);
         }
     }
+
+    #region Win32 대화상자 (창이 없을 때만 쓴다)
+
+    private const uint MB_OK = 0x00000000;
+    private const uint MB_OKCANCEL = 0x00000001;
+    private const uint MB_YESNOCANCEL = 0x00000003;
+    private const uint MB_YESNO = 0x00000004;
+    private const uint MB_ICONWARNING = 0x00000030;
+    private const uint MB_SETFOREGROUND = 0x00010000;
+
+    private const int IDOK = 1;
+    private const int IDCANCEL = 2;
+    private const int IDYES = 6;
+    private const int IDNO = 7;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
+
+    #endregion
 
     // 초기화 상태 확인
     public static bool IsInitialized => _xamlRoot != null;

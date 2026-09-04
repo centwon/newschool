@@ -83,8 +83,8 @@ public class SettingProperty<T>
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine(
-                $"[Settings] '{_key}' 값을 읽지 못해 기본값으로 되돌린다: {ex.Message}");
+            Logging.Log.Warning("Settings",
+                $"'{_key}' 값을 읽지 못해 기본값으로 되돌린다: {ex.Message}");
             return _defaultValue;
         }
     }
@@ -175,7 +175,7 @@ public static class Settings
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Settings] 상위 폴더 포터블 판정 실패: {ex.Message}");
+            Logging.Log.Warning("Settings", $"상위 폴더의 포터블 판정에 실패했다: {ex.Message}");
         }
 
         return null;
@@ -236,7 +236,7 @@ public static class Settings
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Settings] 포터블 표식 생성 실패: {ex.Message}");
+            Logging.Log.Warning("Settings", $"포터블 표식을 만들지 못했다: {ex.Message}");
         }
     }
 
@@ -738,7 +738,7 @@ public static class Settings
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Settings] VACUUM INTO 실패({Path.GetFileName(dbPath)}): {ex.Message}");
+            Logging.Log.Error("Settings", $"백업 스냅샷을 뜨지 못했다: {Path.GetFileName(dbPath)}", ex);
             return false;
         }
     }
@@ -782,7 +782,7 @@ public static class Settings
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[Settings] WAL 파일 정리 실패({Path.GetFileName(sidecar)}): {ex.Message}");
+                Logging.Log.Warning("Settings", $"복원 전 WAL 파일을 정리하지 못했다: {Path.GetFileName(sidecar)} — {ex.Message}");
             }
         }
     }
@@ -954,7 +954,7 @@ public static class Settings
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Settings] 복원 오류: {ex.Message}");
+            Logging.Log.Error("Settings", "백업 복원에 실패했다", ex);
             return false;
         }
     }
@@ -1002,7 +1002,9 @@ public static class Settings
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Settings] 백업 정리 오류: {ex.Message}");
+            // 지우지 못하면 보존 개수(기본 20)를 넘겨 백업이 계속 쌓인다 — 도움말이 약속한 수치와
+            // 어긋나는데 화면에는 아무 표시도 없다.
+            Logging.Log.Warning("Settings", $"오래된 백업을 정리하지 못했다: {ex.Message}");
         }
     }
 
@@ -1018,20 +1020,36 @@ public static class Settings
     private const string AppRegistryName = "NewSchool";
 
     /// <summary>
-    /// Windows 시작 시 자동 실행 설정/해제
+    /// Windows 시작 시 자동 실행 설정/해제.
+    ///
+    /// <para>⚠ 예전에는 <c>void</c> 였고 실패를 <c>Debug.WriteLine</c> 으로만 흘렸다. 레지스트리를
+    /// 못 열거나(정책·권한) 쓰지 못하면 <b>토글은 켜진 채, 설정 DB 는 옛 값, 레지스트리는 빈
+    /// 상태</b>로 갈라졌고, 사용자는 다음 부팅에 앱이 안 뜨는 것으로만 알 수 있었다.
+    /// 설정이 DB 밖(레지스트리)에 사는 자리라 더 잘 어긋난다(47차).</para>
     /// </summary>
-    public static void SetStartWithWindows(bool enable)
+    /// <returns>레지스트리와 설정 DB 에 모두 반영되면 true.</returns>
+    public static bool SetStartWithWindows(bool enable)
     {
         try
         {
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(StartupRegistryKey, true);
-            if (key == null) return;
+            if (key == null)
+            {
+                Logging.Log.Error("Settings", $"자동 시작 레지스트리 키를 열지 못했다: HKCU\\{StartupRegistryKey}");
+                return false;
+            }
 
             if (enable)
             {
                 var exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
-                if (!string.IsNullOrEmpty(exePath))
-                    key.SetValue(AppRegistryName, $"\"{exePath}\"");
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    // 경로를 모르면 등록해 봐야 아무것도 실행되지 않는다.
+                    Logging.Log.Error("Settings", "실행 파일 경로를 알 수 없어 자동 시작을 등록하지 못했다");
+                    return false;
+                }
+
+                key.SetValue(AppRegistryName, $"\"{exePath}\"");
             }
             else
             {
@@ -1040,10 +1058,12 @@ public static class Settings
 
             StartWithWindows.Set(enable);  // Value 만 바꾸면 DB에 저장되지 않아 레지스트리와 어긋남
             System.Diagnostics.Debug.WriteLine($"[Settings] StartWithWindows = {enable}");
+            return true;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Settings] 자동 시작 설정 오류: {ex.Message}");
+            Logging.Log.Error("Settings", $"자동 시작 설정 실패(enable={enable})", ex);
+            return false;
         }
     }
 
@@ -1057,7 +1077,12 @@ public static class Settings
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(StartupRegistryKey);
             return key?.GetValue(AppRegistryName) != null;
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            // 읽지 못하면 "등록 안 됨" 으로 보이고 토글이 꺼진 채 뜬다 — 왜 그런지는 남겨야 한다.
+            Logging.Log.Warning("Settings", $"자동 시작 등록 여부를 읽지 못했다: {ex.Message}");
+            return false;
+        }
     }
 
     #endregion
@@ -1089,7 +1114,7 @@ internal static class SettingsDb
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[SettingsDb] 데이터 폴더 생성 실패({dataDir}): {ex.Message}");
+            Logging.Log.Error("SettingsDb", $"데이터 폴더를 만들지 못했다: {dataDir}", ex);
         }
 
         DbPath = Path.Combine(dataDir, "Settings.db");

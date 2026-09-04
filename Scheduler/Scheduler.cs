@@ -23,7 +23,12 @@ public static class Scheduler
 
     #region Initialization
 
-    public static async Task InitAsync()
+    /// <summary>
+    /// 일정 DB 초기화. 실패를 여기서 알리지 않는 이유는 <see cref="Board.Board.InitAsync"/> 와 같다 —
+    /// 시작 경로에는 아직 창이 없어 대화상자가 뜨지 않는다. <c>App</c> 이 모아서 알린다.
+    /// </summary>
+    /// <returns>테이블까지 준비되면 true.</returns>
+    public static async Task<bool> InitAsync()
     {
         try
         {
@@ -46,14 +51,16 @@ public static class Scheduler
             // 앱을 켤 때마다 설정 DB 에 쓰기가 한 번씩 났다. 초기화는 어차피 매번 도는 자리다.
             if (!await InitDatabaseAsync())
             {
-                await MessageBox.ShowAsync("스케줄러 데이터베이스 초기화에 실패하였습니다.", "오류");
+                Logging.Log.Error("SchedulerDB", $"일정 DB 테이블을 준비하지 못했다: {DbPath}");
+                return false;
             }
+
+            return true;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchedulerDB] 초기화 실패: {ex.Message}");
-            Debug.WriteLine($"[SchedulerDB] StackTrace: {ex.StackTrace}");
-            await MessageBox.ShowAsync($"초기화 오류: {ex.Message}", "오류");
+            Logging.Log.Error("SchedulerDB", "일정 DB 초기화 실패", ex);
+            return false;
         }
     }
 
@@ -66,7 +73,7 @@ public static class Scheduler
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchedulerDB] DB 초기화 실패: {ex.Message}");
+            Logging.Log.Error("SchedulerDB", "일정 DB 테이블 생성 실패", ex);
             return false;
         }
     }

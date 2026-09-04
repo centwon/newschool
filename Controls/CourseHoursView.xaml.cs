@@ -118,7 +118,7 @@ public sealed partial class CourseHoursView : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseHoursView] 단원 차시 합계 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("CourseHoursView", $"단원 차시 합계를 읽지 못해 0 으로 보인다: {ex.Message}");
         }
     }
 

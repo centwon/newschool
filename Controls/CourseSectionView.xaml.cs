@@ -269,7 +269,8 @@ public sealed partial class CourseSectionView : UserControl
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[CourseSectionView] CSV 라인 파싱 실패 (라인 {i + 1}): {ex.Message}");
+                // 그 줄만 조용히 빠진다 — 가져오기 결과가 원본보다 적은 이유가 된다.
+            NewSchool.Logging.Log.Warning("CourseSectionView", $"CSV {i + 1}번째 줄을 해석하지 못해 건너뛴다: {ex.Message}");
             }
         }
 

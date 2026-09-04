@@ -140,7 +140,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[UnifiedItemDialog] 초기화 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("UnifiedItemDialog", "일정 창을 준비하지 못했다", ex);
         }
     }
 
@@ -165,7 +165,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[UnifiedItemDialog] 목록 로드 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("UnifiedItemDialog", "달력·분류 목록을 읽지 못했다", ex);
         }
     }
 
@@ -859,7 +859,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[UnifiedItemDialog] 캘린더 생성 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("UnifiedItemDialog", "달력을 만들지 못했다", ex);
             return -1;
         }
     }
@@ -949,7 +949,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         catch (Exception ex)
         {
             // 배경 작업이라 여기서 새어 나가면 관측되지 않는다
-            Debug.WriteLine($"[UnifiedItemDialog] 구글 Push(배경) 실패: {ex}");
+            NewSchool.Logging.Log.Error("UnifiedItemDialog", "구글 등록(배경)이 통째로 실패했다", ex);
         }
     }
 
@@ -1009,7 +1009,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         {
             // 로컬 저장은 유지하고 다음 배치 동기화에서 재시도되지만,
             // 사용자가 "구글에 등록" 을 직접 체크한 동작이므로 실패는 알려야 한다.
-            Debug.WriteLine($"[UnifiedItemDialog] 구글 Push 실패: {ex}");
+            NewSchool.Logging.Log.Error("UnifiedItemDialog", "일정을 구글에 올리지 못했다(로컬 저장은 유지)", ex);
             return ex.Message;
         }
     }

@@ -154,7 +154,7 @@ public sealed partial class PageSeats : Page, IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[PageSeats] InitializeServices 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("PageSeats", "좌석 화면을 준비하지 못했다", ex);
         }
     }
 
@@ -194,7 +194,7 @@ public sealed partial class PageSeats : Page, IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[PageSeats] InitializeData 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("PageSeats", "좌석 자료를 읽지 못했다 — 빈 자리표로 보인다", ex);
         }
     }
 

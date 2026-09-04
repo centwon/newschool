@@ -70,7 +70,7 @@ public sealed partial class LessonJournalList : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[LessonJournalList] 목록 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("LessonJournalList", "수업 일지 목록을 읽지 못했다", ex);
             TxtEmpty.Text = "수업 일지를 불러올 수 없습니다.";
             TxtEmpty.Visibility = Visibility.Visible;
         }

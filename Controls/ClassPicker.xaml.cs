@@ -95,7 +95,7 @@ public sealed partial class ClassPicker : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ClassPicker] 초기화 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("ClassPicker", "학년·반 선택기를 준비하지 못했다 — 목록이 비어 보인다", ex);
         }
         finally
         {
@@ -121,7 +121,7 @@ public sealed partial class ClassPicker : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ClassPicker] 학년 조회 오류: {ex}");
+            NewSchool.Logging.Log.Error("ClassPicker", "학년 목록을 읽지 못했다", ex);
         }
 
         // 아직 학생이 없거나 조회가 실패했을 때의 기본 목록.
@@ -153,7 +153,7 @@ public sealed partial class ClassPicker : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ClassPicker] 반 조회 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("ClassPicker", "반 목록을 읽지 못했다", ex);
         }
 
         CBoxClass.Items.Clear();
@@ -234,7 +234,8 @@ public sealed partial class ClassPicker : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ClassPicker] 학생 조회 오류: {ex.Message}");
+            // 빈 명단으로 넘어간다 — "그 반에 학생이 없다" 와 화면에서 구별되지 않는다.
+            NewSchool.Logging.Log.Error("ClassPicker", "학생 명단을 읽지 못해 빈 목록으로 넘긴다", ex);
             students = new List<Enrollment>();
         }
 

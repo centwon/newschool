@@ -102,7 +102,8 @@ public sealed partial class LessonHomePage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[LessonHomePage] ✗ {name} 로드 실패: {ex}");
+            // 사용자에게는 이름만 알린다(ReportFailures). 이유는 여기서만 남는다.
+            NewSchool.Logging.Log.Error("LessonHomePage", $"{name} 을(를) 불러오지 못했다", ex);
             failed.Add(name);
         }
     }
@@ -234,7 +235,7 @@ public sealed partial class LessonHomePage : Page
         catch (Exception ex)
         {
             // 일지를 못 읽었다고 오늘의 수업까지 버리지는 않는다 — 전부 '예정' 으로 보일 뿐이다.
-            Debug.WriteLine($"[LessonHomePage] 오늘 수업 일지 조회 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("LessonHomePage", $"오늘 일지를 읽지 못해 모두 '예정' 으로 보인다: {ex.Message}");
         }
 
         return byPeriod;

@@ -91,7 +91,7 @@ public class TeacherTimetableService : IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[TeacherTimetableService] 시간표 변경 조회 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("TeacherTimetableService", "시간표 변경을 읽지 못해 평소 시간표만 보인다", ex);
             return slots;
         }
     }

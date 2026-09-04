@@ -89,7 +89,7 @@ public sealed class TimetableService : IDisposable
         catch (Exception ex)
         {
             // 빈 시간표로 돌려주면 "수업이 없음"과 구분되지 않아 호출부가 오류를 알 수 없다
-            Debug.WriteLine($"[TimetableService] 학급 시간표 조회 실패: {ex}");
+            NewSchool.Logging.Log.Error("TimetableService", "학급 시간표를 읽지 못했다", ex);
             viewModel.LoadFailed = true;
             viewModel.ErrorMessage = ex.Message;
             return viewModel;

@@ -44,7 +44,7 @@ public static class StudentCreationService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentCreation] ID 확인 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentCreation", "학번 중복 확인에 실패해 '쓰이는 중' 으로 본다", ex);
             // 확인에 실패하면 안전한 쪽 — 쓰이는 중으로 본다.
             return true;
         }
@@ -98,7 +98,7 @@ public static class StudentCreationService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentCreation] 중복 확인 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentCreation", "번호 중복 확인에 실패해 '쓰이는 중' 으로 본다", ex);
             return true;
         }
     }
@@ -170,13 +170,13 @@ public static class StudentCreationService
             catch (Exception ex)
             {
                 studentRepo.Rollback();
-                System.Diagnostics.Debug.WriteLine($"[StudentCreation] 저장 실패 (롤백): {name} - {ex}");
+                NewSchool.Logging.Log.Error("StudentCreation", $"학생 등록 실패(롤백함): {name}", ex);
                 return ex.Message;
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentCreation] 연결 오류: {name} - {ex}");
+            NewSchool.Logging.Log.Error("StudentCreation", $"학생 등록 중 DB 연결 실패: {name}", ex);
             return ex.Message;
         }
     }

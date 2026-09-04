@@ -109,7 +109,7 @@ public sealed partial class MaterialEditDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[MaterialEditDialog] 파일 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("MaterialEditDialog", "첨부 목록을 읽지 못했다 — 첨부가 없는 것처럼 보인다", ex);
         }
     }
 

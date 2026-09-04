@@ -82,7 +82,7 @@ public sealed partial class SchoolScheduleListControl : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolScheduleListControl] 학사일정 로드 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("SchoolScheduleList", "학사일정을 읽지 못했다 — 일정이 없는 것처럼 보인다", ex);
         }
     }
 

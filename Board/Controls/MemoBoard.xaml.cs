@@ -100,7 +100,8 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[MemoBoard] 메모 로드 실패: {ex.Message}");
+            // 메모판이 통째로 비어 보인다 — 메모가 없는 것과 구별되지 않는다.
+            NewSchool.Logging.Log.Error("MemoBoard", "메모를 읽지 못했다", ex);
         }
         finally
         {
@@ -166,7 +167,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[MemoBoard] 새 메모 생성 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("MemoBoard", "새 메모를 만들지 못했다 — 눌러도 아무 일이 없어 보인다", ex);
         }
         return Task.CompletedTask;
     }

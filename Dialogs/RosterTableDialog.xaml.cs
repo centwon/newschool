@@ -81,7 +81,7 @@ public sealed partial class RosterTableDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[RosterTableDialog] 데이터 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("RosterTableDialog", "명렬표 자료를 읽지 못했다", ex);
         }
     }
 
@@ -117,7 +117,7 @@ public sealed partial class RosterTableDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[RosterTableDialog] 반 목록 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("RosterTableDialog", "반 목록을 읽지 못해 [전체] 만 남는다", ex);
             ClassComboBox.ItemsSource = new List<string> { "전체" };
             ClassComboBox.SelectedIndex = 0;
         }
@@ -172,7 +172,7 @@ public sealed partial class RosterTableDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[RosterTableDialog] 강의실 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("RosterTableDialog", "강의실 목록을 읽지 못했다", ex);
             RoomComboBox.Visibility = Visibility.Collapsed;
             CourseLayoutPanel.Visibility = Visibility.Collapsed;
         }

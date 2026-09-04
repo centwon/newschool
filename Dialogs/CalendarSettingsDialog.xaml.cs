@@ -89,7 +89,7 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
         catch (Exception ex)
         {
             GoogleAuthStatusText.Text = $"❌ 오류: {ex.Message}";
-            Debug.WriteLine($"[CalendarSettingsDialog] Google 인증 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("CalendarSettings", "구글 연동에 실패했다", ex);
         }
         finally
         {
@@ -239,7 +239,7 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CalendarSettingsDialog] 캘린더 매핑 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("CalendarSettings", "구글 달력 연결에 실패했다", ex);
             GoogleAuthStatusText.Text = "✅ 연동됨 (캘린더 매핑 실패)";
         }
     }
@@ -276,7 +276,7 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CalendarSettingsDialog] 캘린더 목록 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("CalendarSettings", "구글 달력 목록을 읽지 못했다 — 달력이 없는 것처럼 보인다", ex);
         }
     }
 
@@ -372,7 +372,7 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
         catch (Exception ex)
         {
             UploadScheduleStatusText.Text = $"❌ 등록 실패: {ex.Message}";
-            Debug.WriteLine($"[CalendarSettingsDialog] 학사일정 등록 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("CalendarSettings", "학사일정을 구글에 올리지 못했다", ex);
         }
         finally
         {

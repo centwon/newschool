@@ -177,7 +177,7 @@ public sealed partial class PostEditPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"카테고리 목록 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("PostEdit", $"분류 목록을 읽지 못해 기본값으로 채운다: {ex.Message}");
             _allCategories = new List<string>(_defaultCategories);
             CategoryComboBox.ItemsSource = _allCategories;
         }
@@ -246,7 +246,7 @@ public sealed partial class PostEditPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"주제 목록 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("PostEdit", $"주제 목록을 읽지 못했다: {ex.Message}");
             _allSubjects.Clear();
         }
     }

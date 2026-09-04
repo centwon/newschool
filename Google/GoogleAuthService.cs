@@ -181,6 +181,7 @@ public sealed class GoogleAuthService : IDisposable
         }
         catch (OperationCanceledException)
         {
+            // 사용자가 브라우저를 닫은 정상 취소도 여기로 온다 — 오류로 남기지 않는다.
             LastAuthError = "인증 시간이 초과되었거나 취소되었습니다.";
             Debug.WriteLine("[GoogleAuth] 인증 시간 초과 또는 취소");
             return false;
@@ -188,7 +189,7 @@ public sealed class GoogleAuthService : IDisposable
         catch (Exception ex)
         {
             LastAuthError = ex.Message;
-            Debug.WriteLine($"[GoogleAuth] 인증 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("GoogleAuth", "구글 인증 실패", ex);
             return false;
         }
     }
@@ -246,7 +247,8 @@ public sealed class GoogleAuthService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GoogleAuth] 토큰 갱신 실패: {ex.Message}");
+            // 갱신 실패 = 자동 동기화가 조용히 멎는다. 화면에는 아무 표시도 없다.
+            NewSchool.Logging.Log.Error("GoogleAuth", "토큰 갱신 실패 — 자동 동기화가 멈춘다", ex);
             return false;
         }
     }
@@ -362,7 +364,8 @@ public sealed class GoogleAuthService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GoogleAuth] Revoke 실패 (무시): {ex.Message}");
+            // 연동 해제는 로컬 토큰 삭제로 끝나지만, 구글 쪽 권한이 남았을 수 있다는 사실은 남긴다.
+            NewSchool.Logging.Log.Warning("GoogleAuth", $"구글 쪽 권한 회수(Revoke)에 실패했다: {ex.Message}");
         }
     }
 
@@ -413,7 +416,9 @@ public sealed class GoogleAuthService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GoogleAuth] 암호화 실패: {ex.Message}");
+            // 빈 문자열을 저장하면 다음 실행에 "연동되지 않음" 으로 떨어진다 —
+            // 사용자에게는 저절로 로그아웃된 것처럼 보이므로 이유가 남아야 한다.
+            NewSchool.Logging.Log.Error("GoogleAuth", "토큰 암호화 실패 — 연동이 풀린 것처럼 보인다", ex);
             return string.Empty;
         }
     }
@@ -429,7 +434,9 @@ public sealed class GoogleAuthService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GoogleAuth] 복호화 실패: {ex.Message}");
+            // 다른 PC 로 옮긴 백업이면 DPAPI 복호화가 실패하는 것이 정상이다(48차 확인).
+            // 그 경우까지 오류로 떠들지는 않되, 원인을 모르는 채 연동이 풀리지는 않게 남긴다.
+            NewSchool.Logging.Log.Warning("GoogleAuth", $"저장된 토큰을 복호화하지 못했다(재연동 필요): {ex.Message}");
             return string.Empty;
         }
     }

@@ -140,7 +140,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[TodayPage] 페이지 로드 오류: {ex.GetType().Name} - {ex.Message}");
+            NewSchool.Logging.Log.Error("TodayPage", "오늘 화면을 통째로 채우지 못했다", ex);
         }
 
         if (failed.Count > 0 && App.MainWindow is MainWindow main)
@@ -211,7 +211,8 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[TodayPage] ✗ {name} 로드 실패: {ex}");
+            // 사용자에게는 이름만 알린다(위 InfoBar). 왜 실패했는지는 여기서만 남는다.
+            NewSchool.Logging.Log.Error("TodayPage", $"{name} 을(를) 불러오지 못했다", ex);
             lock (failed) failed.Add(name);
         }
     }

@@ -198,7 +198,8 @@ public class PostDetailViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Post 로드 실패: {ex.Message}");
+            // 글 본문이 안 뜬 채 빈 화면이 남는다 — 사용자에게는 글이 지워진 것처럼 보인다.
+            NewSchool.Logging.Log.Error("PostDetail", $"글을 읽지 못했다: No={postNo}", ex);
         }
         finally
         {
@@ -218,7 +219,8 @@ public class PostDetailViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"댓글 로드 실패: {ex.Message}");
+            // 댓글이 0개인 것과 못 읽은 것이 화면에서 같아 보인다.
+            NewSchool.Logging.Log.Error("PostDetail", $"댓글을 읽지 못했다: No={postNo}", ex);
         }
     }
 
@@ -280,7 +282,8 @@ public class PostDetailViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"파일 로드 실패: {ex.Message}");
+            // 첨부가 없는 것과 목록을 못 읽은 것이 화면에서 같아 보인다 — 첨부는 되찾기 어려운 자료다.
+            NewSchool.Logging.Log.Error("PostDetail", $"첨부 목록을 읽지 못했다: No={postNo}", ex);
         }
     }
 
@@ -466,7 +469,7 @@ public class PostDetailViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"고아 첨부 파일 정리 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("PostDetail", $"남은 첨부 파일을 지우지 못했다: {ex.Message}");
         }
     }
 
@@ -498,7 +501,8 @@ public class PostDetailViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"댓글 파일 저장 실패: {ex.Message}");
+            // 호출부가 빈 이름을 보고 첨부 없이 등록하며 안내를 띄운다 — 이유는 여기서만 남는다.
+            NewSchool.Logging.Log.Error("PostDetail", "댓글 첨부를 저장하지 못했다", ex);
             return string.Empty;
         }
     }

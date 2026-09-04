@@ -193,7 +193,7 @@ public static class KoreanImeHelper
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[KoreanImeHelper] IME 전환 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("KoreanImeHelper", $"한글 입력 모드로 바꾸지 못했다: {ex.Message}");
         }
     }
 

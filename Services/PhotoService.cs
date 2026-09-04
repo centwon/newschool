@@ -88,8 +88,11 @@ public class PhotoService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PhotoService] PickAndSavePhotoAsync 오류: {ex.Message}");
-            return null;
+            // ⚠ 여기서 null 을 돌려주면 안 된다 — null 은 "사용자가 고르지 않았다" 는 뜻이고,
+            //   호출부는 그 값으로 "사진 등록이 취소되었습니다" 를 띄운다. 저장이 실패한 것을
+            //   취소라고 말하면 사용자는 다시 시도조차 하지 않는다.
+            NewSchool.Logging.Log.Error("PhotoService", $"사진 선택·저장 실패: {studentId}", ex);
+            throw;
         }
     }
 
@@ -125,7 +128,7 @@ public class PhotoService
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[PhotoService] 이전 사진 정리 실패: {oldPath} — {ex.Message}");
+                NewSchool.Logging.Log.Warning("PhotoService", $"확장자가 다른 옛 사진을 지우지 못했다: {oldPath} — {ex.Message}");
             }
         }
 
@@ -277,7 +280,8 @@ public class PhotoService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PhotoService] LoadPhotoAsync 오류: {ex.Message}");
+            // 사진이 안 보이는 것은 화면만으로는 "등록 안 함" 과 구별되지 않는다 — 이유를 남긴다.
+            NewSchool.Logging.Log.Warning("PhotoService", $"사진을 읽지 못했다: {photoPath} — {ex.Message}");
             return null;
         }
     }
@@ -318,7 +322,7 @@ public class PhotoService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PhotoService] DeletePhotoAsync 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("PhotoService", $"사진 파일 삭제 실패: {photoPath}", ex);
             return false;
         }
     }

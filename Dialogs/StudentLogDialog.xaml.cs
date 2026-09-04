@@ -95,7 +95,7 @@ public sealed partial class StudentLogDialog : Window
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[StudentLogDialog] 학생 정보 로드 실패: {ex.Message}");
+                NewSchool.Logging.Log.Error("StudentLogDialog", "학생 정보를 읽지 못했다 — '학생 정보 없음' 으로 표시된다", ex);
                 TxtStudentInfo.Text = "학생 정보 없음";
             }
         }
@@ -362,7 +362,7 @@ public sealed partial class StudentLogDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentLogDialog] 학생 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentLogDialog", "학급 학생 명단을 읽지 못했다", ex);
         }
     }
 
@@ -384,7 +384,7 @@ public sealed partial class StudentLogDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentLogDialog] 과목 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentLogDialog", "수업 목록을 읽지 못했다", ex);
         }
     }
 
@@ -405,7 +405,7 @@ public sealed partial class StudentLogDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentLogDialog] 동아리 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentLogDialog", "동아리 목록을 읽지 못했다", ex);
         }
     }
 
@@ -433,7 +433,7 @@ public sealed partial class StudentLogDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentLogDialog] 수강생 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentLogDialog", "수강생 명단을 읽지 못해 목록을 비운다", ex);
             ListStudents.ClearStudents();
         }
     }
@@ -462,7 +462,7 @@ public sealed partial class StudentLogDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentLogDialog] 동아리 학생 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentLogDialog", "동아리 학생 명단을 읽지 못해 목록을 비운다", ex);
             ListStudents.ClearStudents();
         }
     }
@@ -518,7 +518,7 @@ public sealed partial class StudentLogDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentLogDialog] 학년 목록 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentLogDialog", "학년 목록을 읽지 못했다", ex);
         }
     }
 
@@ -563,7 +563,7 @@ public sealed partial class StudentLogDialog : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StudentLogDialog] 반 목록 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("StudentLogDialog", "반 목록을 읽지 못했다", ex);
         }
     }
 

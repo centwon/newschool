@@ -103,7 +103,7 @@ public static class DateTimeHelper
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[DateTimeHelper] ToStandardString 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("DateTimeHelper", $"날짜를 문자열로 바꾸지 못해 최솟값으로 적는다: {ex.Message}");
             return DateTime.MinValue.ToString(STANDARD_FORMAT, CultureInfo.InvariantCulture);
         }
     }

@@ -33,7 +33,7 @@ public sealed partial class PageSchoolWork : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[PageSchoolWork] 할 일 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("PageSchoolWork", "할 일을 읽지 못했다 — 할 일이 없는 것처럼 보인다", ex);
         }
 
         // 업무 게시판 초기화 (한 번만)

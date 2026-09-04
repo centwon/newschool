@@ -150,7 +150,8 @@ public sealed partial class CoursePicker : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CoursePicker] 과목 조회 오류: {ex.Message}");
+            // 빈 목록으로 넘어간다 — "등록한 수업이 없다" 와 구별되지 않는다.
+            NewSchool.Logging.Log.Error("CoursePicker", "수업 목록을 읽지 못해 빈 목록으로 넘긴다", ex);
             return new List<Course>();
         }
     }

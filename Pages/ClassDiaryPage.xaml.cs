@@ -172,7 +172,7 @@ public sealed partial class ClassDiaryPage : Page
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[ClassDiaryPage] 당일 기록 로드 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("ClassDiaryPage", "당일 누가기록을 읽지 못했다 — 기록이 없는 것처럼 보인다", ex);
             DailyLogList.Clear();
             TxtDailyLogCount.Text = "로드 실패";
         }
@@ -332,7 +332,7 @@ public sealed partial class ClassDiaryPage : Page
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[ClassDiaryPage] 학생 기록 필터 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("ClassDiaryPage", $"학생 기록으로 걸러 내지 못했다: {ex.Message}");
         }
     }
 

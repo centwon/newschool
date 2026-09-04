@@ -178,7 +178,13 @@ public sealed partial class PostListPage : Page
                     Debug.WriteLine($"  -> ItemsRepeater 수동 업데이트: Visibility={PostsRepeater.Visibility}");
                     break;
 
+                case nameof(ViewModel.EmptyText):
+                    EmptyMessage.Text = ViewModel.EmptyText;
+                    break;
+
                 case nameof(ViewModel.IsEmpty):
+                    // 왜 비었는지(글이 없다 / 못 읽었다)를 함께 갈아 준다.
+                    EmptyMessage.Text = ViewModel.EmptyText;
                     EmptyMessage.Visibility = ViewModel.IsEmpty;
                     Debug.WriteLine($"  -> EmptyMessage 수동 업데이트: Visibility={EmptyMessage.Visibility}");
                     break;
@@ -397,7 +403,7 @@ public sealed partial class PostListPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"카테고리 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("PostList", $"분류 목록을 읽지 못했다: {ex.Message}");
         }
 
         CategoryComboBox.SelectedIndex = 0;
@@ -449,7 +455,7 @@ public sealed partial class PostListPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Subject 필터 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("PostList", $"주제 필터를 읽지 못했다: {ex.Message}");
         }
 
         // 현재 Subject가 있으면 선택, 없으면 "전체"

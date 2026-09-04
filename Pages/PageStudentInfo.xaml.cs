@@ -140,7 +140,7 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] InitializeServices 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("PageStudentInfo", "학생 정보 화면을 준비하지 못했다", ex);
         }
     }
 
@@ -635,7 +635,7 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] LoadStudentLogsAsync 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("PageStudentInfo", "누가기록을 읽지 못했다 — 기록이 없는 것처럼 보인다", ex);
         }
     }
 
@@ -722,7 +722,8 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] SaveChangedAsync 오류: {ex.Message}");
+            // 자동 저장 경로다 — 사용자는 저장된 줄 알고 창을 닫는다.
+            NewSchool.Logging.Log.Error("PageStudentInfo", $"학생 정보 자동 저장 실패: {_currentStudentId}", ex);
             return false;
         }
     }
@@ -1283,7 +1284,7 @@ public sealed partial class PageStudentInfo : Page, IDisposable
             {
                 failCount++;
                 failedStudents.Add($"{item.Number}번 {item.Name}");
-                Debug.WriteLine($"[PageStudentInfo] 학생 저장 실패 ({item.Number}번 {item.Name}): {ex.Message}");
+                NewSchool.Logging.Log.Error("PageStudentInfo", $"일괄 저장 실패 ({item.Number}번 {item.Name}): {ex.Message}");
             }
         }
 

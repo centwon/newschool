@@ -92,7 +92,8 @@ public sealed partial class Kcalendar : Page
     {
         Debug.WriteLine($"[Kcalendar] 1단계: 데이터베이스 초기화");
         //Scheduler 초기화
-        await NewSchool.Scheduler.Scheduler.InitAsync();  // 내부에서 파일 존재 여부 + 플래그 체크함
+        if (!await NewSchool.Scheduler.Scheduler.InitAsync())
+            NewSchool.Logging.Log.Error("Kcalendar", "일정 DB 를 준비하지 못했다 — 달력이 비어 보인다");
 
         ApplyHeaderFontSize();
 
@@ -132,7 +133,7 @@ public sealed partial class Kcalendar : Page
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"DayCell 생성 오류 (인덱스 {i}): {ex.Message}");
+                NewSchool.Logging.Log.Warning("Kcalendar", $"날짜 칸 {i} 을(를) 만들지 못했다: {ex.Message}");
             }
         }
 
@@ -212,7 +213,7 @@ public sealed partial class Kcalendar : Page
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Kcalendar] 스케줄 로드 오류: {ex}");
+                    NewSchool.Logging.Log.Error("Kcalendar", "학사일정을 읽지 못했다", ex);
                     newSchedules = new List<SchoolSchedule>();
                     failed.Add("학사일정");
                 }
@@ -242,7 +243,7 @@ public sealed partial class Kcalendar : Page
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Kcalendar] KEvent 로드 오류: {ex}");
+                NewSchool.Logging.Log.Error("Kcalendar", "일정·할 일을 읽지 못했다", ex);
                 newEvents = new List<KEvent>();
                 failed.Add("일정·할 일");
             }
@@ -254,7 +255,7 @@ public sealed partial class Kcalendar : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Kcalendar] 데이터 로드 전체 오류: {ex}");
+            NewSchool.Logging.Log.Error("Kcalendar", "달력 자료를 통째로 읽지 못했다 — 빈 달력으로 보인다", ex);
 
             SchoolSchedules = new List<SchoolSchedule>();
             KEvents = new List<KEvent>();
@@ -349,7 +350,7 @@ public sealed partial class Kcalendar : Page
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[UpdateCellsDisplayAsync] DayInfo 준비 오류 (인덱스 {i}): {ex.Message}");
+                        NewSchool.Logging.Log.Warning("Kcalendar", $"날짜 칸 {i} 의 내용을 준비하지 못했다: {ex.Message}");
                         dayInfos[i] = new DayInfo
                         {
                             Date = cellDate,
@@ -383,7 +384,7 @@ public sealed partial class Kcalendar : Page
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[UpdateCellsDisplayAsync] 셀 {i} 업데이트 오류: {ex.Message}");
+                    NewSchool.Logging.Log.Warning("Kcalendar", $"날짜 칸 {i} 을(를) 갱신하지 못했다: {ex.Message}");
                 }
             }
 
@@ -541,7 +542,7 @@ public sealed partial class Kcalendar : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Kcalendar] 오류 메시지 표시 실패: {message}");
+            NewSchool.Logging.Log.Error("Kcalendar", $"오류 안내를 띄우지 못했다 — 사용자는 아무 반응도 못 본다: {message}", ex);
             Debug.WriteLine($"[Kcalendar] 내부 오류: {ex.Message}");
         }
     }

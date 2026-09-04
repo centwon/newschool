@@ -71,7 +71,8 @@ public partial class App : Application
             }
             catch (Exception reportEx)
             {
-                Debug.WriteLine($"[App] 오류 알림 실패: {reportEx.Message}");
+                // 전역 처리기 안이다 — 알림까지 실패하면 사용자는 아무것도 못 본다.
+            FileLogger.Instance.Error("[App] 전역 오류 알림 표시 실패", reportEx);
             }
         };
 
@@ -158,7 +159,8 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[App] 설정 초기화 실패: {ex}");
+            // 로거도 아직 못 세웠을 수 있지만, 세워졌다면 여기가 유일한 흔적이다.
+            FileLogger.Instance.Critical($"[App] 설정 초기화 실패: {ex}");
             await ShowFatalStartupErrorAsync(
                 "데이터 폴더를 쓸 수 없습니다",
                 $"설정을 저장할 폴더를 준비하지 못했습니다.\n\n" +
@@ -200,11 +202,30 @@ public partial class App : Application
         }
 
         // 2-1. DB 초기화 (독립적인 3개 DB를 병렬 초기화)
-        await Task.WhenAll(
+        //
+        // ⚠ 예전에는 세 결과를 모두 버렸다. 폴더가 읽기 전용이거나 공간이 없어 테이블을
+        //   만들지 못해도 앱은 그대로 떴고, 화면마다 "자료 없음" 으로 보였다. 그 위에 새로
+        //   입력하면 예전 자료와 어긋난다. 손상(2.)과 달리 무결성 검사에는 걸리지 않는
+        //   실패라, 여기서 막지 않으면 아무도 못 잡는다.
+        var initResults = await Task.WhenAll(
             NewSchool.Board.Board.InitAsync(),
             NewSchool.Scheduler.Scheduler.InitAsync(),
             NewSchool.SchoolDatabase.InitAsync()
         );
+
+        var failedDbs = new System.Collections.Generic.List<string>();
+        if (!initResults[0]) failedDbs.Add(Helpers.StartupDbFailureText.Board);
+        if (!initResults[1]) failedDbs.Add(Helpers.StartupDbFailureText.Scheduler);
+        if (!initResults[2]) failedDbs.Add(Helpers.StartupDbFailureText.School);
+
+        var failureText = Helpers.StartupDbFailureText.Describe(failedDbs, Settings.UserDataPath);
+        if (failureText != null)
+        {
+            FileLogger.Instance.Critical($"[App] DB 초기화 실패: {string.Join(", ", failedDbs)}");
+            await ShowFatalStartupErrorAsync("자료를 열지 못했습니다", failureText);
+            return; // 빈 화면으로 들여보내지 않는다
+        }
+
         Debug.WriteLine("[App] 데이터베이스 초기화 완료 (Board, Scheduler, School)");
 
         // 3-1. 자동 백업 (필요 시) — 백그라운드로 밀어 시작 시간 단축
@@ -301,7 +322,9 @@ public partial class App : Application
         catch (Exception ex)
         {
             // 안내조차 못 띄우는 상황 — 그래도 조용히 사라지지는 않게 남긴다.
+            // ⚠ Debug.WriteLine 만으로는 배포본에서 아무 흔적도 없다(48·49차와 같은 병).
             Debug.WriteLine($"[App] 시작 실패 안내 표시 실패: {ex.Message}");
+            FileLogger.Instance.Critical($"[App] 시작 실패 안내를 띄우지 못했다: {title} — {ex.Message}");
         }
         finally
         {
@@ -440,7 +463,9 @@ public partial class App : Application
             var token = await authService.GetValidAccessTokenAsync();
             if (string.IsNullOrEmpty(token))
             {
-                Debug.WriteLine("[App] Google 토큰 갱신 실패 — 동기화 건너뜀");
+                // 연동해 둔 사용자에게는 "자동으로 되고 있다" 가 기본 기대다.
+                // 조용히 건너뛰면 몇 달이 지나도 아무도 모른다(48차 자동 백업과 같은 병).
+                Log.Warning("App", "Google 토큰을 갱신하지 못해 동기화를 건너뛴다 — 다시 연동해야 할 수 있다");
                 return;
             }
 
@@ -470,7 +495,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[App] Google 동기화 시작 오류: {ex.Message}");
+            Log.Error("App", "Google 동기화를 시작하지 못했다", ex);
         }
     }
 
@@ -496,7 +521,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[App] 창 띄우기 실패: {ex.Message}");
+            Log.Warning("App", $"이미 떠 있는 창을 앞으로 불러내지 못했다: {ex.Message}");
         }
     }
 

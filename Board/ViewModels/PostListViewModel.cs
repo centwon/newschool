@@ -241,6 +241,19 @@ public class PostListViewModel : NotifyPropertyChangedBase
     /// </summary>
     public string TotalCountText => TotalCount > 0 ? $"전체 {TotalCount}개" : string.Empty;
 
+    /// <summary>
+    /// 목록이 비었을 때 그 자리에 적을 말.
+    ///
+    /// <para>⚠ 읽기에 실패해도 화면은 <b>"게시글이 없습니다."</b> 였다. 글이 사라진 것과
+    /// 못 읽은 것은 사용자에게 전혀 다른 일인데(전자는 체념, 후자는 재시도·복원) 구별할
+    /// 방법이 없었다. 수업 일지 목록(<c>LessonJournalList</c>)은 이미 이렇게 구별한다.</para>
+    /// </summary>
+    public string EmptyText => _loadFailed
+        ? "게시글을 불러오지 못했습니다. 글이 지워진 것이 아니라 읽기에 실패한 것입니다."
+        : "게시글이 없습니다.";
+
+    private bool _loadFailed;
+
     /// <summary>페이저에 그릴 칸(첫 장 · 생략표 · 현재 둘레 · 끝 장).</summary>
     public IReadOnlyList<PageToken> PageTokens => PageWindow.Build(CurrentPage, TotalPages);
 
@@ -305,6 +318,7 @@ public class PostListViewModel : NotifyPropertyChangedBase
             //    화면에는 "1 / N 페이지"가 찍혔다.
             if (resetToFirstPage) CurrentPage = 1;
 
+            _loadFailed = false;
             IsLoading = true;
             Debug.WriteLine($"=== Posts 로딩 시작 (page={CurrentPage}, 검색='{_appliedSearchText}') ===");
 
@@ -332,7 +346,8 @@ public class PostListViewModel : NotifyPropertyChangedBase
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"댓글 개수 일괄 조회 실패: {ex.Message}");
+                // 댓글 수만 0 으로 보일 뿐 글은 다 나온다 — 목록을 막지는 않되 이유는 남긴다.
+                NewSchool.Logging.Log.Warning("PostList", $"댓글 개수를 읽지 못해 0 으로 보인다: {ex.Message}");
                 commentCounts = new Dictionary<int, int>();
             }
 
@@ -358,11 +373,13 @@ public class PostListViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Post 로드 실패: {ex.Message}");
-            Debug.WriteLine($"StackTrace: {ex.StackTrace}");
+            // 읽지 못한 것을 "글이 없음" 으로 보여 주지 않는다 — 목록 문구로 구별하고 기록도 남긴다.
+            _loadFailed = true;
+            NewSchool.Logging.Log.Error("PostList", "게시글 목록을 읽지 못했다", ex);
         }
         finally
         {
+            OnPropertyChanged(nameof(EmptyText));
             IsLoading = false;
             Debug.WriteLine("IsLoading = false");
 

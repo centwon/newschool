@@ -108,7 +108,7 @@ public sealed partial class CourseEditDialog : ContentDialog
         catch (Exception ex)
         {
             // 세지 못하면 잠그지 않는다 — 못 고치게 막는 쪽이 더 나쁘다.
-            Debug.WriteLine($"[CourseEditDialog] 강의실 영향 조사 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("CourseEditDialog", $"강의실 영향을 세지 못해 잠그지 않는다: {ex.Message}");
             return;
         }
 

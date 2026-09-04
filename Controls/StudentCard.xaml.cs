@@ -341,7 +341,18 @@ public sealed partial class StudentCard : UserControl
 
             if (success)
             {
-                await ViewModel.SaveAsync();
+                // ⚠ 화면만 비우는 것이 ResetAllInfoAsync 이고, DB 에 쓰는 것은 SaveAsync 다.
+                //   그 결과를 버리면 저장이 실패해도 "초기화되었습니다" 라고 말하게 되고,
+                //   다른 학생을 골랐다 돌아오면 옛 값이 그대로 보인다(사진은 이미 지워진 뒤다).
+                //   형제인 PageStudentInfo 의 같은 흐름은 처음부터 확인하고 있었다.
+                if (!await ViewModel.SaveAsync())
+                {
+                    await MessageBox.ShowAsync(
+                        "화면은 비웠지만 저장하지 못했습니다. [저장] 으로 다시 시도하세요.",
+                        "저장 실패");
+                    return;
+                }
+
                 await MessageBox.ShowAsync("초기화되었습니다.", "초기화");
             }
             else

@@ -93,7 +93,7 @@ public sealed partial class YearSemesterPicker : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[YearSemesterPicker] 초기화 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("YearSemesterPicker", "학년도·학기 선택기를 준비하지 못했다", ex);
         }
         finally
         {
@@ -115,7 +115,7 @@ public sealed partial class YearSemesterPicker : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[YearSemesterPicker] 학년도 조회 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("YearSemesterPicker", "학년도 목록을 읽지 못했다", ex);
         }
 
         // DB에 데이터 없으면 현재 작업연도 포함 최근 3년 기본값

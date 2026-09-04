@@ -212,7 +212,7 @@ public sealed partial class CourseEnrollmentDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CourseEnrollmentDialog] 데이터 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("CourseEnrollmentDialog", "수업·학생 자료를 읽지 못했다", ex);
         }
     }
 

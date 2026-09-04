@@ -75,7 +75,7 @@ public static class UpdateService
         }
         catch (HttpRequestException ex)
         {
-            Debug.WriteLine($"[UpdateService] 네트워크 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("UpdateService", $"업데이트 서버에 연결하지 못했다: {ex.Message}");
             return UpdateResult.Fail("서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.");
         }
         catch (TaskCanceledException)
@@ -84,7 +84,7 @@ public static class UpdateService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[UpdateService] 업데이트 확인 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("UpdateService", "업데이트 확인에 실패했다", ex);
             return UpdateResult.Fail($"업데이트 확인 중 오류가 발생했습니다: {ex.Message}");
         }
     }

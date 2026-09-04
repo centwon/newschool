@@ -78,7 +78,7 @@ public sealed partial class SettingsPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SettingsPage] 설정 로드 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("SettingsPage", "설정 화면을 채우지 못했다 — 빈 값으로 보인다", ex);
         }
     }
 
@@ -181,7 +181,7 @@ public sealed partial class SettingsPage : Page
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SettingsPage] 학교 추가 정보 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("SettingsPage", "학교 추가 정보를 읽지 못했다 — 빈 칸으로 보인다", ex);
         }
     }
 

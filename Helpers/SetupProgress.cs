@@ -31,7 +31,7 @@ public static class SetupProgress
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SetupProgress] 학생 수 조회 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("SetupProgress", $"학생 수를 세지 못해 '있음' 으로 본다(첫 실행 안내 생략): {ex.Message}");
             return true;
         }
     }
@@ -51,7 +51,7 @@ public static class SetupProgress
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SetupProgress] 수업 수 조회 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("SetupProgress", $"수업 수를 세지 못해 '있음' 으로 본다(첫 실행 안내 생략): {ex.Message}");
             return true;
         }
     }

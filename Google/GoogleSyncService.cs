@@ -115,6 +115,10 @@ public sealed class GoogleSyncService : IDisposable
                 }
                 catch (Exception ex)
                 {
+                    // ⚠ 여기(와 아래 Push·Upload 의 낱낱 catch)는 일부러 로그를 남기지 않는다.
+                    //   실패 사유는 ErrorMessages 로 모여 화면(InfoBar)에 뜨고, 파일 기록은
+                    //   SyncAllAsync 끝에서 한 줄로 모아 남긴다. 15분마다 도는 배경 작업이라
+                    //   낱낱이 남기면 같은 문장이 로그를 가득 채운다.
                     totalResult.Errors++;
                     totalResult.ErrorMessages.Add($"{calendar.Title}: {ex.Message}");
                     Debug.WriteLine($"[GoogleSync] {calendar.Title} 동기화 실패: {ex.Message}");
@@ -131,6 +135,13 @@ public sealed class GoogleSyncService : IDisposable
                 Settings.GoogleLastSyncTime.Set(DateTime.UtcNow.ToString("o"));
 
             Debug.WriteLine($"[GoogleSync] 전체 동기화 완료: {totalResult.Summary}");
+
+            // 낱낱의 실패는 result 에 모여 화면(InfoBar)으로 가지만, 화면이 없을 때
+            // (배경 주기 동기화·창이 닫힌 뒤)는 아무 데도 남지 않았다. 한 줄로 모아 남긴다.
+            if (totalResult.Errors > 0)
+                NewSchool.Logging.Log.Warning("GoogleSync",
+                    $"동기화 {totalResult.Errors}건 실패: " +
+                    string.Join(" / ", totalResult.ErrorMessages.Distinct().Take(3)));
         }
         catch (Exception ex)
         {
@@ -351,7 +362,8 @@ public sealed class GoogleSyncService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GoogleSync] 학사일정 중복 확인 실패: {ex.Message}");
+            // 빈 집합을 캐시하면 중복 검사가 통째로 꺼진 것과 같다 — 같은 일정이 또 올라간다.
+            NewSchool.Logging.Log.Error("GoogleSync", "학사일정 중복 확인 실패 — 같은 일정이 다시 등록될 수 있다", ex);
             // 빈 집합을 캐시한다 — 같은 동기화에서 같은 날짜로 계속 실패 조회하지 않도록
         }
 
@@ -873,7 +885,9 @@ public sealed class GoogleSyncService : IDisposable
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[GoogleSync] 주기적 동기화 오류: {ex.Message}");
+                        // 배경에서 도는 일이라 화면에는 아무 표시도 없다 — 로그가 유일한 흔적이다.
+                        // 예전에는 그 흔적조차 [Conditional("DEBUG")] 라 배포본에서 사라졌다.
+                        NewSchool.Logging.Log.Error("GoogleSync", "주기적 동기화 실패", ex);
                     }
                 }
             }

@@ -106,7 +106,8 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             if (!SchoolDatabase.DatabaseExists())
             {
                 System.Diagnostics.Debug.WriteLine("[StudentManagement] DB 파일이 없습니다. 초기화 시작...");
-                await SchoolDatabase.InitAsync();
+                if (!await SchoolDatabase.InitAsync())
+                    Logging.Log.Error("StudentManagement", "학생 DB 를 새로 만들지 못했다 — 목록이 비어 보인다");
             }
 
             // Enrollment 테이블 존재 확인
@@ -122,7 +123,8 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                 System.Diagnostics.Debug.WriteLine("[StudentManagement] Enrollment 테이블이 없습니다. 재초기화...");
 
                 // CREATE TABLE IF NOT EXISTS 를 다시 걸어 빠진 테이블을 채운다.
-                await SchoolDatabase.InitAsync();
+                if (!await SchoolDatabase.InitAsync())
+                    Logging.Log.Error("StudentManagement", "빠진 테이블을 채우지 못했다", ex);
             }
         }
         catch (Exception ex)
@@ -303,7 +305,7 @@ public sealed partial class StudentManagementPage : Page, IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[StudentManagement] 행 갱신 실패: {ex.Message}");
+            NewSchool.Logging.Log.Warning("StudentManagement", $"행을 갱신하지 못해 목록을 다시 읽는다: {ex.Message}");
             await LoadStudentsAsync();
         }
     }
@@ -485,8 +487,8 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[StudentManagement] 학적 이력 확인 실패({studentId}): {ex.Message}");
+                NewSchool.Logging.Log.Warning("StudentManagement",
+                    $"학적 이력을 확인하지 못해 '마지막 학적' 경고가 빠진다({studentId}): {ex.Message}");
             }
         }
 
@@ -557,8 +559,8 @@ public sealed partial class StudentManagementPage : Page, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[StudentManagement] 삭제 실패 - {vm.Name}: {ex.Message}");
+                    // 아래에서 "N명 중 M명만 뺐습니다" 로 알리지만, 왜인지는 여기서만 남는다.
+                    NewSchool.Logging.Log.Error("StudentManagement", $"명부에서 빼지 못했다: {vm.Name}", ex);
                 }
             }
 

@@ -180,7 +180,8 @@ public sealed class FileLogger : IDisposable
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"로그 기록 실패: {ex.Message}");
+                // 로거 자신의 실패 — 로그로 알릴 수 없다(아래 WriteEntriesToFile 참고).
+            System.Diagnostics.Debug.WriteLine($"로그 기록 실패: {ex.Message}");
             }
         }
     }
@@ -213,6 +214,9 @@ public sealed class FileLogger : IDisposable
         }
         catch (Exception ex)
         {
+            // ⚠ 이 클래스 안에서만은 Debug.WriteLine 이 맞다 — 로그를 못 쓰는 상황에서
+            //   로그로 알리려 하면 같은 실패를 되풀이하거나 재귀에 빠진다.
+            //   (다른 곳에서 Debug.WriteLine 만 남기는 것은 배포본에서 흔적이 사라지므로 금지다.)
             System.Diagnostics.Debug.WriteLine($"로그 파일 쓰기 실패: {ex.Message}");
         }
     }
@@ -279,6 +283,7 @@ public sealed class FileLogger : IDisposable
         }
         catch (Exception ex)
         {
+            // 로거 자신의 실패 — 로그로 알릴 수 없다(위 WriteEntriesToFile 참고).
             System.Diagnostics.Debug.WriteLine($"로그 회전 실패: {ex.Message}");
         }
     }
@@ -303,6 +308,7 @@ public sealed class FileLogger : IDisposable
         }
         catch (Exception ex)
         {
+            // 로거 자신의 실패 — 로그로 알릴 수 없다(위 WriteEntriesToFile 참고).
             System.Diagnostics.Debug.WriteLine($"로그 정리 실패: {ex.Message}");
         }
     }

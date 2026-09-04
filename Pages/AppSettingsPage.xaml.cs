@@ -56,10 +56,23 @@ public sealed partial class AppSettingsPage : Page
 
     #region 일반
 
-    private void OnStartWithWindowsToggled(object sender, RoutedEventArgs e)
+    private async void OnStartWithWindowsToggled(object sender, RoutedEventArgs e)
     {
         if (!_isInitialized) return;
-        Settings.SetStartWithWindows(StartWithWindowsToggle.IsOn);
+
+        bool wanted = StartWithWindowsToggle.IsOn;
+        if (Settings.SetStartWithWindows(wanted)) return;
+
+        // ⚠ 실패하면 토글을 되돌린다 — 켜진 채로 두면 "다음에 켤 때 자동으로 뜬다" 고
+        //   믿게 되고, 그 사실은 다음 부팅에야 드러난다.
+        _isInitialized = false;
+        StartWithWindowsToggle.IsOn = Settings.IsStartWithWindowsRegistered();
+        _isInitialized = true;
+
+        await MessageBox.ShowAsync(
+            $"Windows 시작 시 자동 실행을 {(wanted ? "켜지" : "끄지")} 못했습니다.\n" +
+            "회사·학교 정책으로 시작 프로그램 등록이 막혀 있을 수 있습니다.",
+            "설정 실패");
     }
 
     private void OnTopMostToggled(object sender, RoutedEventArgs e)
@@ -385,7 +398,7 @@ public sealed partial class AppSettingsPage : Page
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AppSettingsPage] 다운로드 링크 열기 실패: {ex}");
+            NewSchool.Logging.Log.Error("AppSettingsPage", "다운로드 페이지를 열지 못했다", ex);
             UpdateStatusText.Text = $"브라우저를 열지 못했습니다: {ex.Message}";
         }
     }

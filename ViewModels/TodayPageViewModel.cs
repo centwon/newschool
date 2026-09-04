@@ -106,7 +106,7 @@ public class TodayPageViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[TodayPageViewModel] 데이터 로드 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("TodayPageViewModel", "오늘 화면 자료를 읽지 못했다", ex);
             Debug.WriteLine($"[TodayPageViewModel] StackTrace: {ex.StackTrace}");
         }
         finally
@@ -164,7 +164,7 @@ public class TodayPageViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[TodayPageViewModel] 학사일정 로드 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("TodayPageViewModel", "학사일정을 읽지 못했다 — 일정이 없는 것처럼 보인다", ex);
         }
     }
     
@@ -189,7 +189,7 @@ public class TodayPageViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[TodayPageViewModel] 할일 목록 로드 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("TodayPageViewModel", "할 일 목록을 읽지 못했다 — 할 일이 없는 것처럼 보인다", ex);
         }
     }
     
@@ -221,7 +221,7 @@ public class TodayPageViewModel : NotifyPropertyChangedBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[TodayPageViewModel] 급식 정보 로드 오류: {ex.Message}");
+            NewSchool.Logging.Log.Warning("TodayPageViewModel", $"급식 정보를 읽지 못했다: {ex.Message}");
             Debug.WriteLine($"[TodayPageViewModel] StackTrace: {ex.StackTrace}");
         }
     }

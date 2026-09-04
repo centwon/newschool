@@ -81,7 +81,7 @@ public sealed class TeacherService : IDisposable
         catch (Exception ex)
         {
             teacherRepo.Rollback();
-            Debug.WriteLine($"[TeacherService] 교사 등록 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("TeacherService", "교사 등록 실패(롤백함)", ex);
             return (false, $"교사 등록 중 오류가 발생했습니다: {ex.Message}", string.Empty);
         }
     }

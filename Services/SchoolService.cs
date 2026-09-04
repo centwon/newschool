@@ -85,7 +85,7 @@ public sealed class SchoolService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolService] 학교 조회 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("SchoolService", "학교 정보를 읽지 못해 null 로 넘긴다", ex);
             return null;
         }
     }

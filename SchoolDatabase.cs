@@ -40,10 +40,16 @@ public static class SchoolDatabase
     #region Initialization
 
     /// <summary>
-    /// School 데이터베이스 초기화
-    /// App.xaml.cs에서 호출
+    /// School 데이터베이스 초기화. App.xaml.cs 에서 호출한다.
+    ///
+    /// <para>⚠ 예전에는 <c>Task</c> 를 돌려주며 <b>모든 실패를 삼켰다</b>. 폴더를 못 만들거나
+    /// 테이블을 못 만들어도 앱은 그대로 떴고, 화면마다 "자료가 하나도 없음" 으로 보였다.
+    /// 기록도 <c>Debug.WriteLine</c> 뿐이라 배포본에서는 흔적조차 남지 않았다.
+    /// 게시판·일정 DB 는 실패하면 적어도 안내를 띄웠는데(<see cref="Board.Board.InitAsync"/>),
+    /// 정작 본 DB 만 조용했다 — 형제끼리 어긋난 자리다.</para>
     /// </summary>
-    public static async Task InitAsync()
+    /// <returns>테이블까지 준비되면 true. 실패하면 false — 호출부가 사용자에게 알려야 한다.</returns>
+    public static async Task<bool> InitAsync()
     {
         try
         {
@@ -62,14 +68,17 @@ public static class SchoolDatabase
             Debug.WriteLine("[SchoolDatabase] 데이터베이스 초기화 시작");
             bool success = await InitDatabaseAsync();
 
-            Debug.WriteLine(success
-                ? "[SchoolDatabase] 초기화 완료"
-                : "[SchoolDatabase] 데이터베이스 초기화 실패");
+            if (success)
+                Debug.WriteLine("[SchoolDatabase] 초기화 완료");
+            else
+                Logging.Log.Error("SchoolDatabase", $"학교 DB 테이블을 준비하지 못했다: {DbPath}");
+
+            return success;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolDatabase] 초기화 중 예외 발생: {ex.Message}");
-            Debug.WriteLine($"[SchoolDatabase] StackTrace: {ex.StackTrace}");
+            Logging.Log.Error("SchoolDatabase", "학교 DB 초기화 실패", ex);
+            return false;
         }
     }
 
@@ -85,7 +94,7 @@ public static class SchoolDatabase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolDatabase] DB 초기화 실패: {ex.Message}");
+            Logging.Log.Error("SchoolDatabase", "학교 DB 테이블 생성 실패", ex);
             return false;
         }
     }
@@ -114,15 +123,20 @@ public static class SchoolDatabase
                 Debug.WriteLine("[SchoolDatabase] 기존 DB 파일 삭제 완료");
             }
 
-            // 재초기화
-            await InitAsync();
+            // 재초기화. ⚠ 결과를 버리면 "초기화했습니다" 라고 말해 놓고 테이블이 없는 채로
+            // 남는다 — 지우는 것만 성공하고 다시 만들지 못한 상태가 가장 나쁘다.
+            if (!await InitAsync())
+            {
+                Logging.Log.Error("SchoolDatabase", "DB 를 지운 뒤 다시 만들지 못했다");
+                return false;
+            }
 
             Debug.WriteLine("[SchoolDatabase] 데이터베이스 완전 초기화 완료");
             return true;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchoolDatabase] DB 초기화 실패: {ex.Message}");
+            Logging.Log.Error("SchoolDatabase", "DB 완전 초기화 실패", ex);
             return false;
         }
     }

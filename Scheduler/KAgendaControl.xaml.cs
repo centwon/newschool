@@ -291,7 +291,7 @@ public sealed partial class KAgendaControl : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[KAgendaControl] LoadPendingAndFutureAsync 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("KAgendaControl", "할 일·일정 목록을 읽지 못했다 — 비어 보인다", ex);
         }
     }
 
@@ -330,7 +330,7 @@ public sealed partial class KAgendaControl : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[KAgendaControl] LoadByDateRangeAsync 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("KAgendaControl", "기간 일정을 읽지 못했다 — 비어 보인다", ex);
         }
     }
 
@@ -376,7 +376,7 @@ public sealed partial class KAgendaControl : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[KAgendaControl] EnsureFiltersAsync 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("KAgendaControl", "달력 목록(필터)을 준비하지 못했다", ex);
         }
     }
 
@@ -483,7 +483,7 @@ public sealed partial class KAgendaControl : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[KAgendaControl] BtnAdd_Click 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("KAgendaControl", "새 일정 창을 열지 못했다 — 눌러도 아무 일이 없어 보인다", ex);
         }
     }
 
@@ -505,7 +505,7 @@ public sealed partial class KAgendaControl : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[KAgendaControl] 항목 편집 오류: {ex.Message}");
+            NewSchool.Logging.Log.Error("KAgendaControl", "일정 편집 창을 열지 못했다 — 눌러도 아무 일이 없어 보인다", ex);
         }
     }
 

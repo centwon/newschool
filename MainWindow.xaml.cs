@@ -471,18 +471,32 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            // ⚠ 사용자가 [도움말] 을 누른 결과다. 예전에는 파일이 없어도, 브라우저가 뜨지
+            //   않아도 조용히 끝나서 "눌러도 아무 일이 없다" 로만 보였다.
+            //   LaunchFileAsync 는 실패를 예외가 아니라 false 로 낸다 — 그래서 더 잘 샌다.
             var helpPath = Path.Combine(AppContext.BaseDirectory, "Assets", "help.html");
             if (!File.Exists(helpPath))
             {
-                System.Diagnostics.Debug.WriteLine($"[Help] help.html 없음: {helpPath}");
+                NewSchool.Logging.Log.Error("Help", $"help.html 이 없다: {helpPath}");
+                await MessageBox.ShowAsync(
+                    "도움말 파일을 찾지 못했습니다.\n프로그램을 다시 설치하면 복구됩니다.", "도움말");
                 return;
             }
+
             var file = await StorageFile.GetFileFromPathAsync(helpPath);
-            await Launcher.LaunchFileAsync(file);
+            if (!await Launcher.LaunchFileAsync(file))
+            {
+                NewSchool.Logging.Log.Error("Help", $"도움말을 열 프로그램이 응답하지 않았다: {helpPath}");
+                await MessageBox.ShowAsync(
+                    "도움말을 열지 못했습니다. 웹 브라우저에서 직접 열어 주세요.\n\n" + helpPath, "도움말");
+            }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Help] 브라우저 열기 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("Help", "도움말 열기 실패", ex);
+            await MessageBox.ShowAsync(
+                "도움말을 열지 못했습니다.\n" +
+                (Helpers.FileErrorText.Explain(ex) ?? ex.Message), "도움말");
         }
     }
 

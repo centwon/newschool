@@ -60,8 +60,7 @@ internal class DatabaseInitializer : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SchedulerDB] 실패: {ex.Message}");
-            Debug.WriteLine($"[SchedulerDB] StackTrace: {ex.StackTrace}");
+            Logging.Log.Error("SchedulerDB", "일정 DB 테이블·인덱스 준비 실패", ex);
             return false;
         }
     }

@@ -168,7 +168,7 @@ public sealed partial class LessonJournalWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[LessonJournalWindow] 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("LessonJournalWindow", "수업 일지를 읽지 못했다", ex);
             await MessageBox.ShowErrorAsync("수업 일지를 여는 중 오류가 발생했습니다.", ex);
         }
         finally
@@ -216,7 +216,7 @@ public sealed partial class LessonJournalWindow : Window
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[LessonJournalWindow] 첨부 로드 실패: {ex.Message}");
+                NewSchool.Logging.Log.Error("LessonJournalWindow", "첨부 목록을 읽지 못했다 — 첨부가 없는 것처럼 보인다", ex);
             }
         }
     }
@@ -286,7 +286,7 @@ public sealed partial class LessonJournalWindow : Window
         catch (Exception ex)
         {
             CmbSection.IsEnabled = false;
-            Debug.WriteLine($"[LessonJournalWindow] 단원 로드 실패: {ex.Message}");
+            NewSchool.Logging.Log.Error("LessonJournalWindow", "단원 목록을 읽지 못해 선택을 잠근다", ex);
         }
     }
 
