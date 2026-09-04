@@ -113,6 +113,22 @@ public partial class App : Application
 
     protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        // 0-0. 이미 떠 있으면 그 창을 앞으로 보내고 조용히 끝낸다.
+        //   DB 를 열기 전에 판단해야 한다 — 두 프로세스가 같은 설정 DB 를 캐시하면
+        //   서로의 저장을 못 보고 나중에 쓴 쪽이 앞의 것을 덮는다.
+        if (!Helpers.SingleInstance.TryAcquire(Settings.UserDataPath))
+        {
+            Debug.WriteLine("[App] 이미 실행 중 — 기존 창으로 넘기고 종료");
+
+            // ⚠ Application.Exit() 가 아니라 Environment.Exit 다. 창을 아직 하나도 만들지
+            //    않은 시점이라 Exit() 는 곧바로 끝나 준다는 보장이 없고, 안 끝나면 창도 없는
+            //    프로세스가 그대로 남는다(사용자 눈에는 아무 일도 없는데 프로세스만 쌓인다).
+            //    여기서 정리할 것은 없다 — DB 도 로그 파일도 아직 열지 않았다
+            //    (ProcessExit 에 걸어 둔 로그 마무리는 이 경로에서도 그대로 돈다).
+            Environment.Exit(0);
+            return;
+        }
+
         // 0. 최초 실행 여부 확인 (Settings.db가 없으면 최초 실행)
         bool isFirstRun = !File.Exists(Path.Combine(Settings.UserDataPath, "Settings.db"));
 
@@ -333,6 +349,10 @@ public partial class App : Application
         };
         _window.Activate();
 
+        // 뒤늦게 실행된 쪽이 보내는 "창 좀 띄워 달라" 신호를 받는다(창이 생긴 뒤여야 한다).
+        Helpers.SingleInstance.ListenForShowRequests(() =>
+            _window?.DispatcherQueue.TryEnqueue(() => BringToFront(_window)));
+
         Debug.WriteLine("[App] 앱 시작 완료");
         PrintSettings();
 
@@ -391,6 +411,32 @@ public partial class App : Application
         catch (Exception ex)
         {
             Debug.WriteLine($"[App] Google 동기화 시작 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 창을 앞으로 불러낸다 — 앱을 다시 실행했을 때 이미 떠 있는 창을 보여 주는 용도.
+    /// 최소화되어 있으면 먼저 되살린다(그냥 Activate 만 하면 작업 표시줄에서 깜박이기만 한다).
+    /// </summary>
+    private static void BringToFront(Window window)
+    {
+        try
+        {
+            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
+            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+
+            if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter &&
+                presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+            {
+                presenter.Restore();
+            }
+
+            window.Activate();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App] 창 띄우기 실패: {ex.Message}");
         }
     }
 
