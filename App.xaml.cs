@@ -148,7 +148,25 @@ public partial class App : Application
         }
 
         // 1. Settings 초기화
-        Settings.Initialize();
+        //   설정 DB 를 열지 못하면 그 뒤로 할 수 있는 일이 없다. 여기서 잡지 않으면
+        //   async void 를 타고 전역 처리기로 가는데, 그 처리기가 가장 먼저 하는 일이
+        //   FileLogger 접근이라 로그 폴더까지 막힌 상황에서는 거기서 또 터진다 —
+        //   창도 메시지도 없이 프로세스만 사라진다. 이유를 말하고 끝내는 편이 낫다.
+        try
+        {
+            Settings.Initialize();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App] 설정 초기화 실패: {ex}");
+            await ShowFatalStartupErrorAsync(
+                "데이터 폴더를 쓸 수 없습니다",
+                $"설정을 저장할 폴더를 준비하지 못했습니다.\n\n" +
+                $"위치: {Settings.UserDataPath}\n\n" +
+                $"{Helpers.FileErrorText.Explain(ex) ?? ex.Message}");
+            return;
+        }
+
         Debug.WriteLine("[App] Settings 초기화 완료");
 
         // 1-1. 저장된 로그 레벨 적용
@@ -246,6 +264,48 @@ public partial class App : Application
         {
             // 초기 설정이 이미 완료된 경우 바로 MainWindow 표시
             ShowMainWindow();
+        }
+    }
+
+    /// <summary>
+    /// 아직 창이 하나도 없을 때 치명적 실패를 알리고 끝낸다.
+    ///
+    /// <para><see cref="MessageBox"/> 는 XamlRoot 가 있어야 뜨므로, 손상 DB 안내와 같은
+    /// 방식으로 임시 창을 하나 띄워 그 자리를 만든다. 이것이 없으면 시작이 막혔을 때
+    /// 사용자가 볼 수 있는 것은 "아무 일도 일어나지 않음" 뿐이다.</para>
+    /// </summary>
+    private static async Task ShowFatalStartupErrorAsync(string title, string message)
+    {
+        try
+        {
+            var root = new Microsoft.UI.Xaml.Controls.TextBlock
+            {
+                Text = title,
+                Margin = new Thickness(24),
+                TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
+            };
+            var host = new Window { Content = root, Title = $"NewSchool — {title}" };
+            host.Activate();
+
+            if (root.XamlRoot is null)
+            {
+                var tcs = new TaskCompletionSource();
+                root.Loaded += (_, _) => tcs.TrySetResult();
+                await tcs.Task;
+            }
+            MessageBox.Initialize(root.XamlRoot!);
+            MessageBox.TrackWindow(host);
+
+            await MessageBox.ShowAsync(message, title);
+        }
+        catch (Exception ex)
+        {
+            // 안내조차 못 띄우는 상황 — 그래도 조용히 사라지지는 않게 남긴다.
+            Debug.WriteLine($"[App] 시작 실패 안내 표시 실패: {ex.Message}");
+        }
+        finally
+        {
+            Application.Current.Exit();
         }
     }
 

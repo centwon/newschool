@@ -1077,7 +1077,21 @@ internal static class SettingsDb
     static SettingsDb()
     {
         var dataDir = Settings.UserDataPath;
-        Directory.CreateDirectory(dataDir);
+
+        // ⚠ 정적 생성자에서 예외를 내보내면 안 된다. 한 번 실패한 타입은 그 프로세스에서
+        //    영영 못 쓰고(TypeInitializationException 이 계속 다시 난다), 시작 경로라
+        //    창도 뜨기 전이라 사용자에게는 "아이콘을 눌러도 아무 일이 없다" 로만 보인다.
+        //    여기서는 삼키고, 실제로 DB 를 여는 Initialize 에서 예외가 나게 둔다
+        //    — 그 자리는 App 이 잡아 이유를 안내할 수 있다.
+        try
+        {
+            Directory.CreateDirectory(dataDir);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SettingsDb] 데이터 폴더 생성 실패({dataDir}): {ex.Message}");
+        }
+
         DbPath = Path.Combine(dataDir, "Settings.db");
         // Cache=Shared 를 떼어 다른 DB 연결들과 기준을 맞췄다 — 공유 캐시는 WAL 위에서
         // 테이블 락을 만들 뿐 이 앱에 이득이 없다(인메모리 DB 를 쓰지 않는다).

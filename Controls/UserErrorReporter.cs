@@ -21,8 +21,13 @@ public static class UserErrorReporter
         try
         {
             string t = string.IsNullOrWhiteSpace(title) ? $"{context} 오류" : title!;
-            string msg = $"{context} 중 오류가 발생했습니다.\n\n{ex.Message}";
+            string msg = $"{context} 중 오류가 발생했습니다.\n\n{Describe(ex)}";
+
+            // ⚠ Debug.WriteLine 만으로는 기록이 아니다 — [Conditional("DEBUG")] 라 배포본에서
+            //    통째로 사라진다. 사용자가 "오류가 났다" 고 할 때 로그에 아무것도 없었다.
             System.Diagnostics.Debug.WriteLine($"[UserErrorReporter] {t}: {ex}");
+            NewSchool.Logging.Log.Error("UserErrorReporter", $"{context} 실패", ex);
+
             await MessageBox.ShowAsync(msg, t);
         }
         catch (Exception inner)
@@ -30,5 +35,18 @@ public static class UserErrorReporter
             // 대화상자 실패는 치명적이 아니므로 로그만 남긴다.
             System.Diagnostics.Debug.WriteLine($"[UserErrorReporter] 알림 실패: {inner.Message}");
         }
+    }
+
+    /// <summary>
+    /// 사용자에게 보일 본문. 파일·폴더가 막힌 것이면 <b>무엇을 하면 되는지</b>를 앞에 세우고
+    /// 원문은 괄호로 남긴다 — 도움을 청할 때는 원문이 필요하다.
+    /// </summary>
+    private static string Describe(Exception ex)
+    {
+        var friendly = Helpers.FileErrorText.Explain(ex);
+
+        return friendly == null
+            ? ex.Message
+            : $"{friendly}\n\n(자세한 내용: {ex.Message})";
     }
 }

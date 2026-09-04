@@ -28,14 +28,30 @@ public sealed class FileLogger : IDisposable
     private LogLevel MinimumLevel { get; set; }
     private DateTime _lastCleanupTime = DateTime.MinValue;
 
+    /// <summary>로그 폴더를 만들지 못했다 — 파일 기록만 접고 나머지는 그대로 돈다.</summary>
+    private readonly bool _fileWritingDisabled;
+
     private FileLogger()
     {
         // 사용자 데이터 폴더에 로그 저장
         LogDirectory = Path.Combine(Settings.RootPath, "Logs");
 
-        if (!Directory.Exists(LogDirectory))
+        try
         {
-            Directory.CreateDirectory(LogDirectory);
+            if (!Directory.Exists(LogDirectory))
+            {
+                Directory.CreateDirectory(LogDirectory);
+            }
+        }
+        catch (Exception ex)
+        {
+            // ⚠ 여기서 예외가 나가면 앱이 통째로 죽는다. 이 생성자는 Lazy 안에서 돌기 때문에
+            //    한 번 실패하면 이후 모든 FileLogger.Instance 접근이 같은 예외를 다시 던지고,
+            //    하필 전역 예외 처리기가 가장 먼저 하는 일이 FileLogger.Instance 접근이라
+            //    처리기 안에서 또 터진다 — 창도 로그도 메시지도 없이 프로세스만 사라졌다.
+            //    로그를 못 남기는 것은 앱을 못 쓰는 것보다 훨씬 가벼운 일이다.
+            _fileWritingDisabled = true;
+            System.Diagnostics.Debug.WriteLine($"[FileLogger] 로그 폴더를 만들지 못해 파일 기록을 끈다: {ex.Message}");
         }
 
         _logQueue = new ConcurrentQueue<LogEntry>();
@@ -175,6 +191,8 @@ public sealed class FileLogger : IDisposable
     /// </summary>
     private void WriteEntriesToFile(System.Collections.Generic.List<LogEntry> entries)
     {
+        if (_fileWritingDisabled) return;   // 쓸 폴더가 없다 — 매번 시도해 봐야 같은 실패다
+
         try
         {
             var sb = new StringBuilder();
