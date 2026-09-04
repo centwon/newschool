@@ -1,6 +1,9 @@
 using System;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using NewSchool.Board;
+using NewSchool.Board.Models;
 using NewSchool.Board.Services;
 using NewSchool.Tests.Infrastructure;
 using Xunit;
@@ -121,35 +124,52 @@ public class CachedBoardServiceIsolationTests : IClassFixture<BoardTestFixture>
         Assert.Equal("원래이름.hwp", second[0].FileName);
     }
 
-    /// <summary>사본이 값까지 빠뜨리면 안 된다 — 모든 칸이 그대로 따라와야 한다.</summary>
+    /// <summary>
+    /// 사본이 값까지 빠뜨리면 안 된다 — <b>모든 칸</b>이 그대로 따라와야 한다.
+    ///
+    /// <para>속성을 손으로 적지 않고 <b>반사로 훑는다</b>. 예전에는 열세 줄을 손으로 적어
+    /// 두었는데, 그러면 <c>Post</c> 에 칸이 늘 때 <see cref="Post.Clone"/> 과 이 테스트
+    /// <b>양쪽</b>에 사람이 기억해서 넣어야 한다. 실제로 이미 새고 있었다 —
+    /// <c>RefNo</c>·<c>ReplyOrder</c>·<c>Depth</c> 는 Clone 이 복사하는데 확인하지 않았다.</para>
+    ///
+    /// <para>빠뜨리면 조용히 아프다. 39차에 중요 글(<c>IsPinned</c>) 칸을 늘릴 때 Clone 에
+    /// 넣는 것을 잊었다면, 글을 고쳐 저장하는 순간 중요 표시가 사라졌을 것이다. 답글 칸
+    /// (<c>RefNo</c>·<c>Depth</c>)이었다면 글 계층이 무너진다. 이제는 칸을 늘리고 Clone 을
+    /// 잊으면 이 테스트가 저절로 깨진다.</para>
+    /// </summary>
     [Fact]
-    public async Task 사본은_모든_값을_그대로_옮긴다()
+    public void 사본은_모든_값을_그대로_옮긴다()
     {
-        using var svc = new CachedBoardService(_db.DbPath);
+        var original = new Post();
+        var writable = typeof(Post).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanRead && p.CanWrite)
+            .ToList();
 
-        var original = TestData.NewPost(category: "값확인", subject: "주제", title: "제목");
-        original.User = "테스트교사";
-        original.PlainText = "본문 평문";
-        original.Content = [1, 2, 3];
-        original.IsPinned = true;
-        original.IsCompleted = true;
+        // 기본값으로 두면 "복사를 빠뜨렸다" 와 "원래 기본값이다" 를 구별할 수 없다.
+        // 칸마다 서로 다른, 기본값이 아닌 값을 넣는다.
+        Assert.NotEmpty(writable);
+        for (int i = 0; i < writable.Count; i++)
+            writable[i].SetValue(original, DistinctValueFor(writable[i], seed: i + 1));
 
-        int postNo = await svc.SavePostAsync(original);
-        var loaded = await svc.GetPostAsync(postNo, incrementReadCount: false);
-        var copy = loaded!.Clone();
+        var copy = original.Clone();
 
-        Assert.Equal(loaded.No, copy.No);
-        Assert.Equal(loaded.User, copy.User);
-        Assert.Equal(loaded.DateTime, copy.DateTime);
-        Assert.Equal(loaded.Category, copy.Category);
-        Assert.Equal(loaded.Subject, copy.Subject);
-        Assert.Equal(loaded.Title, copy.Title);
-        Assert.Equal(loaded.PlainText, copy.PlainText);
-        Assert.Equal(loaded.Content, copy.Content);
-        Assert.Equal(loaded.ReadCount, copy.ReadCount);
-        Assert.Equal(loaded.HasFile, copy.HasFile);
-        Assert.Equal(loaded.HasComment, copy.HasComment);
-        Assert.Equal(loaded.IsCompleted, copy.IsCompleted);
-        Assert.Equal(loaded.IsPinned, copy.IsPinned);
+        foreach (var prop in writable)
+        {
+            Assert.True(
+                Equals(prop.GetValue(original), prop.GetValue(copy)),
+                $"Post.Clone() 이 '{prop.Name}' 을 옮기지 않았다 — Clone 에 이 칸을 넣어야 한다.");
+        }
     }
+
+    /// <summary>칸마다 다른 값을 만든다(자리를 바꿔 복사해도 걸리도록).</summary>
+    private static object DistinctValueFor(PropertyInfo prop, int seed) => prop.PropertyType switch
+    {
+        var t when t == typeof(string) => $"{prop.Name}-{seed}",
+        var t when t == typeof(int) => 1000 + seed,
+        var t when t == typeof(bool) => true,
+        var t when t == typeof(DateTime) => new DateTime(2026, 1, 1).AddDays(seed),
+        var t when t == typeof(byte[]) => new byte[] { (byte)seed, 2, 3 },
+        var t => throw new NotSupportedException(
+            $"Post.{prop.Name} 의 형식({t.Name})에 쓸 시험값이 없다 — 이 표에 한 줄 넣을 것."),
+    };
 }
