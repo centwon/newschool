@@ -60,7 +60,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Button x:Name="BtnDatePrev" ToolTipService.ToolTip="이전 날짜"
+                <Button x:Name="BtnDatePrev" AutomationProperties.Name="이전 날짜" ToolTipService.ToolTip="이전 날짜"
                         Grid.Column="0"
                         Click="BtnDatePrev_Click"
                         Background="Transparent"
@@ -75,7 +75,7 @@
                                     DateFormat="{}{year.full}년 {month.integer}월 {day.integer}일 {dayofweek.full}"
                                     DateChanged="DatePicker_DateChanged"/>
 
-                <Button x:Name="BtnDateNext" ToolTipService.ToolTip="다음 날짜"
+                <Button x:Name="BtnDateNext" AutomationProperties.Name="다음 날짜" ToolTipService.ToolTip="다음 날짜"
                         Grid.Column="2"
                         Click="BtnDateNext_Click"
                         Background="Transparent"
@@ -85,7 +85,7 @@
             </Grid>
 
             <!-- 일지 목록 보기 -->
-            <Button x:Name="BtnViewDiaryList"
+            <Button AutomationProperties.Name="목록 보기" x:Name="BtnViewDiaryList"
                     Grid.Column="3"
                     Click="BtnViewDiaryList_Click"
                     Style="{ThemeResource AccentButtonStyle}"
@@ -138,7 +138,7 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
-                    <Button x:Name="BtnAddDailyLog"
+                    <Button AutomationProperties.Name="추가" x:Name="BtnAddDailyLog"
                             Click="BtnAddDailyLog_Click"
                             Style="{ThemeResource AccentButtonStyle}"
                             Padding="10,4"
@@ -151,6 +151,7 @@
                     <Button x:Name="BtnRefreshLogs"
                             Click="BtnRefreshLogs_Click"
                             Background="Transparent" BorderThickness="0"
+                            AutomationProperties.Name="새로고침"
                             ToolTipService.ToolTip="새로고침" Padding="6,4">
                         <FontIcon Glyph="&#xE72C;" FontSize="12"/>
                     </Button>

@@ -8,10 +8,13 @@
     mc:Ignorable="d">
 
     <StackPanel Orientation="Horizontal" Spacing="8">
+        <!-- ⚠ PlaceholderText 는 UIA 이름이 되지 않는다 — 낭독기는 "콤보 상자"라고만 읽는다.
+             눈에 보이는 말과 같은 말을 이름으로도 줘야 한다(54차 실측). -->
         <!-- 학년 -->
         <ComboBox
             x:Name="CBoxGrade"
             MinWidth="80"
+            AutomationProperties.Name="학년"
             PlaceholderText="학년"
             SelectionChanged="CBoxGrade_SelectionChanged"/>
 
@@ -19,6 +22,7 @@
         <ComboBox
             x:Name="CBoxClass"
             MinWidth="80"
+            AutomationProperties.Name="반"
             PlaceholderText="반"
             SelectionChanged="CBoxClass_SelectionChanged"/>
     </StackPanel>

@@ -106,6 +106,24 @@ public sealed partial class AgendaItem : INotifyPropertyChanged
     }
 
     public string         DoneLabel    => IsTaskDone ? "완료" : "진행";
+
+    /// <summary>
+    /// 목록에서 이 줄을 <b>귀로 들었을 때</b> 나올 말 — 54차(키보드만으로 쓸 때).
+    ///
+    /// <para>⚠ 이 값을 항목 템플릿의 <c>AutomationProperties.Name</c> 에 물리지 않으면
+    /// <c>ListView</c> 가 항목 객체의 <c>ToString()</c> 을 읽어, 낭독기가
+    /// "NewSchool.Scheduler.AgendaItem" 이라고 소리 내어 읽는다(실측).</para>
+    /// </summary>
+    public string AccessibleText
+    {
+        get
+        {
+            string when = string.IsNullOrEmpty(TimeLabel) ? DateLabel : $"{DateLabel} {TimeLabel}";
+            string what = IsTask ? $"할 일, {DoneLabel}" : "일정";
+            string cat = string.IsNullOrEmpty(CategoryName) ? string.Empty : $", {CategoryName}";
+            return $"{when}{cat}, {Title}, {what}";
+        }
+    }
     public TextDecorations Decorations  => IsTaskDone ? TextDecorations.Strikethrough : TextDecorations.None;
     public double          TitleOpacity => IsTaskDone ? 0.45 : 1.0;
 

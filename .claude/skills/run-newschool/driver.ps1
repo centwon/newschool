@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     NewSchool(WinUI 3) 앱을 프로그램으로 띄우고 몰기 위한 드라이버.
 
@@ -29,13 +29,17 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('launch', 'shot', 'tree', 'find', 'click', 'text', 'windows', 'quit')]
+    [ValidateSet('launch', 'shot', 'tree', 'find', 'click', 'text', 'windows', 'quit',
+                 'keys', 'focused', 'tabs', 'nameless')]
     [string]$Command = 'launch',
 
     [string]$Text = '',
     [string]$Out = '',
     [int]$Depth = 6,
     [int]$TimeoutSec = 30,
+
+    # tabs 명령이 Tab 을 몇 번 누를지.
+    [int]$N = 25,
 
     # 어느 창을 볼지. 제목의 일부만 주면 된다. 비우면 메인 창.
     # ⚠ 이 앱의 기록 편집·일괄 입력은 ContentDialog 가 아니라 별도 Window 다 —
@@ -67,6 +71,10 @@ public class Native {
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint from, uint to, bool attach);
+    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
 }
 '@
@@ -290,6 +298,131 @@ function Invoke-Text {
     }
 }
 
+# ── 키보드 ───────────────────────────────────────────────────────────────
+# 54차(키보드만으로 쓸 때) 를 하려고 붙였다. UIA 는 "무엇이 있는가" 만 답하고
+# "Tab 을 눌러 거기까지 갈 수 있는가" 는 답하지 못한다 — 그건 눌러 봐야 안다.
+
+# 창을 앞으로 끌어와야 SendKeys 가 들어간다 — SendKeys 는 포그라운드 창에만 간다.
+#
+# ⚠ SetForegroundWindow 하나로는 안 된다. Windows 는 백그라운드 프로세스가 창을 앞으로
+#   끌어오는 것을 막는다 — 조용히 실패하고(반환값만 false) 키는 엉뚱한 창으로 간다.
+#   실제로 첫 시도에서 Tab 이 전부 브라우저(MSN)로 갔다. UIA 의 SetFocus() 를 함께 쓰고,
+#   끝나고 포그라운드가 정말 우리 창인지 **확인한 뒤에만** 키를 보낸다.
+function Set-Foreground {
+    $root = Get-Root
+    $h = [IntPtr]$root.Current.NativeWindowHandle
+    if ($h -eq [IntPtr]::Zero) { throw "창 핸들을 못 얻었다." }
+
+    [Native]::ShowWindow($h, 9) | Out-Null       # SW_RESTORE
+    try { $root.SetFocus() } catch { }
+    [Native]::SetForegroundWindow($h) | Out-Null
+    Start-Sleep -Milliseconds 400
+
+    # 그래도 안 오면 지금 앞에 있는 창의 입력 큐에 우리를 붙였다 뗀다. Windows 는 같은
+    # 입력 큐에 붙은 스레드끼리는 포그라운드를 넘기도록 허용한다 — 이것이 표준 우회다.
+    if ([Native]::GetForegroundWindow() -ne $h) {
+        $meTid = [Native]::GetCurrentThreadId()
+        $fgTid = [Native]::GetWindowThreadProcessId([Native]::GetForegroundWindow(), [IntPtr]::Zero)
+        if ($fgTid -ne 0 -and $fgTid -ne $meTid) {
+            [Native]::AttachThreadInput($meTid, $fgTid, $true) | Out-Null
+            [Native]::SetForegroundWindow($h) | Out-Null
+            [Native]::AttachThreadInput($meTid, $fgTid, $false) | Out-Null
+            Start-Sleep -Milliseconds 400
+        }
+    }
+
+    $fg = [Native]::GetForegroundWindow()
+    if ($fg -ne $h) {
+        throw ("창을 앞으로 못 끌어왔다(포그라운드=$fg, 원하는 창=$h). " +
+               "키를 보내면 엉뚱한 창으로 간다 — 앱 창을 한 번 눌러 앞으로 놓고 다시 할 것.")
+    }
+}
+
+# 지금 포커스가 있는 요소. 이름이 없으면 그 사실 자체가 결과다.
+function Get-Focused {
+    try { $el = [System.Windows.Automation.AutomationElement]::FocusedElement } catch { return $null }
+    if ($null -eq $el) { return $null }
+    try {
+        $c = $el.Current
+        return [pscustomobject]@{
+            Type = ($c.ControlType.ProgrammaticName -replace '^ControlType\.', '')
+            Name = $c.Name
+            Id   = $c.AutomationId
+            Cls  = $c.ClassName
+        }
+    } catch { return $null }
+}
+
+function Format-Focused {
+    param($f)
+    if ($null -eq $f) { return '(포커스 없음)' }
+    $nm = $f.Name
+    if (-not $nm) { $nm = '<<이름없음>>' }
+    return ('{0}  Name="{1}"  Id="{2}"  Class="{3}"' -f $f.Type, $nm, $f.Id, $f.Cls)
+}
+
+function Invoke-Focused {
+    Set-Foreground
+    Write-Host (Format-Focused (Get-Focused))
+}
+
+# SendKeys 문법이다: {TAB} {ENTER} {ESC} {F10} +{TAB}(Shift+Tab) ^s(Ctrl+S) {APPS}(메뉴 키)
+function Invoke-Keys {
+    if (-not $Text) { throw "-Text 가 필요하다. 예: -Text '{TAB}' / '+{TAB}' / '^s' / '{APPS}'" }
+    Set-Foreground
+    [System.Windows.Forms.SendKeys]::SendWait($Text)
+    Start-Sleep -Milliseconds 400
+    Write-Host ("보냄: {0}" -f $Text)
+    Write-Host ("포커스: {0}" -f (Format-Focused (Get-Focused)))
+}
+
+# Tab 을 N 번 누르며 포커스가 어디로 가는지 적는다. 이것이 곧 Tab 순서다.
+# -Text '+{TAB}' 을 주면 거꾸로 돈다.
+#
+# 멈추는 조건 둘을 구분해서 알린다:
+#   · 한 바퀴  — 처음 자리로 되돌아왔다. 정상이다.
+#   · 갇힘     — 같은 자리에서 8번 넘게 안 움직인다. Tab 이 거기서 죽은 것이다.
+function Invoke-Tabs {
+    Set-Foreground
+    $key = if ($Text) { $Text } else { '{TAB}' }
+    $first = $null
+    $prev = $null
+    $same = 0
+    for ($i = 1; $i -le $N; $i++) {
+        [System.Windows.Forms.SendKeys]::SendWait($key)
+        Start-Sleep -Milliseconds 220
+        $line = Format-Focused (Get-Focused)
+        '{0,3}. {1}' -f $i, $line
+
+        $before = $prev
+        if ($line -eq $prev) {
+            $same++
+            if ($same -ge 8) { Write-Host "  ⚠ 갇혔다 — 같은 자리에서 $same 번 움직이지 않는다."; break }
+        } else { $same = 0 }
+        $prev = $line
+
+        if ($i -eq 1) { $first = $line; continue }
+        # ⚠ 이름 없는 컨트롤이 나란히 둘 있으면 줄이 똑같아 "한 바퀴"로 오인한다.
+        #   세 번째부터, 그리고 **바로 앞 자리**가 첫 자리와 다를 때만 한 바퀴로 친다.
+        if ($i -ge 3 -and $line -eq $first -and $before -ne $first) {
+            Write-Host "  → 한 바퀴 돌았다($i 번째에서 처음으로 되돌아옴)."; break
+        }
+    }
+}
+
+# tree 가 감추는 것들을 본다 — Invoke-Tree 는 이름도 id 도 없는 요소를 건너뛴다.
+# 아이콘만 있는 버튼이 바로 거기 숨는다.
+function Invoke-Nameless {
+    $items = Get-Elements (Get-Root) $Depth
+    $bad = $items | Where-Object {
+        $_.Type -in @('Button', 'CheckBox', 'RadioButton', 'ComboBox', 'Hyperlink', 'MenuItem') -and
+        -not $_.Name
+    }
+    if (-not $bad) { Write-Host "이름 없는 조작 요소: 없음"; return }
+    Write-Host ("이름 없는 조작 요소: {0} 개" -f @($bad).Count)
+    foreach ($i in $bad) { '{0}{1}  Id="{2}"' -f ('  ' * $i.Depth), $i.Type, $i.Id }
+}
+
 # ⚠ 인스턴스를 전부 닫는다. 한 개만 닫으면 옛 빌드가 돌고 있는 인스턴스가 남아,
 #   다음 launch 가 그쪽에 붙어 "고친 것이 안 보인다"가 된다(실제로 겪었다).
 function Invoke-Quit {
@@ -317,4 +450,8 @@ switch ($Command) {
     'text'   { Invoke-Text }
     'windows'{ Invoke-Windows }
     'quit'   { Invoke-Quit }
+    'keys'     { Invoke-Keys }
+    'focused'  { Invoke-Focused }
+    'tabs'     { Invoke-Tabs }
+    'nameless' { Invoke-Nameless }
 }

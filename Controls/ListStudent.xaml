@@ -97,7 +97,16 @@
 
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:Enrollment">
-                        <Grid Padding="0,4" Loaded="OnItemGridLoaded" RightTapped="OnItemRightTapped">
+                        <!-- ⚠ RightTapped 가 아니라 ContextRequested 다. RightTapped 는
+                             마우스 오른쪽 단추에만 오고, 키보드의 메뉴 키·Shift+F10 에는
+                             오지 않는다 — 키보드만 쓰는 사람에게는 이 메뉴가 없는 것이나
+                             같았다(54차). ContextRequested 는 둘 다 받는다. -->
+                        <!-- ⚠ AutomationProperties.Name 을 빼지 말 것. 없으면 ListView 가
+                             Enrollment.ToString() 을 읽어 낭독기가 내부 학생 ID 15자리까지
+                             "…신민경 (910107620267390)" 하고 통째로 읽는다(54차 실측).
+                             ToString() 자체는 로그·진단용이라 손대지 않는다. -->
+                        <Grid Padding="0,4" Loaded="OnItemGridLoaded" ContextRequested="OnItemContextRequested"
+                              AutomationProperties.Name="{x:Bind AccessibleText}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="0"/>
                                 <ColumnDefinition Width="0"/>

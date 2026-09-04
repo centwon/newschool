@@ -41,7 +41,12 @@
                 </ListView.ItemContainerStyle>
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:SchoolScheduleGroup">
-                        <Grid Padding="0,2">
+                        <!-- ⚠ AutomationProperties.Name 을 빼지 말 것. ListView 항목은 이름이
+                             없으면 항목 객체의 ToString() 을 읽는데, 그러면 낭독기가
+                             "NewSchool.Models.SchoolScheduleGroup" 이라고 소리 내어 읽는다
+                             (54차 실측 — 홈 화면 학사일정 목록이 그랬다). -->
+                        <Grid Padding="0,2"
+                              AutomationProperties.Name="{x:Bind DateText}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>

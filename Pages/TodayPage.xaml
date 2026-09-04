@@ -31,7 +31,7 @@
                     [주별 시간표 확인 및 변경] 탭이 3주치로 이미 답한다.
                 -->
                 <Button Click="OnPreviousDayClick" Padding="6,2"
-                        ToolTipService.ToolTip="하루 앞으로">
+                        AutomationProperties.Name="하루 앞으로" ToolTipService.ToolTip="하루 앞으로">
                     <FontIcon Glyph="&#xE76B;" FontSize="11"/>
                 </Button>
 
@@ -42,7 +42,7 @@
                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
 
                 <Button Click="OnNextDayClick" Padding="6,2"
-                        ToolTipService.ToolTip="하루 뒤로">
+                        AutomationProperties.Name="하루 뒤로" ToolTipService.ToolTip="하루 뒤로">
                     <FontIcon Glyph="&#xE76C;" FontSize="11"/>
                 </Button>
 

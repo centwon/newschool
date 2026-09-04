@@ -72,7 +72,7 @@
                         Orientation="Horizontal" 
                         Spacing="4"
                         VerticalAlignment="Bottom">
-                <Button x:Name="BtnBatchInput"
+                <Button AutomationProperties.Name="일괄입력" x:Name="BtnBatchInput"
                         Click="BtnBatchInput_Click"
                         ToolTipService.ToolTip="수강생 일괄 기록 입력">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -81,7 +81,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnAddLog"
+                <Button AutomationProperties.Name="추가" x:Name="BtnAddLog"
                         Click="BtnAddLog_Click"
                         ToolTipService.ToolTip="활동 기록 추가">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -90,7 +90,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnEditLog"
+                <Button AutomationProperties.Name="편집" x:Name="BtnEditLog"
                         Click="BtnEditLog_Click"
                         ToolTipService.ToolTip="선택된 기록 전체 편집">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -99,7 +99,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnSaveLog"
+                <Button AutomationProperties.Name="저장" x:Name="BtnSaveLog"
                         Click="BtnSaveLog_Click"
                         ToolTipService.ToolTip="저장 (Ctrl+S)"
                         Style="{ThemeResource AccentButtonStyle}">
@@ -116,6 +116,7 @@
 
                 <Button x:Name="BtnRefresh"
                         Click="BtnRefresh_Click"
+                        AutomationProperties.Name="새로고침"
                         ToolTipService.ToolTip="새로고침">
                     <FontIcon Glyph="&#xE72C;" FontSize="16"/>
                 </Button>
@@ -123,7 +124,7 @@
                 <AppBarSeparator Margin="8,0"/>
 
                 <!-- 글자 크기 — 기록 내용 칸에만 적용된다(다른 페이지와 동일) -->
-                <Button x:Name="BtnFontSize"
+                <Button AutomationProperties.Name="글자 크기" x:Name="BtnFontSize"
                         ToolTipService.ToolTip="글자 크기 조절"
                         Click="OnFontSizeClick">
                     <FontIcon Glyph="&#xE8E9;" FontSize="16"/>
@@ -166,7 +167,7 @@
 
                 <AppBarSeparator Margin="8,0"/>
 
-                <Button x:Name="BtnDeleteLog"
+                <Button AutomationProperties.Name="삭제" x:Name="BtnDeleteLog"
                         Click="BtnDeleteLog_Click"
                         ToolTipService.ToolTip="삭제">
                     <StackPanel Orientation="Horizontal" Spacing="8">

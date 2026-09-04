@@ -99,7 +99,7 @@
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                        Text="학사일정의 휴업일·공휴일과 그 학년만 빠지는 행사를 뺀 실제 수업 가능 시수입니다. 학급 칸을 고치면 그 주차만 손으로 정한 값이 됩니다."/>
 
-            <Button x:Name="BtnClearAdjustments"
+            <Button AutomationProperties.Name="조정 모두 지우기" x:Name="BtnClearAdjustments"
                     HorizontalAlignment="Right"
                     Click="OnClearAdjustmentsClick">
                 <StackPanel Orientation="Horizontal" Spacing="6">

@@ -72,7 +72,7 @@
                         Margin="16,0,0,0">
 
                 <!-- 저장 -->
-                <Button x:Name="BtnSave"
+                <Button AutomationProperties.Name="저장" x:Name="BtnSave"
                         ToolTipService.ToolTip="선택한 항목 저장"
                         Click="OnSaveClick">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -85,7 +85,7 @@
                 </Button>
 
                 <!-- 삭제 -->
-                <Button x:Name="BtnDelete"
+                <Button AutomationProperties.Name="삭제" x:Name="BtnDelete"
                         ToolTipService.ToolTip="선택한 항목 삭제 (DB에서 완전 삭제)"
                         Click="OnDeleteClick">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -102,7 +102,7 @@
                         Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
 
                 <!-- 폰트 크기 -->
-                <Button x:Name="BtnFontSize"
+                <Button AutomationProperties.Name="글자 크기" x:Name="BtnFontSize"
                         ToolTipService.ToolTip="글자 크기 조절"
                         Click="OnFontSizeClick">
                     <FontIcon Glyph="&#xE8E9;" FontSize="16"/>
@@ -150,6 +150,7 @@
                 <!-- 새로고침 -->
                 <Button x:Name="BtnRefresh"
                         Click="BtnRefresh_Click"
+                        AutomationProperties.Name="과목 목록 새로고침"
                         ToolTipService.ToolTip="과목 목록 새로고침">
                     <FontIcon Glyph="&#xE72C;" FontSize="16"/>
                 </Button>

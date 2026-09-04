@@ -96,6 +96,7 @@
                             <Button Grid.Column="3"
                                     Tag="{x:Bind No}"
                                     Click="BtnRemoveFile_Click"
+                                    AutomationProperties.Name="삭제"
                                     ToolTipService.ToolTip="삭제"
                                     Background="Transparent"
                                     BorderThickness="0"
@@ -108,7 +109,7 @@
             </ListView>
 
             <!-- 파일 추가 버튼 -->
-            <Button x:Name="BtnAddFile"
+            <Button AutomationProperties.Name="파일 추가" x:Name="BtnAddFile"
                     Click="BtnAddFile_Click"
                     HorizontalAlignment="Left"
                     Margin="0,8,0,0">

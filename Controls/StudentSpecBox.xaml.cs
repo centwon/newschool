@@ -338,7 +338,12 @@ public sealed partial class StudentSpecBox : UserControl
         // 마감이면 잠긴 자물쇠, 아니면 열린 자물쇠. 글리프는 코드포인트로 적는다
         // — 사용자 영역 문자를 그대로 넣으면 편집기·도구를 지나며 깨진다.
         IconFinalize.Glyph = ((char)(finalized ? 0xE72E : 0xE785)).ToString();
-        ToolTipService.SetToolTip(BtnFinalize, finalized ? "마감 해제" : "마감");
+
+        // 툴팁과 **같은 말**을 UIA 이름으로도 준다 — 툴팁은 눈으로만 보이고 낭독기는 못 읽는다.
+        // 이 단추는 그림뿐이라, 이름이 없으면 "단추"라고만 읽힌다(54차).
+        string label = finalized ? "마감 해제" : "마감";
+        ToolTipService.SetToolTip(BtnFinalize, label);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BtnFinalize, label);
     }
 
     /// <summary>

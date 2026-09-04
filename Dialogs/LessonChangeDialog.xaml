@@ -113,6 +113,7 @@
                                         Padding="4"
                                         Background="Transparent"
                                         BorderThickness="0"
+                                        AutomationProperties.Name="이 변경 되돌리기"
                                         ToolTipService.ToolTip="이 변경 되돌리기">
                                     <FontIcon Glyph="&#xE74D;" FontSize="11"/>
                                 </Button>

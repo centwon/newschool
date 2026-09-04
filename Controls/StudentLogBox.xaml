@@ -230,7 +230,12 @@
                     Content="저장"
                     Click="OnSaveClick"
                     Style="{StaticResource AccentButtonStyle}"
-                    MinWidth="100"/>
+                    ToolTipService.ToolTip="저장 (Ctrl+S)"
+                    MinWidth="100">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                </Button.KeyboardAccelerators>
+            </Button>
             <Button x:Name="BtnCancel"
                     Content="취소"
                     Click="OnCancelClick"

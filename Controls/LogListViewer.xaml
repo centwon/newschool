@@ -64,6 +64,7 @@
                 </Grid.ColumnDefinitions>
 
                 <CheckBox x:Name="ChkSelectAll"
+                          AutomationProperties.Name="모두 선택"
                           Grid.Column="0"
                           HorizontalAlignment="Left"
                           VerticalAlignment="Center"

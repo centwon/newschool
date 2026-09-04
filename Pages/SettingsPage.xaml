@@ -64,7 +64,7 @@
                     <Expander.Content>
                         <StackPanel Spacing="12" Padding="16">
 
-                            <Button
+                            <Button AutomationProperties.Name="학교 검색"
                                 Click="OnSearchSchoolClick"
                                 HorizontalAlignment="Left"
                                 Style="{StaticResource AccentButtonStyle}">

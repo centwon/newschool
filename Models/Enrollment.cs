@@ -215,5 +215,15 @@ public class Enrollment : NotifyPropertyChangedBase
     /// <summary>학급 표시 문자열 (학년-반-번호)</summary>
     public string GetClassInfo() => $"{Grade}학년 {Class}반 {Number}번";
 
+    /// <summary>
+    /// 목록에서 이 학생을 <b>귀로 들었을 때</b> 나올 말 — 54차(키보드만으로 쓸 때).
+    ///
+    /// <para><see cref="ToString"/> 은 로그·진단용이라 내부 학생 ID 를 달고 있다. 그것이
+    /// 그대로 낭독기에 나가면 <b>15자리 숫자를 통째로 읽는다</b>(실측). 목록 항목의
+    /// <c>AutomationProperties.Name</c> 은 이쪽을 쓴다.</para>
+    /// </summary>
+    public string AccessibleText =>
+        string.IsNullOrEmpty(Name) ? $"{Number}번" : $"{Number}번 {Name}";
+
     #endregion
 }

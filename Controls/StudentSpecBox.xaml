@@ -94,6 +94,7 @@
                     <!-- 맞춤법 검사 -->
                     <Button x:Name="BtnSpellCheck"
                             Click="OnSpellCheckClick"
+                            AutomationProperties.Name="맞춤법 검사"
                             ToolTipService.ToolTip="맞춤법 검사"
                             Background="Transparent"
                             BorderThickness="0"
@@ -104,16 +105,21 @@
                     <!-- 저장 -->
                     <Button x:Name="BtnSave"
                             Click="OnSaveClick"
-                            ToolTipService.ToolTip="저장"
+                            AutomationProperties.Name="저장"
+                            ToolTipService.ToolTip="저장 (Ctrl+S)"
                             Background="Transparent"
                             BorderThickness="0"
                             Padding="8,4">
+                        <Button.KeyboardAccelerators>
+                            <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                        </Button.KeyboardAccelerators>
                         <FontIcon Glyph="&#xE74E;" FontSize="18"/>
                     </Button>
 
                     <!-- 삭제 -->
                     <Button x:Name="BtnDelete"
                             Click="OnDeleteClick"
+                            AutomationProperties.Name="삭제하고 초기화"
                             ToolTipService.ToolTip="삭제하고 초기화"
                             Background="Transparent"
                             BorderThickness="0"

@@ -109,7 +109,7 @@
                            FontSize="13"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-                <Button x:Name="BtnBulkAssign"
+                <Button AutomationProperties.Name="전체 학생 일괄 배치" x:Name="BtnBulkAssign"
                         Click="BtnBulkAssign_Click"
                         Style="{ThemeResource AccentButtonStyle}"
                         Padding="12,5">
@@ -193,6 +193,7 @@
                         Margin="8,0">
                 <Button x:Name="BtnAdd"
                         Click="BtnAdd_Click"
+                        AutomationProperties.Name="선택한 학생 등록"
                         ToolTipService.ToolTip="선택한 학생 등록"
                         Padding="12,8"
                         Margin="0,4">
@@ -200,6 +201,7 @@
                 </Button>
                 <Button x:Name="BtnRemove"
                         Click="BtnRemove_Click"
+                        AutomationProperties.Name="선택한 학생 등록 해제"
                         ToolTipService.ToolTip="선택한 학생 등록 해제"
                         Padding="12,8"
                         Margin="0,4">

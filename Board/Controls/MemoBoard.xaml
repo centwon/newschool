@@ -31,6 +31,7 @@
                         <TextBlock Text="메모" Style="{StaticResource DashboardCardHeaderTitle}"/>
                     </StackPanel>
                     <ComboBox x:Name="CBoxCategoryFilter" Grid.Column="1" MinWidth="80"
+                              AutomationProperties.Name="메모 분류 거르기"
                               VerticalAlignment="Center"
                               SelectionChanged="CBoxCategoryFilter_SelectionChanged">
                         <ComboBoxItem Content="전체" Tag=""/>
@@ -40,6 +41,7 @@
                         <ComboBoxItem Content="개인" Tag="개인"/>
                     </ComboBox>
                     <Button x:Name="BtnAddMemo" Grid.Column="3" Click="BtnAddMemo_Click"
+                            AutomationProperties.Name="새 메모 추가"
                             Background="Transparent" Padding="6,2"
                             ToolTipService.ToolTip="새 메모 추가">
                         <StackPanel Orientation="Horizontal" Spacing="4">
@@ -70,8 +72,10 @@
                     </Grid.ColumnDefinitions>
 
                     <CheckBox x:Name="ChkRecent" MinWidth="0" VerticalAlignment="Center"
+                              AutomationProperties.Name="완료로 표시해 숨기기"
                               Click="ChkRecent_Click" ToolTipService.ToolTip="완료(숨김)"/>
                     <ComboBox x:Name="CBoxRecentCategory" Grid.Column="1" MinWidth="80"
+                              AutomationProperties.Name="이 메모의 분류"
                               VerticalAlignment="Center" Margin="0,0,8,0"
                               SelectionChanged="CBoxRecentCategory_SelectionChanged">
                         <ComboBoxItem Content="수업" Tag="수업"/>
@@ -83,10 +87,13 @@
                                FontSize="13" TextTrimming="CharacterEllipsis"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <Button x:Name="BtnRecentOpenDialog" Grid.Column="3" Padding="8,4"
-                            Click="BtnRecentOpenDialog_Click" ToolTipService.ToolTip="새 창으로 열기 (제목·첨부)">
+                            Click="BtnRecentOpenDialog_Click" AutomationProperties.Name="새 창으로 열기 (제목·첨부)" ToolTipService.ToolTip="새 창으로 열기 (제목·첨부)">
                         <FontIcon Glyph="&#xE8A7;" FontSize="12"/>
                     </Button>
+                    <!-- ⚠ 글자가 StackPanel 안에 있으면 UIA 이름이 비어 있다 — Content 가
+                         문자열일 때만 자동으로 이름이 된다(54차 실측: 낭독기가 "단추"라고만 읽었다). -->
                     <Button x:Name="BtnRecentSave" Grid.Column="4" Padding="8,4" Margin="4,0,0,0"
+                            AutomationProperties.Name="메모 저장"
                             Click="BtnRecentSave_Click">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <FontIcon Glyph="&#xE74E;" FontSize="12"/>
@@ -95,6 +102,7 @@
                     </Button>
                     <Button x:Name="BtnRecentDelete" Grid.Column="5" Padding="8,4" Margin="4,0,0,0"
                             Background="Transparent" Click="BtnRecentDelete_Click"
+                            AutomationProperties.Name="삭제"
                             ToolTipService.ToolTip="삭제">
                         <FontIcon Glyph="&#xE74D;" FontSize="12"/>
                     </Button>

@@ -210,7 +210,7 @@
                                    TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
 
-                    <Button x:Name="BtnNoticeEdit"
+                    <Button AutomationProperties.Name="편집" x:Name="BtnNoticeEdit"
                             Grid.Column="1"
                             Click="BtnNoticeEdit_Click"
                             Background="Transparent"

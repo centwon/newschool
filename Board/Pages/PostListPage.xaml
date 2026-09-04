@@ -94,6 +94,7 @@
             <Button x:Name="ViewModeToggleButton"
                         Grid.Column="5"
                         Click="ViewModeToggleButton_Click"
+                        AutomationProperties.Name="보기 모드 전환"
                         ToolTipService.ToolTip="보기 모드 전환"
                         Margin="4,0,0,0"
                         Visibility="Collapsed">
@@ -181,6 +182,7 @@
                                      아래 Padding 을 줄여도 행이 더 낮아지지 않는다. 행 높이는
                                      Grid 의 Padding 하나로만 정해지게 둔다. -->
                                 <Button Click="PostItem_Click"
+                                        AutomationProperties.Name="{x:Bind Title}"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Stretch"
                                         Padding="0"
@@ -303,6 +305,7 @@
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:PostItemViewModel">
                             <Button Click="PostItem_Click"
+                                    AutomationProperties.Name="{x:Bind Title}"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Stretch"
                                     Padding="0"
@@ -386,6 +389,7 @@
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:PostItemViewModel">
                             <Button Click="PostItem_Click"
+                                    AutomationProperties.Name="{x:Bind Title}"
                                     Width="220"
                                     Height="280"
                                     Padding="0"
@@ -476,7 +480,7 @@
                         Click="PreviousButton_Click"
                         IsEnabled="False"
                         MinWidth="36" Padding="8,4"
-                        ToolTipService.ToolTip="이전 페이지 (Ctrl+PageUp)">
+                        AutomationProperties.Name="이전 페이지 (Ctrl+PageUp)" ToolTipService.ToolTip="이전 페이지 (Ctrl+PageUp)">
                     <FontIcon Glyph="&#xE76B;" FontSize="11"/>
                 </Button>
 
@@ -490,7 +494,7 @@
                         Click="NextButton_Click"
                         IsEnabled="False"
                         MinWidth="36" Padding="8,4"
-                        ToolTipService.ToolTip="다음 페이지 (Ctrl+PageDown)">
+                        AutomationProperties.Name="다음 페이지 (Ctrl+PageDown)" ToolTipService.ToolTip="다음 페이지 (Ctrl+PageDown)">
                     <FontIcon Glyph="&#xE76C;" FontSize="11"/>
                 </Button>
             </StackPanel>

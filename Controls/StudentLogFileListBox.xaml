@@ -30,7 +30,7 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                 <Button x:Name="AddFileButton"
                         Click="AddFileButton_Click"
-                        ToolTipService.ToolTip="파일 첨부"
+                        AutomationProperties.Name="파일 첨부" ToolTipService.ToolTip="파일 첨부"
                         Background="Transparent"
                         BorderThickness="0"
                         Padding="6,2">
@@ -39,7 +39,7 @@
 
                 <Button x:Name="RemoveFileButton"
                         Click="RemoveFileButton_Click"
-                        ToolTipService.ToolTip="선택한 첨부 빼기"
+                        AutomationProperties.Name="선택한 첨부 빼기" ToolTipService.ToolTip="선택한 첨부 빼기"
                         Background="Transparent"
                         BorderThickness="0"
                         Padding="6,2">

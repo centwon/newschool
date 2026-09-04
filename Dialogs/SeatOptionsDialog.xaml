@@ -100,13 +100,13 @@
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                    <Button Click="BtnAddExclusion_Click">
+                    <Button AutomationProperties.Name="분리 추가" Click="BtnAddExclusion_Click">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE711;" FontSize="14"/>
                             <TextBlock Text="분리 추가" FontSize="12"/>
                         </StackPanel>
                     </Button>
-                    <Button Click="BtnAddFixed_Click">
+                    <Button AutomationProperties.Name="고정 추가" Click="BtnAddFixed_Click">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE718;" FontSize="14"/>
                             <TextBlock Text="고정 추가" FontSize="12"/>

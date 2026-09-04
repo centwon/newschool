@@ -8,10 +8,12 @@
     mc:Ignorable="d">
 
     <StackPanel Orientation="Horizontal" Spacing="8">
+        <!-- ⚠ PlaceholderText 는 UIA 이름이 되지 않는다(54차 실측). 같은 말을 이름으로도 준다. -->
         <!-- 학년도 -->
         <ComboBox
             x:Name="CBoxYear"
             MinWidth="120"
+            AutomationProperties.Name="학년도"
             PlaceholderText="학년도"
             SelectionChanged="CBoxYear_SelectionChanged"/>
 
@@ -19,6 +21,7 @@
         <ComboBox
             x:Name="CBoxSemester"
             MinWidth="80"
+            AutomationProperties.Name="학기"
             PlaceholderText="학기"
             SelectionChanged="CBoxSemester_SelectionChanged"/>
     </StackPanel>

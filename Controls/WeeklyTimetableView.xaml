@@ -174,11 +174,11 @@
         <!-- 도구 모음 -->
         <Grid Grid.Row="0">
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Button Click="OnPreviousClick" ToolTipService.ToolTip="한 주 앞으로">
+                <Button Click="OnPreviousClick" AutomationProperties.Name="한 주 앞으로" ToolTipService.ToolTip="한 주 앞으로">
                     <FontIcon Glyph="&#xE76B;" FontSize="12"/>
                 </Button>
                 <Button Content="이번 주" Click="OnTodayClick"/>
-                <Button Click="OnNextClick" ToolTipService.ToolTip="한 주 뒤로">
+                <Button Click="OnNextClick" AutomationProperties.Name="한 주 뒤로" ToolTipService.ToolTip="한 주 뒤로">
                     <FontIcon Glyph="&#xE76C;" FontSize="12"/>
                 </Button>
 
@@ -197,10 +197,10 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                <Button Click="OnRefreshClick" ToolTipService.ToolTip="다시 읽기">
+                <Button Click="OnRefreshClick" AutomationProperties.Name="다시 읽기" ToolTipService.ToolTip="다시 읽기">
                     <FontIcon Glyph="&#xE72C;" FontSize="14"/>
                 </Button>
-                <Button Click="OnChangeListClick"
+                <Button AutomationProperties.Name="변경 목록" Click="OnChangeListClick"
                         ToolTipService.ToolTip="오늘 이후로 등록된 변경을 모두 훑어봅니다">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon Glyph="&#xE787;" FontSize="14"/>

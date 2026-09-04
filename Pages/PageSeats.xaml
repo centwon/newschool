@@ -30,10 +30,12 @@
                         Spacing="4"
                         Padding="8,8,8,6">
                 <ComboBox x:Name="CBoxGrade"
+                          AutomationProperties.Name="학년 선택"
                           PlaceholderText="학년"
                           MinWidth="82"
                           SelectionChanged="CBoxGrade_SelectionChanged"/>
                 <ComboBox x:Name="CBoxRooms"
+                          AutomationProperties.Name="학급 선택"
                           PlaceholderText="학급"
                           MinWidth="82"
                           SelectionChanged="CBoxRooms_SelectionChanged"/>
@@ -74,6 +76,7 @@
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="BtnExclusion"
                                 Click="BtnExclusion_Click"
+                                AutomationProperties.Name="배치 옵션"
                                 ToolTipService.ToolTip="배치 옵션 (이력/속성/짝제약/방식)"
                                 Padding="2"
                                 MinWidth="0" MinHeight="0"

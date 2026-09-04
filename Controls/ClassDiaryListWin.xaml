@@ -48,7 +48,7 @@
                     <CalendarDatePicker x:Name="DatePickerEnd"
                                 Header="종료일"
                                 Width="150"/>
-                    <Button x:Name="BtnSearch"
+                    <Button AutomationProperties.Name="조회" x:Name="BtnSearch"
                             Click="BtnSearch_Click"
                             VerticalAlignment="Bottom"
                             Style="{ThemeResource AccentButtonStyle}"
@@ -73,12 +73,22 @@
 
                 <ItemsRepeater.ItemTemplate>
                     <DataTemplate x:DataType="vm:ClassDiaryViewModel">
+                        <!-- ⚠ IsTabStop·KeyDown 을 빼지 말 것. ItemsRepeater 는 ListView 와 달리
+                             항목 컨테이너를 만들어 주지 않으므로, 이 Border 가 스스로 탭 정지가
+                             되지 않으면 **일지를 고를 방법이 마우스밖에 없다** — 이 창에서
+                             키보드로 닿는 것은 [검색]과 [닫기]뿐이었다(54차 실측).
+                             같은 짝을 ProgressMatrixView 가 먼저 쓰고 있다. -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="16"
+                                IsTabStop="True"
+                                AutomationProperties.Name="{x:Bind DateDisplay}"
                                 PointerPressed="DiaryItem_PointerPressed"
+                                KeyDown="DiaryItem_KeyDown"
+                                GotFocus="DiaryItem_Highlight"
+                                LostFocus="DiaryItem_Unhighlight"
                                 PointerEntered="DiaryItem_PointerEntered"
                                 PointerExited="DiaryItem_PointerExited">
                             <Grid>
@@ -176,7 +186,7 @@
                 BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0"
                 Padding="24,16">
-            <Button x:Name="BtnClose"
+            <Button AutomationProperties.Name="닫기" x:Name="BtnClose"
                     Click="BtnClose_Click"
                     HorizontalAlignment="Right"
                     MinWidth="100">

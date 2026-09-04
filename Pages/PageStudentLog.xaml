@@ -43,7 +43,7 @@
                     AutoLoad="False"
                     ClassChanged="ClassFilter_ClassChanged"/>
 
-                <ComboBox x:Name="CBoxCat" 
+                <ComboBox x:Name="CBoxCat" AutomationProperties.Name="기록 분류" 
                           MinWidth="120"
                           VerticalAlignment="Center"
                           SelectionChanged="CBoxCat_SelectionChanged"/>
@@ -62,7 +62,7 @@
                 <AppBarSeparator Margin="8,0"/>
 
                 <!-- 그룹1: 개인 기록 편집 -->
-                <Button x:Name="BtnNewActLog"
+                <Button AutomationProperties.Name="추가" x:Name="BtnNewActLog"
                         Click="BtnNewActLog_Click"
                         ToolTipService.ToolTip="새 기록 추가">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -71,7 +71,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnSaveActLog"
+                <Button AutomationProperties.Name="저장" x:Name="BtnSaveActLog"
                         Click="BtnSaveActLog_Click"
                         ToolTipService.ToolTip="목록에서 수정한 내용을 저장 (Ctrl+S)"
                         Style="{ThemeResource AccentButtonStyle}">
@@ -84,7 +84,7 @@
                     </Button.KeyboardAccelerators>
                 </Button>
 
-                <Button x:Name="BtnEditLog"
+                <Button AutomationProperties.Name="상세" x:Name="BtnEditLog"
                         Click="BtnEditLog_Click"
                         ToolTipService.ToolTip="선택한 기록을 대화상자에서 상세 편집">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -93,7 +93,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnPrint"
+                <Button AutomationProperties.Name="인쇄" x:Name="BtnPrint"
                         Click="BtnPrint_Click"
                         ToolTipService.ToolTip="선택한 학생의 기록을 PDF로 인쇄">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -102,7 +102,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnDelActLog"
+                <Button AutomationProperties.Name="삭제" x:Name="BtnDelActLog"
                         Click="BtnDelActLog_Click"
                         ToolTipService.ToolTip="선택한 기록 삭제">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -116,6 +116,7 @@
 
                 <!-- 그룹2: 글꼴 크기 -->
                 <Button x:Name="BtnFontResize"
+                        AutomationProperties.Name="글자 크기 변경"
                         Click="BtnFontResize_Click"
                         ToolTipService.ToolTip="글자 크기 변경">
                     <FontIcon Glyph="&#xE8E9;" FontSize="16"/>
@@ -181,7 +182,7 @@
                         Click="BtnAddLogAll_Click"
                         ToolTipService.ToolTip="여러 학생의 기록을 한번에 입력"/>
 
-                <Button x:Name="BtnBatchExport"
+                <Button AutomationProperties.Name="일괄 출력" x:Name="BtnBatchExport"
                         Click="BtnBatchExport_Click"
                         ToolTipService.ToolTip="현재 학급 전체 학생의 기록을 일괄 출력">
                     <StackPanel Orientation="Horizontal" Spacing="8">

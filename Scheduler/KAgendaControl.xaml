@@ -14,7 +14,10 @@
 
         <!-- 개별 항목 템플릿: [분류 배지][날짜][시간] [제목][완료/진행] -->
         <DataTemplate x:Key="ItemTemplate" x:DataType="local:AgendaItem">
+            <!-- ⚠ AutomationProperties.Name 을 빼지 말 것 — 없으면 ListView 가 항목의
+                 ToString() 을 읽어 "NewSchool.Scheduler.AgendaItem" 을 소리 내어 읽는다(54차). -->
             <Grid Padding="8,4" MinHeight="32"
+                  AutomationProperties.Name="{x:Bind AccessibleText, Mode=OneWay}"
                   Background="{x:Bind local:KAgendaControl.RowBackground(IsOverdue, IsToday), Mode=OneWay}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -112,6 +115,7 @@
                               Margin="0,0,6,0"/>
 
                     <ComboBox x:Name="CBoxFilter" Grid.Column="1"
+                              AutomationProperties.Name="목록 거르기"
                               Height="26" FontSize="11" MinWidth="70"
                               Padding="6,2" VerticalAlignment="Center"
                               SelectionChanged="CBoxFilter_SelectionChanged"/>
@@ -141,6 +145,7 @@
                             BorderThickness="0"
                             Padding="0"
                             VerticalAlignment="Center"
+                            AutomationProperties.Name="새 항목 추가"
                             ToolTipService.ToolTip="새 항목 추가">
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}"
                                   Glyph="&#xECC8;" FontSize="15"/>

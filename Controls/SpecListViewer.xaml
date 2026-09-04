@@ -59,7 +59,7 @@
                     <!-- 바이트 정보 -->
                 </Grid.ColumnDefinitions>
 
-                <CheckBox x:Name="ChkSelectAll"
+                <CheckBox x:Name="ChkSelectAll" AutomationProperties.Name="모두 선택"
                           Grid.Column="0"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"

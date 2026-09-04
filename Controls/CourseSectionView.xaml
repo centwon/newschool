@@ -34,32 +34,32 @@
 
         <!-- 도구 모음 -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-            <Button x:Name="BtnAddSection" Click="OnAddSectionClick" Style="{StaticResource AccentButtonStyle}">
+            <Button AutomationProperties.Name="소단원 추가" x:Name="BtnAddSection" Click="OnAddSectionClick" Style="{StaticResource AccentButtonStyle}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE710;" FontSize="14"/>
                     <TextBlock Text="소단원 추가"/>
                 </StackPanel>
             </Button>
             <Border Width="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="8,4"/>
-            <Button x:Name="BtnImportCsv" Click="OnImportCsvClick">
+            <Button AutomationProperties.Name="CSV 가져오기" x:Name="BtnImportCsv" Click="OnImportCsvClick">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE8E5;" FontSize="14"/>
                     <TextBlock Text="CSV 가져오기"/>
                 </StackPanel>
             </Button>
-            <Button Click="OnExportCsvClick">
+            <Button AutomationProperties.Name="CSV 내보내기" Click="OnExportCsvClick">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xEDE1;" FontSize="14"/>
                     <TextBlock Text="CSV 내보내기"/>
                 </StackPanel>
             </Button>
-            <Button Click="OnDownloadTemplateClick">
+            <Button AutomationProperties.Name="템플릿 다운로드" Click="OnDownloadTemplateClick">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE896;" FontSize="14"/>
                     <TextBlock Text="템플릿 다운로드"/>
                 </StackPanel>
             </Button>
-            <Button x:Name="BtnClearAll" Click="OnClearAllClick">
+            <Button AutomationProperties.Name="모든 단원을 삭제하시겠습니까?" x:Name="BtnClearAll" Click="OnClearAllClick">
                 <Button.Flyout>
                     <Flyout x:Name="ClearAllFlyout">
                         <StackPanel Spacing="12" Width="250">
@@ -187,6 +187,7 @@
 
                                 <Button Grid.Column="5"
                                         Click="OnDeleteSectionClick"
+                                        AutomationProperties.Name="이 단원 삭제"
                                         ToolTipService.ToolTip="이 단원 삭제"
                                         Tag="{x:Bind}"
                                         Padding="4"

@@ -164,6 +164,7 @@
                                 Margin="4,0,4,0"
                                 Background="Transparent"
                                 Click="BtnNewLog_Click"
+                                AutomationProperties.Name="추가"
                                 ToolTipService.ToolTip="추가">
                             <FontIcon Glyph="&#xECC8;" FontSize="16"/>
                         </Button>
@@ -173,6 +174,7 @@
                                 Margin="4,0,4,0"
                                 Background="Transparent"
                                 Click="BtnSaveLog_Click"
+                                AutomationProperties.Name="저장"
                                 ToolTipService.ToolTip="저장">
                             <FontIcon Glyph="&#xE74E;" FontSize="16"/>
                         </Button>
@@ -182,6 +184,7 @@
                                 Margin="4,0,4,0"
                                 Background="Transparent"
                                 Click="BtnDeleteLog_Click"
+                                AutomationProperties.Name="삭제"
                                 ToolTipService.ToolTip="삭제">
                             <FontIcon Glyph="&#xECC9;" FontSize="16"/>
                         </Button>
@@ -191,6 +194,7 @@
                                 Margin="4,0,4,0"
                                 Background="Transparent"
                                 Click="BtnPrintLog_Click"
+                                AutomationProperties.Name="인쇄"
                                 ToolTipService.ToolTip="인쇄">
                             <FontIcon Glyph="&#xE749;" FontSize="16"/>
                         </Button>
@@ -200,6 +204,7 @@
                                 Margin="4,0,4,0"
                                 Background="Transparent"
                                 Click="BtnExportLog_Click"
+                                AutomationProperties.Name="엑셀 내보내기"
                                 ToolTipService.ToolTip="엑셀 내보내기">
                             <FontIcon Glyph="&#xE160;" FontSize="16"/>
                         </Button>

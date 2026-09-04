@@ -227,6 +227,8 @@ public sealed partial class PhotoCard : UserControl
                 Photo.Source = null;
             }
         }
+
+        UpdateAutomationName();
     }
 
     private void OnStudentChanged()
@@ -365,11 +367,13 @@ public sealed partial class PhotoCard : UserControl
             BrdrOutLine.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(
                 Microsoft.UI.Colors.CornflowerBlue);
         }
+        UpdateAutomationName();
     }
 
     private void SetHiddenStyle(bool value)
     {
         this.Opacity = value ? 0.35 : 1.0;
+        UpdateAutomationName();
     }
 
     /// <summary>지정 좌석 표식. 인쇄물의 📌 와 같은 기호를 쓴다(53차).</summary>
@@ -377,6 +381,32 @@ public sealed partial class PhotoCard : UserControl
     {
         if (FixedMark != null)
             FixedMark.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+        UpdateAutomationName();
+    }
+
+    /// <summary>
+    /// 이 자리를 <b>귀로 들어서</b> 알 수 있게 이름을 붙인다 — 54차(키보드만으로 쓸 때).
+    ///
+    /// <para>좌석 카드는 UIA 트리에 조작 요소로 아예 나오지 않았고(이름 없는 <c>Text</c>
+    /// 하나뿐이었다), 탭 정지도 아니어서 <b>자리 배정 화면에서 키보드로 닿는 열다섯 곳
+    /// 가운데 자리는 하나도 없었다</b>. 이제 탭으로 닿으므로, 닿았을 때 무엇인지 말해야 한다.</para>
+    ///
+    /// <para>번호는 <c>No</c>(0부터)가 아니라 사람이 세는 순서로 읽는다.</para>
+    /// </summary>
+    private void UpdateAutomationName()
+    {
+        string seat = $"{No + 1}번 자리";
+
+        string who = _studentData == null
+            ? "빈 자리"
+            : $"{_studentData.Name} {_studentData.Number}번";
+
+        string state = string.Empty;
+        if (_isUnUsed) state = ", 미사용 좌석";
+        else if (_isFixed) state = ", 지정 좌석";
+        if (_isHidden) state += ", 미표시 좌석";
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(this, $"{seat}, {who}{state}");
     }
 
     #endregion

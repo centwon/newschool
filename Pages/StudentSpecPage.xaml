@@ -70,7 +70,7 @@
                         Margin="16,0,0,0">
 
                 <!-- 저장 -->
-                <Button x:Name="BtnSave"
+                <Button AutomationProperties.Name="저장" x:Name="BtnSave"
                         ToolTipService.ToolTip="선택한 항목 저장"
                         Click="OnSaveClick">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -83,7 +83,7 @@
                 </Button>
 
                 <!-- 삭제 -->
-                <Button x:Name="BtnDelete"
+                <Button AutomationProperties.Name="삭제" x:Name="BtnDelete"
                         ToolTipService.ToolTip="선택한 항목 삭제 (DB에서 완전 삭제)"
                         Click="OnDeleteClick">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -100,7 +100,7 @@
                         Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
 
                 <!-- 폰트 크기 -->
-                <Button x:Name="BtnFontSize"
+                <Button AutomationProperties.Name="글자 크기" x:Name="BtnFontSize"
                         ToolTipService.ToolTip="글자 크기 조절"
                         Click="OnFontSizeClick">
                     <FontIcon Glyph="&#xE8E9;" FontSize="16"/>
@@ -146,7 +146,7 @@
                         Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
 
                 <!-- 일괄 입력 -->
-                <Button x:Name="BtnBatchInput"
+                <Button AutomationProperties.Name="일괄 입력" x:Name="BtnBatchInput"
                         ToolTipService.ToolTip="학급 전체 학생의 특기사항을 한 화면에서 편집"
                         Click="OnBatchInputClick">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -156,7 +156,7 @@
                 </Button>
 
                 <!-- 일괄 출력 -->
-                <Button x:Name="BtnBatchExport"
+                <Button AutomationProperties.Name="일괄 출력" x:Name="BtnBatchExport"
                         ToolTipService.ToolTip="학급 전체 학생부를 PDF 또는 엑셀로 일괄 출력"
                         Click="OnBatchExportClick">
                     <StackPanel Orientation="Horizontal" Spacing="4">

@@ -8,7 +8,9 @@
     mc:Ignorable="d"
     Width="80"
     AllowDrop="True"
-    CanDrag="True">
+    CanDrag="True"
+    IsTabStop="True"
+    UseSystemFocusVisuals="True">
 
     <UserControl.ContextFlyout>
         <MenuFlyout>

@@ -82,6 +82,14 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
         }
 
         _editor.TextChanged += OnEditorTextChanged;
+
+        // 키보드로 들어온 사람이 나갈 수 있게 한다 — 54차(키보드만으로 쓸 때).
+        //
+        // ⚠ 편집기가 키를 이미 Handled 로 표시하고 넘긴다. 보통 KeyDown 구독으로는
+        //   영영 안 온다 — handledEventsToo:true 여야 받는다.
+        HostRoot.AddHandler(UIElement.KeyDownEvent,
+            new Microsoft.UI.Xaml.Input.KeyEventHandler(OnEditorKeyDown), handledEventsToo: true);
+
         ApplyMode(Mode);
         // 보류된 flow 가 있으면 우선 적용(.flow 로드 경로), 없으면 Text(HTML) 적용
         if (_pendingFlow != null) { ApplyFlow(_pendingFlow); _pendingFlow = null; }
@@ -90,6 +98,48 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
         // Build 전에 들어온 InsertHtml 을 여기서 흘려보낸다.
         // (새 글의 머리말 삽입처럼 페이지 초기화 중에 호출되는 경로 — 그때는 _editor 가 아직 없다)
         if (_pendingHtml != null) { _editor.InsertHtml(_pendingHtml); _pendingHtml = null; }
+    }
+
+    /// <summary>
+    /// 편집기에서 <b>빠져나가는 길</b>. <c>Esc</c> 와 <c>Ctrl+Tab</c> 이 포커스를 편집기 밖으로 옮긴다.
+    ///
+    /// <para>54차(키보드만으로 쓸 때)에 실측으로 잡은 덫이다. 홈 화면에서 Tab 을 열여섯 번
+    /// 누르면 메모 본문 편집기에 들어가는데, 그 뒤로는 <b>Tab·Shift+Tab·Ctrl+Tab·Esc 어느
+    /// 것으로도 나올 수 없었다</b> — 마우스를 쓰지 않으면 앱이 거기서 끝났다. 이 편집기는
+    /// 앱 안 <b>열 곳</b>에서 쓰이므로 덫도 열 곳에 있었다.</para>
+    ///
+    /// <para>Tab 자체는 편집기에 그대로 둔다 — 표 안 이동처럼 편집기가 쓸 수 있는 키라서,
+    /// 뺏으면 편집 기능을 줄이게 된다. 대신 어느 편집기에서나 통하는 <c>Esc</c> 를 나가는
+    /// 길로 정했다(<c>Ctrl+Tab</c> 은 여러 줄 입력칸에서 쓰는 관행이라 함께 받는다).</para>
+    /// </summary>
+    private void OnEditorKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        bool ctrl = Microsoft.UI.Input.InputKeyboardSource
+            .GetKeyStateForCurrentThread(VirtualKey.Control)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+        bool wantsOut = e.Key == VirtualKey.Escape || (e.Key == VirtualKey.Tab && ctrl);
+        if (!wantsOut) return;
+
+        bool shift = Microsoft.UI.Input.InputKeyboardSource
+            .GetKeyStateForCurrentThread(VirtualKey.Shift)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+        var direction = shift
+            ? Microsoft.UI.Xaml.Input.FocusNavigationDirection.Previous
+            : Microsoft.UI.Xaml.Input.FocusNavigationDirection.Next;
+
+        // ⚠ 인자 없는 TryMoveFocus(direction) 는 데스크톱 앱에서 **던진다** —
+        //   "the app must call ... overload with the FindNextElementOptions parameter,
+        //    and the SearchRoot must be set to a loaded DependencyObject."
+        //   실측으로 확인했다(54차). 창 전체를 뒤질 곳으로 준다.
+        if (XamlRoot?.Content is not DependencyObject searchRoot) return;
+
+        var options = new Microsoft.UI.Xaml.Input.FindNextElementOptions { SearchRoot = searchRoot };
+
+        // 키가 아니라 코드로 옮기므로 편집기가 Tab 을 삼키는 것과 무관하게 나간다.
+        if (Microsoft.UI.Xaml.Input.FocusManager.TryMoveFocus(direction, options))
+            e.Handled = true;
     }
 
     #region Dependency Properties

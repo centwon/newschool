@@ -25,6 +25,7 @@
 
         <!-- 파일 정보 버튼 -->
         <Button Grid.Column="1"
+                AutomationProperties.Name="첨부 파일 열기"
                 Background="Transparent"
                 BorderThickness="0"
                 HorizontalAlignment="Stretch"

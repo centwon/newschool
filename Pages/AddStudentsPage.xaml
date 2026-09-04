@@ -19,6 +19,7 @@
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Click="OnBackClick"
+                        AutomationProperties.Name="학생 관리로 돌아가기"
                         ToolTipService.ToolTip="학생 관리로 돌아가기"
                         VerticalAlignment="Center"
                         Padding="8,6">
@@ -277,7 +278,7 @@
             <StackPanel Orientation="Horizontal" 
                        HorizontalAlignment="Left"
                        Spacing="8">
-                <Button x:Name="BtnAddFromExcel"
+                <Button AutomationProperties.Name="Excel에서 가져오기" x:Name="BtnAddFromExcel"
                        Click="BtnAddFromExcel_Click">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE8E5;" FontSize="16"/>
@@ -285,7 +286,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnDownloadTemplate"
+                <Button AutomationProperties.Name="템플릿 다운로드" x:Name="BtnDownloadTemplate"
                        Click="BtnDownloadTemplate_Click">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE896;" FontSize="16"/>
@@ -293,7 +294,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnRemoveSelected"
+                <Button AutomationProperties.Name="선택 삭제" x:Name="BtnRemoveSelected"
                        Click="BtnRemoveSelected_Click">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE74D;" FontSize="16"/>
@@ -311,7 +312,7 @@
                              IsActive="False"
                              VerticalAlignment="Center"/>
 
-                <Button x:Name="BtnExport"
+                <Button AutomationProperties.Name="목록 내보내기" x:Name="BtnExport"
                        Click="BtnExport_Click"
                        IsEnabled="False">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -320,7 +321,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="BtnSave"
+                <Button AutomationProperties.Name="데이터베이스에 저장" x:Name="BtnSave"
                        Style="{StaticResource AccentButtonStyle}"
                        Click="BtnSave_Click"
                        IsEnabled="False"

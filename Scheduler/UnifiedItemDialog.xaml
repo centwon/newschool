@@ -1,4 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- ⚠ DefaultButton 은 빼지 말 것. 스물한 개 대화상자 중 여기에만 없어서 Enter 가
+     아무 일도 하지 않았다(54차 — 키보드만으로 쓸 때). 삭제가 기본이 되면 안 되므로
+     반드시 Primary(저장)여야 한다. -->
 <ContentDialog
     x:Class="NewSchool.Scheduler.UnifiedItemDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -12,6 +15,7 @@
     PrimaryButtonText="저장"
     SecondaryButtonText="삭제"
     CloseButtonText="닫기"
+    DefaultButton="Primary"
     PrimaryButtonClick="Dialog_PrimaryButtonClick"
     SecondaryButtonClick="Dialog_SecondaryButtonClick">
 

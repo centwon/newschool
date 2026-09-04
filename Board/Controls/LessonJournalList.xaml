@@ -47,6 +47,7 @@
                         Spacing="4">
                 <Button x:Name="BtnAdd"
                         Click="BtnAdd_Click"
+                        AutomationProperties.Name="수업 일지 쓰기"
                         ToolTipService.ToolTip="수업 일지 쓰기"
                         Background="Transparent"
                         BorderThickness="0"
@@ -55,6 +56,7 @@
                 </Button>
                 <Button x:Name="BtnRefresh"
                         Click="BtnRefresh_Click"
+                        AutomationProperties.Name="새로고침"
                         ToolTipService.ToolTip="새로고침"
                         Background="Transparent"
                         BorderThickness="0"

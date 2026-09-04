@@ -192,9 +192,24 @@ public sealed partial class ClassDiaryListWin : Window, IDisposable
     }
 
     /// <summary>
-    /// 일지 아이템 마우스 오버
+    /// 일지 아이템을 <b>키보드로</b> 여는 길 — 54차(키보드만으로 쓸 때).
+    ///
+    /// <para><c>ItemsRepeater</c> 는 <c>ListView</c> 와 달리 항목 컨테이너를 만들어 주지 않는다.
+    /// 그래서 항목이 스스로 탭 정지가 되고 Enter·Space 를 받지 않으면, 일지를 고르는 길이
+    /// 마우스밖에 없다. 실제로 이 창에서 키보드로 닿는 것은 [검색]과 [닫기]뿐이었다.</para>
     /// </summary>
-    private void DiaryItem_PointerEntered(object sender, PointerRoutedEventArgs e)
+    private void DiaryItem_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key is not (Windows.System.VirtualKey.Enter or Windows.System.VirtualKey.Space)) return;
+        if (sender is not Border border || border.DataContext is not ClassDiaryViewModel diary) return;
+
+        DiarySelected?.Invoke(this, diary);
+        e.Handled = true;
+        Close();
+    }
+
+    /// <summary>마우스가 올라왔거나 <b>포커스가 들어왔을 때</b> 강조. 표시가 없으면 키보드로는 어디 있는지 알 수 없다.</summary>
+    private void DiaryItem_Highlight(object sender, RoutedEventArgs e)
     {
         if (sender is Border border)
         {
@@ -202,16 +217,24 @@ public sealed partial class ClassDiaryListWin : Window, IDisposable
         }
     }
 
-    /// <summary>
-    /// 일지 아이템 마우스 아웃
-    /// </summary>
-    private void DiaryItem_PointerExited(object sender, PointerRoutedEventArgs e)
+    /// <summary>강조 해제.</summary>
+    private void DiaryItem_Unhighlight(object sender, RoutedEventArgs e)
     {
         if (sender is Border border)
         {
             border.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"];
         }
     }
+
+    /// <summary>
+    /// 일지 아이템 마우스 오버
+    /// </summary>
+    private void DiaryItem_PointerEntered(object sender, PointerRoutedEventArgs e) => DiaryItem_Highlight(sender, e);
+
+    /// <summary>
+    /// 일지 아이템 마우스 아웃
+    /// </summary>
+    private void DiaryItem_PointerExited(object sender, PointerRoutedEventArgs e) => DiaryItem_Unhighlight(sender, e);
 
     /// <summary>
     /// 닫기 버튼

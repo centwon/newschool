@@ -222,24 +222,40 @@ public sealed partial class ListStudent : UserControl
 
     #region Context Menu
 
-    private void OnItemRightTapped(object sender, RightTappedRoutedEventArgs e)
+    /// <summary>
+    /// 학생 항목의 컨텍스트 메뉴를 연다. <b>마우스 오른쪽 단추와 키보드 메뉴 키를 함께</b> 받는다.
+    ///
+    /// <para>예전에는 <c>RightTapped</c> 를 썼다. 그 이벤트는 포인터에만 오고 키보드의
+    /// 메뉴 키·Shift+F10 에는 오지 않아, 키보드만 쓰는 사람에게는 [누가기록 작성]·
+    /// [학생 정보 보기]가 아예 없는 것과 같았다(54차). <c>ContextRequested</c> 는 둘 다 받는다.</para>
+    ///
+    /// <para><c>TryGetPosition</c> 이 <c>false</c> 를 주면 키보드로 부른 것이다 — 그때는
+    /// 좌표가 없으므로 항목 자체에 붙여 띄운다.</para>
+    /// </summary>
+    private void OnItemContextRequested(UIElement sender, ContextRequestedEventArgs e)
     {
         if (sender is not Grid grid) return;
         if (grid.DataContext is not Enrollment enrollment) return;
 
-        // 우클릭한 항목을 선택 상태로 변경
+        // 메뉴를 부른 항목을 선택 상태로 바꾼다
         StudentListView.SelectedItem = enrollment;
 
-        // 주입된 컨텍스트 메뉴가 있으면 표시
+        if (ItemContextFlyout == null) return;
+
+        bool hasPoint = e.TryGetPosition(grid, out var point);
+
         if (ItemContextFlyout is MenuFlyout menuFlyout)
         {
-            menuFlyout.ShowAt(grid, e.GetPosition(grid));
+            if (hasPoint) menuFlyout.ShowAt(grid, point);
+            else menuFlyout.ShowAt(grid);
         }
-        else if (ItemContextFlyout != null)
+        else
         {
             FlyoutBase.SetAttachedFlyout(grid, ItemContextFlyout);
             FlyoutBase.ShowAttachedFlyout(grid);
         }
+
+        e.Handled = true;
     }
 
     #endregion

@@ -85,7 +85,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="4"
                                         HorizontalAlignment="Right" VerticalAlignment="Center">
                                 <Button Click="OnPreviousWeekClick" Padding="6,2"
-                                        ToolTipService.ToolTip="지난 주">
+                                        AutomationProperties.Name="지난 주" ToolTipService.ToolTip="지난 주">
                                     <FontIcon Glyph="&#xE76B;" FontSize="10"/>
                                 </Button>
                                 <!--
@@ -97,7 +97,7 @@
                                         Click="OnThisWeekClick"
                                         Visibility="Collapsed"/>
                                 <Button Click="OnNextWeekClick" Padding="6,2"
-                                        ToolTipService.ToolTip="다음 주">
+                                        AutomationProperties.Name="다음 주" ToolTipService.ToolTip="다음 주">
                                     <FontIcon Glyph="&#xE76C;" FontSize="10"/>
                                 </Button>
                             </StackPanel>

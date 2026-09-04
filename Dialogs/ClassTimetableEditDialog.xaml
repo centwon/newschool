@@ -151,6 +151,7 @@
 
                         <Button 
                             Grid.Column="4"
+                            AutomationProperties.Name="이 시간표 줄 삭제"
                             ToolTipService.ToolTip="이 시간표 줄 삭제"
                             Click="OnRemoveClick"
                             Tag="{x:Bind Mode=OneTime}">

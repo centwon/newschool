@@ -147,7 +147,7 @@
     </UserControl.Resources>
 
     <Grid>
-        <Button x:Name="BtnMonth" 
+        <Button AutomationProperties.Name="1월" x:Name="BtnMonth" 
                 Style="{StaticResource MainButtonStyle}"
                 HorizontalAlignment="Left"
                 Click="BtnMonth_Click">
@@ -164,11 +164,21 @@
                         </Style>
                     </Flyout.FlyoutPresenterStyle>
 
+                    <!-- ⚠ IsTabStop 이 없으면 아래 KeyDown 은 **영영 오지 않는다**.
+                         Grid 는 기본적으로 포커스를 못 받아 OnFlyoutOpened 의
+                         GridMonth.Focus() 가 조용히 실패하고, 포커스는 ◀ 버튼에 머문다.
+                         그러면 방향키·Enter 처리가 통째로 죽은 코드가 된다(54차 실측 —
+                         팝업을 키보드로 열어도 열두 달 중 아무것도 고를 수 없었다).
+                         형제 셋(CourseTimetableBoard·WeeklyTimetableView·ProgressMatrixView)은
+                         이미 이 짝을 제대로 달고 있었다. 선택된 달 강조가 곧 포커스 표시라
+                         시스템 포커스 테두리는 끈다. -->
                     <Grid x:Name="GridMonth"
                           Width="200"
                           Background="{ThemeResource FlyoutPresenterBackground}"
                           CornerRadius="12"
                           Padding="8"
+                          IsTabStop="True"
+                          UseSystemFocusVisuals="False"
                           KeyDown="GridMonth_KeyDown">
 
                         <Grid.RowDefinitions>
@@ -187,7 +197,7 @@
 
                             <Button Grid.Column="0"
                                     x:Name="BtnPrevious"
-                                    ToolTipService.ToolTip="이전 해"
+                                    AutomationProperties.Name="이전 해" ToolTipService.ToolTip="이전 해"
                                     Style="{StaticResource NavigationButtonStyle}"
                                     Click="BtnPrevious_Click">
                                 <FontIcon Glyph="&#xE76B;" FontSize="16"/>
@@ -202,7 +212,7 @@
 
                             <Button Grid.Column="2"
                                     x:Name="BtnNext"
-                                    ToolTipService.ToolTip="다음 해"
+                                    AutomationProperties.Name="다음 해" ToolTipService.ToolTip="다음 해"
                                     Style="{StaticResource NavigationButtonStyle}"
                                     Click="BtnNext_Click">
                                 <FontIcon Glyph="&#xE76C;" FontSize="16"/>
