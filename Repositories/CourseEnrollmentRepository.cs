@@ -257,14 +257,19 @@ public class CourseEnrollmentRepository : BaseRepository
     }
 
     /// <summary>
-    /// 수강 상태 변경
+    /// 수강 상태 변경.
+    ///
+    /// <para>⚠ 이 쿼리는 <b>한 번도 성공한 적이 없었다</b> — <c>CourseEnrollment</c> 에 없는
+    /// <c>UpdatedAt</c> 열에 값을 넣고 있어서 부르는 즉시 <c>no such column</c> 로 터진다.
+    /// 첫 커밋부터 그대로였고 부르는 곳이 한 곳도 없어 아무도 몰랐다(51차에 발견).
+    /// 이 표에는 수정 시각 열이 없다 — 필요하면 열을 더하는 것이 먼저다(그때는
+    /// 이미 만들어진 자료 파일에 손으로 넣어야 한다, <c>Board.cs</c> 의 결정 주석 참고).</para>
     /// </summary>
     public async Task<bool> UpdateStatusAsync(int no, string status)
     {
         const string query = @"
                 UPDATE CourseEnrollment SET
-                    Status = @Status,
-                    UpdatedAt = @UpdatedAt
+                    Status = @Status
                 WHERE No = @No";
 
         try
@@ -272,7 +277,6 @@ public class CourseEnrollmentRepository : BaseRepository
             using var cmd = CreateCommand(query);
             cmd.Parameters.AddWithValue("@No", no);
             cmd.Parameters.AddWithValue("@Status", status);
-            cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.Now);
 
             int affected = await cmd.ExecuteNonQueryAsync();
             return affected > 0;

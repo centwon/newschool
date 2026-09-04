@@ -43,7 +43,9 @@ public static class UserErrorReporter
     /// </summary>
     private static string Describe(Exception ex)
     {
-        var friendly = Helpers.FileErrorText.Explain(ex);
+        // 파일이 막힌 것인가(49차), 자료 파일 자체가 지금 판과 안 맞는 것인가(51차).
+        // 둘은 예외 형이 달라 겹치지 않는다.
+        var friendly = Helpers.FileErrorText.Explain(ex) ?? Helpers.DbErrorText.Explain(ex);
 
         return friendly == null
             ? ex.Message

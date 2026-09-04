@@ -256,7 +256,14 @@ public abstract class BaseRepository : IDisposable
                 _ordinals[reader.GetName(i)] = i;
         }
 
-        public int GetOrdinal(string columnName) => _ordinals[columnName];
+        /// <summary>
+        /// 없으면 <see cref="NewSchool.Helpers.MissingColumnException"/> — 옛 자료 파일에서
+        /// 어느 칸이 빠졌는지 사용자에게 말할 수 있어야 한다(51차, 학교 DB 쪽과 같은 규칙).
+        /// </summary>
+        public int GetOrdinal(string columnName) =>
+            _ordinals.TryGetValue(columnName, out int ordinal)
+                ? ordinal
+                : throw new NewSchool.Helpers.MissingColumnException(columnName);
 
         public bool TryGetOrdinal(string columnName, out int ordinal)
             => _ordinals.TryGetValue(columnName, out ordinal);

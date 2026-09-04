@@ -294,9 +294,16 @@ public abstract class BaseRepository : IDisposable
         }
 
         /// <summary>
-        /// 컬럼 인덱스 가져오기 (캐시됨)
+        /// 컬럼 인덱스 가져오기 (캐시됨).
+        ///
+        /// <para>없으면 <see cref="Helpers.MissingColumnException"/> 을 던진다 — 예전에는
+        /// 사전이 그대로 <c>KeyNotFoundException</c> 을 냈는데, 그 문장으로는 자료 파일이
+        /// 옛 판 것이라는 사실이 드러나지 않았다(51차).</para>
         /// </summary>
-        public int GetOrdinal(string columnName) => _ordinals[columnName];
+        public int GetOrdinal(string columnName) =>
+            _ordinals.TryGetValue(columnName, out int ordinal)
+                ? ordinal
+                : throw new Helpers.MissingColumnException(columnName);
 
         /// <summary>
         /// 컬럼 존재 여부 확인

@@ -1,0 +1,42 @@
+# 자료 파일 스키마 지문 — 표마다 "파일:표=칸,칸,..." 한 줄.
+#
+# 이 파일은 손으로 고치는 것이 아니라, 스키마를 바꾼 뒤 시험이 일러 주는 대로 갱신한다.
+# 이 프로젝트는 ALTER 마이그레이션을 두지 않으므로(Board.cs 의 결정 주석),
+# 칸을 더했다면 이미 쓰던 자료 파일에는 손으로 넣어야 한다. 그 문장을 아래에 적어 둘 것.
+#
+# 손으로 넣은 변경 (넣은 날짜 / 문장):
+#   2026-08-24  ALTER TABLE Post ADD COLUMN IsPinned INTEGER NOT NULL DEFAULT 0   (board.db, 39차)
+school:ClassDiary=No,SchoolCode,TeacherID,Year,Semester,Date,Grade,Class,Absent,Late,LeaveEarly,Memo,Notice,Life,CreatedAt,UpdatedAt
+school:ClassTimetable=No,SchoolCode,Year,Semester,Grade,Class,DayOfWeek,Period,SubjectName,TeacherName,Room
+school:Club=No,SchoolCode,TeacherID,Year,ClubName,ActivityRoom,Remark,CreatedAt,UpdatedAt,IsDeleted
+school:ClubEnrollment=No,EnrollmentNo,ClubNo,Status,Remark
+school:ClubEnrollmentFull=No,EnrollmentNo,ClubNo,Status,Remark,StudentID,Year,Grade,Class,Number,IsActive,Name,Sex,Photo
+school:Course=No,SchoolCode,Year,Semester,TeacherID,Grade,Subject,Unit,Type,Rooms,Remark
+school:CourseEnrollment=No,EnrollmentNo,CourseNo,Status,Remark,Room
+school:CourseEnrollmentFull=No,EnrollmentNo,CourseNo,Status,Remark,Room,StudentID,Year,Grade,Class,Number,IsActive,Name,Sex,Photo
+school:CourseSection=No,Course,UnitNo,UnitName,ChapterNo,ChapterName,SectionNo,SectionName,StartPage,EndPage,EstimatedHours,SortOrder
+school:CourseWeeklyHours=No,CourseNo,Room,Week,WeekStartDate,PlannedHours
+school:Enrollment=No,StudentID,SchoolCode,Year,Grade,Class,Number,IsActive,ChangeType,ChangeDate,Memo,TeacherID
+school:EnrollmentFull=No,StudentID,SchoolCode,Year,Grade,Class,Number,IsActive,ChangeType,ChangeDate,Memo,TeacherID,Name,Sex,Photo
+school:Lesson=No,Course,Teacher,Year,Semester,DayOfWeek,Period,Grade,Room
+school:LessonChange=No,TeacherID,Year,Semester,Date,Period,CourseNo,SubjectText,Room,Memo
+school:LessonProgress=No,CourseSectionId,Room,IsCompleted,CompletedDate,ProgressType,Memo,CreatedAt,UpdatedAt
+school:School=No,SchoolCode,ATPT_OFCDC_SC_CODE,ATPT_OFCDC_SC_NAME,SchoolName,SchoolType,FoundationDate,Address,Phone,Fax,Website,PrincipalName,Memo,IsActive,CreatedAt,UpdatedAt,IsDeleted
+school:SchoolSchedule=No,SCHUL_NM,ATPT_OFCDC_SC_CODE,ATPT_OFCDC_SC_NM,SD_SCHUL_CODE,AY,AA_YMD,EVENT_NM,EVENT_CNTNT,SBTR_DD_SC_NM,ONE_GRADE_EVENT_YN,TW_GRADE_EVENT_YN,THREE_GRADE_EVENT_YN,FR_GRADE_EVENT_YN,FIV_GRADE_EVENT_YN,SIX_GRADE_EVENT_YN,IsManual,CreatedAt,UpdatedAt,IsDeleted
+school:SeatArrangement=No,SchoolCode,Year,Grade,Class,Jul,Jjak,Rows,ShowPhoto,Message,IsLocked,OptionsJson,CreatedAt,UpdatedAt
+school:SeatAssignment=No,ArrangementNo,Row,Col,StudentID,IsUnUsed,IsHidden,IsFixed
+school:SeatHistory=No,SchoolCode,Year,Grade,Class,StudentID_A,StudentID_B,Round,Kind,SavedAt
+school:SeatPosHistory=No,SchoolCode,Year,Grade,Class,StudentID,Row,Col,Round,SavedAt
+school:Student=No,StudentID,Name,Sex,BirthDate,ResidentNumber,Photo,Phone,Email,Address,Memo,CreatedAt,UpdatedAt,IsDeleted
+school:StudentDetail=No,StudentID,FatherName,FatherPhone,FatherJob,MotherName,MotherPhone,MotherJob,GuardianName,GuardianPhone,GuardianRelation,FamilyInfo,Friends,Interests,Talents,CareerGoal,HealthInfo,Allergies,SpecialNeeds,Memo,CreatedAt,UpdatedAt
+school:StudentLog=No,StudentID,TeacherID,Year,Semester,Date,Category,CourseNo,SubjectName,ClubNo,ClubName,Log,Tag,IsImportant,ActivityName,Topic,Description,Role,SkillDeveloped,StrengthShown,ResultOrOutcome
+school:StudentLogFile=No,LogNo,Year,StudentID,FileName,FileSize,DateTime
+school:StudentSpecial=No,StudentID,Year,Semester,Type,Title,Content,Date,TeacherID,CourseNo,SubjectName,IsActive,Tag
+school:Teacher=No,TeacherID,LoginID,Name,Status,Position,Subject,Phone,Email,BirthDate,HireDate,Photo,Memo,CreatedAt,UpdatedAt,LastLoginAt,IsDeleted
+school:TeacherSchoolHistory=No,TeacherID,SchoolCode,StartDate,EndDate,Position,Role,IsCurrent,Memo,CreatedAt,UpdatedAt
+board:Comment=No,Post,User,DateTime,ParentNo,Content,HasFile,FileName,FileSize
+board:Post=No,User,DateTime,Category,Subject,Title,Content,PlainText,RefNo,ReplyOrder,Depth,ReadCount,HasFile,HasComment,IsCompleted,IsPinned
+board:PostFile=No,Post,DateTime,FileName,FileSize
+scheduler:KCalendarList=No,GoogleId,Title,Color,SortOrder,IsDefault,IsVisible,Updated,SyncMode,SchoolCode,SyncToken
+scheduler:KEvent=No,GoogleId,CalendarId,Title,Notes,Start,End,IsAllday,Location,Status,ColorId,Recurrence,Updated,User,ItemType,IsDone,Completed,SeriesId
+settings:Settings=Key,Value,Type,Description,Updated

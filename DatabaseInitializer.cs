@@ -818,10 +818,24 @@ public sealed class DatabaseInitializer : IDisposable
     {
         if (_connection == null) return;
 
-        using var cmd = _connection.CreateCommand();
+        int version = await ReadSchemaVersionAsync();
 
-        cmd.CommandText = "PRAGMA user_version;";
-        int version = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+        // 지금 판보다 <b>새</b> 자료 파일이다(내려 깔았거나, 새 판에서 만든 파일을 가져왔다).
+        // 여기서 변환을 돌리면 새 판이 만든 모양을 옛 규칙으로 건드리게 된다 — 손대지 않고
+        // 넘어가되, 사실은 남긴다. 세대 표식도 내려 찍지 않는다(StampSchemaVersionAsync).
+        if (version > SchemaVersion)
+        {
+            Logging.Log.Warning("DatabaseInitializer",
+                $"자료 파일의 세대({version})가 이 판({SchemaVersion})보다 새롭다 — 변환을 건너뛴다");
+            return;
+        }
+
+        // 변환 전체를 한 덩이로 묶는다 — 중간에 끊기면(전원·잠금·공간) 반만 바뀐 자료가
+        // 남고, 그 상태는 어느 세대도 아니라서 다음 실행이 무엇을 해야 할지 알 수 없다.
+        // 지금 변환들은 각각 한 문장뿐이라 실질적 차이가 없지만, 다음 변환은 그렇지 않을 수 있다.
+        using var tx = _connection.BeginTransaction();
+        using var cmd = _connection.CreateCommand();
+        cmd.Transaction = tx;
 
         // 새 DB 는 0 으로 시작해 아래를 모두 훑지만, 전부 IF EXISTS 라 실질적으로 no-op 이다.
         if (version < 2)
@@ -859,16 +873,41 @@ public sealed class DatabaseInitializer : IDisposable
                 Debug.WriteLine($"[DatabaseInitializer] 마이그레이션 3: 주차별 시수 키 전환(겹친 {removed}줄 정리)");
             }
         }
+
+        tx.Commit();
+    }
+
+    /// <summary>현재 자료 파일에 찍힌 세대 번호. 찍힌 적이 없으면 0.</summary>
+    private async Task<int> ReadSchemaVersionAsync()
+    {
+        if (_connection == null) return 0;
+
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "PRAGMA user_version;";
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
     }
 
     /// <summary>
     /// 스키마 세대 번호를 <c>PRAGMA user_version</c> 에 기록한다.
     /// 이미 같은 값이 찍혀 있으면 실질적으로 no-op. (PRAGMA 는 파라미터 바인딩을
     /// 지원하지 않지만 <see cref="SchemaVersion"/> 은 코드 내 int 상수라 주입 위험이 없다.)
+    ///
+    /// <para>⚠ <b>내려 찍지 않는다.</b> 예전에는 조건 없이 대입해서, 새 판으로 쓰던 자료를
+    /// 옛 판으로 한 번만 열어도 표식이 내려앉았다. 그러면 다음에 새 판으로 열 때 이미 끝난
+    /// 변환이 다시 돌고(지금 변환들은 여러 번 돌아도 같은 결과지만 앞으로도 그러리라는 보장이
+    /// 없다), 무엇보다 <b>"이 파일은 더 새 판에서 왔다" 는 사실이 지워진다</b>.</para>
     /// </summary>
     private async Task StampSchemaVersionAsync()
     {
         if (_connection == null) return;
+
+        int current = await ReadSchemaVersionAsync();
+        if (current > SchemaVersion)
+        {
+            Logging.Log.Warning("DatabaseInitializer",
+                $"자료 파일의 세대({current})를 이 판({SchemaVersion})으로 낮춰 찍지 않는다");
+            return;
+        }
 
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = $"PRAGMA user_version = {SchemaVersion};";
