@@ -289,6 +289,10 @@ public sealed partial class StudentLogDialog : Window
 
         LogBox.LogSaved += OnLogBoxSaved;
         LogBox.LogCancelled += OnLogBoxCancelled;
+
+        // 이 창도 [저장] 을 눌러야 저장된다 — X 로 닫으면 적은 기록이 사라지므로 묻는다(52차).
+        NewSchool.Controls.UnsavedWorkGuard.AskBeforeClosing(
+            this, () => LogBox.IsModified, "적은 기록이 저장되지 않습니다.");
     }
 
     private void SetupBatchMode()
@@ -597,6 +601,7 @@ public sealed partial class StudentLogDialog : Window
             if (!ok) return;   // 안내는 저장 함수가 이미 띄웠다
 
             IsSuccess = true;
+            LogBox.MarkClean();   // 저장했으니 닫기 확인이 다시 묻지 않는다(52차)
             this.Close();
         }
         catch (Exception ex)

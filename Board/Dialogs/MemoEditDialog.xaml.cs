@@ -41,8 +41,21 @@ public sealed partial class MemoEditDialog : Window
         // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
         NewSchool.Controls.MessageBox.TrackWindow(this);
 
+        // 이 창도 [저장] 을 눌러야 저장된다 — X 로 닫으면 적은 것이 사라지므로 묻는다(52차).
+        NewSchool.Controls.UnsavedWorkGuard.AskBeforeClosing(
+            this, () => HasUnsavedWork, "고친 메모가 저장되지 않습니다.");
+
         Closed += OnWindowClosed;
     }
+
+    /// <summary>연 뒤로 제목이나 본문이 달라졌는가(읽는 중에는 늘 false).</summary>
+    private bool HasUnsavedWork =>
+        !_isLoading && !Result &&
+        (TxtTitle.Text != _openedTitle || Editor.PlainText != _openedText);
+
+    private bool _isLoading = true;
+    private string _openedTitle = string.Empty;
+    private string _openedText = string.Empty;
 
     #region Window Size / Position
 
@@ -129,6 +142,13 @@ public sealed partial class MemoEditDialog : Window
         {
             NewSchool.Logging.Log.Error("MemoEditDialog", "메모를 읽지 못했다 — 빈 메모처럼 보인다", ex);
         }
+        finally
+        {
+            // 여기까지가 "연 그대로" 다. 이후 달라지면 저장하지 않은 편집이 있는 것이다(52차).
+            _openedTitle = TxtTitle.Text;
+            _openedText = Editor.PlainText;
+            _isLoading = false;
+        }
     }
 
     private async Task LoadFilesAsync()
@@ -201,8 +221,8 @@ public sealed partial class MemoEditDialog : Window
 
     private void BtnCancel_Click(object sender, RoutedEventArgs e)
     {
-        Result = false;
-        _dialogResult.TrySetResult(false);
+        // ⚠ 결과를 여기서 먼저 넣지 않는다 — 닫기 확인에서 [계속 편집] 을 고르면 창은 열려
+        //   있는데 기다리던 쪽은 "취소" 를 받고 돌아가 버린다. 결과는 OnWindowClosed 가 넣는다.
         Close();
     }
 

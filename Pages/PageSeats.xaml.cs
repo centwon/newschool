@@ -45,9 +45,21 @@ internal sealed partial class JulNumberFormatter : INumberFormatter2, INumberPar
 /// 좌석 배치 페이지
 /// Enrollment 모델 직접 사용 (StudentListItemViewModel 제거)
 /// </summary>
-public sealed partial class PageSeats : Page, IDisposable
+public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IUnsavedWork
 {
     private bool _disposed;
+
+    /// <summary>
+    /// 자리를 바꾼 뒤 아직 저장하지 않았는가 — 52차(닫을 때 축).
+    ///
+    /// <para>이 화면은 [저장] 을 눌러야 저장된다. 예전에는 자리를 다 짜 놓고 왼쪽 메뉴를
+    /// 누르면 아무 말 없이 사라졌다 — 다시 짜면 <b>다른 배치</b>가 나오므로 되돌릴 수도 없다.</para>
+    /// </summary>
+    private bool _seatsDirty;
+
+    public bool HasUnsavedWork => _seatsDirty;
+
+    public string UnsavedWorkMessage => "바꾼 자리가 저장되지 않습니다.";
 
     public void Dispose()
     {
@@ -352,6 +364,9 @@ public sealed partial class PageSeats : Page, IDisposable
 
             // 저장된 배치 복원 시도
             await TryLoadSavedArrangementAsync();
+
+            // 방금 읽어 온 것은 "저장된 그대로" 다 — 복원하며 세워진 미저장 표시를 내린다.
+            _seatsDirty = false;
         }
         catch (Exception ex)
         {
@@ -607,6 +622,10 @@ public sealed partial class PageSeats : Page, IDisposable
 
     private void Card_StudentChanged(object? sender, StudentCardEventArgs e)
     {
+        // 자리에 앉은 학생이 바뀌는 길은 전부 여기를 지난다(끌어 놓기·자리 짜기·초기화) —
+        // 미저장 표시를 세울 자리도 한 곳이면 된다(52차).
+        _seatsDirty = true;
+
         var card = sender as PhotoCard;
         if (card == null || card.StudentData == null) return;
 
@@ -1114,6 +1133,7 @@ public sealed partial class PageSeats : Page, IDisposable
             // 세지 말고 다시 읽는다 — 같은 배치를 두 번 저장하면 회차가 늘지 않으므로
             // 손으로 ++ 하면 옵션 창의 "누적된 배치 회차" 안내가 실제보다 부풀려진다.
             _savedRoundsCount = await CountRoundsAsync();
+            _seatsDirty = false;   // 저장했다 — 나갈 때 묻지 않는다(52차)
             SelectedStudentInfoBar.Severity = InfoBarSeverity.Success;
             SelectedStudentInfoBar.Title = "저장 완료";
             SelectedStudentInfoBar.Message = $"{Grade}학년 {ClassRoom}반 좌석 배치가 저장되었습니다.";

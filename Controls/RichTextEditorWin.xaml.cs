@@ -46,7 +46,23 @@ public sealed partial class RichTextEditorWin : Window
         // 메인 창과 같은 테마로 연다
         NewSchool.Helpers.ThemeHelper.Apply(this);
 
+        // [확인] 을 눌러야 고친 글이 부르는 쪽으로 간다 — X 로 닫으면 사라지므로 묻는다(52차).
+        UnsavedWorkGuard.AskBeforeClosing(
+            this, () => !Result && richEditor.PlainText != _openedText, "고친 내용이 반영되지 않습니다.");
+
         Closed += OnWindowClosed;
+
+        // 여는 쪽이 생성자 뒤에 Text 를 넣으므로, 기준값은 창이 떠서 자리를 잡을 때 뜬다.
+        Activated += OnFirstActivated;
+    }
+
+    /// <summary>연 그대로의 본문. 이후 달라지면 아직 반영되지 않은 편집이 있는 것이다.</summary>
+    private string _openedText = string.Empty;
+
+    private void OnFirstActivated(object sender, WindowActivatedEventArgs args)
+    {
+        Activated -= OnFirstActivated;
+        _openedText = richEditor.PlainText;
     }
 
     public RichTextEditorWin(string title) : this()
@@ -127,8 +143,8 @@ public sealed partial class RichTextEditorWin : Window
 
     private void BtnCancel_Click(object sender, RoutedEventArgs e)
     {
-        Result = false;
-        _dialogResult.TrySetResult(false);
+        // ⚠ 결과를 여기서 먼저 넣지 않는다 — 닫기 확인에서 [계속 편집] 을 고르면 창은 열려
+        //   있는데 기다리던 쪽은 "취소" 를 받고 돌아가 버린다. 결과는 OnWindowClosed 가 넣는다.
         Close();
     }
 

@@ -26,6 +26,9 @@ public sealed partial class MainWindow : Window
     private Microsoft.UI.Windowing.AppWindow? _appWindow;
     private Func<Task<Google.SyncResult>>? _infoBarRetryAction;
 
+    /// <summary>마지막으로 실제 이동한 메뉴 항목. 나가기를 취소했을 때 표시를 되돌린다(52차).</summary>
+    private NavigationViewItem? _currentNavItem;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -41,8 +44,13 @@ public sealed partial class MainWindow : Window
         // ✅ 창 크기 복원 (Settings에서 로드)
         InitializeWindowSize();
 
+        // 앱을 그냥 닫을 때도 메뉴로 나갈 때와 같은 것을 묻는다(52차) — 작성 중인 글이나
+        // 바꿔 놓은 자리를 두고 X 를 누르면 예전에는 아무 말 없이 사라졌다.
+        Controls.UnsavedWorkGuard.AskBeforeClosing(this, () => ConfirmCloseAsync());
+
         // 초기 페이지 로드
         NavView.SelectedItem = NavView.MenuItems[0];
+        _currentNavItem = NavView.MenuItems[0] as NavigationViewItem;
         WorkFrame.Navigate(typeof(TodayPage));
         SetAppIcon();
     }
@@ -66,7 +74,10 @@ public sealed partial class MainWindow : Window
 
         var target = FindNavItem(NavView.MenuItems, navTag);
         if (target != null)
+        {
             NavView.SelectedItem = target;
+            _currentNavItem = target;   // 되돌릴 자리도 함께 옮긴다(52차)
+        }
     }
 
     /// <summary>
@@ -79,6 +90,33 @@ public sealed partial class MainWindow : Window
             main.NavigateTo(pageType, navTag);
         else
             frame?.Navigate(pageType);
+    }
+
+    /// <summary>
+    /// 이 항목을 품고 있는 <b>맨 위 메뉴 항목</b>(자기 자신일 수도 있다). 상단 막대의 밑줄이
+    /// 그려지는 자리가 그것이라, 고르기를 되돌릴 때는 이쪽을 넣어야 표시가 돌아온다(52차).
+    /// </summary>
+    private NavigationViewItem? TopLevelOwnerOf(object? item)
+    {
+        if (item is not NavigationViewItem target) return null;
+
+        foreach (var entry in NavView.MenuItems)
+        {
+            if (entry is not NavigationViewItem top) continue;
+            if (ReferenceEquals(top, target) || Contains(top, target)) return top;
+        }
+
+        return null;
+
+        static bool Contains(NavigationViewItem parent, NavigationViewItem target)
+        {
+            foreach (var child in parent.MenuItems)
+            {
+                if (child is not NavigationViewItem item) continue;
+                if (ReferenceEquals(item, target) || Contains(item, target)) return true;
+            }
+            return false;
+        }
     }
 
     /// <summary>Tag 로 메뉴 항목을 찾는다(하위 메뉴까지).</summary>
@@ -213,6 +251,13 @@ public sealed partial class MainWindow : Window
     }
     
     /// <summary>
+    /// 앱을 닫아도 되는가 — 지금 화면이 저장하지 않은 편집을 들고 있으면 묻는다.
+    /// 메뉴로 옮겨 갈 때와 <b>같은 판정</b>을 쓴다(<see cref="Controls.IUnsavedWork"/>).
+    /// </summary>
+    private Task<bool> ConfirmCloseAsync() =>
+        Controls.UnsavedWorkGuard.ConfirmLeaveAsync(WorkFrame.Content);
+
+    /// <summary>
     /// 창 크기 초기화 및 변경 이벤트 등록
     /// </summary>
     private void InitializeWindowSize()
@@ -313,6 +358,32 @@ public sealed partial class MainWindow : Window
         if (args.InvokedItemContainer is NavigationViewItem item)
         {
             string tag = item.Tag?.ToString() ?? "";
+
+            // ⚠ 고치던 것을 두고 나가려는 것인지 먼저 묻는다(52차). 예전에는 작성 중인 글도
+            //   바꿔 놓은 자리도 메뉴를 누르는 순간 아무 말 없이 사라졌다 — 그 화면의
+            //   [취소] 버튼은 물어봤는데 메뉴로 나가는 길만 묻지 않았다.
+            // ⚠ 되돌릴 자리를 <c>NavView.SelectedItem</c> 에서 읽으면 안 된다 — 이 이벤트가
+            //   올 때 고르기는 <b>이미 새 항목으로 옮겨 가 있다</b>(문서와 달리 실측이 그랬다.
+            //   그래서 되돌려도 방금 누른 항목이 그대로 남았다). 마지막으로 실제 이동한
+            //   항목을 직접 들고 있는다.
+            if (!await Controls.UnsavedWorkGuard.ConfirmLeaveAsync(WorkFrame.Content))
+            {
+                // ⚠ 큐에 넣어 되돌린다. 여기서 바로 대입하면 <b>표시가 그대로 넘어간 채</b>
+                //   화면만 남는다 — NavigationView 가 이 핸들러(async void)가 첫 await 에서
+                //   돌아간 뒤에 자기 고르기를 확정하므로, 그보다 먼저 넣은 값은 덮인다.
+                //   실제로 [계속 편집] 을 골랐는데 메뉴만 [홈] 으로 옮겨 가 있었다(52차 실측).
+                //   (SelectedItem 대입은 ItemInvoked 를 다시 일으키지 않는다 — NavigateTo 주석 참고.)
+                //
+                // ⚠ 되돌릴 때는 <b>맨 위 항목</b>으로 넣는다. 상단 막대의 밑줄은 하위 항목이
+                //   골라져 있어도 그 부모 밑에 그려지는데, 하위 항목을 그대로 다시 넣으면
+                //   (그 하위 메뉴가 접혀 있어서인지) 밑줄이 돌아오지 않는다 — 실측으로 확인했다.
+                object? restore = TopLevelOwnerOf(_currentNavItem) ?? _currentNavItem;
+                if (restore != null)
+                    DispatcherQueue.TryEnqueue(() => NavView.SelectedItem = restore);
+                return;
+            }
+
+            _currentNavItem = item;
 
             // 메뉴 네비게이션 시 BackStack 정리 (메모리 절약)
             WorkFrame.BackStack.Clear();

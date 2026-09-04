@@ -40,8 +40,18 @@ namespace NewSchool.Pages;
 ///    - Enrollment 테이블에 INSERT
 ///    - 트랜잭션 커밋 (둘 다 성공해야 저장)
 /// </summary>
-public sealed partial class AddStudentsPage : Page
+public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedWork
 {
+    /// <summary>
+    /// 적어 놓고 아직 [저장] 을 누르지 않은 학생이 있는가 — 52차(닫을 때 축).
+    ///
+    /// <para>이 화면은 명부에 넣기 전까지 아무것도 저장하지 않는다. 스무 명을 붙여 넣어
+    /// 놓고 왼쪽 메뉴를 누르면 예전에는 그대로 사라졌다.</para>
+    /// </summary>
+    public bool HasUnsavedWork => NewStudents.Count > 0;
+
+    public string UnsavedWorkMessage => $"아직 저장하지 않은 학생 {NewStudents.Count}명이 사라집니다.";
+
     // 추가할 학생 목록
     public ObservableCollection<StudentAddViewModel> NewStudents { get; } = new();
 

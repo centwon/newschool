@@ -28,7 +28,29 @@ public sealed partial class StudentLogBox : UserControl
     private StudentLog? _currentLog;
     private string _generatedText = string.Empty;
 
+    /// <summary>연(또는 새로 만든) 그대로의 입력 내용. 여기서 달라지면 저장하지 않은 편집이다.</summary>
+    private string _openedSnapshot = string.Empty;
+
     #endregion
+
+    /// <summary>
+    /// 적어 놓고 아직 저장하지 않은 것이 있는가 — 52차(닫을 때 축).
+    ///
+    /// <para>이 상자를 담은 창은 [저장] 을 눌러야 저장된다. 창을 X 로 닫으면 적은 것이
+    /// 그대로 사라지므로, 닫기 전에 물어볼 수 있게 판정을 밖으로 연다.</para>
+    /// </summary>
+    public bool IsModified => Snapshot() != _openedSnapshot;
+
+    /// <summary>입력칸을 한 줄로 이어 붙인 것. 무엇이 달라졌는지가 아니라 달라졌는지만 본다.</summary>
+    private string Snapshot() => string.Join('\u001F',   // 입력에 나올 수 없는 구분자
+        TxtLog.Text, TxtTag.Text, TxtSubjectName.Text,
+        TxtActivityName.Text, TxtTopic.Text, TxtDescription.Text,
+        TxtRole.Text, TxtSkillDeveloped.Text, TxtStrengthShown.Text, TxtResultOrOutcome.Text,
+        (CBoxCategory.SelectedIndex).ToString(System.Globalization.CultureInfo.InvariantCulture),
+        (ChkIsImportant.IsChecked ?? false).ToString());
+
+    /// <summary>지금 화면 상태를 "저장된 것" 으로 삼는다(연 직후·저장 직후).</summary>
+    public void MarkClean() => _openedSnapshot = Snapshot();
 
     #region Events
 
@@ -175,6 +197,8 @@ public sealed partial class StudentLogBox : UserControl
         // 이 메서드는 동기라 여기서 기다릴 수 없다.
         FileList.LoadFiles(System.Array.Empty<StudentLogFile>());
         if (log.No > 0) _ = LoadAttachmentsAsync(log.No);
+
+        MarkClean();   // 여기까지가 "연 그대로" 다(52차)
     }
 
     /// <summary>
@@ -243,6 +267,8 @@ public sealed partial class StudentLogBox : UserControl
 
         // 새 기록은 아직 딸린 첨부가 없다. 앞 기록의 목록이 남지 않게 비운다.
         FileList.LoadFiles(Array.Empty<StudentLogFile>());
+
+        MarkClean();   // 빈 화면이 "연 그대로" 다(52차)
     }
 
     /// <summary>

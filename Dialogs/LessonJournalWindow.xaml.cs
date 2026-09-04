@@ -96,6 +96,7 @@ public sealed partial class LessonJournalWindow : Window
         // 때는 목록에 없는 강의실을 타이핑하면 제목이 옛 강의실 그대로 저장됐다.
         CmbRoom.RegisterPropertyChangedCallback(ComboBox.TextProperty, (_, _) => OnHeaderChanged());
 
+        GuardUnsavedOnClose();
         Closed += OnWindowClosed;
     }
 
@@ -176,8 +177,31 @@ public sealed partial class LessonJournalWindow : Window
             _isLoading = false;
             UpdateTitleFromHeader();
             UpdateHint();
+
+            // 여기까지가 "연 그대로" 다. 이후 달라지면 저장하지 않은 편집이 있는 것이다(52차).
+            _openedTitle = TxtTitle.Text;
+            _openedText = Editor.PlainText;
         }
     }
+
+    /// <summary>
+    /// 제목표시줄 X 로 닫을 때 묻는다.
+    ///
+    /// <para>⚠ 이 창은 [저장] 을 눌러야 저장된다. 예전에는 X 가 곧 취소라서, 한 시간짜리
+    /// 수업 일지를 다 적어 놓고 X 를 누르면 아무 말 없이 사라졌다. 형제인 학생부 일괄
+    /// 입력 창은 <b>닫기 버튼</b>에서는 묻고 있었는데 X 에서는 묻지 않았다 — 같은 병이다.</para>
+    /// </summary>
+    private void GuardUnsavedOnClose() =>
+        NewSchool.Controls.UnsavedWorkGuard.AskBeforeClosing(
+            this, () => HasUnsavedWork, "적은 수업 일지가 저장되지 않습니다.");
+
+    /// <summary>연 뒤로 제목이나 본문이 달라졌는가(읽는 중에는 늘 false).</summary>
+    private bool HasUnsavedWork =>
+        !_isLoading && !Result &&
+        (TxtTitle.Text != _openedTitle || Editor.PlainText != _openedText);
+
+    private string _openedTitle = string.Empty;
+    private string _openedText = string.Empty;
 
     private async Task LoadNewAsync()
     {
@@ -500,7 +524,9 @@ public sealed partial class LessonJournalWindow : Window
 
     private void BtnCancel_Click(object sender, RoutedEventArgs e)
     {
-        _dialogResult.TrySetResult(false);
+        // ⚠ 결과를 여기서 먼저 넣지 않는다 — 닫기 확인에서 사용자가 [계속 편집] 을 고르면
+        //   창은 열려 있는데 기다리던 쪽은 "취소" 를 받고 돌아가 버린다.
+        //   결과는 실제로 닫힌 뒤 OnWindowClosed 가 넣는다.
         Close();
     }
 

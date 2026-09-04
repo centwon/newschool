@@ -103,6 +103,10 @@ public sealed partial class StudentSpecBatchDialog : Window
         InitializeTypeComboBox(defaultType);
         InitializeStudentList();
 
+        // ⚠ [닫기] 버튼은 미저장 변경을 물어보는데(ConfirmCloseAsync) 제목표시줄 X 는 묻지 않아,
+        //   같은 "닫기" 인데 길에 따라 편집이 사라졌다(52차). 두 길을 여기 하나로 모은다.
+        NewSchool.Controls.UnsavedWorkGuard.AskBeforeClosing(this, ConfirmCloseAsync);
+
         // Window 가 닫힐 때 이벤트 구독 해제 (메모리 누수 방지)
         this.Closed += (s, e) =>
         {
@@ -542,7 +546,16 @@ public sealed partial class StudentSpecBatchDialog : Window
         }
     }
 
-    private async void BtnClose_Click(object sender, RoutedEventArgs e)
+    /// <summary>[닫기] 버튼 — 닫아도 되는지는 <see cref="ConfirmCloseAsync"/> 가 판단한다.</summary>
+    private void BtnClose_Click(object sender, RoutedEventArgs e) => this.Close();
+
+    /// <summary>
+    /// 닫아도 되는가. 저장하지 않은 기록이 있으면 묻는다.
+    ///
+    /// <para>제목표시줄 X 와 [닫기] 버튼이 <b>같은 이 함수를 지난다</b>(52차) — 예전에는
+    /// 버튼만 물어보고 X 는 그대로 닫혀서, 같은 "닫기" 인데 길에 따라 편집이 사라졌다.</para>
+    /// </summary>
+    private async Task<bool> ConfirmCloseAsync()
     {
         SaveCurrentToCache();
 
@@ -574,16 +587,16 @@ public sealed partial class StudentSpecBatchDialog : Window
                         $"{_modifiedIds.Count}건이 저장되지 않아 창을 닫지 않았습니다.\n" +
                         "다시 저장하거나 '저장 안 함'으로 닫아 주세요.",
                         "저장 실패");
-                    return;
+                    return false;
                 }
             }
             else if (result == ContentDialogResult.None)
             {
-                return; // 취소
+                return false; // 취소
             }
         }
 
-        this.Close();
+        return true;
     }
 
     /// <summary>

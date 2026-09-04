@@ -15,8 +15,20 @@ using Windows.Storage;
 
 namespace NewSchool.Board.Pages;
 
-public sealed partial class PostEditPage : Page
+public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
 {
+    /// <summary>
+    /// 제목이나 본문이 처음 상태와 다르면 저장하지 않은 글이 있는 것이다.
+    ///
+    /// <para>⚠ 예전에는 이 판정을 <c>[취소]</c> 버튼만 했다. 왼쪽 메뉴로 다른 화면에 가면
+    /// 아무것도 묻지 않고 작성 중인 글이 사라졌다 — 같은 "나가기" 인데 길에 따라 다르게
+    /// 굴었다(52차). 판정을 이리로 올려 두 길이 같은 것을 본다.</para>
+    /// </summary>
+    public bool HasUnsavedWork =>
+        TitleTextBox.Text != _originalTitle || ContentEditor.PlainText != _originalPlainText;
+
+    public string UnsavedWorkMessage => "작성 중인 글이 저장되지 않습니다.";
+
     private Post? _post;
     private bool _isEditMode;
     private PostEditPageParameter? _parameter;
@@ -436,16 +448,9 @@ public sealed partial class PostEditPage : Page
 
     private async void CancelButton_Click(object sender, RoutedEventArgs e)
     {
-        bool hasChanges = TitleTextBox.Text != _originalTitle || ContentEditor.PlainText != _originalPlainText;
-
-        if (hasChanges)
-        {
-            var confirmed = await MessageBox.ShowConfirmAsync(
-                "작성 중인 내용이 저장되지 않습니다.\n정말 나가시겠습니까?",
-                "변경사항 취소", "나가기", "계속 작성");
-            if (!confirmed)
-                return;
-        }
+        // 버튼으로 나가든 왼쪽 메뉴로 옮겨 가든 같은 것을 묻는다(UnsavedWorkGuard).
+        if (!await NewSchool.Controls.UnsavedWorkGuard.ConfirmLeaveAsync(this))
+            return;
 
         Frame.GoBack();
     }
