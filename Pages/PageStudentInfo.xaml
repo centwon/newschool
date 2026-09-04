@@ -59,6 +59,7 @@
                     Margin="4,0,4,0"
                     Click="BtnPrint_Click"
                     IsEnabled="False"
+                    AutomationProperties.Name="학생카드 PDF 출력"
                     ToolTipService.ToolTip="선택한 학생의 학생카드를 PDF로 출력">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <FontIcon Glyph="&#xEA90;" FontSize="14"/>
@@ -82,6 +83,7 @@
 
                 <Button x:Name="BtnExcel"
                     Margin="4,0,4,0"
+                    AutomationProperties.Name="엑셀 일괄 입력·내보내기"
                     ToolTipService.ToolTip="엑셀로 전체 학생 정보를 일괄 입력/내보내기">
                     <Button.Content>
                         <StackPanel Orientation="Horizontal" Spacing="4">

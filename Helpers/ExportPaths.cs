@@ -70,19 +70,27 @@ public static class ExportPaths
     /// <summary>
     /// 만들어 둔 파일을 사용자에게 보여 준다(기본 프로그램으로 열기).
     ///
-    /// <para>여는 데 실패해도 <b>알리지 않는다</b> — 파일은 이미 만들어졌고 경로는 화면에
-    /// 남기 때문이다. 정말 알려야 하는 것은 <b>저장이 실패한 경우</b>지 여는 것이 아니다.</para>
+    /// <para>여기서는 <b>알리지 않는다</b> — 파일은 이미 만들어졌고, 통합 내보내기 화면처럼
+    /// 경로가 화면에 남는 자리도 있다. 대신 <b>열었는지를 돌려준다</b>: 경로가 화면에 없는
+    /// 화면(인쇄 버튼들)은 이 값을 보고 "어디에 뒀는지" 를 알린다(53차).</para>
+    ///
+    /// <para>⚠ 인쇄물을 여는 길은 여기 하나다. 예전에는 좌석 인쇄·학생카드 인쇄·누가기록
+    /// 인쇄·엑셀 내보내기가 각자 <c>new Uri($"file:///{path}")</c> 를 만들어 열었다 —
+    /// 45차가 한 곳으로 모았다고 선언한 규칙이 정작 인쇄 쪽에서는 지켜지지 않았다.</para>
     /// </summary>
-    public static void TryOpen(string filePath)
+    /// <returns>기본 프로그램으로 열었으면 true.</returns>
+    public static bool TryOpen(string filePath)
     {
         try
         {
             Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+            return true;
         }
         catch (Exception ex)
         {
             // 알리지는 않되(위 설명), 왜 안 열렸는지는 남긴다.
             NewSchool.Logging.Log.Warning("ExportPaths", $"내보낸 파일을 열지 못했다({filePath}): {ex.Message}");
+            return false;
         }
     }
 }

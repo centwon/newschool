@@ -1335,18 +1335,14 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
                 dialog.Orientation,
                 dialog.IncludeRoster);
 
-            // PDF를 시스템 기본 뷰어로 열기
-            var uri = new Uri($"file:///{pdfPath.Replace("\\", "/")}");
-            var success = await Windows.System.Launcher.LaunchUriAsync(uri);
-            
-            if (!success)
-            {
-                await MessageBox.ShowAsync($"PDF 파일을 열 수 없습니다.\n경로: {pdfPath}", "오류");
-            }
+            // 만든 파일을 여는 길은 한 곳이다(45차 규칙, 53차에 인쇄 쪽까지 맞췄다).
+            if (!Helpers.ExportPaths.TryOpen(pdfPath))
+                await MessageBox.ShowAsync($"좌석배정표를 저장했습니다.\n{pdfPath}", "저장 완료");
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync($"PDF 생성 오류: {ex.Message}", "오류");
+            NewSchool.Logging.Log.Error("PageSeats", "좌석배정표 PDF 를 만들지 못했다", ex);
+            await UserErrorReporter.ReportAsync("좌석배정표 인쇄", ex);
         }
     }
 

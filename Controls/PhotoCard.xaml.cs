@@ -87,12 +87,21 @@ public sealed partial class PhotoCard : UserControl
 
     // 지정 좌석 (고정)
     private bool _isFixed;
+
+    /// <summary>
+    /// 자동배정에서 이 자리를 바꾸지 않는다.
+    ///
+    /// <para>⚠ 예전에는 <b>화면에 아무 표시도 하지 않았다</b> — 마우스 오른쪽 메뉴를 열어
+    /// 체크 상태를 봐야만 알 수 있었는데, 정작 <b>인쇄물에는 📌 로 나왔다</b>(53차).
+    /// 자리를 짜는 동안 무엇이 고정인지 보이지 않으면 자동배정 결과를 읽을 수 없다.</para>
+    /// </summary>
     public bool IsFixed
     {
         get => _isFixed;
         set
         {
             _isFixed = value;
+            SetFixedStyle(value);
             if (MenuSeatFixed != null) MenuSeatFixed.IsChecked = value;
             FixedChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -363,6 +372,13 @@ public sealed partial class PhotoCard : UserControl
         this.Opacity = value ? 0.35 : 1.0;
     }
 
+    /// <summary>지정 좌석 표식. 인쇄물의 📌 와 같은 기호를 쓴다(53차).</summary>
+    private void SetFixedStyle(bool value)
+    {
+        if (FixedMark != null)
+            FixedMark.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     #endregion
 
     #region Event Handlers - Context Menu
@@ -371,10 +387,9 @@ public sealed partial class PhotoCard : UserControl
     {
         if (sender is ToggleMenuFlyoutItem menuItem)
         {
+            // 테두리 색은 IsUnUsed 세터의 SetUnUsedStyle 이 이미 칠한다 — 여기서 또 칠하면
+            // 같은 모양을 두 곳이 정하게 되어 한쪽만 고쳤을 때 조용히 갈라진다(53차).
             IsUnUsed = menuItem.IsChecked;
-            BrdrOutLine.BorderBrush = menuItem.IsChecked
-                ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.AntiqueWhite)
-                : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.CornflowerBlue);
         }
     }
 

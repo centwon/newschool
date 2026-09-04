@@ -39,13 +39,28 @@
 
             <!-- 이름 영역 -->
             <Viewbox Grid.Row="1" Stretch="UniformToFill" x:Name="NameBox">
-                <TextBlock x:Name="TBName" 
-                          Text="" 
-                          TextAlignment="Center" 
-                          VerticalAlignment="Center" 
+                <TextBlock x:Name="TBName"
+                          Text=""
+                          TextAlignment="Center"
+                          VerticalAlignment="Center"
                           HorizontalAlignment="Center"
                           Padding="4,2"/>
             </Viewbox>
+
+            <!-- 지정 좌석 표식 — 인쇄물에는 📌 로 나오는데 화면에는 아무 표시도 없어서,
+                 어느 자리를 고정해 뒀는지 종이를 뽑아야 알 수 있었다(53차). -->
+            <!-- ⚠ 두 줄에 걸친다. 사진 칸(Row 0)에만 두면 [사진 표시] 를 껐을 때 그 줄이
+                 접혀서 표식이 통째로 사라진다(53차 실측 — 처음에 그렇게 만들었다가 잡았다). -->
+            <TextBlock x:Name="FixedMark"
+                       Grid.Row="0"
+                       Grid.RowSpan="2"
+                       Text="📌"
+                       FontSize="9"
+                       Margin="0,1,1,0"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Top"
+                       Visibility="Collapsed"
+                       ToolTipService.ToolTip="지정 좌석 — 자동배정에서 이 자리는 바뀌지 않습니다"/>
         </Grid>
     </Border>
 </UserControl>

@@ -128,6 +128,7 @@
                                 RightTapped="BtnArrange_RightTapped"/>
                         <Button x:Name="BtnSave"
                                 Click="BtnSave_Click"
+                                AutomationProperties.Name="자리 배치 저장"
                                 ToolTipService.ToolTip="저장 (Ctrl+S)">
                             <FontIcon Glyph="&#xE74E;" FontSize="14"/>
                             <Button.KeyboardAccelerators>
@@ -136,11 +137,13 @@
                         </Button>
                         <ToggleButton x:Name="BtnLock"
                                 Click="BtnLock_Click"
+                                AutomationProperties.Name="배치 잠금"
                                 ToolTipService.ToolTip="배치 잠금 (드래그·재배치 금지)">
                             <FontIcon Glyph="&#xE72E;" FontSize="14"/>
                         </ToggleButton>
                         <Button x:Name="BtnPrint"
                                 Click="BtnPrint_Click"
+                                AutomationProperties.Name="좌석배정표 인쇄"
                                 ToolTipService.ToolTip="인쇄">
                             <FontIcon Glyph="&#xE749;" FontSize="14"/>
                         </Button>

@@ -161,12 +161,7 @@ public class SeatsPrintService
             grid.Add(line);
         }
 
-        var roster = cells
-            .Where(c => c.StudentData != null && !c.IsHidden && !c.IsUnUsed)
-            .Select(c => c.StudentData!)
-            .GroupBy(s => s.StudentID)
-            .Select(g => g.First())
-            .OrderBy(s => s.Number)
+        var roster = BuildRoster(cells)
             .Select(s => new RosterExportDto { 번호 = s.Number, 이름 = s.Name })
             .ToList();
 
@@ -187,6 +182,23 @@ public class SeatsPrintService
         public int 번호 { get; init; }
         public string 이름 { get; init; } = string.Empty;
     }
+
+    /// <summary>
+    /// 명렬표에 실을 학생 — 번호순, 중복 없이. <b>세 형식(Excel·PDF·HTML)이 함께 쓴다.</b>
+    ///
+    /// <para>⚠ 예전에는 규칙이 갈라져 있었다. PDF·HTML 은 자리에 앉은 학생을 모두 실었는데
+    /// Excel 만 <c>!IsHidden &amp;&amp; !IsUnUsed</c> 를 더 걸렀다 — 같은 반을 xlsx 로 뽑으면
+    /// <b>사람이 명단에서 사라졌다</b>. 안 보이게 해 둔 자리에 앉은 학생은 배치 그림에는
+    /// 안 나오므로(<see cref="SeatKind.Hidden"/>) 명단마저 빠지면 그 종이 어디에도 없게 된다.
+    /// 그래서 <b>자리에 앉은 학생은 모두 싣는</b> 쪽으로 맞춘다(53차).</para>
+    /// </summary>
+    private static List<StudentCardData> BuildRoster(List<SeatCellData> cells) =>
+        cells.Where(c => c.StudentData != null)
+             .Select(c => c.StudentData!)
+             .GroupBy(s => s.StudentID)
+             .Select(g => g.First())
+             .OrderBy(s => s.Number)
+             .ToList();
 
     /// <summary>좌석 한 칸이 무엇인가. 세 형식(Excel·PDF·HTML)이 이 판정을 함께 쓴다.</summary>
     private enum SeatKind
@@ -349,14 +361,7 @@ public class SeatsPrintService
         float messageHeight = string.IsNullOrWhiteSpace(message) ? 0f : 32f;
 
         // 학급 명렬표 (번호·이름) — 좌석에 배정된 학생 중복 제거, 번호순
-        var roster = includeRoster
-            ? cards.Where(c => c.StudentData != null)
-                   .Select(c => c.StudentData!)
-                   .GroupBy(s => s.StudentID)
-                   .Select(g => g.First())
-                   .OrderBy(s => s.Number)
-                   .ToList()
-            : new List<StudentCardData>();
+        var roster = includeRoster ? BuildRoster(cards) : new List<StudentCardData>();
         bool hasRoster = roster.Count > 0;
 
         // 명렬표 좌측 사이드바 (번호+이름 좁은 2열)
@@ -676,14 +681,7 @@ public class SeatsPrintService
         };
         string pageSize = isLandscape ? "A4 landscape" : "A4";
 
-        var roster = includeRoster
-            ? cells.Where(c => c.StudentData != null)
-                   .Select(c => c.StudentData!)
-                   .GroupBy(s => s.StudentID)
-                   .Select(g => g.First())
-                   .OrderBy(s => s.Number)
-                   .ToList()
-            : new List<StudentCardData>();
+        var roster = includeRoster ? BuildRoster(cells) : new List<StudentCardData>();
         bool hasRoster = roster.Count > 0;
 
         // 명렬표 행 높이·글자 크기 (인쇄 시 페이지 높이 추정)

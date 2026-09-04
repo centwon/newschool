@@ -345,11 +345,9 @@ public sealed partial class PageStudentInfo : Page, IDisposable
 
             // 만들어졌으면 바로 띄운다. 여는 데 실패해도 파일은 이미 있으므로
             // 오류가 아니라 어디에 뒀는지만 알린다.
-            var uri = new Uri($"file:///{pdfPath.Replace("\\", "/")}");
-            if (!await Windows.System.Launcher.LaunchUriAsync(uri))
-            {
+            // 만든 파일을 여는 길은 한 곳이다(45차 규칙, 53차에 인쇄 쪽까지 맞췄다).
+            if (!Helpers.ExportPaths.TryOpen(pdfPath))
                 await MessageBox.ShowAsync($"PDF 를 저장했습니다.\n{pdfPath}", "저장 완료");
-            }
         }
         catch (Exception ex)
         {
@@ -471,14 +469,9 @@ public sealed partial class PageStudentInfo : Page, IDisposable
             var printService = new StudentLogPrintService();
             var pdfPath = printService.GenerateStudentLogPdf(SCard.ViewModel, selectedLogs);
 
-            // PDF를 시스템 기본 뷰어로 열기
-            var uri = new Uri($"file:///{pdfPath.Replace("\\", "/")}");
-            var success = await Windows.System.Launcher.LaunchUriAsync(uri);
-            
-            if (!success)
-            {
-                await MessageBox.ShowAsync($"PDF 파일을 열 수 없습니다.\n경로: {pdfPath}", "오류");
-            }
+            // 만든 파일을 여는 길은 한 곳이다(45차 규칙, 53차에 인쇄 쪽까지 맞췄다).
+            if (!Helpers.ExportPaths.TryOpen(pdfPath))
+                await MessageBox.ShowAsync($"누가기록을 저장했습니다.\n{pdfPath}", "저장 완료");
         }
         catch (Exception ex)
         {
@@ -505,14 +498,8 @@ public sealed partial class PageStudentInfo : Page, IDisposable
                 SCard.ViewModel, 
                 LogList.Logs.ToList());
 
-            // 엑셀 파일을 시스템 기본 프로그램으로 열기
-            var uri = new Uri($"file:///{excelPath.Replace("\\", "/")}");
-            var success = await Windows.System.Launcher.LaunchUriAsync(uri);
-            
-            if (!success)
-            {
-                await MessageBox.ShowAsync($"엑셀 파일을 열 수 없습니다.\n경로: {excelPath}", "오류");
-            }
+            if (!Helpers.ExportPaths.TryOpen(excelPath))
+                await MessageBox.ShowAsync($"엑셀 파일을 저장했습니다.\n{excelPath}", "저장 완료");
             else
             {
                 await MessageBox.ShowAsync($"엑셀로 내보내기 완료\n경로: {excelPath}", "성공");

@@ -40,7 +40,9 @@ public class StudentCardPrintService
         bool includeDetailInfo = true,
         List<StudentLogViewModel>? studentLogs = null)
     {
-        ConfigureKoreanFont();
+        // 한글 폰트는 따로 설정하지 않는다 — QuestPDF 가 시스템 폰트에서 글리프를 찾아 준다.
+        // (53차 실측: 폰트 경로를 더하든 안 더하든 만들어진 PDF 에 MalgunGothic 이 임베드됐다.
+        //  여기에만 있던 ConfigureKoreanFont 는 형제 서비스 네 곳에 없었는데도 한글이 잘 나왔다.)
 
         var grade = viewModel.Enrollment?.Grade ?? 0;
         var classNo = viewModel.Enrollment?.Class ?? 0;
@@ -452,24 +454,12 @@ public class StudentCardPrintService
             .FontSize(9);
     }
 
-    // ── 한글 폰트 설정 ─────────────────────
-    private void ConfigureKoreanFont()
-    {
-        var fontsPath = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
-
-        if (!QuestPDF.Settings.FontDiscoveryPaths.Contains(fontsPath))
-        {
-            QuestPDF.Settings.FontDiscoveryPaths.Add(fontsPath);
-        }
-    }
-
     // ── 학급 전체 학생카드 PDF (통합 내보내기) ──
     /// <summary>
     /// 학급 전체 학생카드를 단일 PDF로 생성 (학생당 1 페이지 세트).
     /// </summary>
     public async Task<string?> GenerateClassCardsPdfFromDbAsync(int year, int grade, int classNo)
     {
-        ConfigureKoreanFont();
 
         var students = await LoadClassStudentsAsync(year, grade, classNo);
         if (students.Count == 0) return null;
