@@ -41,6 +41,15 @@ public sealed class ClassDiaryService : IDisposable
             throw new ArgumentException("학급 일지 정보가 유효하지 않습니다.");
         }
 
+        // 저장하는 지금이 수정일시다.
+        //
+        // ⚠ 예전에는 아무도 이 값을 세우지 않아, 읽어 온 값이 그대로 다시 저장됐다 —
+        //   일지를 몇 번을 고쳐도 UpdatedAt 은 맨 처음 만든 시각에 멈춰 있었다.
+        //   읽는 쪽이 알아볼 수 없는 값을 DateTime.Now 로 지어내 덮어 주던 것이
+        //   그나마 이 자리를 가려 주고 있었는데, 지어내기를 걷어내면 그 가림막도 없다.
+        diary.UpdatedAt = DateTime.Now;
+        if (diary.CreatedAt == default) diary.CreatedAt = diary.UpdatedAt;
+
         try
         {
             // 기존 일지 확인

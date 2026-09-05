@@ -385,9 +385,11 @@ public class ClassDiaryRepository : BaseRepository
     /// </summary>
     private ClassDiary MapDiary(SqliteDataReader reader, ReaderColumnCache cache)
     {
+        int no = reader.GetInt32(cache.GetOrdinal("No"));
+
         return new ClassDiary
         {
-            No = reader.GetInt32(cache.GetOrdinal("No")),
+            No = no,
             SchoolCode = reader.GetString(cache.GetOrdinal("SchoolCode")),
             TeacherID = reader.IsDBNull(cache.GetOrdinal("TeacherID")) ? string.Empty : reader.GetString(cache.GetOrdinal("TeacherID")),
             Year = reader.GetInt32(cache.GetOrdinal("Year")),
@@ -401,24 +403,33 @@ public class ClassDiaryRepository : BaseRepository
             Memo = reader.GetString(cache.GetOrdinal("Memo")),
             Notice = reader.GetString(cache.GetOrdinal("Notice")),
             Life = reader.GetString(cache.GetOrdinal("Life")),
-            CreatedAt = GetDateTimeSafe(reader, cache, "CreatedAt"),
-            UpdatedAt = GetDateTimeSafe(reader, cache, "UpdatedAt")
+            CreatedAt = ReadTimestamp(reader, cache, "CreatedAt", no),
+            UpdatedAt = ReadTimestamp(reader, cache, "UpdatedAt", no)
         };
     }
 
-    private static DateTime GetDateTimeSafe(SqliteDataReader reader, ReaderColumnCache cache, string column)
+    /// <summary>
+    /// 시각 칸을 읽는다. <b>없는 값을 지어내지 않는다</b> — 비었거나 알아볼 수 없으면
+    /// <c>default</c> 를 돌려주고 한 줄 남긴다.
+    ///
+    /// <para>⚠ 예전 이름은 <c>GetDateTimeSafe</c> 였고, 무엇이 터지든 <see cref="DateTime.Now"/> 를
+    /// 돌려주었다. 그래서 <b>칸 자체가 없는</b> 옛 자료 파일까지 삼켰다 —
+    /// <see cref="Helpers.MissingColumnException"/> 은 51차(스키마 세대 축)가 만든 형(型)이고,
+    /// <see cref="Helpers.DbErrorText.Explain"/> 이 그것을 받아 "지금 판보다 오래된 자료 파일"
+    /// 이라고 안내한다. 여기서만 그 안내가 죽어, 일지 화면은 옛 파일을 열고도 아무 말 없이
+    /// <b>"방금 만든 일지"</b> 인 척했다. 칸이 없으면 형제 리포지토리처럼 그대로 던진다.</para>
+    /// </summary>
+    private DateTime ReadTimestamp(SqliteDataReader reader, ReaderColumnCache cache, string column, int no)
     {
-        try
-        {
-            var ordinal = cache.GetOrdinal(column);
-            if (reader.IsDBNull(ordinal)) return DateTime.Now;
-            var str = reader.GetString(ordinal);
-            return DateTime.TryParse(str, out var dt) ? dt : DateTime.Now;
-        }
-        catch
-        {
-            return DateTime.Now;
-        }
+        // 칸이 없으면 여기서 던진다 — 삼키면 옛 자료 파일 안내가 죽는다.
+        int ordinal = cache.GetOrdinal(column);
+        if (reader.IsDBNull(ordinal)) return default;
+
+        string text = reader.GetString(ordinal);
+        if (DateTime.TryParse(text, out var value)) return value;
+
+        LogWarning($"학급 일지의 {column} 을 알아볼 수 없다: No={no}, 값=\"{text}\" — 지어내지 않고 비워 둔다");
+        return default;
     }
 
     #endregion

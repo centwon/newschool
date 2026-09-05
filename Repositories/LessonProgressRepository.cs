@@ -87,6 +87,9 @@ public class LessonProgressRepository : BaseRepository
                 (@CourseSectionId, @Room, @IsCompleted, @CompletedDate, @ProgressType, @Memo, @CreatedAt);
             SELECT last_insert_rowid();";
 
+        // 읽을 때 비워 둔 값(알아볼 수 없던 시각)이 그대로 저장되지 않게 한다.
+        if (progress.CreatedAt == default) progress.CreatedAt = DateTime.Now;
+
         try
         {
             using var cmd = CreateCommand(query);
@@ -394,7 +397,9 @@ public class LessonProgressRepository : BaseRepository
             Memo = reader.IsDBNull(cache.GetOrdinal("Memo"))
                 ? null
                 : reader.GetString(cache.GetOrdinal("Memo")),
-            CreatedAt = ReadDate(reader, cache, "CreatedAt") ?? DateTime.Now,
+            // 알아볼 수 없으면 비워 둔다 — 읽으면서 현재 시각을 지어내면 "방금 만든 행"
+            // 으로 보인다(ClassDiaryRepository.ReadTimestamp 와 같은 규칙).
+            CreatedAt = ReadDate(reader, cache, "CreatedAt") ?? default,
             UpdatedAt = ReadDate(reader, cache, "UpdatedAt")
         };
     }

@@ -57,6 +57,8 @@ public sealed class SeatService : IDisposable
         {
             arrangement.OptionsJson = JsonSerializer.Serialize(options, SeatOptionsJsonContext.Default.SeatOptions);
             arrangement.UpdatedAt = DateTime.Now;
+            // 읽을 때 비워 둔 값(알아볼 수 없던 시각)이 그대로 저장되지 않게 한다.
+            if (arrangement.CreatedAt == default) arrangement.CreatedAt = arrangement.UpdatedAt;
 
             // 1) SeatArrangement upsert
             int arrangementNo = await UpsertArrangementAsync(arrangement, tx);
@@ -203,8 +205,11 @@ public sealed class SeatService : IDisposable
                     Message = r.IsDBNull(9) ? string.Empty : r.GetString(9),
                     IsLocked = r.GetInt32(10) == 1,
                     OptionsJson = r.IsDBNull(11) ? string.Empty : r.GetString(11),
-                    CreatedAt = DateTime.TryParse(r.IsDBNull(12) ? null : r.GetString(12), out var cre) ? cre : DateTime.Now,
-                    UpdatedAt = DateTime.TryParse(r.IsDBNull(13) ? null : r.GetString(13), out var upd) ? upd : DateTime.Now,
+                    // 알아볼 수 없으면 비워 둔다 — 읽으면서 현재 시각을 지어내지 않는다
+                    // (ClassDiaryRepository.ReadTimestamp 와 같은 규칙). 저장할 때의
+                    // UpdatedAt 은 SaveAsync 가 그 자리에서 세운다.
+                    CreatedAt = DateTime.TryParse(r.IsDBNull(12) ? null : r.GetString(12), out var cre) ? cre : default,
+                    UpdatedAt = DateTime.TryParse(r.IsDBNull(13) ? null : r.GetString(13), out var upd) ? upd : default,
                 };
             }
         }
