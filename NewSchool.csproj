@@ -156,10 +156,10 @@
        ========================================== -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
     <PackageReference Include="MiniExcel" Version="1.46.0" />
-    <PackageReference Include="QuestPDF" Version="2026.7.3" />
+    <PackageReference Include="QuestPDF" Version="2026.8.0" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageReference Include="SQLitePCLRaw.core" Version="3.0.5" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.11" />
@@ -441,8 +441,7 @@
       <_PublishOrphanData Include="$(PublishDir)Microsoft.UI.Xaml\Assets\map.html" />
       <!-- ⚠ 부트스트래퍼는 **자체 포함일 때만** 뺀다. 프레임워크 의존 게시본에서 지우면
            프레임워크 패키지를 찾지 못해 앱이 시작조차 못 한다. -->
-      <_PublishUnrelatedNative Include="$(PublishDir)Microsoft.WindowsAppRuntime.Bootstrap.dll"
-                              Condition="'$(WindowsAppSDKSelfContained)' == 'true'" />
+      <_PublishUnrelatedNative Include="$(PublishDir)Microsoft.WindowsAppRuntime.Bootstrap.dll" Condition="'$(WindowsAppSDKSelfContained)' == 'true'" />
     </ItemGroup>
     <Delete Files="@(_PublishXamlFiles)" />
     <Delete Files="@(_PublishPdbFiles)" />
