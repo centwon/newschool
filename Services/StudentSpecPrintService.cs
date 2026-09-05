@@ -108,25 +108,31 @@ public class StudentSpecPrintService
             uint rowIdx = 0;
             foreach (var (number, name, specs) in studentSpecs)
             {
-                uint specCount = (uint)specs.Count;
-                if (specCount == 0) continue;
+                if (specs.Count == 0) continue;
 
                 bool isEven = rowIdx % 2 == 0;
                 var bg = isEven ? Colors.White : Colors.Grey.Lighten5;
 
-                // 번호/이름 행 병합
-                table.Cell().RowSpan(specCount)
-                    .Border(0.5f).BorderColor(Colors.Grey.Lighten2)
-                    .Background(bg).Padding(3).AlignCenter().AlignMiddle()
-                    .Text(number.ToString()).FontSize(8).SemiBold();
-
-                table.Cell().RowSpan(specCount)
-                    .Border(0.5f).BorderColor(Colors.Grey.Lighten2)
-                    .Background(bg).Padding(3).AlignCenter().AlignMiddle()
-                    .Text(name).FontSize(8).SemiBold();
+                bool firstRowOfStudent = true;
 
                 foreach (var spec in specs)
                 {
+                    // ⚠ 예전에는 번호·이름을 RowSpan 으로 묶었다. 보기에는 깔끔했지만
+                    //   학생의 줄이 쪽 경계에 걸리면 병합 칸이 앞쪽에 남아 <b>다음 쪽 첫 줄들이
+                    //   이름 없이</b> 떴다(축 "많을 때·길 때", 2026-09-05 실측 — 40명이면 6쪽에서
+                    //   두세 번 일어난다). 줄마다 찍고 이어지는 줄은 흐리게 해서, 쪽이 어디서
+                    //   넘어가든 누구의 기록인지 알 수 있게 한다.
+                    void Label(IContainer c, string text) =>
+                        c.Border(0.5f).BorderColor(Colors.Grey.Lighten2)
+                         .Background(bg).Padding(3).AlignCenter().AlignMiddle()
+                         .Text(text).FontSize(8)
+                         .SemiBold()
+                         .FontColor(firstRowOfStudent ? Colors.Black : Colors.Grey.Medium);
+
+                    Label(table.Cell(), number.ToString());
+                    Label(table.Cell(), name);
+                    firstRowOfStudent = false;
+
                     void D(IContainer c, string text) =>
                         c.Border(0.5f).BorderColor(Colors.Grey.Lighten2)
                          .Background(bg).Padding(3)
