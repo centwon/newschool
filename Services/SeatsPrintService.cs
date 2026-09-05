@@ -364,25 +364,36 @@ public class SeatsPrintService
         var roster = includeRoster ? BuildRoster(cards) : new List<StudentCardData>();
         bool hasRoster = roster.Count > 0;
 
-        // 명렬표 좌측 사이드바 (번호+이름 좁은 2열)
-        const float RosterSidebarWidth = 82f;
-        const float RosterGap = 8f;
-        float sidebarReserve = hasRoster ? RosterSidebarWidth + RosterGap : 0f;
+        // ── 학급 명렬표: 좌석 아래에 가로로 눕힌다 ──
+        //
+        // ⚠ 예전에는 왼쪽에 세로 사이드바로 세웠다. 20명까지는 멀쩡했지만 40명이면 한 쪽에
+        //   들어가지 않아 <b>좌석배정표가 2장으로 나왔고</b>, 둘째 장은 좌석 그림 없이
+        //   21~40번 목록만 놓였다(쪽 경계에 걸린 이름은 반토막). 글자 크기를 줄여도 끊기는
+        //   자리가 그대로여서 — 사이드바가 쓸 수 있는 세로 공간이 QuestPDF 의 Row 분할
+        //   규칙에 묶여 있다 — 계산으로는 맞출 수 없었다(축 "많을 때·길 때", 2026-09-05).
+        //   그래서 <b>교탁 아래에 가로로</b> 눕혀 한 장에 담는다(사용자 결정).
+        //   ⚠ <b>표의 실제 행 높이는 글자의 약 2.5배</b>다(실측). <c>.Height()</c> 는 최소값일
+        //   뿐이라 이보다 낮게 잡으면 표가 계산보다 커져 또 쪽을 넘긴다 — 명렬표를 아래로
+        //   옮기고도 한 번 더 넘겼다. 그래서 글자에서 행 높이를 <b>거꾸로</b> 구한다.
+        const int RosterColumns = 8;          // 한 줄에 여덟 명
+        const float RosterTitleHeight = 12f;
+        const float RosterFontSize = 7f;
+        const float RosterRowHeight = RosterFontSize * 3.0f;   // 2.5 로는 모자랐다(실측 후 상향)
 
-        // 사이드바 세로 공간: 페이지 컨텐츠 영역 전체
-        float contentHeight = pageHeight - HeaderHeight - FooterHeight;
-        // 헤더 1행 + 학생 N행이 모두 들어가도록 행 높이 계산
-        float rosterRowH = hasRoster ? contentHeight / (roster.Count + 1) : 0f;
-        float rosterFontSize = Math.Max(5f, Math.Min(rosterRowH * 0.55f, 11f));
-        float rosterHeaderFontSize = Math.Max(6f, Math.Min(rosterRowH * 0.6f, 10f));
+        int rosterRows = hasRoster
+            ? (int)Math.Ceiling((double)roster.Count / RosterColumns)
+            : 0;
+        float rosterBandHeight = hasRoster
+            ? RosterTitleHeight + rosterRows * RosterRowHeight
+            : 0f;
 
-        // 줄 사이 통로 반영한 셀 너비 (명렬표 공간 제외)
+        // 줄 사이 통로 반영한 셀 너비 (명렬표가 옆이 아니라 아래라 폭은 온전히 좌석 몫)
         int aisleCount = jul > 1 ? jul - 1 : 0;
         float totalAisleWidth = aisleCount * AisleWidth;
-        float cellWidth = (pageWidth - sidebarReserve - totalAisleWidth) / totalCols;
+        float cellWidth = (pageWidth - totalAisleWidth) / totalCols;
 
         // ── 셀 높이: 사진/텍스트 기준 적정 크기 → 나머지는 상단 여백 ──
-        float seatAreaMax = pageHeight - HeaderHeight - messageHeight - DeskGap - DeskHeight - FooterHeight;
+        float seatAreaMax = pageHeight - HeaderHeight - messageHeight - DeskGap - DeskHeight - rosterBandHeight - FooterHeight;
         float photoWidth = 0, photoHeight = 0;
         float cellHeight;
         float nameFontSize;
@@ -428,7 +439,7 @@ public class SeatsPrintService
         // ── 상단 여백 = 나머지 공간 (좌석을 교탁 쪽으로 모음) ──
         float seatsTotal = cellHeight * totalRows;
         float topPadding = pageHeight - HeaderHeight - messageHeight
-                           - seatsTotal - DeskGap - DeskHeight - FooterHeight;
+                           - seatsTotal - DeskGap - DeskHeight - rosterBandHeight - FooterHeight;
         topPadding = Math.Max(topPadding, 0f);
 
         Document.Create(container =>
@@ -464,49 +475,8 @@ public class SeatsPrintService
                     });
                 });
 
-                // ── 본문 — 왼쪽 명렬표 사이드바 + 오른쪽 메인 영역 ──
-                page.Content().Row(bodyRow =>
-                {
-                    // 왼쪽: 학급 명렬표 (번호·이름)
-                    if (hasRoster)
-                    {
-                        bodyRow.ConstantItem(RosterSidebarWidth).Table(rt =>
-                        {
-                            rt.ColumnsDefinition(c =>
-                            {
-                                c.ConstantColumn(26f); // 번호
-                                c.RelativeColumn();    // 이름
-                            });
-
-                            // 헤더
-                            rt.Cell().Height(rosterRowH)
-                                .Border(0.4f).BorderColor(Colors.Grey.Darken1)
-                                .Background(Colors.Grey.Lighten3)
-                                .AlignMiddle().AlignCenter()
-                                .Text("번호").FontSize(rosterHeaderFontSize).Bold();
-                            rt.Cell().Height(rosterRowH)
-                                .Border(0.4f).BorderColor(Colors.Grey.Darken1)
-                                .Background(Colors.Grey.Lighten3)
-                                .AlignMiddle().AlignCenter()
-                                .Text("이름").FontSize(rosterHeaderFontSize).Bold();
-
-                            foreach (var s in roster)
-                            {
-                                rt.Cell().Height(rosterRowH)
-                                    .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
-                                    .AlignMiddle().AlignCenter()
-                                    .Text(s.Number.ToString()).FontSize(rosterFontSize);
-                                rt.Cell().Height(rosterRowH)
-                                    .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
-                                    .PaddingHorizontal(3).AlignMiddle()
-                                    .Text(s.Name).FontSize(rosterFontSize);
-                            }
-                        });
-                        bodyRow.ConstantItem(RosterGap);
-                    }
-
-                    // 오른쪽: 기존 본문 컬럼
-                    bodyRow.RelativeItem().Column(column =>
+                // ── 본문 — 좌석 그림, 그 아래 명렬표 ──
+                page.Content().Column(column =>
                     {
                         // 메시지
                         if (!string.IsNullOrWhiteSpace(message))
@@ -568,8 +538,40 @@ public class SeatsPrintService
                             .AlignMiddle().AlignCenter()
                             .Text($"{grade}학년 {classRoom}반")
                             .FontSize(13).Bold().FontColor(Colors.Blue.Darken2);
+
+                        // 교탁 아래 — 학급 명렬표를 가로로 눕힌다(한 줄에 여덟 명)
+                        if (hasRoster)
+                        {
+                            column.Item().Height(RosterTitleHeight).AlignMiddle()
+                                .Text("학급 명렬표")
+                                .FontSize(7.5f).SemiBold().FontColor(Colors.Grey.Darken2);
+
+                            column.Item().Table(rt =>
+                            {
+                                rt.ColumnsDefinition(c =>
+                                {
+                                    for (int i = 0; i < RosterColumns; i++)
+                                        c.RelativeColumn();
+                                });
+
+                                foreach (var s in roster)
+                                {
+                                    rt.Cell().Height(RosterRowHeight)
+                                        .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
+                                        .PaddingHorizontal(3).AlignMiddle()
+                                        .Text($"{s.Number}  {s.Name}").FontSize(RosterFontSize);
+                                }
+
+                                // 마지막 줄의 빈 칸도 테두리를 맞춘다
+                                int blanks = rosterRows * RosterColumns - roster.Count;
+                                for (int i = 0; i < blanks; i++)
+                                {
+                                    rt.Cell().Height(RosterRowHeight)
+                                        .Border(0.3f).BorderColor(Colors.Grey.Lighten1);
+                                }
+                            });
+                        }
                     });
-                });
             });
         }).GeneratePdf(filePath);
 
