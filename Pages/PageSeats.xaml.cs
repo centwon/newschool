@@ -96,6 +96,17 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
     private double SpaceSide;
     private double SpaceRow;
 
+    /// <summary>
+    /// 한 줄이 차지하는 높이. <b>자리를 잡는 두 곳이 같은 값을 써야 한다.</b>
+    ///
+    /// <para>⚠ 격자를 만들 때는 이 계산값으로 캔버스 전체에 고르게 폈는데, 자동배정 뒤
+    /// 제자리로 돌릴 때는 <c>card.ActualHeight</c> 를 썼다. <b>사진 표시를 끄면 카드 높이가
+    /// 1/5 로 줄어</b>(사진 칸이 0 이 된다) 두 값이 어긋나고, 오차가 <c>×(줄+1)</c> 로 쌓여
+    /// <b>줄이 많을수록 카드가 아래로 뭉쳤다</b>. 17명(4줄)에서는 잘 안 보이다가
+    /// 40명(8줄)에서 드러났다 — 축 "많을 때·길 때"(2026-09-05).</para>
+    /// </summary>
+    private double CellHeight;
+
     // 짝 분리/고정 목록: (StudentID_A, StudentID_B)
     private readonly List<(string IdA, string IdB)> _exclusionPairs = new();
     private readonly List<(string IdA, string IdB)> _fixedPairs = new();
@@ -424,6 +435,10 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
 
         // 좌우 여백 재계산 (중앙 정렬)
         SpaceSide = (Room.ActualWidth - (SpaceJjak * (_jjak * _jul - 1) + SpaceJul * (_jul - 1) + cardWidth * (_jjak * _jul))) / 2;
+
+        // 자동배정이 제자리로 돌릴 때도 이 값을 쓴다(SeatAssignAsync) — 두 곳이 어긋나면
+        // 줄이 많을수록 카드가 아래로 뭉친다.
+        CellHeight = cardHeight;
 
         int idx = 0;
         for (int i = 0; i < TotalRows; i++)
@@ -1203,7 +1218,9 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
     {
         foreach (var card in Cards)
         {
-            double top = Room.ActualHeight - SpaceRow * (card.Row + 1) - card.ActualHeight * (card.Row + 1);
+            // 격자를 만들 때 쓴 줄 높이(CellHeight)를 그대로 쓴다. card.ActualHeight 를 쓰면
+            // 사진 표시를 껐을 때 카드가 아래로 뭉친다(그 이유는 CellHeight 주석에).
+            double top = Room.ActualHeight - SpaceRow * (card.Row + 1) - CellHeight * (card.Row + 1);
             double left = Room.ActualWidth - SpaceSide - (card.Col + 1) * card.ActualWidth - SpaceJjak * card.Col
                 - Math.Truncate((double)(card.Col / _jjak)) * SpaceJul;
 

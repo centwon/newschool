@@ -264,12 +264,17 @@ public class StudentLogPrintService
     {
         var log = logVm.StudentLog;
 
+        // ⚠ 카드가 쪽 경계에 걸리면 <b>넘어간 쪽에는 본문만</b> 찍혔다 — 번호도 영역도
+        //   날짜도 없어 어느 기록인지 알 수 없었다(300건을 뽑으면 62쪽이고, 그 사이에서
+        //   여러 번 일어난다). 머리줄을 Decoration.Before 로 옮기면 <b>카드가 걸친 쪽마다
+        //   다시 찍힌다</b>. ShowEntire 는 쓰지 않았다 — 한 쪽보다 긴 기록에서 예외를 던져
+        //   인쇄 전체가 실패한다.
         container.Border(1).BorderColor(Colors.Grey.Lighten2)
             .Background(Colors.Grey.Lighten5)
             .Padding(12)
-            .Column(column =>
+            .Decoration(decoration =>
             {
-                column.Item().Row(row =>
+                decoration.Before().Row(row =>
                 {
                     row.AutoItem()
                         .Background(Colors.Blue.Medium)
@@ -304,20 +309,23 @@ public class StudentLogPrintService
                         .FontSize(11).FontColor(Colors.Grey.Darken1);
                 });
 
-                if (log.HasStructuredData())
+                decoration.Content().Column(column =>
                 {
-                    column.Item().PaddingTop(8)
-                        .Element(c => ComposeStructuredLog(c, log));
-                }
-                else if (!string.IsNullOrWhiteSpace(log.Log))
-                {
-                    column.Item().PaddingTop(8)
-                        .Background(Colors.White)
-                        .Border(1).BorderColor(Colors.Grey.Lighten1)
-                        .Padding(10)
-                        .Text(log.Log)
-                        .FontSize(11).LineHeight(1.5f);
-                }
+                    if (log.HasStructuredData())
+                    {
+                        column.Item().PaddingTop(8)
+                            .Element(c => ComposeStructuredLog(c, log));
+                    }
+                    else if (!string.IsNullOrWhiteSpace(log.Log))
+                    {
+                        column.Item().PaddingTop(8)
+                            .Background(Colors.White)
+                            .Border(1).BorderColor(Colors.Grey.Lighten1)
+                            .Padding(10)
+                            .Text(log.Log)
+                            .FontSize(11).LineHeight(1.5f);
+                    }
+                });
             });
     }
 
