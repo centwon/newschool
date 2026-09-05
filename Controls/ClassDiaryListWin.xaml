@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:NewSchool.ViewModels"
+    xmlns:controls="using:NewSchool.Controls"
     mc:Ignorable="d"
     Title="학급일지 목록">
 
@@ -179,6 +180,14 @@
                 </ItemsRepeater.ItemTemplate>
             </ItemsRepeater>
         </ScrollViewer>
+
+        <!-- 고른 기간에 일지가 없을 때 (목록 자리를 덮는다) -->
+        <controls:EmptyStateView x:Name="EmptyState"
+                                 Grid.Row="1"
+                                 Visibility="Collapsed"
+                                 Glyph="&#xE8F1;"
+                                 Title="이 기간에 쓴 일지가 없습니다"
+                                 Message="시작일과 종료일을 넓혀 다시 조회해 보세요."/>
 
         <!-- 버튼 영역 -->
         <Border Grid.Row="2"

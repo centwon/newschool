@@ -157,6 +157,10 @@ public sealed partial class ClassDiaryListWin : Window, IDisposable
                 _diaries.Add(new ClassDiaryViewModel(diary));
             }
             DiaryItemsRepeater.ItemsSource = _diaries;
+
+            // 고른 기간에 일지가 없으면 그렇다고 말한다 — 예전에는 빈 칸만 남아
+            // 조회가 된 것인지 실패한 것인지 알 수 없었다.
+            EmptyState.Visibility = _diaries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
         catch (Exception ex)
         {

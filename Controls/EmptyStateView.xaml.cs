@@ -63,6 +63,16 @@ public sealed partial class EmptyStateView : UserControl
     /// <summary>버튼을 눌렀을 때.</summary>
     public event EventHandler? ActionInvoked;
 
+    /// <summary>
+    /// 할 말이 없으면 버튼도 없다.
+    ///
+    /// <para>⚠ 예전에는 <see cref="ActionText"/> 를 주지 않아도 버튼이 그대로 그려져
+    /// <b>글자 없는 파란 막대</b>가 남았다. 쓰는 곳마다 늘 버튼을 준 덕에 안 보였을 뿐이다
+    /// — "다음에 할 일" 이 없는 안내판(예: 기간에 자료가 없을 때)에서 드러났다.</para>
+    /// </summary>
+    public Visibility ActionVisibility(string? actionText)
+        => string.IsNullOrWhiteSpace(actionText) ? Visibility.Collapsed : Visibility.Visible;
+
     public EmptyStateView()
     {
         this.InitializeComponent();

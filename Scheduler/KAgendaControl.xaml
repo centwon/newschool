@@ -36,13 +36,15 @@
                         Margin="0,0,6,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
-                        Background="{x:Bind local:KAgendaControl.HexToBrush(BadgeBackground), Mode=OneWay}"
+                        Background="{x:Bind local:KAgendaControl.HexToSoftBrush(BadgeBackground), Mode=OneWay}"
+                        BorderBrush="{x:Bind local:KAgendaControl.HexToBrush(BadgeBackground), Mode=OneWay}"
+                        BorderThickness="1"
                         Visibility="{x:Bind CategoryName, Converter={StaticResource StrToVis}}">
                     <TextBlock Text="{x:Bind CategoryName}"
                                FontSize="11"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
-                               Foreground="White"/>
+                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 </Border>
 
                 <!-- 날짜 — 지연은 경고색, 오늘은 강조색으로 굵게 (줄을 찾는 주된 단서) -->

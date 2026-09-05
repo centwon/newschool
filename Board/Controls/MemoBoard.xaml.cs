@@ -201,10 +201,13 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         Grid.SetColumn(chk, 0);
         grid.Children.Add(chk);
 
-        // 카테고리 배지
+        // 카테고리 배지 — 같은 색을 옅게 깔고 테두리로만 진하게(아래 GetCategoryColor 주석)
+        var accent = GetCategoryColor(memo.Category);
         var badge = new Border
         {
-            Background = GetCategoryColor(memo.Category),
+            Background = SoftenCategoryColor(accent),
+            BorderBrush = new SolidColorBrush(accent),
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(6, 2, 6, 2),
             VerticalAlignment = VerticalAlignment.Center,
@@ -212,7 +215,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             {
                 Text = memo.Category ?? "기타",
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Microsoft.UI.Colors.White)
+                Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
             }
         };
         Grid.SetColumn(badge, 1);
@@ -472,18 +475,30 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         return firstLine.Length <= 15 ? firstLine : firstLine[..15] + "…";
     }
 
-    private static SolidColorBrush GetCategoryColor(string? category)
+    /// <summary>
+    /// 분류의 <b>바탕색</b>. 배지 테두리에만 이대로 쓰고, 안은 <see cref="SoftenCategoryColor"/>
+    /// 로 옅게 깐다.
+    ///
+    /// <para>예전에는 이 색을 그대로 채우고 <b>흰 글자</b>를 얹었다. 네 가지가 원색에 가까워
+    /// (파랑·초록·빨강·노랑) 목록에서 <b>배지가 제목보다 먼저 눈에 들어왔다</b> — 먼저 읽혀야
+    /// 할 것은 메모의 제목이다. 일정 목록의 분류 배지(<c>KAgendaControl</c>)도 같이 손봤다.</para>
+    /// </summary>
+    private static Color GetCategoryColor(string? category) => category switch
     {
-        var color = category switch
-        {
-            CategoryNames.Lesson => Color.FromArgb(0xFF, 0x42, 0x85, 0xF4),
-            CategoryNames.Homeroom => Color.FromArgb(0xFF, 0x0F, 0x9D, 0x58),
-            CategoryNames.Work => Color.FromArgb(0xFF, 0xDB, 0x44, 0x37),
-            CategoryNames.Personal => Color.FromArgb(0xFF, 0xF4, 0xB4, 0x00),
-            _ => Microsoft.UI.Colors.Gray
-        };
-        return new SolidColorBrush(color);
-    }
+        CategoryNames.Lesson => Color.FromArgb(0xFF, 0x42, 0x85, 0xF4),
+        CategoryNames.Homeroom => Color.FromArgb(0xFF, 0x0F, 0x9D, 0x58),
+        CategoryNames.Work => Color.FromArgb(0xFF, 0xDB, 0x44, 0x37),
+        CategoryNames.Personal => Color.FromArgb(0xFF, 0xF4, 0xB4, 0x00),
+        _ => Microsoft.UI.Colors.Gray
+    };
+
+    /// <summary>
+    /// 같은 색을 <b>옅게</b>(알파) — 밝은 색을 새로 만들지 않는다. 그래야 밝은 테마에서는
+    /// 파스텔로, 어두운 테마에서는 어두운 바탕에 은은하게 얹혀 <b>양쪽 다 글자를 삼키지
+    /// 않는다</b>(42차-b: 배경만 밝은 색으로 고정하면 다크 테마에서 글자가 사라진다).
+    /// </summary>
+    private static SolidColorBrush SoftenCategoryColor(Color color)
+        => new(Color.FromArgb(56, color.R, color.G, color.B));
 
     #endregion
 }

@@ -381,7 +381,9 @@ public sealed partial class ClassDiaryPage : Page
         listWin.DiarySelected += OnDiarySelected;
         listWin.Closed += (s, e) => listWin.DiarySelected -= OnDiarySelected;
 
-        listWin.SetSize(1400, 800);
+        // 목록 한 줄은 날짜(140) + 내용 + 아이콘(40)뿐이라 1400 은 지나치게 넓었다.
+        // 같은 화면에서 여는 일지 편집 창(ClassDiaryBox)과 크기를 맞춘다.
+        listWin.SetSize(1000, 800);
         listWin.ShowDialog();
     }
 

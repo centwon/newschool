@@ -193,7 +193,21 @@ public sealed partial class KAgendaControl : UserControl
     // ─────────────────────────────────────────────
 
     /// <summary>HEX 문자열 → SolidColorBrush (x:Bind에서 직접 호출)</summary>
-    public static SolidColorBrush HexToBrush(string hex)
+    public static SolidColorBrush HexToBrush(string hex) => HexToBrush(hex, 255);
+
+    /// <summary>
+    /// 분류 배지의 <b>연한</b> 바탕. 캘린더 색을 그대로 채우고 흰 글자를 얹으면
+    /// 목록에서 배지가 제목보다 먼저 눈에 들어온다 — 이 줄에서 먼저 읽혀야 할 것은
+    /// 제목과 날짜다.
+    ///
+    /// <para>밝은 색을 새로 만들지 않고 <b>같은 색을 옅게(알파)</b> 깐다. 그래야 밝은
+    /// 테마에서는 연한 파스텔로, 어두운 테마에서는 어두운 바탕에 은은하게 얹혀
+    /// <b>양쪽 다 글자를 삼키지 않는다</b>(42차-b: 배경만 밝은 색으로 고정하면 다크
+    /// 테마에서 글자가 사라진다). 글자색은 테마 기본색을 쓴다.</para>
+    /// </summary>
+    public static SolidColorBrush HexToSoftBrush(string hex) => HexToBrush(hex, 56);
+
+    private static SolidColorBrush HexToBrush(string hex, byte alpha)
     {
         try
         {
@@ -203,11 +217,11 @@ public sealed partial class KAgendaControl : UserControl
                 byte r = Convert.ToByte(hex[0..2], 16);
                 byte g = Convert.ToByte(hex[2..4], 16);
                 byte b = Convert.ToByte(hex[4..6], 16);
-                return new SolidColorBrush(Color.FromArgb(255, r, g, b));
+                return new SolidColorBrush(Color.FromArgb(alpha, r, g, b));
             }
         }
         catch { /* 파싱 실패 시 기본 */ }
-        return new SolidColorBrush(Colors.Gray);
+        return new SolidColorBrush(Color.FromArgb(alpha, 158, 158, 158));
     }
 
     // ── 지연 · 오늘 강조 ─────────────────────────
