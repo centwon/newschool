@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -56,10 +57,16 @@ public class LoadSandboxSeeder
 
         await SeedSettingsAsync(settings);
         await SeedSchoolAndTeacherAsync(school);
-        string firstStudent = await SeedStudentsAsync(school);
-        await SeedLongRecordsAsync(school, firstStudent);
+        var studentIds = await SeedStudentsAsync(school);
+        await SeedLongRecordsAsync(school, studentIds[0]);
         await SeedTimetableAndCourseAsync(school);
         await SeedPostsAsync(board);
+
+        // 2차(같은 날 이어서): 남은 덩어리들
+        await SeedSpecsAsync(school, studentIds);
+        await SeedSchoolSchedulesAsync(school);
+        await SeedClassDiariesAsync(school);
+        await SeedCalendarEventsAsync(scheduler);
 
         SqliteConnection.ClearAllPools();
     }
@@ -126,7 +133,7 @@ public class LoadSandboxSeeder
     }
 
     /// <summary>3학년 1반에 40명. 이름은 길이가 제각각이어야 좁은 칸이 어디서 깨지는지 보인다.</summary>
-    private static async Task<string> SeedStudentsAsync(string school)
+    private static async Task<List<string>> SeedStudentsAsync(string school)
     {
         string[] surnames = { "김", "이", "박", "최", "정", "강", "조", "윤", "장", "임" };
         string[] givens = { "서준", "하윤", "도윤", "지호", "예린", "시우", "하은", "주원", "지안", "건우" };
@@ -134,7 +141,7 @@ public class LoadSandboxSeeder
         using var students = new StudentRepository(school);
         using var enrollments = new EnrollmentRepository(school);
 
-        string first = string.Empty;
+        var ids = new List<string>();
         for (int i = 1; i <= StudentCount; i++)
         {
             // 20번은 일부러 아주 긴 이름 — 좌석 카드·명렬표의 좁은 칸을 시험한다.
@@ -147,10 +154,10 @@ public class LoadSandboxSeeder
             await enrollments.CreateAsync(TestData.NewEnrollment(
                 student.StudentID, name, TestData.Year, grade: 3, classNum: 1, number: i));
 
-            if (i == 1) first = student.StudentID;
+            ids.Add(student.StudentID);
         }
 
-        return first;
+        return ids;
     }
 
     /// <summary>한 학생에게 기록을 많이, 그중 하나는 아주 길게.</summary>
@@ -212,6 +219,94 @@ public class LoadSandboxSeeder
                 ? string.Concat(System.Linq.Enumerable.Repeat("본문이 아주 긴 글이다. ", 200))
                 : $"{i}번 글 본문";
             await posts.CreateAsync(post);
+        }
+    }
+
+    /// <summary>
+    /// 학생부 특기사항 — 40명 × 영역 3종. 한 명(20번, 이름이 긴 학생)은 <b>바이트 한도
+    /// 언저리까지</b> 채운다. 인쇄물이 RowSpan 표라 쪽이 넘어갈 때가 관심사다.
+    /// </summary>
+    private static async Task SeedSpecsAsync(string school, List<string> studentIds)
+    {
+        string[] types = { "자율활동", "동아리활동", "진로활동" };
+
+        using var specials = new StudentSpecialRepository(school);
+        for (int i = 0; i < studentIds.Count; i++)
+        {
+            foreach (var type in types)
+            {
+                string content = i == 19   // 20번
+                    ? string.Concat(System.Linq.Enumerable.Repeat(
+                        "맡은 일을 끝까지 해내고 친구를 살뜰히 돕는 모습이 자주 관찰됨. ", 25))
+                    : $"{type}에 성실히 참여하고 자기 몫을 다함.";
+
+                await specials.CreateAsync(TestData.NewSpecial(
+                    studentIds[i], type: type, title: $"{type} 기록", content: content));
+            }
+        }
+    }
+
+    /// <summary>학사일정 200일치 — 달력·오늘 화면이 하루에 여럿을 어떻게 보여 주는지 본다.</summary>
+    private static async Task SeedSchoolSchedulesAsync(string school)
+    {
+        string[] names = { "학력평가", "체육대회", "현장학습", "학부모 상담주간", "방과후 발표회" };
+
+        using var schedules = new SchoolScheduleRepository(school);
+        var day = new DateTime(TestData.Year, 3, 2);
+        for (int i = 0; i < 200; i++)
+        {
+            // 열흘에 한 번은 같은 날에 셋을 겹쳐 둔다.
+            int sameDay = i % 10 == 0 ? 3 : 1;
+            for (int k = 0; k < sameDay; k++)
+            {
+                await schedules.CreateAsync(TestData.NewSchedule(
+                    day.AddDays(i), eventName: $"{names[(i + k) % names.Length]} {i + 1}"));
+            }
+        }
+    }
+
+    /// <summary>학급일지 120일치 — 목록 창의 기간 조회가 관심사다.</summary>
+    private static async Task SeedClassDiariesAsync(string school)
+    {
+        using var diaries = new ClassDiaryRepository(school);
+        var day = new DateTime(TestData.Year, 3, 2);
+        for (int i = 0; i < 120; i++)
+        {
+            var date = day.AddDays(i);
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) continue;
+
+            await diaries.CreateAsync(new ClassDiary(
+                TestData.SchoolCode, TestData.Year, 2, 3, 1, date, TestData.TeacherId)
+            {
+                Absent = i % 7 == 0 ? "김서준, 이하윤" : string.Empty,
+                Memo = i % 11 == 0
+                    ? string.Concat(System.Linq.Enumerable.Repeat("오늘 있었던 일을 길게 적어 둔다. ", 40))
+                    : $"{date:M월 d일} 특이사항 없음",
+                Notice = i % 5 == 0 ? "준비물: 실내화" : string.Empty,
+            });
+        }
+    }
+
+    /// <summary>개인 일정 200건 — 달력 한 칸에 여럿이 겹칠 때를 본다.</summary>
+    private static async Task SeedCalendarEventsAsync(string scheduler)
+    {
+        using var events = new NewSchool.Scheduler.Repositories.KEventRepository(scheduler);
+        var day = new DateTime(TestData.Year, 9, 1);
+
+        for (int i = 0; i < 200; i++)
+        {
+            var start = day.AddDays(i / 4).AddHours(9 + (i % 4) * 2);
+            await events.CreateAsync(new NewSchool.Scheduler.KEvent
+            {
+                CalendarId = 1,
+                Title = i % 20 == 0
+                    ? "제목이 아주 긴 일정이다 — 달력 한 칸에 들어가지 않을 때 어떻게 되는지 본다"
+                    : $"{i + 1}번 일정",
+                Start = start,
+                End = start.AddHours(1),
+                IsAllday = i % 8 == 0,
+                User = TestData.TeacherId,
+            });
         }
     }
 }

@@ -1,9 +1,49 @@
 ﻿using System;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Media;
 using Windows.UI.Text;
 
 namespace NewSchool.Converters;
+
+/// <summary>
+/// 한도를 넘겼으면 경고색, 아니면 보조 글자색.
+///
+/// <para><see cref="BoolToVacationColorConverter"/> 와 같은 방식이다 — 색을 박지 않고
+/// 테마 리소스를 찾아 쓰므로 다크 테마에서도 읽힌다. 리소스를 못 찾을 때만 폴백을 쓴다.</para>
+///
+/// <para>⚠ 컨버터는 바인딩 소스가 바뀔 때만 다시 돈다. 앱을 켠 채 테마를 바꾸면 목록이
+/// 다시 그려지기 전까지 이전 색이 남는다(같은 한계).</para>
+/// </summary>
+public partial class BoolToWarningBrushConverter : IValueConverter
+{
+    private static readonly SolidColorBrush FallbackWarning = new(Colors.Red);
+    private static readonly SolidColorBrush FallbackNormal = new(Colors.Gray);
+
+    public object Convert(object value, Type targetType, object parameter, string language)
+        => value is bool isWarning && isWarning
+            ? ThemeBrush("SystemFillColorCriticalBrush", FallbackWarning)
+            : ThemeBrush("TextFillColorSecondaryBrush", FallbackNormal);
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+        => throw new NotImplementedException();
+
+    private static Brush ThemeBrush(string key, Brush fallback)
+    {
+        try
+        {
+            var resources = Application.Current?.Resources;
+            if (resources != null && resources.TryGetValue(key, out var value) && value is Brush brush)
+                return brush;
+        }
+        catch
+        {
+            // 리소스 조회 실패 — 폴백으로
+        }
+        return fallback;
+    }
+}
 
 /// <summary>
 /// String이 비어있지 않으면 Visible, 비어있으면 Collapsed

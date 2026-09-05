@@ -15,6 +15,7 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
     private bool _isSelected;
     private bool _isModified;
     private string _byteInfo = string.Empty;
+    private bool _isOverByteLimit;
     private string _originalContent = string.Empty;
     private double _contentFontSize = DefaultContentFontSize;
 
@@ -109,6 +110,26 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
             if (_byteInfo != value)
             {
                 _byteInfo = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 한도를 넘겼는가. <b>목록에서도 눈에 띄게 하려고</b> 둔다.
+    ///
+    /// <para>⚠ 한 건씩 쓰는 화면(<c>StudentSpecBox</c>)과 일괄 입력 대화상자는 넘기면
+    /// 글씨를 빨갛게 바꾸는데, <b>정작 40명 × 여러 영역을 한눈에 훑는 목록만</b> 회색으로
+    /// 고정돼 있었다 — 넘긴 줄을 찾으려면 숫자를 하나씩 읽어야 했다(2026-09-05).</para>
+    /// </summary>
+    public bool IsOverByteLimit
+    {
+        get => _isOverByteLimit;
+        private set
+        {
+            if (_isOverByteLimit != value)
+            {
+                _isOverByteLimit = value;
                 OnPropertyChanged();
             }
         }
@@ -297,6 +318,7 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
         if (_special == null)
         {
             ByteInfo = "0 Byte (0자)";
+            IsOverByteLimit = false;
             return;
         }
 
@@ -305,6 +327,7 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
         int charCount = _special.Content?.Length ?? 0;
 
         ByteInfo = $"{currentBytes} / {maxBytes} Byte ({charCount}자)";
+        IsOverByteLimit = NeisHelper.IsOverLimit(currentBytes, maxBytes);
     }
 
     #endregion

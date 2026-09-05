@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:NewSchool.ViewModels"
+    xmlns:conv="using:NewSchool.Converters"
     mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -12,6 +13,9 @@
         <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="Gray"/>
         <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="Gray"/>
         <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="Transparent"/>
+
+        <!-- 한도를 넘긴 줄의 바이트 표시를 빨갛게 — 입력 화면과 같은 기준 -->
+        <conv:BoolToWarningBrushConverter x:Key="OverLimitBrush"/>
     </UserControl.Resources>
 
     <Border
@@ -204,7 +208,7 @@
                                     <TextBlock Grid.Column="9"
                                                Text="{x:Bind ByteInfo, Mode=OneWay}"
                                                FontSize="10"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               Foreground="{x:Bind IsOverByteLimit, Mode=OneWay, Converter={StaticResource OverLimitBrush}}"
                                                HorizontalAlignment="Right"
                                                VerticalAlignment="Top"
                                                Margin="0,4,4,0"
