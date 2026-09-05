@@ -262,6 +262,12 @@ function Invoke-Click {
         if ($el.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pat)) {
             $pat.Invoke(); Write-Host "Invoke: $($el.Current.Name) (조상 $hop 단계)"; return
         }
+        # CheckBox·ToggleSwitch 는 Invoke 가 없고 Toggle 만 있다. 이걸 빼 두면 좌표 클릭으로
+        # 떨어지는데, 150% 배율에서는 엉뚱한 데를 눌러 **켜지지도 않고 오류도 안 난다**
+        # (좌석배정표 인쇄 옵션의 [학급 명렬표 포함] 을 두 번 헛눌렀다, 2026-09-05).
+        if ($el.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$pat)) {
+            $pat.Toggle(); Write-Host "Toggle: $($el.Current.Name) → $($pat.Current.ToggleState)"; return
+        }
         if ($el.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pat)) {
             $pat.Select(); Write-Host "Select: $($el.Current.Name)"; return
         }

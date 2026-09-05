@@ -308,5 +308,23 @@ public class LoadSandboxSeeder
                 User = TestData.TeacherId,
             });
         }
+
+        // ⭐ 한 칸에 많이 몰릴 때 — 위 루프는 하루 4건이라 "칸을 넘칠 때" 를 못 본다.
+        //    9/7·9/8·9/9 세 날에만 8건씩 더 얹어 하루 12건을 만든다.
+        for (int d = 6; d <= 8; d++)
+        {
+            for (int k = 0; k < 8; k++)
+            {
+                var start = day.AddDays(d).AddHours(8).AddMinutes(k * 45);
+                await events.CreateAsync(new NewSchool.Scheduler.KEvent
+                {
+                    CalendarId = 1,
+                    Title = $"몰린 일정 {d + 1}일-{k + 1}",
+                    Start = start,
+                    End = start.AddMinutes(40),
+                    User = TestData.TeacherId,
+                });
+            }
+        }
     }
 }

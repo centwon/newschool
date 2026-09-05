@@ -274,6 +274,9 @@ public sealed partial class DayCell : UserControl
     {
         this.InitializeComponent();
 
+        // 창 크기가 바뀌면 칸 높이도 바뀐다 — 넘침 표시를 다시 센다.
+        SV.SizeChanged += (_, _) => UpdateMoreBadge();
+
         // 색상 초기화 (인스턴스 브러시 — DependencyObject로 static 불가)
         _holidayBrush = new SolidColorBrush(Color.FromArgb(255, 255, 68, 68));
         _saturdayBrush = new SolidColorBrush(Color.FromArgb(255, 68, 68, 255));
@@ -491,6 +494,10 @@ public sealed partial class DayCell : UserControl
             }
             UpdateTasksDisplay(dayInfo);
 
+            // 칸이 넘치는지는 배치가 끝나야 알 수 있다 — 한 박자 뒤에 센다.
+            DispatcherQueue?.TryEnqueue(
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateMoreBadge);
+
             Debug.WriteLine($"[DayCell] 표시 업데이트 완료: {dayInfo.Date:yyyy-MM-dd}");
         }
         catch (Exception ex)
@@ -618,6 +625,31 @@ public sealed partial class DayCell : UserControl
 
         if (pending != null)
             UpdateTasksDisplay(pending);
+    }
+
+    /// <summary>
+    /// 칸에 다 안 들어가면 오른쪽 아래에 <c>▾ 총개수</c> 를 띄운다.
+    ///
+    /// <para>칸 안은 원래 스크롤되지만 막대가 저절로 숨어서, <b>아래에 더 있다는 것을
+    /// 알 방법이 없었다</b> — 하루 12건이면 다섯째 줄이 글자 중간에서 잘린 채 끝난다.
+    /// 날짜를 눌러도 새 항목 창이 열릴 뿐이라 "그날 전체 보기" 도 없다(축 "많을 때·길 때",
+    /// 2026-09-05 실측).</para>
+    ///
+    /// <para>몇 개가 가려졌는지는 배치가 끝나야 알 수 있고 칸 높이도 창 크기에 따라 변해서,
+    /// <b>가려진 수 대신 그날 전체 개수</b>를 적는다 — 세어 보라는 뜻이 아니라 "여기 이만큼
+    /// 있다" 는 신호다.</para>
+    /// </summary>
+    private void UpdateMoreBadge()
+    {
+        if (SV == null || MoreBadge == null || MoreBadgeText == null) return;
+
+        bool overflow = SV.ScrollableHeight > 1;
+        MoreBadge.Visibility = overflow ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!overflow) return;
+
+        int total = (Dayinfo?.Events?.Count ?? 0) + (Dayinfo?.Tasks?.Count ?? 0);
+        MoreBadgeText.Text = total > 0 ? $"▾ {total}" : "▾";
     }
 
     private void UpdateTasksDisplay(DayInfo dayInfo)
