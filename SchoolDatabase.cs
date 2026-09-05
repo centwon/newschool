@@ -13,24 +13,22 @@ namespace NewSchool;
 public static class SchoolDatabase
 {
     /// <summary>
-    /// ⭐ 전체 DB 경로 (Public - 모든 곳에서 사용)
-    /// Data 폴더 자동 생성 및 전체 경로 반환
+    /// ⭐ 전체 DB 경로 (Public - 모든 곳에서 사용). <b>경로만 만든다 — 파일을 건드리지 않는다.</b>
+    ///
+    /// <para>⚠ 예전에는 이 getter 안에서 데이터 폴더를 만들었다. 읽는 곳이 130군데인데 거의
+    /// 전부 화면 이벤트 한복판(<c>using var repo = new X(SchoolDatabase.DbPath)</c>)이라,
+    /// 폴더를 만들지 못하면 <see cref="UnauthorizedAccessException"/> 이 <b>속성을 읽는 그 자리</b>
+    /// 에서 튀었다 — 49차 "막지 않은 <c>Directory.CreateDirectory</c>" 의 친척이고, 130군데를
+    /// 전부 감쌀 수는 없다. 남는 기록도 <c>Debug.WriteLine</c> 뿐이라 배포본에는 흔적조차
+    /// 없었다(50차).</para>
+    ///
+    /// <para>형제인 <see cref="Board.Board"/>·<see cref="Scheduler.Scheduler"/> 는 처음부터
+    /// 경로만 만들고 폴더는 각자 <c>InitAsync</c> 에서만 만든다 — 그쪽에 맞췄다. 폴더는
+    /// <see cref="SettingsDb"/> 정적 생성자(실패해도 이유를 로그에 남기고 살아남는다)와
+    /// <see cref="InitAsync"/> 가 만들며, 이 속성은 <see cref="Settings.SchoolDB"/> 를 거치므로
+    /// <b>그 둘보다 먼저 도는 길이 없다</b>.</para>
     /// </summary>
-    public static string DbPath
-    {
-        get
-        {
-            string dataDir = Settings.UserDataPath;
-
-            if (!Directory.Exists(dataDir))
-            {
-                Directory.CreateDirectory(dataDir);
-                Debug.WriteLine($"[SchoolDatabase] 데이터 폴더 생성: {dataDir}");
-            }
-
-            return Path.Combine(dataDir, Settings.SchoolDB.Value);
-        }
-    }
+    public static string DbPath => Path.Combine(Settings.UserDataPath, Settings.SchoolDB.Value);
 
     /// <summary>
     /// 데이터 폴더 경로
