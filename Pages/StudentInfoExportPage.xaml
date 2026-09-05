@@ -25,7 +25,7 @@
                 ClassChanged="ClassFilter_ClassChanged"/>
             <Border Width="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="4,4"/>
             <TextBlock Text="제목:" VerticalAlignment="Center"/>
-            <TextBox x:Name="TboxTitle" Width="160" PlaceholderText="학생 정보"/>
+            <TextBox x:Name="TboxTitle" AutomationProperties.Name="표 제목" Width="160" PlaceholderText="학생 정보"/>
             <CheckBox x:Name="ChkShowNo" Content="연번"/>
             <CheckBox x:Name="ChkShowClass" Content="학급"/>
             <CheckBox x:Name="ChkShowEtc" Content="비고" IsChecked="True"/>
@@ -137,23 +137,23 @@
             <VariableSizedWrapGrid Orientation="Horizontal" Margin="12,6" ItemWidth="150" ItemHeight="40">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="1" VerticalAlignment="Center" Opacity="0.6"/>
-                    <TextBox x:Name="TBoxUser1" Width="120"/>
+                    <TextBox x:Name="TBoxUser1" AutomationProperties.Name="사용자 정의 항목 1" Width="120"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="2" VerticalAlignment="Center" Opacity="0.6"/>
-                    <TextBox x:Name="TBoxUser2" Width="120"/>
+                    <TextBox x:Name="TBoxUser2" AutomationProperties.Name="사용자 정의 항목 2" Width="120"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="3" VerticalAlignment="Center" Opacity="0.6"/>
-                    <TextBox x:Name="TBoxUser3" Width="120"/>
+                    <TextBox x:Name="TBoxUser3" AutomationProperties.Name="사용자 정의 항목 3" Width="120"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="4" VerticalAlignment="Center" Opacity="0.6"/>
-                    <TextBox x:Name="TBoxUser4" Width="120"/>
+                    <TextBox x:Name="TBoxUser4" AutomationProperties.Name="사용자 정의 항목 4" Width="120"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="5" VerticalAlignment="Center" Opacity="0.6"/>
-                    <TextBox x:Name="TBoxUser5" Width="120"/>
+                    <TextBox x:Name="TBoxUser5" AutomationProperties.Name="사용자 정의 항목 5" Width="120"/>
                 </StackPanel>
             </VariableSizedWrapGrid>
         </Expander>

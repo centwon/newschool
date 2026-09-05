@@ -115,7 +115,7 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- 체크박스 -->
-                                    <CheckBox Grid.Column="0"
+                                    <CheckBox Grid.Column="0" AutomationProperties.Name="이 기록 선택"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               MinWidth="0"
@@ -152,7 +152,7 @@
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"/>
                                     <TextBox Grid.Column="7"
-                                             Text="{x:Bind TitleEditable, Mode=TwoWay}"
+                                             AutomationProperties.Name="희망분야" Text="{x:Bind TitleEditable, Mode=TwoWay}"
                                              Visibility="{x:Bind TitleEditVisibility}"
                                              PlaceholderText="희망분야"
                                              VerticalAlignment="Center"
@@ -190,7 +190,7 @@
 
                                     <!-- 기록 내용 — 글자 크기만 툴바 슬라이더를 따른다(다른 칸은 고정) -->
                                     <TextBox Grid.Column="8"
-                                             Text="{x:Bind Content, Mode=TwoWay}"
+                                             AutomationProperties.Name="기록 내용" Text="{x:Bind Content, Mode=TwoWay}"
                                              AcceptsReturn="True"
                                              TextWrapping="Wrap"
                                              MinHeight="60"

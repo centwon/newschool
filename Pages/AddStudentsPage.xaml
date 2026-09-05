@@ -61,30 +61,30 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0" Text="학년도" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox x:Name="TxtYear" Grid.Column="1" InputScope="Number"
+            <TextBox x:Name="TxtYear" AutomationProperties.Name="학년도" Grid.Column="1" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
             <TextBlock Grid.Column="2" Text="학년" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtGrade" Grid.Column="3" InputScope="Number"
+            <TextBox x:Name="TxtGrade" AutomationProperties.Name="학년" Grid.Column="3" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
             <TextBlock Grid.Column="4" Text="반" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtClass" Grid.Column="5" InputScope="Number"
+            <TextBox x:Name="TxtClass" AutomationProperties.Name="반" Grid.Column="5" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
             <TextBlock Grid.Column="6" Text="번호" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtNumber" Grid.Column="7" InputScope="Number"
+            <TextBox x:Name="TxtNumber" AutomationProperties.Name="번호" Grid.Column="7" InputScope="Number"
                      PreviewKeyDown="NumberBox_PreviewKeyDown"/>
 
             <TextBlock Grid.Column="8" Text="성별" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <ComboBox x:Name="CboSex" Grid.Column="9" SelectedIndex="0"
+            <ComboBox x:Name="CboSex" AutomationProperties.Name="성별" Grid.Column="9" SelectedIndex="0"
                       HorizontalAlignment="Stretch">
                 <ComboBoxItem Content="남"/>
                 <ComboBoxItem Content="여"/>
             </ComboBox>
 
             <TextBlock Grid.Column="10" Text="이름" VerticalAlignment="Center" Margin="16,0,8,0"/>
-            <TextBox x:Name="TxtName" Grid.Column="11" PlaceholderText="학생 이름 입력"
+            <TextBox x:Name="TxtName" AutomationProperties.Name="이름" Grid.Column="11" PlaceholderText="학생 이름 입력"
                      Margin="0,0,16,0"/>
 
             <Button x:Name="BtnAddStudent" Grid.Column="12" Content="추가"
@@ -145,7 +145,7 @@
                                 <ColumnDefinition Width="40"/>
                             </Grid.ColumnDefinitions>
 
-                            <CheckBox x:Name="ChkSelectAll" Grid.Column="0"
+                            <CheckBox x:Name="ChkSelectAll" AutomationProperties.Name="모두 선택" Grid.Column="0"
                                       Padding="0" MinWidth="0"
                                       VerticalAlignment="Center"
                                       Checked="ChkSelectAll_Checked"
@@ -194,6 +194,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <CheckBox Grid.Column="0"
+                                                      AutomationProperties.Name="이 학생 선택"
                                                       IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
                                                       Padding="0" MinWidth="0"
                                                       VerticalAlignment="Center"/>

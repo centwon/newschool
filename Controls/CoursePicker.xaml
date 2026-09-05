@@ -19,7 +19,7 @@
 
         <!-- 과목 -->
         <ComboBox
-            x:Name="CBoxCourse"
+            x:Name="CBoxCourse" AutomationProperties.Name="과목"
             MinWidth="180"
             PlaceholderText="과목 선택"
             SelectionChanged="CBoxCourse_SelectionChanged">
@@ -32,7 +32,7 @@
 
         <!-- 강의실 -->
         <ComboBox
-            x:Name="CBoxRoom"
+            x:Name="CBoxRoom" AutomationProperties.Name="강의실"
             MinWidth="110"
             PlaceholderText="강의실"
             SelectionChanged="CBoxRoom_SelectionChanged"/>

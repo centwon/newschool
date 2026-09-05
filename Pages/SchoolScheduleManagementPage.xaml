@@ -63,7 +63,7 @@
                            Text="학년도" 
                            VerticalAlignment="Center" 
                            Margin="0,0,8,0"/>
-                <ComboBox x:Name="CBoxYear" 
+                <ComboBox x:Name="CBoxYear" AutomationProperties.Name="학년도" 
                           Grid.Column="1" 
                           HorizontalAlignment="Stretch"
                           SelectionChanged="OnYearChanged"/>
@@ -73,7 +73,7 @@
                            Text="시작일" 
                            VerticalAlignment="Center" 
                            Margin="0,0,8,0"/>
-                <CalendarDatePicker x:Name="StartDatePicker" 
+                <CalendarDatePicker x:Name="StartDatePicker" AutomationProperties.Name="시작일" 
                                     Grid.Column="4"
                                     HorizontalAlignment="Stretch"
                                     DateChanged="OnDateRangeChanged"/>
@@ -83,7 +83,7 @@
                            Text="종료일" 
                            VerticalAlignment="Center" 
                            Margin="0,0,8,0"/>
-                <CalendarDatePicker x:Name="EndDatePicker" 
+                <CalendarDatePicker x:Name="EndDatePicker" AutomationProperties.Name="종료일" 
                                     Grid.Column="7"
                                     HorizontalAlignment="Stretch"
                                     DateChanged="OnDateRangeChanged"/>
@@ -195,7 +195,7 @@
                                 <ColumnDefinition Width="52"/>   <!-- 수동입력 -->
                             </Grid.ColumnDefinitions>
 
-                            <CheckBox x:Name="ChkSelectAll"
+                            <CheckBox x:Name="ChkSelectAll" AutomationProperties.Name="모두 선택"
                                       Grid.Column="0"
                                       Content=""
                                       MinWidth="0"
@@ -241,7 +241,7 @@
 
                                             <!-- 체크박스 -->
                                             <CheckBox Grid.Column="0"
-                                                      IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                                                      AutomationProperties.Name="이 행사 선택" IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
                                                       MinWidth="0"
                                                       MinHeight="0"
                                                       HorizontalAlignment="Left"
@@ -257,7 +257,7 @@
 
                                             <!-- 행사명 -->
                                             <TextBox Grid.Column="2"
-                                                     Text="{x:Bind EVENT_NM, Mode=TwoWay}"
+                                                     AutomationProperties.Name="행사명" Text="{x:Bind EVENT_NM, Mode=TwoWay}"
                                                      FontWeight="SemiBold"
                                                      FontSize="13"
                                                      BorderThickness="0"
@@ -268,7 +268,7 @@
 
                                             <!-- 내용 -->
                                             <TextBox Grid.Column="3"
-                                                     Text="{x:Bind EVENT_CNTNT, Mode=TwoWay}"
+                                                     AutomationProperties.Name="행사 내용" Text="{x:Bind EVENT_CNTNT, Mode=TwoWay}"
                                                      FontSize="13"
                                                      BorderThickness="0"
                                                      Background="Transparent"
@@ -279,7 +279,7 @@
 
                                             <!-- 수업공제일 -->
                                             <ComboBox Grid.Column="4"
-                                                      SelectedValue="{x:Bind SBTR_DD_SC_NM, Mode=TwoWay}"
+                                                      AutomationProperties.Name="수업공제일 구분" SelectedValue="{x:Bind SBTR_DD_SC_NM, Mode=TwoWay}"
                                                       FontSize="13"
                                                       MinHeight="0"
                                                       Padding="8,1,0,1"

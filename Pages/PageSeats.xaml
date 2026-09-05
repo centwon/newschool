@@ -94,7 +94,7 @@
                     <!-- 배열 설정: NumberBox + 짝 체크 + 도트 패턴 -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center">
-                        <NumberBox x:Name="NBoxJul"
+                        <NumberBox x:Name="NBoxJul" AutomationProperties.Name="한 줄에 놓을 자리 수"
                                    Value="5" Minimum="4" Maximum="8"
                                    SpinButtonPlacementMode="Compact"
                                    Width="110" Height="32"
@@ -154,7 +154,7 @@
                 </Grid>
 
                 <!-- Row 1: 설명 입력 (바닥이 좌측 "번호 이름" 헤더 바닥과 일치) -->
-                <TextBox x:Name="TboxMessage"
+                <TextBox x:Name="TboxMessage" AutomationProperties.Name="자리 배정 설명"
                          Grid.Row="1"
                          PlaceholderText="설명 입력..."
                          Margin="0,6,0,0"

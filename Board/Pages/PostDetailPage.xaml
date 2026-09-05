@@ -177,7 +177,7 @@
 
                             <!-- 댓글 내용 -->
                             <TextBox Grid.Row="1"
-                 x:Name="NewCommentTextBox"
+                 x:Name="NewCommentTextBox" AutomationProperties.Name="댓글"
                  PlaceholderText="댓글을 입력하세요"
                  AcceptsReturn="True"
                  TextWrapping="Wrap"
@@ -314,6 +314,7 @@
                             Margin="0,8,0,0"
                             CornerRadius="4">
                                             <Button Background="Transparent"
+                                AutomationProperties.Name="{x:Bind FileName}"
                                 BorderThickness="0"
                                 Click="CommentFileButton_Click"
                                 Tag="{x:Bind}"

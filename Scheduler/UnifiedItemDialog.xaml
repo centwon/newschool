@@ -69,21 +69,21 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Text="분류" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <ComboBox x:Name="CBoxTaskList" Grid.Column="1" Margin="10,4,2,4"
+                <ComboBox x:Name="CBoxTaskList" AutomationProperties.Name="분류" Grid.Column="1" Margin="10,4,2,4"
                           MinWidth="140" VerticalAlignment="Center"
                           IsEditable="True"
                           SelectionChanged="CBoxTaskList_SelectionChanged"
                           TextSubmitted="CBoxTaskList_TextSubmitted"/>
 
                 <TextBlock Text="제목" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBox x:Name="TxtTaskTitle" Grid.Row="1" Grid.Column="1"
+                <TextBox x:Name="TxtTaskTitle" AutomationProperties.Name="제목" Grid.Row="1" Grid.Column="1"
                          Margin="10,4,2,4" VerticalContentAlignment="Center"
                          LostFocus="TextBox_LostFocus"/>
 
                 <TextBlock Text="마감" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1"
                             Margin="10,4,2,4" Spacing="10">
-                    <CalendarDatePicker x:Name="TaskDueDatePicker"
+                    <CalendarDatePicker x:Name="TaskDueDatePicker" AutomationProperties.Name="마감 날짜"
                                         DateChanged="TaskDueDatePicker_DateChanged"/>
                     <control:CompactTimeButton x:Name="TaskDueTimePicker"
                                 TimeChanged="TaskDueTimePicker_TimeChanged"/>
@@ -131,7 +131,7 @@
                         <TextBlock x:Name="LbRepeatEnd" Text="종료 날짜"
                                    VerticalAlignment="Center" Visibility="Collapsed"
                                    FontWeight="Bold" Foreground="Red"/>
-                        <CalendarDatePicker x:Name="PickerEnd"
+                        <CalendarDatePicker x:Name="PickerEnd" AutomationProperties.Name="반복 종료 날짜"
                                             Visibility="Collapsed" PlaceholderText="반복 종료"/>
                     </StackPanel>
                 </Grid>
@@ -154,7 +154,7 @@
 
                 <TextBlock Text="설명" Grid.Row="5"
                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0"/>
-                <TextBox x:Name="TxtTaskNotes" Grid.Row="5" Grid.Column="1"
+                <TextBox x:Name="TxtTaskNotes" AutomationProperties.Name="설명" Grid.Row="5" Grid.Column="1"
                          Margin="4" AcceptsReturn="True" TextWrapping="Wrap"
                          MinHeight="80" VerticalAlignment="Stretch"
                          LostFocus="TextBox_LostFocus"/>
@@ -183,7 +183,7 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Text="캘린더" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <ComboBox x:Name="CBoxCalendar" Grid.Column="1" Margin="10,4,2,4"
+                <ComboBox x:Name="CBoxCalendar" AutomationProperties.Name="캘린더" Grid.Column="1" Margin="10,4,2,4"
                           MinWidth="140" VerticalAlignment="Center"
                           IsEditable="True"
                           SelectionChanged="CBoxCalendar_SelectionChanged"
@@ -191,7 +191,7 @@
 
                 <TextBlock Text="제목" Grid.Row="1"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBox x:Name="TxtEventTitle" Grid.Row="1" Grid.Column="1"
+                <TextBox x:Name="TxtEventTitle" AutomationProperties.Name="제목" Grid.Row="1" Grid.Column="1"
                          Margin="10,4,2,4" VerticalContentAlignment="Center"
                          LostFocus="TextBox_LostFocus"/>
 
@@ -199,7 +199,7 @@
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1"
                             Margin="10,4,2,4" Spacing="10">
-                    <CalendarDatePicker x:Name="EventStartDatePicker"
+                    <CalendarDatePicker x:Name="EventStartDatePicker" AutomationProperties.Name="시작 날짜"
                                         DateChanged="EventStartDatePicker_DateChanged"/>
                     <control:CompactTimeButton x:Name="EventStartTimePicker"
                                 TimeChanged="EventStartTimePicker_TimeChanged"/>
@@ -211,7 +211,7 @@
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1"
                             Margin="10,4,2,4" Spacing="10">
-                    <CalendarDatePicker x:Name="EventEndDatePicker"
+                    <CalendarDatePicker x:Name="EventEndDatePicker" AutomationProperties.Name="종료 날짜"
                                         DateChanged="EventEndDatePicker_DateChanged"/>
                     <control:CompactTimeButton x:Name="EventEndTimePicker"
                                 TimeChanged="EventEndTimePicker_TimeChanged"/>
@@ -219,14 +219,14 @@
 
                 <TextBlock Text="장소" Grid.Row="4"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBox x:Name="TxtEventLocation" Grid.Row="4" Grid.Column="1"
+                <TextBox x:Name="TxtEventLocation" AutomationProperties.Name="장소" Grid.Row="4" Grid.Column="1"
                          Margin="10,4,2,4"/>
 
                 <TextBlock Text="색상" Grid.Row="5"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="5" Grid.Column="1"
                             Margin="10,4,2,4" Spacing="6">
-                    <ComboBox x:Name="CBoxColor" MinWidth="150"
+                    <ComboBox x:Name="CBoxColor" AutomationProperties.Name="색상" MinWidth="150"
                               SelectionChanged="CBoxColor_SelectionChanged">
                         <ComboBoxItem Tag=""   Content="캘린더 기본색"/>
                         <ComboBoxItem Tag="1"  Content="🔴 토마토"/>
@@ -247,7 +247,7 @@
 
                 <TextBlock Text="설명" Grid.Row="6"
                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0"/>
-                <TextBox x:Name="TxtEventNotes" Grid.Row="6" Grid.Column="1"
+                <TextBox x:Name="TxtEventNotes" AutomationProperties.Name="설명" Grid.Row="6" Grid.Column="1"
                          Margin="4" AcceptsReturn="True" TextWrapping="Wrap"
                          MinHeight="80" VerticalAlignment="Stretch"
                          LostFocus="TextBox_LostFocus"/>

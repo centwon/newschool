@@ -30,13 +30,13 @@
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
                 <!-- 영역 선택 -->
-                <ComboBox x:Name="CBoxType"
+                <ComboBox x:Name="CBoxType" AutomationProperties.Name="영역"
                           PlaceholderText="영역 선택"
                           MinWidth="130"
                           SelectionChanged="CBoxType_SelectionChanged"/>
 
                 <!-- 과목 선택 (교과활동/개인별세특일 때만 표시) -->
-                <ComboBox x:Name="CBoxCourse"
+                <ComboBox x:Name="CBoxCourse" AutomationProperties.Name="과목"
                           PlaceholderText="과목 선택"
                           MinWidth="130"
                           Visibility="Collapsed"
@@ -139,7 +139,7 @@
                                            VerticalAlignment="Center"
                                            Margin="12,0,0,0"
                                            Visibility="Collapsed"/>
-                                <TextBox x:Name="TxtTitleInput"
+                                <TextBox x:Name="TxtTitleInput" AutomationProperties.Name="희망분야"
                                          MinWidth="200" FontSize="13"
                                          VerticalAlignment="Center"
                                          Visibility="Collapsed"
@@ -156,7 +156,7 @@
                         </Grid>
 
                         <!-- 텍스트 에디터 -->
-                        <TextBox x:Name="TxtContent"
+                        <TextBox x:Name="TxtContent" AutomationProperties.Name="특기사항"
                                  Grid.Row="1"
                                  AcceptsReturn="True"
                                  TextWrapping="Wrap"

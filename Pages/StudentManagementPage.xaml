@@ -183,7 +183,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <CheckBox x:Name="ChkSelectAll"
+                        <CheckBox x:Name="ChkSelectAll" AutomationProperties.Name="모두 선택"
                                   Grid.Column="0"
                                   IsThreeState="True"
                                   Click="OnSelectAllClick"
@@ -233,7 +233,7 @@
                                                  요소에 DataContext 를 채워 주지 않아,
                                                  핸들러에서 DataContext 를 보면 늘 null 이다
                                                  (행을 눌러도 아무 일이 없던 원인). -->
-                                            <CheckBox Grid.Column="0"
+                                            <CheckBox Grid.Column="0" AutomationProperties.Name="이 학생 선택"
                                                       Tag="{x:Bind}"
                                                       IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
                                                       Click="OnStudentCheckBoxClick"

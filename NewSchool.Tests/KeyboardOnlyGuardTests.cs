@@ -54,6 +54,56 @@ public class KeyboardOnlyGuardTests
     private static string WithoutComments(string xaml) =>
         Regex.Replace(xaml, "<!--.*?-->", string.Empty, RegexOptions.Singleline);
 
+    /// <summary>여는 태그 하나 — 시작 위치, 속성, 그리고 <b>제 닫는 태그까지의 본문</b>.</summary>
+    private readonly record struct Element(int Index, string Tag, string Attrs, string Inner);
+
+    /// <summary>
+    /// XAML 에서 <paramref name="tags"/> 요소를 <b>중첩을 지켜</b> 찾아낸다.
+    ///
+    /// <para>⚠ 정규식으로는 못 한다. <c>&lt;Button ...&gt;(.*?)&lt;/Button&gt;</c> 는 게으른 매칭이라
+    /// <c>Button.Flyout</c> 안에 들어 있는 <b>다른 Button</b> 의 닫는 태그에서 멈춰,
+    /// 본문이 엉뚱한 데서 잘린다(실제로 달 선택 단추에서 겪었다). 태그 스택으로 센다.</para>
+    /// </summary>
+    private static List<Element> ElementsOf(string xaml, HashSet<string> tags)
+    {
+        var found = new List<Element>();
+        var stack = new List<(string Tag, int Start, string Attrs, int BodyAt)>();
+
+        foreach (Match m in Regex.Matches(xaml, @"<(?<close>/?)(?<tag>[A-Za-z][\w:.]*)(?<attrs>(?:[^<>""]|""[^""]*"")*?)(?<self>/?)>",
+                                          RegexOptions.Singleline))
+        {
+            string tag = m.Groups["tag"].Value;
+
+            if (m.Groups["close"].Value.Length > 0)
+            {
+                while (stack.Count > 0 && stack[^1].Tag != tag) stack.RemoveAt(stack.Count - 1);
+                if (stack.Count == 0) continue;
+
+                var open = stack[^1];
+                stack.RemoveAt(stack.Count - 1);
+                if (tags.Contains(open.Tag))
+                    found.Add(new Element(open.Start, open.Tag, open.Attrs, xaml[open.BodyAt..m.Index]));
+                continue;
+            }
+
+            if (m.Groups["self"].Value.Length > 0)
+            {
+                if (tags.Contains(tag)) found.Add(new Element(m.Index, tag, m.Groups["attrs"].Value, string.Empty));
+                continue;
+            }
+
+            stack.Add((tag, m.Index, m.Groups["attrs"].Value, m.Index + m.Length));
+        }
+        return found;
+    }
+
+    private static readonly HashSet<string> ButtonTags =
+        new() { "Button", "ToggleButton", "HyperlinkButton", "AppBarButton", "SplitButton", "DropDownButton", "ToggleSplitButton" };
+
+    /// <summary><c>Button.Flyout</c> 은 문법상 단추 '안'이지만 단추에 <b>보이는</b> 것이 아니다.</summary>
+    private static string VisiblePart(string inner) =>
+        Regex.Replace(inner, @"<(\w+)\.Flyout>.*?</\1\.Flyout>", string.Empty, RegexOptions.Singleline);
+
     /// <summary>
     /// 리치 편집기에서 <b>빠져나가는 길</b>이 살아 있어야 한다.
     ///
@@ -238,8 +288,6 @@ public class KeyboardOnlyGuardTests
         // 상태에 따라 코드에서 이름을 붙이는 곳은 정적으로 볼 수 없다.
         var namedInCode = new HashSet<string> { "Controls/StudentSpecBox.xaml" };
 
-        var element = new Regex(@"<(?<tag>Button|ToggleButton|HyperlinkButton|AppBarButton|SplitButton|DropDownButton)\b(?<attrs>(?:[^>""]|""[^""]*"")*?)>(?<inner>.*?)</\k<tag>>",
-                                RegexOptions.Singleline);
         var offenders = new List<string>();
 
         foreach (var rel in XamlFiles())
@@ -247,19 +295,17 @@ public class KeyboardOnlyGuardTests
             if (namedInCode.Contains(rel)) continue;
             string xaml = WithoutComments(Read(rel));
 
-            foreach (Match m in element.Matches(xaml))
+            foreach (var e in ElementsOf(xaml, ButtonTags))
             {
-                string attrs = m.Groups["attrs"].Value;
-                string inner = m.Groups["inner"].Value;
+                if (e.Attrs.Contains("AutomationProperties.Name")) continue;
+                if (Regex.IsMatch(e.Attrs, @"\bContent=""[^""]+""")) continue;   // 문자열 Content 는 곧 이름이다
 
-                if (attrs.Contains("AutomationProperties.Name")) continue;
-                if (Regex.IsMatch(attrs, @"\bContent=""[^""]+""")) continue;   // 문자열 Content 는 곧 이름이다
-
-                bool hasIcon = Regex.IsMatch(inner, @"<(FontIcon|SymbolIcon|PathIcon|BitmapIcon|ImageIcon|AnimatedIcon)\b");
+                bool hasIcon = Regex.IsMatch(VisiblePart(e.Inner),
+                                             @"<(FontIcon|SymbolIcon|PathIcon|BitmapIcon|ImageIcon|AnimatedIcon)\b");
                 if (!hasIcon) continue;
 
                 // 글자가 문자열 Content 로 있지 않은 채 아이콘만 보이는 단추
-                int line = xaml.Take(m.Index).Count(c => c == '\n') + 1;
+                int line = xaml.Take(e.Index).Count(c => c == '\n') + 1;
                 offenders.Add($"{rel}:{line}");
             }
         }
@@ -267,5 +313,93 @@ public class KeyboardOnlyGuardTests
         Assert.True(offenders.Count == 0,
             "그림뿐인 단추에 AutomationProperties.Name 이 없다 — 툴팁도 패널 안 글자도 " +
             "UIA 이름이 되지 않는다:\n  " + string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
+    /// <b>입력칸</b>도 자기 이름을 대야 한다 — 55차(이름표와 입력칸 묶기).
+    ///
+    /// <para>54차가 단추를 챙기고 남긴 몫이다. 곁에 이름표(<c>TextBlock</c>)가 따로 놓인
+    /// 폼이 많은데, <b>이름표는 옆에 있을 뿐 입력칸과 아무 관계가 없다</b> — 낭독기는
+    /// "편집"이라고만 읽었다. <c>Header</c>·<c>Content</c> 는 이름이 되지만
+    /// <c>PlaceholderText</c> 는 되지 않는다(54차 실측).</para>
+    ///
+    /// <para>⚠ 이름을 <b>글자로 베껴 두었으므로</b> 곁의 이름표를 고치면 여기도 함께 고칠 것.
+    /// <c>LabeledBy</c> 로 묶으면 한 곳만 고쳐도 되지만 이름표 80여 개에 <c>x:Name</c> 을
+    /// 새로 달아야 해서, 이 시험으로 빠짐을 막는 쪽을 골랐다.</para>
+    /// </summary>
+    [Fact]
+    public void 입력칸에_이름이_있다()
+    {
+        const string tags = "ComboBox|CheckBox|ToggleSwitch|CalendarDatePicker|DatePicker|TimePicker" +
+                            "|NumberBox|AutoSuggestBox|TextBox|PasswordBox|RadioButton|RadioButtons" +
+                            "|Slider|ToggleButton";
+
+        // ⚠ (?=[\s/>]) 를 빼면 <ComboBox.ItemTemplate> 같은 속성-요소 표기까지 걸린다.
+        //   \b 는 '.' 앞에서도 성립하기 때문이다 — 조사할 때 실제로 헛것을 열넷 셌다.
+        var input = new Regex(@"<(?<tag>" + tags + @")(?=[\s/>])(?<attrs>(?:[^<>""]|""[^""]*"")*?)/?>",
+                              RegexOptions.Singleline);
+        var offenders = new List<string>();
+
+        foreach (var rel in XamlFiles())
+        {
+            string xaml = WithoutComments(Read(rel));
+            foreach (Match m in input.Matches(xaml))
+            {
+                string attrs = m.Groups["attrs"].Value;
+                if (attrs.Contains("AutomationProperties.Name")) continue;
+                if (attrs.Contains("AutomationProperties.LabeledBy")) continue;
+                // Header·Content 는 그 자체가 UIA 이름이 된다(PlaceholderText 는 아니다).
+                if (Regex.IsMatch(attrs, @"\b(Header|Content)=""[^""]*[^\s""][^""]*""")) continue;
+
+                int line = xaml.Take(m.Index).Count(c => c == '\n') + 1;
+                offenders.Add($"{rel}:{line}  <{m.Groups["tag"].Value}>");
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            "입력칸에 이름이 없다 — 곁의 이름표는 UIA 이름이 되지 않는다. " +
+            "AutomationProperties.Name(또는 Header)을 줄 것:\n  " + string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
+    /// 단추의 이름을 <b>제 Flyout 안에서 집어 오면 안 된다</b>.
+    ///
+    /// <para>55차에 실측으로 잡은 회귀다. 54차의 일괄 작업이 "단추 안 첫 TextBlock" 을
+    /// 이름으로 삼았는데, <c>Button.Flyout</c> 도 문법상 단추 <b>안</b>이라 팝업 내용까지
+    /// 딸려 왔다. 달 선택 단추는 어느 달을 보고 있든 늘 <b>"1월"</b> 이라고 읽었고
+    /// (제 Content "2026년 9월" 을 덮어썼다), 전체 삭제 단추는 스스로를
+    /// <b>"모든 단원을 삭제하시겠습니까?"</b> 라고 소개했다.</para>
+    /// </summary>
+    [Fact]
+    public void 단추_이름을_팝업_속에서_가져오지_않는다()
+    {
+        var offenders = new List<string>();
+
+        foreach (var rel in XamlFiles())
+        {
+            string xaml = WithoutComments(Read(rel));
+            foreach (var e in ElementsOf(xaml, ButtonTags))
+            {
+                var nameAttr = Regex.Match(e.Attrs, @"AutomationProperties\.Name=""([^""]+)""");
+                if (!nameAttr.Success) continue;
+
+                var flyout = Regex.Match(e.Inner, @"<(\w+)\.Flyout>.*?</\1\.Flyout>", RegexOptions.Singleline);
+                if (!flyout.Success) continue;
+
+                string name = nameAttr.Groups[1].Value;
+                bool fromFlyout = Regex.Matches(flyout.Value, @"<TextBlock\b[^>]*\bText=""([^""]+)""")
+                                       .Any(t => t.Groups[1].Value.Trim() == name);
+
+                if (fromFlyout)
+                {
+                    int line = xaml.Take(e.Index).Count(c => c == '\n') + 1;
+                    offenders.Add($"{rel}:{line}  \"{name}\"");
+                }
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            "단추 이름이 제 Flyout 안 글자와 같다 — 팝업 내용을 이름으로 집어 온 것이다. " +
+            "단추에 보이는 말을 쓸 것:\n  " + string.Join("\n  ", offenders));
     }
 }

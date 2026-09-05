@@ -140,7 +140,7 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- 체크박스 -->
-                                    <CheckBox Grid.Column="0"
+                                    <CheckBox Grid.Column="0" AutomationProperties.Name="이 기록 선택"
                                               HorizontalAlignment="Left"
                                               VerticalAlignment="Center"
                                               Margin="4,0,0,0"
@@ -234,7 +234,7 @@
 
                                     <!-- 주제 -->
                                     <TextBox Grid.Column="10"
-                                             Text="{x:Bind Topic, Mode=TwoWay}"
+                                             AutomationProperties.Name="주제" Text="{x:Bind Topic, Mode=TwoWay}"
                                              Tag="{x:Bind}"
                                              VerticalAlignment="Top"
                                              FontSize="14"
@@ -250,7 +250,7 @@
                                         </Grid.RowDefinitions>
 
                                         <TextBox Grid.Row="0"
-                                                 Text="{x:Bind Log, Mode=TwoWay}"
+                                                 AutomationProperties.Name="기록 내용" Text="{x:Bind Log, Mode=TwoWay}"
                                                  Tag="{x:Bind}"
                                                  AcceptsReturn="True"
                                                  TextWrapping="Wrap"

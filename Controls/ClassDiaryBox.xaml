@@ -102,7 +102,7 @@
                                VerticalAlignment="Center" 
                                Margin="0,0,8,0"
                                MinWidth="40"/>
-                    <TextBox x:Name="TBoxAbsent"
+                    <TextBox x:Name="TBoxAbsent" AutomationProperties.Name="결석"
                              Grid.Row="0" Grid.Column="1"
                              Text="{x:Bind ViewModel.Absent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource MultiLineTextBoxStyle}"
@@ -117,7 +117,7 @@
                                VerticalAlignment="Center" 
                                Margin="0,0,8,0"
                                MinWidth="40"/>
-                    <TextBox x:Name="TBoxLate"
+                    <TextBox x:Name="TBoxLate" AutomationProperties.Name="지각"
                              Grid.Row="1" Grid.Column="1"
                              Text="{x:Bind ViewModel.Late, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource MultiLineTextBoxStyle}"
@@ -132,7 +132,7 @@
                                VerticalAlignment="Center" 
                                Margin="0,0,8,0"
                                MinWidth="40"/>
-                    <TextBox x:Name="TBoxLeaveEarly"
+                    <TextBox x:Name="TBoxLeaveEarly" AutomationProperties.Name="조퇴"
                              Grid.Row="2" Grid.Column="1"
                              Text="{x:Bind ViewModel.LeaveEarly, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource MultiLineTextBoxStyle}"
@@ -166,7 +166,7 @@
                            FontSize="12"
                            Margin="0,0,12,0"/>
                 
-                <TextBox x:Name="TBoxMemo"
+                <TextBox x:Name="TBoxMemo" AutomationProperties.Name="메모"
                          Grid.Column="1"
                          Text="{x:Bind ViewModel.Memo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          Style="{StaticResource MultiLineTextBoxStyle}"

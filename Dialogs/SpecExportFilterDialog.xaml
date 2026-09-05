@@ -28,13 +28,13 @@
         <StackPanel Orientation="Horizontal" Spacing="12">
             <TextBlock Text="영역" VerticalAlignment="Center" Width="60" FontWeight="SemiBold"/>
             <!-- 항목은 NeisHelper.Areas 정의표에서 코드로 채운다(영역 추가·삭제는 그 표만 수정). -->
-            <ComboBox x:Name="CBoxType" MinWidth="180"/>
+            <ComboBox x:Name="CBoxType" AutomationProperties.Name="영역" MinWidth="180"/>
         </StackPanel>
 
         <!-- 마감 상태 필터 -->
         <StackPanel Orientation="Horizontal" Spacing="12">
             <TextBlock Text="상태" VerticalAlignment="Center" Width="60" FontWeight="SemiBold"/>
-            <ComboBox x:Name="CBoxStatus" MinWidth="180" SelectedIndex="0">
+            <ComboBox x:Name="CBoxStatus" AutomationProperties.Name="상태" MinWidth="180" SelectedIndex="0">
                 <ComboBoxItem Content="전체" Tag="all"/>
                 <ComboBoxItem Content="작성중만" Tag="draft"/>
                 <ComboBoxItem Content="마감만" Tag="finalized"/>

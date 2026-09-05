@@ -36,7 +36,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <local:YearSemesterPicker x:Name="YearSemPicker"/>
 
-                    <ComboBox x:Name="CBoxCategory"
+                    <ComboBox x:Name="CBoxCategory" AutomationProperties.Name="기록 영역"
                               MinWidth="120"
                               SelectionChanged="OnCategoryChanged">
                         <ComboBoxItem Content="전체" Tag="0"/>
@@ -51,7 +51,7 @@
                         <ComboBoxItem Content="기타" Tag="9"/>
                     </ComboBox>
 
-                    <CalendarDatePicker x:Name="DatePickerLog"
+                    <CalendarDatePicker x:Name="DatePickerLog" AutomationProperties.Name="기록 날짜"
                                         MinWidth="140"/>
 
                     <CheckBox x:Name="ChkIsImportant"
@@ -59,7 +59,7 @@
                               VerticalAlignment="Center"
                               Margin="4,0,0,0"/>
 
-                    <TextBox x:Name="TxtSubjectName"
+                    <TextBox x:Name="TxtSubjectName" AutomationProperties.Name="과목명"
                              PlaceholderText="과목명"
                              MinWidth="150"
                              VerticalAlignment="Center"
@@ -124,15 +124,15 @@
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="활동명" VerticalAlignment="Center"/>
-                            <TextBox x:Name="TxtActivityName" Grid.Row="0" Grid.Column="1"
+                            <TextBox x:Name="TxtActivityName" AutomationProperties.Name="활동명" Grid.Row="0" Grid.Column="1"
                                      PlaceholderText="예: 수행평가, 프로젝트 학습" TextChanged="OnStructuredFieldChanged"/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="주제" VerticalAlignment="Center"/>
-                            <TextBox x:Name="TxtTopic" Grid.Row="1" Grid.Column="1"
+                            <TextBox x:Name="TxtTopic" AutomationProperties.Name="주제" Grid.Row="1" Grid.Column="1"
                                      PlaceholderText="예: 조선 후기 실학사상" TextChanged="OnStructuredFieldChanged"/>
 
                             <TextBlock Grid.Row="2" Grid.Column="0" Text="활동 내용" VerticalAlignment="Top" Margin="0,8,0,0"/>
-                            <TextBox x:Name="TxtDescription" Grid.Row="2" Grid.Column="1"
+                            <TextBox x:Name="TxtDescription" AutomationProperties.Name="활동 내용" Grid.Row="2" Grid.Column="1"
                                      PlaceholderText="구체적인 활동 내용"
                                      AcceptsReturn="True" TextWrapping="Wrap"
                                      MinHeight="80" MaxHeight="120"
@@ -140,19 +140,19 @@
                                      TextChanged="OnStructuredFieldChanged"/>
 
                             <TextBlock Grid.Row="3" Grid.Column="0" Text="역할" VerticalAlignment="Center"/>
-                            <TextBox x:Name="TxtRole" Grid.Row="3" Grid.Column="1"
+                            <TextBox x:Name="TxtRole" AutomationProperties.Name="역할" Grid.Row="3" Grid.Column="1"
                                      PlaceholderText="예: 팀장, 발표 담당" TextChanged="OnStructuredFieldChanged"/>
 
                             <TextBlock Grid.Row="4" Grid.Column="0" Text="기른 능력" VerticalAlignment="Center"/>
-                            <TextBox x:Name="TxtSkillDeveloped" Grid.Row="4" Grid.Column="1"
+                            <TextBox x:Name="TxtSkillDeveloped" AutomationProperties.Name="기른 능력" Grid.Row="4" Grid.Column="1"
                                      PlaceholderText="예: 협업 능력, 논리적 사고력" TextChanged="OnStructuredFieldChanged"/>
 
                             <TextBlock Grid.Row="5" Grid.Column="0" Text="드러난 장점" VerticalAlignment="Center"/>
-                            <TextBox x:Name="TxtStrengthShown" Grid.Row="5" Grid.Column="1"
+                            <TextBox x:Name="TxtStrengthShown" AutomationProperties.Name="드러난 장점" Grid.Row="5" Grid.Column="1"
                                      PlaceholderText="예: 주도성, 성실성" TextChanged="OnStructuredFieldChanged"/>
 
                             <TextBlock Grid.Row="6" Grid.Column="0" Text="성취/결과" VerticalAlignment="Center"/>
-                            <TextBox x:Name="TxtResultOrOutcome" Grid.Row="6" Grid.Column="1"
+                            <TextBox x:Name="TxtResultOrOutcome" AutomationProperties.Name="성취 및 결과" Grid.Row="6" Grid.Column="1"
                                      PlaceholderText="예: 발표 성공, 우수 평가" TextChanged="OnStructuredFieldChanged"/>
                         </Grid>
                     </Expander.Content>

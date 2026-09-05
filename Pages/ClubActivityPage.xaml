@@ -139,7 +139,7 @@
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,8"/>
 
-                                <Slider x:Name="SldFontSize"
+                                <Slider x:Name="SldFontSize" AutomationProperties.Name="글자 크기"
                                         Grid.Row="1"
                                         Orientation="Vertical"
                                         Minimum="10"
@@ -232,7 +232,7 @@
                         </StackPanel>
 
                         <!-- 카테고리 필터 -->
-                        <ComboBox x:Name="CBoxCategory"
+                        <ComboBox x:Name="CBoxCategory" AutomationProperties.Name="기록 영역"
                                   Grid.Column="1"
                                   MinWidth="100"
                                   SelectionChanged="CBoxCategory_SelectionChanged"/>

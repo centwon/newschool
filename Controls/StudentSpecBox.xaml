@@ -156,12 +156,12 @@
                             Visibility="Collapsed">
                     <TextBlock x:Name="TxtTitleInputLabel"
                                VerticalAlignment="Center" FontWeight="SemiBold"/>
-                    <TextBox x:Name="TxtTitleInput" MinWidth="260"
+                    <TextBox x:Name="TxtTitleInput" AutomationProperties.Name="희망분야" MinWidth="260"
                              TextChanged="OnTextChanged"
                              PlaceholderText="희망분야를 입력하세요"/>
                 </StackPanel>
 
-            <TextBox x:Name="TxtContent"
+            <TextBox x:Name="TxtContent" AutomationProperties.Name="특기사항"
                      Grid.Row="1"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"

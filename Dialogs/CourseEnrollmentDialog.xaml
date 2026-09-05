@@ -170,10 +170,10 @@
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1,0,1,0">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <ComboBox x:Name="CBoxGradeFilter"
+                        <ComboBox x:Name="CBoxGradeFilter" AutomationProperties.Name="학년 거르기"
                                   MinWidth="80"
                                   SelectionChanged="CBoxGradeFilter_SelectionChanged"/>
-                        <ComboBox x:Name="CBoxClassFilter"
+                        <ComboBox x:Name="CBoxClassFilter" AutomationProperties.Name="반 거르기"
                                   MinWidth="80"
                                   SelectionChanged="CBoxClassFilter_SelectionChanged"/>
                     </StackPanel>

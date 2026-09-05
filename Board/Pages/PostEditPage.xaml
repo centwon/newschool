@@ -33,7 +33,7 @@
                        VerticalAlignment="Center"
                        Margin="0,0,8,0"/>
 
-            <ComboBox x:Name="CategoryComboBox"
+            <ComboBox x:Name="CategoryComboBox" AutomationProperties.Name="카테고리"
                       Grid.Column="1"
                       IsEditable="True"
                       PlaceholderText="카테고리"
@@ -41,7 +41,7 @@
                       SelectionChanged="CategoryComboBox_SelectionChanged"
                       TextSubmitted="CategoryComboBox_TextSubmitted"/>
 
-            <ComboBox x:Name="SubjectComboBox"
+            <ComboBox x:Name="SubjectComboBox" AutomationProperties.Name="주제"
                       Grid.Column="2"
                       IsEditable="True"
                       PlaceholderText="주제 선택/입력"
@@ -60,7 +60,7 @@
                 </StackPanel>
             </Button>
 
-            <CheckBox x:Name="PinnedCheckBox"
+            <CheckBox x:Name="PinnedCheckBox" AutomationProperties.Name="중요 글로 올리기"
                       Grid.Column="4"
                       Margin="12,0,0,0"
                       VerticalAlignment="Center"
@@ -74,7 +74,7 @@
         </Grid>
 
         <!-- Row1: 제목 -->
-        <TextBox x:Name="TitleTextBox"
+        <TextBox x:Name="TitleTextBox" AutomationProperties.Name="제목"
                  Grid.Row="1"
                  PlaceholderText="제목을 입력하세요"
                  MaxLength="200"

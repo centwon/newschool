@@ -46,7 +46,7 @@
                     AutoLoad="False"/>
 
                 <!-- 카테고리 -->
-                <ComboBox x:Name="CBoxCategory"
+                <ComboBox x:Name="CBoxCategory" AutomationProperties.Name="영역"
                           PlaceholderText="선택"
                           MinWidth="140"
                           SelectionChanged="OnCategoryChanged"/>
@@ -119,7 +119,7 @@
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,8"/>
 
-                                <Slider x:Name="SldFontSize"
+                                <Slider x:Name="SldFontSize" AutomationProperties.Name="글자 크기"
                                         Grid.Row="1"
                                         Orientation="Vertical"
                                         Minimum="10"

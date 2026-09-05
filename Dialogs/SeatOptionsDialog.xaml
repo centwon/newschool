@@ -21,7 +21,7 @@
                     <CheckBox x:Name="ChkRecentPair" Content="지난 짝 배제"/>
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="28,0,0,0">
                         <TextBlock Text="최근" VerticalAlignment="Center"/>
-                        <NumberBox x:Name="NbxRecentPair"
+                        <NumberBox x:Name="NbxRecentPair" AutomationProperties.Name="짝 관계를 피할 최근 회차 수"
                                    Value="1" Minimum="1" Maximum="10"
                                    SpinButtonPlacementMode="Compact"
                                    Width="100"/>
@@ -33,7 +33,7 @@
                     <CheckBox x:Name="ChkRecentPos" Content="지난 자리 배제"/>
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="28,0,0,0">
                         <TextBlock Text="최근" VerticalAlignment="Center"/>
-                        <NumberBox x:Name="NbxRecentPos"
+                        <NumberBox x:Name="NbxRecentPos" AutomationProperties.Name="같은 좌표를 피할 최근 회차 수"
                                    Value="1" Minimum="1" Maximum="10"
                                    SpinButtonPlacementMode="Compact"
                                    Width="100"/>
@@ -63,14 +63,14 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="허용 범위:" VerticalAlignment="Center"/>
                         <TextBlock Text="Row 0 ~" VerticalAlignment="Center"/>
-                        <NumberBox x:Name="NbxFrontMaxRow"
+                        <NumberBox x:Name="NbxFrontMaxRow" AutomationProperties.Name="앞자리 고정 허용 범위의 마지막 줄"
                                    Value="1" Minimum="0" Maximum="9"
                                    SpinButtonPlacementMode="Compact"
                                    Width="100"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <ComboBox x:Name="CbxFrontStudent"
+                        <ComboBox x:Name="CbxFrontStudent" AutomationProperties.Name="앞자리에 고정할 학생"
                                   PlaceholderText="학생 선택"
                                   MinWidth="200"/>
                         <Button x:Name="BtnAddFront" Content="추가"
@@ -91,10 +91,10 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <ComboBox x:Name="CbxPairA" Grid.Column="0"
+                    <ComboBox x:Name="CbxPairA" AutomationProperties.Name="학생 A" Grid.Column="0"
                               PlaceholderText="학생 A"
                               HorizontalAlignment="Stretch"/>
-                    <ComboBox x:Name="CbxPairB" Grid.Column="1"
+                    <ComboBox x:Name="CbxPairB" AutomationProperties.Name="학생 B" Grid.Column="1"
                               PlaceholderText="학생 B"
                               HorizontalAlignment="Stretch"/>
                 </Grid>
@@ -134,7 +134,7 @@
                     <TextBlock Text="제약이 많을수록 더 많은 시도가 필요합니다."
                                FontSize="11"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <ComboBox x:Name="CbxAttempts" MinWidth="140">
+                    <ComboBox x:Name="CbxAttempts" AutomationProperties.Name="배치 시도 횟수" MinWidth="140">
                         <ComboBoxItem Content="100" Tag="100"/>
                         <ComboBoxItem Content="500" Tag="500" IsSelected="True"/>
                         <ComboBoxItem Content="1000" Tag="1000"/>

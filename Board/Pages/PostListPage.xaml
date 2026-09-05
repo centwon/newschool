@@ -47,7 +47,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- 카테고리 선택 -->
-            <ComboBox x:Name="CategoryComboBox"
+            <ComboBox x:Name="CategoryComboBox" AutomationProperties.Name="카테고리 거르기"
                           Grid.Column="0"
                           Width="150"
                           PlaceholderText="카테고리"
@@ -55,7 +55,7 @@
                           Margin="0,0,8,0"/>
 
             <!-- Subject 필터 (ShowSubjectFilter=true일 때만 표시) -->
-            <ComboBox x:Name="SubjectFilterComboBox"
+            <ComboBox x:Name="SubjectFilterComboBox" AutomationProperties.Name="주제 거르기"
                           Grid.Column="1"
                           Width="150"
                           PlaceholderText="주제"
@@ -64,7 +64,7 @@
                           Margin="0,0,8,0"/>
 
             <!-- 정렬 기준 -->
-            <ComboBox x:Name="SortOrderComboBox"
+            <ComboBox x:Name="SortOrderComboBox" AutomationProperties.Name="정렬 기준"
                           Grid.Column="2"
                           Width="120"
                           SelectedIndex="0"
@@ -78,7 +78,7 @@
             </ComboBox>
 
             <!-- 페이지당 개수 -->
-            <ComboBox x:Name="PageSizeComboBox"
+            <ComboBox x:Name="PageSizeComboBox" AutomationProperties.Name="페이지당 개수"
                           Grid.Column="3"
                           Width="100"
                           SelectedIndex="1"
@@ -513,7 +513,7 @@
                      검색창에 치고 곧바로 Enter 를 누르면 포커스가 그대로여서 ViewModel.SearchText 에
                      아직 아무것도 넘어가지 않았다 — 직전 검색어(첫 시도면 빈 값)로 검색됐다.
                      버튼 클릭은 포커스가 옮겨가며 값이 넘어와 우연히 동작했다. -->
-                <TextBox x:Name="SearchTextBox"
+                <TextBox x:Name="SearchTextBox" AutomationProperties.Name="검색어"
                              Width="300"
                              PlaceholderText="검색어 입력"
                              Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

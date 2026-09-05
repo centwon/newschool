@@ -147,7 +147,11 @@
     </UserControl.Resources>
 
     <Grid>
-        <Button AutomationProperties.Name="1월" x:Name="BtnMonth" 
+        <!-- ⚠ AutomationProperties.Name 을 달지 말 것. 이 단추의 Content 는 코드가
+             "2026년 9월" 로 채우므로 그것이 곧 UIA 이름이고, 달을 옮길 때마다 따라 바뀐다.
+             54차의 일괄 작업이 아래 Flyout 안 첫 글자("1월")를 집어 와 고정 이름으로
+             붙여 놔, 어느 달을 보고 있든 늘 "1월" 이라고 읽었다(55차 실측으로 잡음). -->
+        <Button x:Name="BtnMonth"
                 Style="{StaticResource MainButtonStyle}"
                 HorizontalAlignment="Left"
                 Click="BtnMonth_Click">

@@ -14,7 +14,7 @@
         <!-- 제목 -->
         <StackPanel Spacing="4">
             <TextBlock Text="표 제목" FontWeight="SemiBold"/>
-            <TextBox x:Name="TableTitleBox"
+            <TextBox x:Name="TableTitleBox" AutomationProperties.Name="표 제목"
                      PlaceholderText="예: 가정통신문 취합"
                      MaxLength="100"/>
         </StackPanel>
@@ -22,7 +22,7 @@
         <!-- 대상 선택 -->
         <StackPanel Spacing="4">
             <TextBlock Text="대상" FontWeight="SemiBold"/>
-            <ComboBox x:Name="ScopeComboBox"
+            <ComboBox x:Name="ScopeComboBox" AutomationProperties.Name="대상"
                       HorizontalAlignment="Stretch"
                       SelectionChanged="ScopeComboBox_SelectionChanged">
                 <ComboBoxItem Content="학급" Tag="Class" IsSelected="True"/>
@@ -36,14 +36,14 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="학년 / 반" FontWeight="SemiBold"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <NumberBox x:Name="GradeBox"
+                    <NumberBox x:Name="GradeBox" AutomationProperties.Name="학년"
                                Minimum="1" Maximum="6"
                                SpinButtonPlacementMode="Compact"
                                Header=""
                                MinWidth="100"
                                ValueChanged="GradeBox_ValueChanged"/>
                     <TextBlock Text="학년" VerticalAlignment="Center"/>
-                    <ComboBox x:Name="ClassComboBox"
+                    <ComboBox x:Name="ClassComboBox" AutomationProperties.Name="반"
                               MinWidth="120"
                               PlaceholderText="반 선택"
                               SelectionChanged="ClassComboBox_SelectionChanged"/>
@@ -51,7 +51,7 @@
             </StackPanel>
             <StackPanel x:Name="ClassLayoutPanel" Spacing="4" Visibility="Collapsed">
                 <TextBlock Text="레이아웃" FontWeight="SemiBold"/>
-                <RadioButtons x:Name="ClassLayoutRadio" SelectedIndex="0">
+                <RadioButtons x:Name="ClassLayoutRadio" AutomationProperties.Name="반별 표 레이아웃" SelectedIndex="0">
                     <RadioButton Content="세로 (반별 구분)" Tag="Vertical"/>
                     <RadioButton Content="가로 (반별 칼럼)" Tag="Horizontal"/>
                 </RadioButtons>
@@ -61,7 +61,7 @@
         <!-- 수업 선택 (Course scope) -->
         <StackPanel x:Name="CoursePanel" Spacing="4" Visibility="Collapsed">
             <TextBlock Text="수업 선택" FontWeight="SemiBold"/>
-            <ComboBox x:Name="CourseComboBox"
+            <ComboBox x:Name="CourseComboBox" AutomationProperties.Name="수업"
                       HorizontalAlignment="Stretch"
                       PlaceholderText="수업을 선택하세요"
                       SelectionChanged="CourseComboBox_SelectionChanged">
@@ -71,7 +71,7 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
-            <ComboBox x:Name="RoomComboBox"
+            <ComboBox x:Name="RoomComboBox" AutomationProperties.Name="강의실"
                       HorizontalAlignment="Stretch"
                       PlaceholderText="강의실을 선택하세요"
                       Margin="0,4,0,0"
@@ -79,7 +79,7 @@
                       SelectionChanged="RoomComboBox_SelectionChanged"/>
             <StackPanel x:Name="CourseLayoutPanel" Spacing="4" Visibility="Collapsed" Margin="0,4,0,0">
                 <TextBlock Text="레이아웃" FontWeight="SemiBold"/>
-                <RadioButtons x:Name="CourseLayoutRadio" SelectedIndex="0">
+                <RadioButtons x:Name="CourseLayoutRadio" AutomationProperties.Name="강의실별 표 레이아웃" SelectedIndex="0">
                     <RadioButton Content="세로 (강의실별 구분)" Tag="Vertical"/>
                     <RadioButton Content="가로 (강의실별 칼럼)" Tag="Horizontal"/>
                 </RadioButtons>
@@ -89,7 +89,7 @@
         <!-- 동아리 선택 (Club scope) -->
         <StackPanel x:Name="ClubPanel" Spacing="4" Visibility="Collapsed">
             <TextBlock Text="동아리 선택" FontWeight="SemiBold"/>
-            <ComboBox x:Name="ClubComboBox"
+            <ComboBox x:Name="ClubComboBox" AutomationProperties.Name="동아리"
                       HorizontalAlignment="Stretch"
                       PlaceholderText="동아리를 선택하세요">
                 <ComboBox.ItemTemplate>
@@ -103,7 +103,7 @@
         <!-- 컬럼 헤더 -->
         <StackPanel Spacing="4">
             <TextBlock Text="컬럼 (쉼표로 구분)" FontWeight="SemiBold"/>
-            <TextBox x:Name="ColumnsBox"
+            <TextBox x:Name="ColumnsBox" AutomationProperties.Name="칼럼 (쉼표로 구분)"
                      PlaceholderText="예: 건강조사, 행정정보, 교육과정, 비고"
                      MaxLength="500"/>
         </StackPanel>

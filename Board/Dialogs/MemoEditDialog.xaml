@@ -29,13 +29,13 @@
             </Grid.ColumnDefinitions>
 
             <!-- 완료 체크박스 -->
-            <CheckBox x:Name="ChkCompleted"
+            <CheckBox x:Name="ChkCompleted" AutomationProperties.Name="완료 표시"
                       Grid.Column="0"
                       VerticalAlignment="Center"
                       ToolTipService.ToolTip="완료 표시"/>
 
             <!-- 카테고리 -->
-            <ComboBox x:Name="CBoxCategory"
+            <ComboBox x:Name="CBoxCategory" AutomationProperties.Name="메모 분류"
                       Grid.Column="1"
                       MinWidth="100"
                       VerticalAlignment="Center"
@@ -47,7 +47,7 @@
             </ComboBox>
 
             <!-- 제목 -->
-            <TextBox x:Name="TxtTitle"
+            <TextBox x:Name="TxtTitle" AutomationProperties.Name="메모 제목"
                      Grid.Column="2"
                      PlaceholderText="메모 제목"
                      VerticalAlignment="Center"/>

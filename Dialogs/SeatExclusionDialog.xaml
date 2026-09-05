@@ -14,11 +14,11 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="StudentABox"
+            <ComboBox x:Name="StudentABox" AutomationProperties.Name="학생 A"
                       Grid.Column="0"
                       PlaceholderText="학생 A"
                       HorizontalAlignment="Stretch"/>
-            <ComboBox x:Name="StudentBBox"
+            <ComboBox x:Name="StudentBBox" AutomationProperties.Name="학생 B"
                       Grid.Column="1"
                       PlaceholderText="학생 B"
                       HorizontalAlignment="Stretch"/>

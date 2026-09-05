@@ -197,7 +197,7 @@
                 </Border>
 
                 <!-- 검색 -->
-                <TextBox x:Name="TxtSearch"
+                <TextBox x:Name="TxtSearch" AutomationProperties.Name="이름 검색"
                          Grid.Row="1"
                          PlaceholderText="이름 검색..."
                          Margin="8"

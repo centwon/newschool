@@ -59,7 +59,10 @@
                     <TextBlock Text="템플릿 다운로드"/>
                 </StackPanel>
             </Button>
-            <Button AutomationProperties.Name="모든 단원을 삭제하시겠습니까?" x:Name="BtnClearAll" Click="OnClearAllClick">
+            <!-- ⚠ 이름은 단추에 보이는 말("전체 삭제")이어야 한다. 54차의 일괄 작업이
+                 아래 Flyout 안의 확인 문구를 집어 와 "모든 단원을 삭제하시겠습니까?" 로
+                 붙여 놨었다 — 단추가 스스로를 물음으로 소개하던 셈이다(55차 실측으로 잡음). -->
+            <Button AutomationProperties.Name="전체 삭제" x:Name="BtnClearAll" Click="OnClearAllClick">
                 <Button.Flyout>
                     <Flyout x:Name="ClearAllFlyout">
                         <StackPanel Spacing="12" Width="250">

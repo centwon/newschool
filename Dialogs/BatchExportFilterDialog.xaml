@@ -27,13 +27,13 @@
         <!-- 영역 (카테고리) 필터 -->
         <StackPanel Orientation="Horizontal" Spacing="12">
             <TextBlock Text="영역" VerticalAlignment="Center" Width="60" FontWeight="SemiBold"/>
-            <ComboBox x:Name="CBoxCategory" MinWidth="180"/>
+            <ComboBox x:Name="CBoxCategory" AutomationProperties.Name="영역" MinWidth="180"/>
         </StackPanel>
 
         <!-- 학기 필터 -->
         <StackPanel Orientation="Horizontal" Spacing="12">
             <TextBlock Text="학기" VerticalAlignment="Center" Width="60" FontWeight="SemiBold"/>
-            <ComboBox x:Name="CBoxSemester" MinWidth="180" SelectedIndex="0">
+            <ComboBox x:Name="CBoxSemester" AutomationProperties.Name="학기" MinWidth="180" SelectedIndex="0">
                 <ComboBoxItem Content="전체" Tag="0"/>
                 <ComboBoxItem Content="1학기" Tag="1"/>
                 <ComboBoxItem Content="2학기" Tag="2"/>
@@ -43,7 +43,7 @@
         <!-- 키워드 필터 -->
         <StackPanel Orientation="Horizontal" Spacing="12">
             <TextBlock Text="키워드" VerticalAlignment="Center" Width="60" FontWeight="SemiBold"/>
-            <TextBox x:Name="TbKeyword"
+            <TextBox x:Name="TbKeyword" AutomationProperties.Name="키워드"
                      PlaceholderText="주제, 활동명, 내용에서 검색"
                      MinWidth="250"/>
         </StackPanel>

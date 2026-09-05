@@ -23,7 +23,7 @@
         <!-- 검색 영역 -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Padding="0,0,0,16">
             <TextBox 
-                x:Name="SchoolNameTextBox"
+                x:Name="SchoolNameTextBox" AutomationProperties.Name="학교 이름"
                 PlaceholderText="학교 이름을 입력하세요"
                 Width="300"
                 VerticalAlignment="Center"

@@ -117,6 +117,7 @@
 
                             <!-- 체크박스 (코드에서 제어) -->
                             <CheckBox Grid.Column="0"
+                                      AutomationProperties.Name="이 학생 선택"
                                       HorizontalAlignment="Center"
                                       VerticalAlignment="Center"
                                       Visibility="Collapsed"/>

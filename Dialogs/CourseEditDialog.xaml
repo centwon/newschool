@@ -64,7 +64,7 @@
                     Text="강의실 *" 
                     Style="{StaticResource BaseTextBlockStyle}"/>
                 <TextBox 
-                    x:Name="TxtRooms"
+                    x:Name="TxtRooms" AutomationProperties.Name="강의실"
                     PlaceholderText="예: 1반-5반, 1반,3반,5반, A,B,C, 미술실, 음악실, 과학실"
                     MaxLength="200"
                     TextChanged="OnRoomsTextChanged"/>

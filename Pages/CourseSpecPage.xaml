@@ -121,7 +121,7 @@
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,8"/>
 
-                                <Slider x:Name="SldFontSize"
+                                <Slider x:Name="SldFontSize" AutomationProperties.Name="글자 크기"
                                         Grid.Row="1"
                                         Orientation="Vertical"
                                         Minimum="10"

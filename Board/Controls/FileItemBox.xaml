@@ -16,7 +16,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- 체크박스 -->
-        <CheckBox x:Name="SelectCheckBox"
+        <CheckBox x:Name="SelectCheckBox" AutomationProperties.Name="이 첨부 파일 선택"
                   Grid.Column="0"
                   VerticalAlignment="Center"
                   Margin="0,0,0,0"

@@ -68,7 +68,7 @@
                     <FontIcon Glyph="&#xE76B;" FontSize="16"/>
                 </Button>
 
-                <CalendarDatePicker x:Name="DatePicker"
+                <CalendarDatePicker x:Name="DatePicker" AutomationProperties.Name="일지 날짜"
                                     Grid.Column="1"
                                     MinWidth="220"
                                     Margin="4,0"

@@ -13,13 +13,13 @@
         <TextBlock x:Name="HeaderText" Visibility="Collapsed"
                    Margin="1,0,0,4" Foreground="{ThemeResource TextControlHeaderForeground}"/>
         <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-            <TextBox x:Name="HourBox"
+            <TextBox x:Name="HourBox" AutomationProperties.Name="시"
                      Width="40" MaxLength="2" InputScope="Number"
                      TextAlignment="Center" Padding="4,4"
                      TextChanged="HourBox_TextChanged" LostFocus="Box_LostFocus"/>
             <TextBlock Text=":" VerticalAlignment="Center"
                        FontSize="14" FontWeight="SemiBold" Opacity="0.6" Margin="1,0"/>
-            <TextBox x:Name="MinuteBox"
+            <TextBox x:Name="MinuteBox" AutomationProperties.Name="분"
                      Width="40" MaxLength="2" InputScope="Number"
                      TextAlignment="Center" Padding="4,4"
                      TextChanged="MinuteBox_TextChanged" LostFocus="Box_LostFocus"/>
@@ -28,7 +28,7 @@
                     AutomationProperties.Name="시간 선택" ToolTipService.ToolTip="시간 선택">
                 <FontIcon Glyph="&#xE121;" FontSize="14"/>
                 <Button.Flyout>
-                    <TimePickerFlyout x:Name="Picker"
+                    <TimePickerFlyout x:Name="Picker" AutomationProperties.Name="시간 선택"
                                       ClockIdentifier="24HourClock"
                                       TimePicked="Picker_TimePicked"/>
                 </Button.Flyout>
