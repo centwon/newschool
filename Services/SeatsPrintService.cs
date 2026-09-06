@@ -371,10 +371,20 @@ public class SeatsPrintService
 
         // 사이드바 세로 공간: 페이지 컨텐츠 영역 전체
         float contentHeight = pageHeight - HeaderHeight - FooterHeight;
-        // 헤더 1행 + 학생 N행이 모두 들어가도록 행 높이 계산
-        float rosterRowH = hasRoster ? contentHeight / (roster.Count + 1) : 0f;
-        float rosterFontSize = Math.Max(5f, Math.Min(rosterRowH * 0.55f, 11f));
-        float rosterHeaderFontSize = Math.Max(6f, Math.Min(rosterRowH * 0.6f, 10f));
+
+        // 헤더 1행 + 학생 N행이 남은 공간에 들어가도록 행 높이를 정한다.
+        //
+        // ⚠ <c>.Height()</c> 는 <b>최소</b> 높이일 뿐이고, 표의 실제 행 높이는 글자 크기에
+        //   끌려간다 — 재어 보니 <b>글자의 약 3배</b>였다. 예전에는 글자를 행 높이의 0.55배로
+        //   잡아 실제 행이 요청한 높이의 1.65배가 됐고, 그래서 <b>행 높이를 아무리 줄여도
+        //   같은 비율로 넘쳐</b> 40명이면 20명에서 끊기고 둘째 장으로 이어졌다.
+        //   글자를 <b>행 높이의 1/3</b>로 잡으면 실제 행이 계산과 맞아 한 장에 들어간다
+        //   (15pt 행 · 6pt 글자로 40명이 한 장에 담기는 것을 실측, 2026-09-06).
+        const float RowToFontRatio = 3f;
+        const float FitMargin = 0.92f;   // 자잘한 오차를 흡수할 여유
+        float rosterRowH = hasRoster ? contentHeight / (roster.Count + 1) * FitMargin : 0f;
+        float rosterFontSize = Math.Max(5f, Math.Min(rosterRowH / RowToFontRatio, 11f));
+        float rosterHeaderFontSize = rosterFontSize;
 
         // 줄 사이 통로 반영한 셀 너비 (명렬표 공간 제외)
         int aisleCount = jul > 1 ? jul - 1 : 0;
