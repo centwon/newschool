@@ -123,6 +123,8 @@ public sealed partial class Kcalendar : Page
 
                 var cell = new DayCell();
                 cell.PointerPressed += DayCell_PointerPressed;
+                cell.KeyDown += DayCell_KeyDown;
+                cell.GotFocus += DayCell_GotFocus;
                 cell.CellChanged += DayCell_CellChanged;
 
                 Grid.SetRow(cell, row);
@@ -388,6 +390,8 @@ public sealed partial class Kcalendar : Page
                 }
             }
 
+            ResetRovingForMonth(calendarStart);
+
             Debug.WriteLine($"[UpdateCellsDisplayAsync] 완료");
         }
         catch (Exception ex)
@@ -425,7 +429,96 @@ public sealed partial class Kcalendar : Page
     /// </summary>
     private async void DayCell_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
-        if (sender is not DayCell cell || cell.Dayinfo == null) return;
+        if (sender is not DayCell cell) return;
+        await OpenNewItemAsync(cell);
+    }
+
+    #region 날짜 칸 키보드 (roving 포커스)
+
+    // 날짜 칸은 예전에 키보드로 닿지 않았다(IsTabStop 이 없었다) — 마우스로만 새 항목을 만들 수 있었다.
+    // 42칸을 전부 Tab 정지점으로 만들면 달력을 지나가는 데만 Tab 을 42번 눌러야 하므로, 한 칸만
+    // Tab 정지점으로 두고 방향키로 옮긴다(roving tab stop). 칸 안의 할 일 완료 단추는 원래대로
+    // Tab 으로 닿는다 — 이 방식이 그 단추들을 건드리지 않는 이유다.
+
+    private int _rovingIndex = -1;
+    private DateTime _rovingMonth;
+
+    /// <summary>Tab 이 들어올 칸을 <paramref name="index"/> 하나로 정한다.</summary>
+    private void SetRovingCell(int index)
+    {
+        if (index < 0 || index >= Cells.Length || Cells[index] == null) return;
+
+        for (int i = 0; i < Cells.Length; i++)
+            if (Cells[i] != null) Cells[i].IsTabStop = i == index;
+        _rovingIndex = index;
+    }
+
+    /// <summary>
+    /// 달이 바뀌었을 때만 Tab 이 들어올 칸을 다시 고른다 — 보이는 달에 오늘이 있으면 오늘, 없으면 1일.
+    /// (같은 달을 새로 그릴 때마다 오늘로 되돌리면, 새 항목을 만든 뒤 방금 있던 칸을 잃는다.)
+    /// </summary>
+    private void ResetRovingForMonth(DateTime calendarStart)
+    {
+        var month = new DateTime(_basedate.Year, _basedate.Month, 1);
+        if (_rovingIndex >= 0 && month == _rovingMonth) { SetRovingCell(_rovingIndex); return; }
+
+        _rovingMonth = month;
+        int today = (DateTime.Today - calendarStart.Date).Days;
+        int first = (month - calendarStart.Date).Days;
+        bool todayInMonth = DateTime.Today >= month && DateTime.Today < month.AddMonths(1);
+        SetRovingCell(todayInMonth ? today : first);
+    }
+
+    private void DayCell_GotFocus(object sender, RoutedEventArgs e)
+    {
+        // 칸 자체가 포커스를 받았을 때만 — 칸 안 할 일 단추로 간 포커스는 칸을 옮긴 것이 아니다.
+        if (sender is DayCell cell && ReferenceEquals(e.OriginalSource, cell))
+            SetRovingCell(Array.IndexOf(Cells, cell));
+    }
+
+    private async void DayCell_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        // 칸 안 할 일 단추에서 올라온 키는 건드리지 않는다(그 단추의 Enter·Space 는 제 일이다).
+        if (sender is not DayCell cell || !ReferenceEquals(e.OriginalSource, cell)) return;
+
+        int i = Array.IndexOf(Cells, cell);
+        int next = e.Key switch
+        {
+            Windows.System.VirtualKey.Left => i - 1,
+            Windows.System.VirtualKey.Right => i + 1,
+            Windows.System.VirtualKey.Up => i - 7,
+            Windows.System.VirtualKey.Down => i + 7,
+            Windows.System.VirtualKey.Home => i - i % 7,
+            Windows.System.VirtualKey.End => i - i % 7 + 6,
+            _ => int.MinValue,
+        };
+
+        if (next != int.MinValue)
+        {
+            e.Handled = true;
+            if (next >= 0 && next < Cells.Length && Cells[next] != null)
+            {
+                SetRovingCell(next);
+                Cells[next].Focus(FocusState.Keyboard);
+            }
+            return;
+        }
+
+        if (e.Key is Windows.System.VirtualKey.Enter or Windows.System.VirtualKey.Space)
+        {
+            e.Handled = true;
+            await OpenNewItemAsync(cell);
+        }
+    }
+
+    #endregion
+
+    /// <summary>
+    /// 그 날짜에 새 일정·할 일을 만든다 — 마우스로 칸을 누를 때와 키보드로 Enter·Space 를 누를 때 같은 길.
+    /// </summary>
+    private async Task OpenNewItemAsync(DayCell cell)
+    {
+        if (cell.Dayinfo == null) return;
 
         try
         {

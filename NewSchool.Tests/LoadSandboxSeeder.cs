@@ -59,6 +59,7 @@ public class LoadSandboxSeeder
         await SeedSchoolAndTeacherAsync(school);
         var studentIds = await SeedStudentsAsync(school);
         await SeedLongRecordsAsync(school, studentIds[0]);
+        await SeedLongDetailAsync(school, studentIds[0]);
         await SeedTimetableAndCourseAsync(school);
         await SeedPostsAsync(board);
 
@@ -157,7 +158,43 @@ public class LoadSandboxSeeder
             ids.Add(student.StudentID);
         }
 
+        // 3학년 2반에 다섯 명 — 학급이 하나뿐이면 "학급을 바꿀 때" 가 드러나지 않는다
+        // (자리 배정에서 앞 학급의 자리판이 새 학급 이름 아래 남던 결함이 그랬다).
+        // 이 반은 돌려주는 목록에 넣지 않는다 — 아래 기록·학생부는 1반 기준으로 심는다.
+        for (int i = 1; i <= 5; i++)
+        {
+            string name = surnames[(i + 4) % surnames.Length] + givens[(i * 7) % givens.Length];
+            var student = TestData.NewStudent(name: name, sex: i % 2 == 0 ? "여" : "남");
+            await students.CreateAsync(student);
+            await enrollments.CreateAsync(TestData.NewEnrollment(
+                student.StudentID, name, TestData.Year, grade: 3, classNum: 2, number: i));
+        }
+
         return ids;
+    }
+
+    /// <summary>
+    /// 한 학생의 상세 정보를 아주 길게 — 학생카드 PDF 가 한 쪽을 넘을 때를 본다
+    /// (전수 감사의 "미검증" 항목이었다: 앱 전체에 ShowEntire 가 없어 넘치면 어떻게 되는지).
+    /// </summary>
+    private static async Task SeedLongDetailAsync(string school, string studentId)
+    {
+        using var details = new StudentDetailRepository(school);
+        string Repeat(string s, int n) => string.Concat(System.Linq.Enumerable.Repeat(s, n));
+
+        await details.CreateAsync(new StudentDetail
+        {
+            StudentID = studentId,
+            GuardianName = "보호자",
+            GuardianRelation = "모",
+            GuardianPhone = "010-0000-0000",
+            CareerGoal = Repeat("진로 희망을 길게 적는다. ", 20),
+            Talents = Repeat("특기를 길게 적는다. ", 20),
+            Interests = Repeat("관심사와 취미를 줄바꿈 없이 길게 적는다. ", 30),
+            HealthInfo = Repeat("건강 관련 참고 사항. ", 20),
+            FamilyInfo = Repeat("가족 관계 메모. ", 20),
+            Memo = Repeat("상세 메모가 한 쪽을 넘도록 길게 이어진다. 쪽이 넘어가도 누구의 카드인지 보여야 한다. ", 120),
+        });
     }
 
     /// <summary>한 학생에게 기록을 많이, 그중 하나는 아주 길게.</summary>

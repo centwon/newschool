@@ -97,9 +97,20 @@ public class StudentCardPrintService
         container.Column(col =>
         {
             col.Item().LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten2);
-            col.Item().PaddingTop(4).AlignCenter()
-                .Text($"출력일시: {DateTime.Now:yyyy년 MM월 dd일 HH:mm}")
-                .FontSize(9).FontColor(Colors.Grey.Darken1);
+            // 쪽 번호 — 누가기록·학생부 인쇄에는 있는데 학생카드에만 없었다. 상세 메모가 길면
+            // 카드 한 장이 여러 쪽이 되고(모래상자 실측 5쪽), 학급 전체 카드는 수십 쪽이다.
+            col.Item().PaddingTop(4).Row(row =>
+            {
+                row.RelativeItem().AlignLeft()
+                    .Text($"출력일시: {DateTime.Now:yyyy년 MM월 dd일 HH:mm}")
+                    .FontSize(9).FontColor(Colors.Grey.Darken1);
+                row.AutoItem().AlignRight().Text(t =>
+                {
+                    t.CurrentPageNumber().FontSize(9).FontColor(Colors.Grey.Darken1);
+                    t.Span(" / ").FontSize(9).FontColor(Colors.Grey.Darken1);
+                    t.TotalPages().FontSize(9).FontColor(Colors.Grey.Darken1);
+                });
+            });
         });
     }
 
@@ -654,7 +665,17 @@ public class StudentCardPrintService
                         }
                     });
 
-                    page.Footer().AlignRight().Text("NewSchool").FontSize(8).FontColor(Colors.Grey.Medium);
+                    // 학생이 많으면 가로 표가 둘째 장으로 넘어간다 — 다른 인쇄물처럼 쪽 번호를 단다.
+                    page.Footer().Row(row =>
+                    {
+                        row.RelativeItem().AlignLeft().Text("NewSchool").FontSize(8).FontColor(Colors.Grey.Medium);
+                        row.AutoItem().AlignRight().Text(t =>
+                        {
+                            t.CurrentPageNumber().FontSize(8).FontColor(Colors.Grey.Darken1);
+                            t.Span(" / ").FontSize(8).FontColor(Colors.Grey.Darken1);
+                            t.TotalPages().FontSize(8).FontColor(Colors.Grey.Darken1);
+                        });
+                    });
                 });
             }).GeneratePdf(filePath);
         });

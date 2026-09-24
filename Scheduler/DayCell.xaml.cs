@@ -492,6 +492,7 @@ public sealed partial class DayCell : UserControl
 
             UpdateDateDisplay(dayInfo);
             UpdateColorDisplay(dayInfo);
+            UpdateAutomationName(dayInfo);
             // KEvent 표시 — 새 리스트로 참조 변경하여 UI 갱신 보장
             if (EventsRepeater != null)
             {
@@ -523,6 +524,31 @@ public sealed partial class DayCell : UserControl
     /// 두 경로가 조용히 어긋났고, 실제로 한 번 버그가 났다(할 일 필터가 한쪽에만 적용).
     /// 표시 로직은 갈래를 만들지 않는다.
     /// </summary>
+    /// <summary>
+    /// 날짜 칸의 UIA 이름 — "9월 24일 수요일, 오늘, 일정 2개, 할 일 1개".
+    ///
+    /// <para>칸이 키보드로 닿게 되면서(달력의 roving 포커스) 낭독기가 읽을 말이 필요해졌다.
+    /// 칸 안의 숫자("24")만으로는 몇 월인지도, 무엇이 있는지도 알 수 없다.</para>
+    /// </summary>
+    private void UpdateAutomationName(DayInfo dayInfo)
+    {
+        var ko = System.Globalization.CultureInfo.GetCultureInfo("ko-KR");
+        var parts = new List<string> { dayInfo.Date.ToString("M월 d일 dddd", ko) };
+
+        if (dayInfo.IsToday) parts.Add("오늘");
+        if (!string.IsNullOrWhiteSpace(dayInfo.DateName)) parts.Add(dayInfo.DateName);
+
+        int schedules = dayInfo.SchoolSchedules?.Count ?? 0;
+        int events = dayInfo.Events?.Count ?? 0;
+        int tasks = dayInfo.Tasks?.Count ?? 0;
+        if (schedules > 0) parts.Add($"학사일정 {schedules}개");
+        if (events > 0) parts.Add($"일정 {events}개");
+        if (tasks > 0) parts.Add($"할 일 {tasks}개");
+        if (schedules + events + tasks == 0) parts.Add("비어 있음");
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(this, string.Join(", ", parts));
+    }
+
     public async Task UpdateDayDisplayAsync(DayInfo dayInfo)
     {
         if (dayInfo == null) return;

@@ -84,6 +84,25 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
     private int Grade = 0;
     private int ClassRoom = 0;
     private bool isInitialized = false;
+
+    /// <summary>
+    /// 자리를 아직 그리지 않았을 때 <b>무엇을 하면 되는지</b>. [자동배정]·저장·인쇄가 함께 쓴다.
+    ///
+    /// <para>예전에는 네 곳 모두 "초기화되지 않았습니다" 한 줄뿐이었다. 학급을 안 골랐는지,
+    /// 학생이 없는지, [초기화] 를 안 눌렀는지 사람이 짐작해야 했다 — 게다가 "초기화" 는
+    /// 지운다는 말로도 읽혀서, 자리를 만드는 단추가 그것이라는 것이 드러나지 않았다.</para>
+    /// </summary>
+    private string NotReadyMessage()
+    {
+        if (Grade == 0 || ClassRoom == 0)
+            return "먼저 왼쪽 위에서 학년과 학급을 고르세요.";
+        if (students.Count == 0)
+            return "이 학급에 등록된 학생이 없습니다.\n학생 관리에서 학생을 먼저 넣어 주세요.";
+        if (_jul <= 0 || _jjak <= 0)
+            return "한 줄에 놓을 자리 수를 정한 뒤 [초기화] 를 눌러 자리를 만드세요.";
+        return "아직 자리가 없습니다. [초기화] 를 눌러 자리를 먼저 만드세요.";
+    }
+
     // 복원 중에는 CheckSeat() 경고 팝업을 억제 — 미사용 좌석 복원 루프 도중의 중간 상태 경고 방지
     private bool _suppressSeatCheck = false;
 
@@ -373,6 +392,11 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
 
             Debug.WriteLine($"[PageSeats] 학생 목록 로드 완료: {TotalStudents}명");
 
+            // 앞 학급의 자리판을 먼저 걷는다. 저장된 배치가 있으면 아래 복원이 새로 그리지만,
+            // 없으면 예전에는 앞 학급 학생이 앉은 자리판이 **새 학급 이름 아래 그대로** 남았고,
+            // 그 상태로 [저장] 하면 앞 학급 학생들이 이 학급의 배치로 저장됐다.
+            ClearSeats();
+
             // 저장된 배치 복원 시도
             await TryLoadSavedArrangementAsync();
 
@@ -395,15 +419,30 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
         InitSeats();
     }
 
+    /// <summary>
+    /// 자리판을 비운다 — 카드 이벤트를 풀고, 카드를 걷고, "아직 자리가 없다" 상태로 돌린다.
+    ///
+    /// <para><see cref="isInitialized"/> 를 여기서 내리는 것이 요점이다. 예전에는 한 번 세워지면
+    /// 내려가지 않아서, 자리를 걷은 뒤에도 [자동배정]·저장이 빈 자리판을 상대로 돌았다.</para>
+    /// </summary>
+    private void ClearSeats()
+    {
+        // 기존 Card 이벤트 구독 해제 → 재호출 시 누수 방지
+        DetachCardEvents();
+        Room?.Children.Clear();
+        Cards.Clear();
+        TotalRows = 0;
+        TotalSeats = 0;
+        isInitialized = false;
+        TBTable.Text = "교탁";
+    }
+
     private void InitSeats()
     {
         if (Room == null) return;
 
         IsViewPhoto = ChkViewPhoto.IsChecked == true;
-        // 기존 Card 이벤트 구독 해제 → 재호출 시 누수 방지
-        DetachCardEvents();
-        Room.Children.Clear();
-        Cards.Clear();
+        ClearSeats();
 
         TotalStudents = students.Count;
         SpaceSide = 10;
@@ -707,7 +746,7 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
     {
         if (!isInitialized)
         {
-            await MessageBox.ShowAsync("초기화되지 않았습니다.", "오류");
+            await MessageBox.ShowAsync(NotReadyMessage(), "자동배정");
             return;
         }
 
@@ -756,7 +795,7 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
 
         if (!isInitialized)
         {
-            await MessageBox.ShowAsync("초기화되지 않았습니다.", "오류");
+            await MessageBox.ShowAsync(NotReadyMessage(), "자동배정");
             return;
         }
 
@@ -1105,7 +1144,7 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
     {
         if (!isInitialized || seatService == null)
         {
-            await MessageBox.ShowAsync("좌석이 초기화되지 않았습니다.", "오류");
+            await MessageBox.ShowAsync(NotReadyMessage(), "저장");
             return;
         }
         if (Grade == 0 || ClassRoom == 0)
@@ -1329,7 +1368,7 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
     {
         if (!isInitialized || Cards.Count == 0)
         {
-            await MessageBox.ShowAsync("좌석이 초기화되지 않았습니다.", "오류");
+            await MessageBox.ShowAsync(NotReadyMessage(), "인쇄");
             return;
         }
 
