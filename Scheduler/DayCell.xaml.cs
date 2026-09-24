@@ -205,6 +205,13 @@ public sealed partial class DayCell : UserControl
 
     public static string ToStatusLabel(bool isDone) => isDone ? "완료" : "진행";
 
+    /// <summary>
+    /// 상태 단추의 UIA 이름. 단추에 보이는 글자는 "완료"·"진행" 뿐이라 어느 할 일을 무엇으로
+    /// 바꾸는지 알 수 없고, x:Bind 한 TextBlock 내용은 이름이 되지도 않는다(문자열 Content 만 된다).
+    /// </summary>
+    public static string ToToggleName(string? title, bool isDone)
+        => $"{title} — {(isDone ? "완료 취소" : "완료로 표시")}";
+
     public static SolidColorBrush ToStatusColor(bool isDone) => isDone
         ? new(Colors.Gray)
         : new(ColorHelper.FromArgb(255, 0, 120, 215));

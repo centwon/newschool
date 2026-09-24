@@ -79,6 +79,51 @@ public class PrintOutputGuardTests
     }
 
     /// <summary>
+    /// 같은 규칙의 다른 꼴 — <c>Process.Start</c> 를 직접 부르는 자리도 정해진 곳뿐이어야 한다.
+    ///
+    /// <para>위 검사는 <c>file:///</c> 꼴만 봐서, 누가기록 인쇄·누가기록/학생부 일괄 출력 세 곳이
+    /// <c>Process.Start</c> 로 직접 여는 것을 놓쳤다. 뷰어가 없으면 던진 예외가 바깥 catch 로 가서
+    /// <b>파일은 만들어 놓고 "오류" 로 끝났고</b> 저장 위치 안내도 건너뛰었다.</para>
+    ///
+    /// <para>허용: 여는 길 자체(<c>ExportPaths</c>), 브라우저로 로그인 주소 열기(구글), 앱 설정의
+    /// 폴더 열기, 게시판 첨부 열기(<c>AttachmentPolicy</c> 가 따로 다룬다).</para>
+    /// </summary>
+    [Fact]
+    public void Process_Start_를_직접_부르는_자리는_정해져_있다()
+    {
+        var allowed = new HashSet<string>
+        {
+            "Helpers/ExportPaths.cs",
+            "Google/GoogleAuthService.cs",
+            "Pages/AppSettingsPage.xaml.cs",
+            "Board/Controls/FileItemBox.xaml.cs",
+            "Board/Controls/PostFileListBox.xaml.cs",
+            "Board/Pages/PostDetailPage.xaml.cs",
+        };
+
+        string root = RepoRoot();
+        var offenders = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+        {
+            string rel = Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/');
+            if (rel.Contains("/obj/") || rel.Contains("/bin/") || rel.StartsWith("obj/") || rel.StartsWith("bin/")
+                || rel.StartsWith("NewSchool.Tests/") || allowed.Contains(rel))
+                continue;
+
+            bool inCode = File.ReadLines(file).Any(line =>
+                !line.TrimStart().StartsWith("//", System.StringComparison.Ordinal) &&
+                Regex.IsMatch(line, @"\bProcess\.Start\("));
+
+            if (inCode) offenders.Add(rel);
+        }
+
+        Assert.True(offenders.Count == 0,
+            "Process.Start 를 직접 부르는 자리가 있다 — 만든 파일을 열 거면 Helpers.ExportPaths.TryOpen 을 쓸 것:\n  " +
+            string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
     /// 인쇄물에만 있고 화면에는 없는 표시가 있으면 안 된다. 지정 좌석(📌)이 그랬다 —
     /// 종이에는 붙는데 화면에는 아무 표시가 없어, 무엇이 고정인지 뽑아 봐야 알았다.
     /// </summary>

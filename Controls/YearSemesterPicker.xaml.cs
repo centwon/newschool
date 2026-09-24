@@ -121,7 +121,7 @@ public sealed partial class YearSemesterPicker : UserControl
         // DB에 데이터 없으면 현재 작업연도 포함 최근 3년 기본값
         if (years.Count == 0)
         {
-            int cur = Settings.WorkYear.Value > 0 ? Settings.WorkYear.Value : DateTime.Now.Year;
+            int cur = Settings.WorkYearOrCurrent();
             years = new List<int> { cur, cur - 1, cur - 2 };
         }
 

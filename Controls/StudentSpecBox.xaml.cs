@@ -147,7 +147,7 @@ public sealed partial class StudentSpecBox : UserControl
     /// </summary>
     private void ClearUI()
     {
-        TxtYear.Text = DateTime.Today.Year.ToString();
+        TxtYear.Text = Settings.WorkYearOrCurrent().ToString();
         TxtType.Text = "";
         TxtSubject.Text = "";
         TxtStudent.Text = "";

@@ -37,8 +37,9 @@ public sealed partial class ClubManagementPage : Page
     /// </summary>
     private void InitializeFilters()
     {
-        // 학년도 (최근 5년)
-        var currentYear = DateTime.Today.Year;
+        // 학년도 (최근 5년). 맨 위는 오늘의 학년도 — 달력 연도로 세면 1·2월에 아직 시작하지 않은
+        // 학년도가 맨 위에 뜬다. 다만 작업 학년도를 미리 다음 해로 옮겨 두었으면 그것도 목록에 들게 한다.
+        var currentYear = Math.Max(Settings.WorkYearOrCurrent(), DateTimeHelper.SchoolYearOf(DateTime.Today));
         for (var i = 0; i < 5; i++)
         {
             var year = currentYear - i;

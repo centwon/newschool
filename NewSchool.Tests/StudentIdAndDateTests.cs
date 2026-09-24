@@ -118,4 +118,53 @@ public class StudentIdAndDateTests
             Assert.Equal(semester, DateTimeHelper.SemesterOf(d));
         }
     }
+
+    /// <summary>
+    /// 학년도 기본값을 달력 연도로 잡는 자리가 없어야 한다.
+    ///
+    /// <para><c>SchoolYearOf</c> 를 만든 뒤에도 학생 추가 화면·학생부 입력 칸·동아리·학사일정
+    /// 목록·설정의 대체값·모델 기본값 등 열다섯 곳이 <c>DateTime.Today.Year</c> 를 그대로 학년도로
+    /// 썼다. 1·2월에만 드러나는 병이라 눈으로는 잡히지 않는다.</para>
+    ///
+    /// <para>달력 연도가 맞는 자리만 허용한다 — 달 선택기(달력의 연도)와 "3/2" 같은 월·일 글을
+    /// 날짜로 바꾸는 <c>Tools</c>.</para>
+    /// </summary>
+    [Fact]
+    public void 학년도를_달력_연도로_잡지_않는다()
+    {
+        var dir = new System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory());
+        while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "NewSchool.csproj")))
+            dir = dir.Parent;
+        Assert.NotNull(dir);
+        string root = dir!.FullName;
+
+        var calendarYearIsRight = new System.Collections.Generic.HashSet<string>
+        {
+            "Controls/MonthPicker.xaml.cs",
+            "Tools.cs",
+        };
+
+        var offenders = new System.Collections.Generic.List<string>();
+        foreach (var file in System.IO.Directory.EnumerateFiles(root, "*.cs", System.IO.SearchOption.AllDirectories))
+        {
+            string rel = System.IO.Path.GetRelativePath(root, file).Replace(System.IO.Path.DirectorySeparatorChar, '/');
+            if (rel.Contains("/obj/") || rel.Contains("/bin/") || rel.StartsWith("obj/") || rel.StartsWith("bin/")
+                || rel.StartsWith("NewSchool.Tests/") || calendarYearIsRight.Contains(rel))
+                continue;
+
+            int lineNo = 0;
+            foreach (var line in System.IO.File.ReadLines(file))
+            {
+                lineNo++;
+                if (line.TrimStart().StartsWith("//", StringComparison.Ordinal)) continue;   // 주석이 옛 꼴을 인용한다
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, @"DateTime\.(Now|Today)\.Year\b"))
+                    offenders.Add($"{rel}:{lineNo}");
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            "달력 연도를 학년도로 쓰는 자리가 있다 — 1·2월에는 아직 시작하지 않은 학년도다. " +
+            "Settings.WorkYearOrCurrent() 나 DateTimeHelper.SchoolYearOf 를 쓸 것:\n  " +
+            string.Join("\n  ", offenders));
+    }
 }

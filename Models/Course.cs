@@ -17,7 +17,7 @@ public class Course : NotifyPropertyChangedBase
     private int _no = -1;
     private string _schoolCode = string.Empty;
     private string _teacherId = string.Empty;
-    private int _year = DateTime.Today.Year;
+    private int _year = DateTimeHelper.SchoolYearOf(DateTime.Today);   // 달력 연도가 아니라 학년도(1·2월은 지난해)
     private int _semester = 1;
     private int _grade = 1;
     private string _subject = string.Empty;

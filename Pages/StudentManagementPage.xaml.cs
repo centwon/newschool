@@ -233,6 +233,12 @@ public sealed partial class StudentManagementPage : Page, IDisposable
     }
 
     /// <summary>
+    /// 학생 줄 단추의 UIA 이름. 단추 안은 칸 여덟 개짜리 Grid 라 이름이 되지 않고 툴팁도
+    /// 이름이 아니어서, 낭독기가 줄마다 그냥 "단추" 라고만 읽었다.
+    /// </summary>
+    public static string RowName(int number, string? name) => $"{number}번 {name} — 학생 정보 고치기";
+
+    /// <summary>
     /// 편집 다이얼로그를 열고, 저장됐으면 목록에 반영한다.
     /// </summary>
     private async Task OpenEditDialogAsync(StudentManagementViewModel vm)

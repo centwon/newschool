@@ -244,6 +244,7 @@
                                             <!-- 가로 여백을 0 으로 두어야 아래 칸이 머리글과 맞는다. -->
                                             <Button Grid.Column="1"
                                                     Tag="{x:Bind}"
+                                                    AutomationProperties.Name="{x:Bind local:StudentManagementPage.RowName(Number, Name), Mode=OneWay}"
                                                     Click="OnStudentRowClick"
                                                     Background="Transparent"
                                                     BorderThickness="0"

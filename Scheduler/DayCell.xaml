@@ -156,6 +156,7 @@
                                 <!-- 상태 토글 버튼 (글머리 역할) -->
                                 <Button Grid.Column="0"
                                         Tag="{x:Bind}"
+                                        AutomationProperties.Name="{x:Bind local:DayCell.ToToggleName(Title, IsDone), Mode=OneWay}"
                                         Click="TaskToggleButton_Click"
                                         MinWidth="0" MinHeight="0"
                                         Padding="2,0"

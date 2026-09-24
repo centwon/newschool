@@ -403,6 +403,15 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
             ? $"{changeTooltip} · 눌러서 수업 일지 쓰기"
             : "눌러서 수업 일지 쓰기";
 
+    /// <summary>
+    /// 교시 줄 단추의 UIA 이름. 단추 안은 교시·과목·교실을 담은 패널이라 이름이 되지 않고
+    /// 툴팁도 이름이 아니어서, 낭독기가 줄마다 그냥 "단추" 라고만 읽었다.
+    /// </summary>
+    public static string SlotName(int period, string? subjectWithPrefix, string? room)
+        => string.IsNullOrWhiteSpace(room)
+            ? $"{period}교시 {subjectWithPrefix} — 수업 일지 쓰기"
+            : $"{period}교시 {subjectWithPrefix} {room} — 수업 일지 쓰기";
+
     /// <summary>휴강이면 취소선 (DataTemplate x:Bind용 순수 함수)</summary>
     public static Windows.UI.Text.TextDecorations StrikeIfCancelled(bool isCancelled)
         => isCancelled ? Windows.UI.Text.TextDecorations.Strikethrough : Windows.UI.Text.TextDecorations.None;

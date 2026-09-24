@@ -304,7 +304,7 @@ public sealed partial class SettingsPage : Page
         if (CBoxSpecByteYear.Items.Count == 0)
         {
             CBoxSpecByteYear.Items.Add(new ComboBoxItem { Content = "모든 학년도(기본)", Tag = "0" });
-            int thisYear = Settings.WorkYear.Value > 0 ? Settings.WorkYear.Value : DateTime.Now.Year;
+            int thisYear = Settings.WorkYearOrCurrent();
             for (int y = thisYear + 1; y >= thisYear - 2; y--)
                 CBoxSpecByteYear.Items.Add(new ComboBoxItem { Content = $"{y}학년도", Tag = y.ToString() });
             CBoxSpecByteYear.SelectedIndex = 0;

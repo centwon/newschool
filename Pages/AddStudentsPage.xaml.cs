@@ -62,8 +62,7 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
         // 기본값 설정. 학년도는 다른 화면들처럼 작업 학년도를 먼저 본다 — 예전에는 달력
         // 연도를 그대로 넣어, 1·2월(아직 지난 학년도)에 넣은 학생이 한 해 앞선 학년도
         // 학적으로 들어갔다. 작업 학년도가 없을 때도 달력 연도가 아니라 학년도로 잡는다.
-        int workYear = Settings.WorkYear.Value;
-        TxtYear.Text = (workYear > 0 ? workYear : DateTimeHelper.SchoolYearOf(DateTime.Today)).ToString();
+        TxtYear.Text = Settings.WorkYearOrCurrent().ToString();
         TxtGrade.Text = "1";
         TxtClass.Text = "1";
     }

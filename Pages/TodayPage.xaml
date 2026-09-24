@@ -142,6 +142,7 @@
                                                 HorizontalContentAlignment="Stretch"
                                                 VerticalContentAlignment="Center"
                                                 Tag="{x:Bind}"
+                                                AutomationProperties.Name="{x:Bind local:TodayPage.SlotName(Period, SubjectWithPrefix, Room), Mode=OneWay}"
                                                 Click="TeacherSlot_Click"
                                                 IsHitTestVisible="{x:Bind local:TodayPage.ClickableIfNotCancelled(IsCancelled), Mode=OneWay}"
                                                 ToolTipService.ToolTip="{x:Bind local:TodayPage.SlotTooltip(HasChange, ChangeTooltip), Mode=OneWay}">

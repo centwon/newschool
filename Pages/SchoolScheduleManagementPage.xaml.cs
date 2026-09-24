@@ -119,14 +119,14 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
     /// </summary>
     private void InitializeFilters()
     {
-        // 학년도 콤보박스 (현재년도 ±3년)
-        var currentYear = DateTime.Today.Year;
+        // 학년도 콤보박스 (작업 학년도 ±3년). 가운데를 달력 연도가 아니라 학년도로 둔다 —
+        // 1·2월에는 달력 연도가 아직 시작하지 않은 학년도다. 또 가운데를 고를 값과 같게 둬야
+        // 고른 값이 늘 목록 안에 있다(밖이면 SelectedItem 이 null 이 되어 아래 캐스트가 던진다).
+        var currentYear = Settings.WorkYearOrCurrent();
         var years = Enumerable.Range(currentYear - 3, 7).Reverse().ToList();
 
         CBoxYear.ItemsSource = years;
-        CBoxYear.SelectedItem = Settings.WorkYear.Value > 0 
-            ? Settings.WorkYear.Value 
-            : currentYear;
+        CBoxYear.SelectedItem = currentYear;
 
         // 날짜 범위 기본값 (해당 학년도 전체)
         var selectedYear = (int)CBoxYear.SelectedItem;

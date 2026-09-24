@@ -13,7 +13,7 @@ public class StudentSpecial : NotifyPropertyChangedBase
 
     private int _no = -1;
     private string _studentId = string.Empty;
-    private int _year = DateTime.Today.Year;
+    private int _year = DateTimeHelper.SchoolYearOf(DateTime.Today);   // 달력 연도가 아니라 학년도(1·2월은 지난해)
     private int _semester;   // 0 = 학년 단위(연간)
     private string _type = string.Empty;
     private string _title = string.Empty;

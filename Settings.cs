@@ -274,6 +274,18 @@ public static class Settings
 
     public static SettingProperty<string> User { get; private set; } = null!;
     public static SettingProperty<int> WorkYear { get; private set; } = null!;
+
+    /// <summary>
+    /// 기본값으로 쓸 학년도 — 작업 학년도가 있으면 그것, 없으면 오늘이 속한 <b>학년도</b>.
+    ///
+    /// <para>화면 네 곳이 <c>WorkYear &gt; 0 ? WorkYear : DateTime.Now.Year</c> 를 각자 적어 두었는데,
+    /// 대체값이 달력 연도라 1·2월에는 아직 시작하지도 않은 학년도가 잡혔다
+    /// (<see cref="DateTimeHelper.SchoolYearOf"/> 의 설명과 같은 병). 학생 추가 화면은 아예
+    /// 작업 학년도를 보지 않고 달력 연도를 넣었다.</para>
+    /// </summary>
+    public static int WorkYearOrCurrent()
+        => WorkYear.Value > 0 ? WorkYear.Value : DateTimeHelper.SchoolYearOf(DateTime.Today);
+
     public static SettingProperty<string> ProvinceCode { get; private set; } = null!;
     public static SettingProperty<string> SchoolCode { get; private set; } = null!;
     public static SettingProperty<string> SchoolName { get; private set; } = null!;

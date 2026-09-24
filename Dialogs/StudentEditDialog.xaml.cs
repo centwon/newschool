@@ -52,7 +52,7 @@ public sealed partial class StudentEditDialog : ContentDialog
         InitializeErrorInfoBar();
         Opened += OnOpenedApplyGradeLimit;
 
-        NumYear.Value = year > 0 ? year : DateTime.Now.Year;
+        NumYear.Value = year > 0 ? year : Settings.WorkYearOrCurrent();
         NumGrade.Value = grade > 0 ? grade : 1;
         NumClass.Value = cls > 0 ? cls : 1;
         NumNumber.Value = double.NaN;

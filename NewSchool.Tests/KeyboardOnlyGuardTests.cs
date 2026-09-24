@@ -288,6 +288,9 @@ public class KeyboardOnlyGuardTests
         // 상태에 따라 코드에서 이름을 붙이는 곳은 정적으로 볼 수 없다.
         var namedInCode = new HashSet<string> { "Controls/StudentSpecBox.xaml" };
 
+        // 코드가 Content 에 문자열을 넣는 단추 — 그 문자열이 곧 이름이다(달 선택 단추는 "2026년 9월").
+        var stringContentInCode = new HashSet<string> { "BtnMonth" };
+
         var offenders = new List<string>();
 
         foreach (var rel in XamlFiles())
@@ -299,22 +302,30 @@ public class KeyboardOnlyGuardTests
             {
                 if (e.Attrs.Contains("AutomationProperties.Name")) continue;
                 if (Regex.IsMatch(e.Attrs, @"\bContent=""[^""]+""")) continue;   // 문자열 Content 는 곧 이름이다
+                if (Regex.IsMatch(e.Attrs, @"\bLabel=""[^""]+""")) continue;     // AppBarButton 의 Label 도 이름이 된다
 
-                // 기호 글꼴을 입힌 TextBlock 도 그림이다 — 달력 머리글의 이전·다음·설정 단추가
-                // 이 꼴이라 아이콘 요소만 세던 이 검사를 빠져나갔다(툴팁만 달려 있었다).
-                bool hasIcon = Regex.IsMatch(VisiblePart(e.Inner),
-                                             @"<(FontIcon|SymbolIcon|PathIcon|BitmapIcon|ImageIcon|AnimatedIcon)\b" +
-                                             @"|<TextBlock\b[^>]*\bFontFamily=""[^""]*(SymbolThemeFontFamily|Segoe (MDL2|Fluent) Icons)");
-                if (!hasIcon) continue;
+                var xName = Regex.Match(e.Attrs, @"\bx:Name=""([^""]+)""");
+                if (xName.Success && stringContentInCode.Contains(xName.Groups[1].Value)) continue;
 
-                // 글자가 문자열 Content 로 있지 않은 채 아이콘만 보이는 단추
+                // 아이콘이든 패널이든, 요소가 보이는 단추는 문자열 Content 가 아니다.
+                // 예전에는 아이콘(과 기호 글꼴 TextBlock)만 셌다 — 그래서 줄 전체를 감싼 단추
+                // (오늘 화면의 교시 줄·학생 관리의 학생 줄·달력 칸의 할 일 상태)가 툴팁만 단 채 빠져나갔다.
+                // 속성 요소(<Button.KeyboardAccelerators>·<ToolTipService.ToolTip> 등)는 보이는 내용이
+                // 아니므로 떼고, <Button.Content> 는 껍데기만 벗긴다.
+                string visible = Regex.Replace(VisiblePart(e.Inner), @"<(\w+)\.(?!Content>)(\w+)>.*?</\1\.\2>",
+                                               string.Empty, RegexOptions.Singleline);
+                visible = Regex.Replace(visible, @"</?\w+\.Content>", string.Empty);
+                bool hasElementContent = Regex.IsMatch(visible, @"<[A-Za-z]");
+                if (!hasElementContent) continue;
+
+                // 글자가 문자열 Content 로 있지 않은 채 요소만 보이는 단추
                 int line = xaml.Take(e.Index).Count(c => c == '\n') + 1;
                 offenders.Add($"{rel}:{line}");
             }
         }
 
         Assert.True(offenders.Count == 0,
-            "그림뿐인 단추에 AutomationProperties.Name 이 없다 — 툴팁도 패널 안 글자도 " +
+            "그림·패널로 된 단추에 AutomationProperties.Name 이 없다 — 툴팁도 패널 안 글자도 " +
             "UIA 이름이 되지 않는다:\n  " + string.Join("\n  ", offenders));
     }
 
