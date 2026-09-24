@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using QuestPDF.Fluent;
 using Xunit;
 
 namespace NewSchool.Tests;
@@ -76,6 +77,37 @@ public class PrintOutputGuardTests
         Assert.True(offenders.Count == 0,
             "만든 파일을 file:/// URI 로 직접 여는 자리가 있다 — Helpers.ExportPaths.TryOpen 을 쓸 것:\n  " +
             string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
+    /// 앱과 같은 설정(<see cref="NewSchool.Helpers.PdfLibrarySetup"/>)으로 <b>한글이 든 PDF 가 실제로
+    /// 만들어지는지</b> 본다.
+    ///
+    /// <para>QuestPDF 2026.9 로 올리자 시스템 글꼴을 안 쓰는 것이 기본이 되어 한글 글리프가 없다며
+    /// 앱의 PDF 인쇄가 전부 멈췄다. 그때 시험은 모두 통과했다 — PDF 를 실제로 만드는 시험이 하나도
+    /// 없었기 때문이다. 이모지·드문 한자도 넣는다: 사람이 쓴 메모에 섞이는 그 한 글자 때문에 학급
+    /// 전체 인쇄가 실패하면 안 된다(<c>ThrowOnMissingTextGlyphs = false</c>).</para>
+    /// </summary>
+    [Fact]
+    public void 한글이_든_PDF_가_만들어진다()
+    {
+        NewSchool.Helpers.PdfLibrarySetup.Apply();
+
+        byte[] pdf = Document.Create(container => container.Page(page =>
+        {
+            page.Content().Column(col =>
+            {
+                col.Item().Text("학생 정보 카드 — 2026학년도 3학년 1반 5번");
+                col.Item().Text("지정 좌석 📌 · 중요 ★ · 완료 ✓ · 더 있음 ▾ 12");
+                col.Item().Text("드문 한자 龘 와 이모지 😀 가 섞인 학생 메모");
+            });
+        })).GeneratePdf();
+
+        Assert.True(pdf.Length > 1000, $"PDF 가 비정상적으로 작다({pdf.Length}바이트).");
+
+        // 한글이 빈 칸이 아니라 한글 글꼴로 찍혔는지 — 글꼴 이름은 PDF 안에 글자 그대로 남는다.
+        string raw = System.Text.Encoding.ASCII.GetString(pdf);
+        Assert.Contains("Malgun", raw);
     }
 
     /// <summary>
