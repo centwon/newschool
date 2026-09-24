@@ -620,8 +620,12 @@ public sealed partial class StudentSpecBatchDialog : Window
         }
     }
 
-    /// <summary>[닫기] 버튼 — 닫아도 되는지는 <see cref="ConfirmCloseAsync"/> 가 판단한다.</summary>
-    private void BtnClose_Click(object sender, RoutedEventArgs e) => this.Close();
+    /// <summary>
+    /// [닫기] 버튼 — 닫아도 되는지는 <see cref="ConfirmCloseAsync"/> 가 판단한다.
+    /// ⚠ <c>this.Close()</c> 로 줄이면 안 된다 — 코드로 닫으면 X 의 확인이 오지 않아 묻지 않고 닫혔다.
+    /// </summary>
+    private async void BtnClose_Click(object sender, RoutedEventArgs e) =>
+        await NewSchool.Controls.UnsavedWorkGuard.CloseAsync(this);
 
     /// <summary>
     /// 닫아도 되는가. 저장하지 않은 기록이 있으면 묻는다.

@@ -91,12 +91,48 @@ public class UnsavedWorkGuardTests
         string source = File.ReadAllText(Path.Combine(RepoRoot(), relativePath));
 
         var cancel = Regex.Match(source,
-            @"private void BtnCancel_Click\([^)]*\)\s*\{(?<body>.*?)\n    \}", RegexOptions.Singleline);
+            @"private (async )?void BtnCancel_Click\([^)]*\)\s*\{(?<body>.*?)\n    \}", RegexOptions.Singleline);
 
         Assert.True(cancel.Success, $"{relativePath} 에서 BtnCancel_Click 을 찾지 못했다");
 
         string body = cancel.Groups["body"].Value;
         Assert.DoesNotContain("TrySetResult", body);
-        Assert.Contains("Close()", body);
+        Assert.Contains("UnsavedWorkGuard.CloseAsync(this)", body);
+    }
+
+    /// <summary>
+    /// <b>창 안의 [닫기]·[취소] 도 X 와 같은 확인을 지난다.</b>
+    ///
+    /// <para><c>AskBeforeClosing</c> 이 거는 <c>AppWindow.Closing</c> 은 X·Alt+F4 처럼 시스템이
+    /// 닫을 때만 오고, 코드로 부른 <c>Window.Close()</c> 에는 오지 않는다. 52차에 버튼을
+    /// <c>Close()</c> 하나로 줄여 두었더니, 실제로 몰아 보니 학생부 일괄 입력에서 X 는 묻고
+    /// [닫기] 는 묻지 않고 닫아 고치던 것이 사라졌다(2026-09-24). 저장한 뒤의 <c>Close()</c> 는
+    /// 물을 것이 없으니 그대로 둬도 된다 — 여기서는 "버튼 길이 하나라도 확인을 지나는가" 만 본다.</para>
+    /// </summary>
+    [Fact]
+    public void 창의_닫기_버튼은_X_와_같은_확인을_지난다()
+    {
+        string root = RepoRoot();
+        var offenders = new List<string>();
+        int windows = 0;
+
+        foreach (var file in Directory.EnumerateFiles(root, "*.xaml.cs", SearchOption.AllDirectories))
+        {
+            string rel = Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/');
+            if (rel.Contains("/obj/") || rel.Contains("/bin/")) continue;
+            if (rel == "MainWindow.xaml.cs") continue;   // 앱 창에는 닫기 버튼이 없다(X 뿐)
+
+            string source = File.ReadAllText(file);
+            if (!source.Contains("AskBeforeClosing(")) continue;
+
+            windows++;
+            if (!source.Contains("UnsavedWorkGuard.CloseAsync(this)"))
+                offenders.Add(rel);
+        }
+
+        Assert.True(windows >= 5, $"닫기 확인을 거는 창이 {windows}개뿐이다 — 검색이 빗나갔다");
+        Assert.True(offenders.Count == 0,
+            "X 는 묻는데 창 안의 [닫기]·[취소] 가 Close() 를 바로 불러 묻지 않고 닫는 창이 있다. " +
+            "버튼에서는 UnsavedWorkGuard.CloseAsync(this) 를 부를 것:\n  " + string.Join("\n  ", offenders));
     }
 }

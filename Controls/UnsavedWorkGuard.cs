@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 
@@ -74,31 +75,76 @@ public static class UnsavedWorkGuard
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(confirmCloseAsync);
 
+        // 버튼 쪽(CloseAsync)이 같은 확인을 찾을 수 있게 창에 달아 둔다.
+        var guard = new CloseGuard(confirmCloseAsync);
+        Guards.AddOrUpdate(window, guard);
+
         var appWindow = GetAppWindow(window);
         if (appWindow == null) return;   // 창 핸들을 못 얻으면 막지 않는다 — 못 닫는 쪽이 더 나쁘다
 
-        bool confirmed = false;
-
         appWindow.Closing += async (_, args) =>
         {
-            if (confirmed) return;
+            if (guard.Confirmed) return;
 
             // ⚠ 먼저 취소해 두고 묻는다. 물어보는 동안 창이 닫혀 버리면 대답을 받을 자리가 없다.
             args.Cancel = true;
 
+            if (await guard.ConfirmAsync())
+                window.Close();
+        };
+    }
+
+    /// <summary>
+    /// 창 안의 [닫기]·[취소] 버튼이 부른다 — 제목표시줄 X 와 <b>같은 확인</b>을 거쳐 닫는다.
+    ///
+    /// <para>⚠ 버튼에서 <c>Close()</c> 를 바로 부르면 안 된다. <c>AppWindow.Closing</c> 은
+    /// X·Alt+F4 처럼 시스템이 닫을 때만 오고, 코드로 부른 <c>Window.Close()</c> 에는 오지 않는다.
+    /// 52차에 버튼을 <c>Close()</c> 하나로 줄이면서 "Closing 이 물어 준다" 고 믿었는데,
+    /// 실제로 몰아 보니 X 는 묻고 [닫기] 는 묻지 않고 닫아 고치던 것이 사라졌다(2026-09-24).</para>
+    /// </summary>
+    public static async Task CloseAsync(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        if (Guards.TryGetValue(window, out var guard) && !guard.Confirmed &&
+            !await guard.ConfirmAsync())
+            return;
+
+        window.Close();
+    }
+
+    private static readonly ConditionalWeakTable<Window, CloseGuard> Guards = new();
+
+    /// <summary>한 창의 닫기 확인 — X 와 버튼이 나눠 쓴다.</summary>
+    private sealed class CloseGuard(Func<Task<bool>> confirmCloseAsync)
+    {
+        private bool _asking;
+
+        /// <summary>닫기로 정해졌다 — 그 뒤의 Closing 은 다시 묻지 않는다.</summary>
+        public bool Confirmed { get; private set; }
+
+        public async Task<bool> ConfirmAsync()
+        {
+            // 묻는 중에 X 와 버튼을 번갈아 누르면 같은 물음이 두 번 줄을 선다.
+            if (_asking) return false;
+            _asking = true;
             try
             {
-                if (!await confirmCloseAsync()) return;
+                if (!await confirmCloseAsync()) return false;
             }
             catch (Exception ex)
             {
                 // 여기서 새어 나가면 창을 영영 닫지 못한다 — 닫아 주고 기록만 남긴다.
                 Logging.Log.Error("UnsavedWorkGuard", "닫기 확인 중 오류 — 창을 닫는다", ex);
             }
+            finally
+            {
+                _asking = false;
+            }
 
-            confirmed = true;
-            window.Close();
-        };
+            Confirmed = true;
+            return true;
+        }
     }
 
     private static Microsoft.UI.Windowing.AppWindow? GetAppWindow(Window window)

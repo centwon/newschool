@@ -610,9 +610,10 @@ public sealed partial class StudentLogDialog : Window
         }
     }
 
-    private void OnLogBoxCancelled(object? sender, EventArgs e)
+    private async void OnLogBoxCancelled(object? sender, EventArgs e)
     {
-        this.Close();
+        // Close() 를 바로 부르면 묻지 않고 닫힌다 — X 와 같은 확인을 거친다.
+        await NewSchool.Controls.UnsavedWorkGuard.CloseAsync(this);
     }
 
     #endregion

@@ -522,12 +522,13 @@ public sealed partial class LessonJournalWindow : Window
         }
     }
 
-    private void BtnCancel_Click(object sender, RoutedEventArgs e)
+    private async void BtnCancel_Click(object sender, RoutedEventArgs e)
     {
         // ⚠ 결과를 여기서 먼저 넣지 않는다 — 닫기 확인에서 사용자가 [계속 편집] 을 고르면
         //   창은 열려 있는데 기다리던 쪽은 "취소" 를 받고 돌아가 버린다.
         //   결과는 실제로 닫힌 뒤 OnWindowClosed 가 넣는다.
-        Close();
+        // ⚠ Close() 를 바로 부르면 묻지 않고 닫힌다 — X 와 같은 확인을 거친다.
+        await NewSchool.Controls.UnsavedWorkGuard.CloseAsync(this);
     }
 
     private void OnWindowClosed(object sender, WindowEventArgs args)
