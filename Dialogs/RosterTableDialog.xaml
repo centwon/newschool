@@ -36,8 +36,9 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="학년 / 반" FontWeight="SemiBold"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
+                    <!-- 상한 6 은 가장 큰 경우(초등). 열릴 때 코드가 학교급에 맞게 좁힌다. -->
                     <NumberBox x:Name="GradeBox" AutomationProperties.Name="학년"
-                               Minimum="1" Maximum="3"
+                               Minimum="1" Maximum="6"
                                SpinButtonPlacementMode="Compact"
                                Header=""
                                MinWidth="100"

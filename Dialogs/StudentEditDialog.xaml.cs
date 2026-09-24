@@ -50,6 +50,7 @@ public sealed partial class StudentEditDialog : ContentDialog
         Title = "학생 추가";
 
         InitializeErrorInfoBar();
+        Opened += OnOpenedApplyGradeLimit;
 
         NumYear.Value = year > 0 ? year : DateTime.Now.Year;
         NumGrade.Value = grade > 0 ? grade : 1;
@@ -74,6 +75,26 @@ public sealed partial class StudentEditDialog : ContentDialog
         Title = "학생 정보 수정";
 
         InitializeErrorInfoBar();
+        Opened += OnOpenedApplyGradeLimit;
+    }
+
+    /// <summary>
+    /// 학년 칸의 상한을 학교급에 맞춘다(초등 6, 중·고 3, 모르면 3).
+    ///
+    /// <para>XAML 의 Maximum 은 가장 큰 경우(6)로 두고 여기서 좁힌다 — 생성자에서는 기다릴 수 없고,
+    /// XAML 에 3 을 박아 두면 초등학교의 4·5·6학년이 값을 넣는 순간 3 으로 깎인다.</para>
+    /// </summary>
+    private async void OnOpenedApplyGradeLimit(ContentDialog sender, ContentDialogOpenedEventArgs args)
+    {
+        try
+        {
+            NumGrade.Maximum = await Helpers.SchoolProfile.GetMaxGradeAsync();
+        }
+        catch (Exception ex)
+        {
+            // 못 읽으면 XAML 의 상한(6)이 남는다 — 입력을 막지는 않는다.
+            NewSchool.Logging.Log.Warning("StudentEditDialog", $"학년 상한을 정하지 못했다: {ex.Message}");
+        }
     }
 
     /// <summary>

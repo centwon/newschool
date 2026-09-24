@@ -82,6 +82,13 @@ public sealed partial class InitialSetupWindow : Window, INotifyPropertyChanged
                 SchoolCodeTextBox.Text = _selectedSchool.SchoolCode;
                 SchoolAddressTextBox.Text = _selectedSchool.Address;
 
+                // 담임 학년 칸의 상한을 고른 학교의 학교급에 맞춘다(초등 6, 중·고 3, 모르면 3).
+                // 학교를 아직 저장하기 전이라 SchoolProfile 로는 읽을 수 없어, 검색 결과의 학교 종류를 쓴다.
+                int maxGrade = Helpers.SchoolCalendar.MaxGrade(
+                    Helpers.SchoolCalendar.GradeCountFor(_selectedSchool.SchoolType));
+                HomeGradeNumberBox.Maximum = maxGrade;
+                HomeGradeNumberBox.PlaceholderText = $"1-{maxGrade}";
+
                 SchoolInfoBar.IsOpen = true;
                 _isSchoolSelected = true;
 

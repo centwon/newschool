@@ -73,4 +73,11 @@ public static class SchoolProfile
 
         return gradeCount;
     }
+
+    /// <summary>
+    /// 학년 입력의 상한 — 초등 6, 중·고 3, 모르면 <see cref="SchoolCalendar.FallbackMaxGrade"/>.
+    /// 학생 추가·편집, 명렬표, 학년 선택기가 모두 이것을 읽는다.
+    /// </summary>
+    public static async Task<int> GetMaxGradeAsync()
+        => SchoolCalendar.MaxGrade(await GetGradeCountAsync());
 }

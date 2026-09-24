@@ -34,6 +34,24 @@ public sealed partial class RosterTableDialog : ContentDialog
             if (t.IsFaulted)
                 System.Diagnostics.Debug.WriteLine($"[RosterTableDialog] {t.Exception?.InnerException?.Message}");
         }, TaskContinuationOptions.OnlyOnFaulted);
+
+        Opened += OnOpenedApplyGradeLimit;
+    }
+
+    /// <summary>
+    /// 학년 칸의 상한을 학교급에 맞춘다(초등 6, 중·고 3, 모르면 3). XAML 은 가장 큰 경우(6)로 두고
+    /// 열릴 때 좁힌다 — 학생 편집 대화상자와 같은 방식이다.
+    /// </summary>
+    private async void OnOpenedApplyGradeLimit(ContentDialog sender, ContentDialogOpenedEventArgs args)
+    {
+        try
+        {
+            GradeBox.Maximum = await Helpers.SchoolProfile.GetMaxGradeAsync();
+        }
+        catch (Exception ex)
+        {
+            NewSchool.Logging.Log.Warning("RosterTableDialog", $"학년 상한을 정하지 못했다: {ex.Message}");
+        }
     }
 
     /// <summary>

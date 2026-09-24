@@ -93,6 +93,22 @@ public class SchoolCalendarTests
         Assert.Equal(expected, SchoolCalendar.GradeCountFor(schoolType));
     }
 
+    /// <summary>
+    /// 학년 입력의 상한 — 학교급을 알면 그 학년 수, 모르면 3(예전 동작).
+    /// 모를 때 6 으로 넓히면 중·고 과정에 없는 4·5·6학년이 선택지에 뜬다.
+    /// </summary>
+    [Theory]
+    [InlineData("초등학교", 6)]
+    [InlineData("중학교", 3)]
+    [InlineData("고등학교", 3)]
+    [InlineData("특수학교", 3)]
+    [InlineData("", 3)]
+    [InlineData(null, 3)]
+    public void 학년_입력_상한은_학교급을_따르고_모르면_3(string? schoolType, int expected)
+    {
+        Assert.Equal(expected, SchoolCalendar.MaxGrade(SchoolCalendar.GradeCountFor(schoolType)));
+    }
+
     [Fact]
     public void 학년수를_알면_두_학년_수련회도_그_학년들만_빠진다()
     {

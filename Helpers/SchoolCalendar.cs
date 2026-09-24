@@ -47,6 +47,24 @@ public static class SchoolCalendar
     }
 
     /// <summary>
+    /// 학년 수를 모를 때(특수학교·학교급이 비어 있는 옛 자료) 학년 입력이 받는 상한.
+    ///
+    /// <para>이 앱은 중·고등학교에서 먼저 쓰였고 모든 입력 경로가 오래 1~3 이었다. 모를 때 6 으로
+    /// 넓히면 중·고 과정에는 없는 4·5·6학년이 선택지에 뜬다 — 모르면 예전 동작을 지킨다.</para>
+    /// </summary>
+    public const int FallbackMaxGrade = 3;
+
+    /// <summary>
+    /// 학년 입력의 상한. <paramref name="gradeCount"/>(<see cref="GradeCountFor"/>)를 알면 그 값,
+    /// 0(모름)이면 <see cref="FallbackMaxGrade"/>.
+    ///
+    /// <para>학년 범위를 화면마다 적지 말 것 — 학생 추가·엑셀 가져오기·편집 대화상자·명렬표·
+    /// 초기 설정·학년 선택기가 각자 3·6·12 를 들고 있어 한 경로로는 막히는 학년이 다른
+    /// 경로로는 들어갔다.</para>
+    /// </summary>
+    public static int MaxGrade(int gradeCount) => gradeCount > 0 ? gradeCount : FallbackMaxGrade;
+
+    /// <summary>
     /// 특정 학년만 빠지는 행사인가 (현장체험학습·수학여행 등).
     ///
     /// 전 학년이 대상이면 학사일정의 성격이 다르다(개교기념일처럼 휴업 판정에 맡긴다).

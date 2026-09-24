@@ -195,10 +195,13 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
         // 파일 파싱은 백그라운드에서 (대용량 파일에서도 UI 멈춤 방지)
         var sheetsData = await ExcelHelper.DataToTextAsync(file.Path);
 
+        // 학년 상한은 학교급을 따른다(초등 6, 중·고 3, 모르면 3) — 시트마다 다시 묻지 않게 한 번만 읽는다.
+        int maxGrade = await SchoolProfile.GetMaxGradeAsync();
+
         var tally = new ExcelImportTally();
         foreach (var sheetData in sheetsData)
         {
-            await ProcessWorksheetData(sheetData, year, tally);
+            await ProcessWorksheetData(sheetData, year, maxGrade, tally);
 
             // [중단] 은 가져오기 전체를 멈춘다. 예전에는 ProcessWorksheetData 의 return 이
             // 그 시트만 끝내서, 시트가 여럿인 통합문서는 다음 시트부터 계속 들어왔다.
@@ -211,7 +214,7 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
     /// 워크시트 데이터 처리 (string[,] 배열 사용)
     /// string[,] 배열은 1-based 인덱스 사용 (Excel과 동일)
     /// </summary>
-    private async Task ProcessWorksheetData(string[,] sheetData, int year, ExcelImportTally tally)
+    private async Task ProcessWorksheetData(string[,] sheetData, int year, int maxGrade, ExcelImportTally tally)
     {
         int rowCount = sheetData.GetLength(0);
         int colCount = sheetData.GetLength(1);
@@ -262,7 +265,7 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
 
         if (gradeCol == -1)
         {
-            defaultGrade = await GetGradeInputAsync("학년 정보가 없습니다. 이 시트의 모든 학생에게 적용할 학년을 입력하세요.");
+            defaultGrade = await GetGradeInputAsync("학년 정보가 없습니다. 이 시트의 모든 학생에게 적용할 학년을 입력하세요.", maxGrade);
             if (defaultGrade == 0) return;
         }
 
@@ -301,16 +304,16 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
             if (sexCol != -1)
                 sex = NormalizeSex(sheetData[row, sexCol]);
 
-            // 학년 ("1학년", "1" 등 처리). 중·고등학교라 1~3 밖은 받지 않고 사람에게 묻는다 —
-            // 잘못 들어온 학년은 그대로 학적이 되고, 학년 선택기들이 명부에서 목록을 만들기
-            // 때문에 그 순간부터 있지도 않은 학년이 화면마다 뜬다.
+            // 학년 ("1학년", "1" 등 처리). 학교급의 학년 범위(1~maxGrade) 밖은 받지 않고 사람에게
+            // 묻는다 — 잘못 들어온 학년은 그대로 학적이 되고, 학년 선택기들이 명부에서 목록을
+            // 만들기 때문에 그 순간부터 있지도 않은 학년이 화면마다 뜬다.
             int grade = defaultGrade;
             if (gradeCol != -1)
             {
-                if (TryParseNumberFromText(sheetData[row, gradeCol], out int g) && g is >= 1 and <= 3)
+                if (TryParseNumberFromText(sheetData[row, gradeCol], out int g) && g >= 1 && g <= maxGrade)
                     grade = g;
                 else if (defaultGrade == 0)
-                    grade = await GetGradeInputAsync($"학생 '{name}'의 학년 정보를 입력하세요.");
+                    grade = await GetGradeInputAsync($"학생 '{name}'의 학년 정보를 입력하세요.", maxGrade);
             }
             if (grade == 0)
             {
@@ -393,12 +396,13 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
             return;
         }
 
-        // 중·고등학교라 상한은 3 이다. 엑셀 가져오기·학년 입력 상자·학생 편집 대화상자
-        // (NumGrade)와 같은 범위로 둔다 — 어긋나면 한 경로로는 들어오는 학년이 다른
-        // 경로로는 막힌다(편집 대화상자만 12 였던 적이 있다).
-        if (!int.TryParse(TxtGrade.Text, out int grade) || grade < 1 || grade > 3)
+        // 상한은 학교급을 따른다(초등 6, 중·고 3, 모르면 3). 엑셀 가져오기·학생 편집 대화상자·
+        // 명렬표·초기 설정·학년 선택기와 같은 SchoolProfile 값을 쓴다 — 화면마다 숫자를 적어
+        // 두면 한 경로로는 들어오는 학년이 다른 경로로는 막힌다(편집 대화상자만 12 였던 적이 있다).
+        int maxGrade = await SchoolProfile.GetMaxGradeAsync();
+        if (!int.TryParse(TxtGrade.Text, out int grade) || grade < 1 || grade > maxGrade)
         {
-            await MessageBox.ShowAsync("학년은 1~3 사이의 숫자로 입력하세요.", "오류");
+            await MessageBox.ShowAsync($"학년은 1~{maxGrade} 사이의 숫자로 입력하세요.", "오류");
             TxtGrade.Focus(FocusState.Programmatic);
             return;
         }
@@ -773,10 +777,10 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
     /// <summary>
     /// 학년 입력 받기 (UI 스레드에서 실행)
     /// </summary>
-    private async Task<int> GetGradeInputAsync(string message)
+    private async Task<int> GetGradeInputAsync(string message, int maxGrade)
     {
         // UI 작업이므로 반드시 UI 스레드에서 실행되어야 함
-        var inputBox = new TextBox { PlaceholderText = "1~3" };
+        var inputBox = new TextBox { PlaceholderText = $"1~{maxGrade}" };
         var stackPanel = new StackPanel();
         stackPanel.Children.Add(new TextBlock
         {
@@ -797,7 +801,7 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
 
         if (await MessageBox.ShowDialogAsync(dialog) == ContentDialogResult.Primary)
         {
-            if (int.TryParse(inputBox.Text, out int grade) && grade is >= 1 and <= 3)
+            if (int.TryParse(inputBox.Text, out int grade) && grade >= 1 && grade <= maxGrade)
                 return grade;
         }
 
