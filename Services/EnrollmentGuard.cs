@@ -110,6 +110,19 @@ public static class EnrollmentGuard
     }
 
     /// <summary>
+    /// 학생부(<see cref="StudentSpecial"/>) 저장용 입구 — 날짜가 문자열이라 여기서 바꿔 넘긴다.
+    ///
+    /// <para>학생부를 저장하는 길은 넷이다: 학생부 화면·교과 세특 화면의 [저장], 일괄 입력 창의
+    /// [모두 저장], 누가기록·동아리·수업 활동 화면 안의 학생부 상자. 예전에는 학생부 화면 하나만
+    /// 이 검사를 (그것도 따로 적어서) 했다 — 위 주석의 "모든 경로" 규칙이 학생부 쪽에서는 지켜지지
+    /// 않았다. 날짜를 읽지 못하면 그 건은 건너뛴다(학생부 화면이 하던 대로).</para>
+    /// </summary>
+    public static Task<bool> ConfirmSpecsAfterLeavingAsync(IEnumerable<StudentSpecial> specs)
+        => ConfirmRecordsAfterLeavingAsync(specs
+            .Where(s => DateTime.TryParse(s.Date, out _))
+            .Select(s => ((string?)s.StudentID, s.Year, DateTime.Parse(s.Date))));
+
+    /// <summary>
     /// 학적 변동을 저장하기 <b>전에</b> 부른다 — 그 날짜 뒤에 이미 남아 있는 기록을 센다.
     ///
     /// <para>전출은 늦게 입력되는 쪽이 흔해서, 실제로는 이 방향이 더 자주 걸린다.

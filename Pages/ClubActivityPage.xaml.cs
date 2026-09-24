@@ -141,6 +141,15 @@ public sealed partial class ClubActivityPage : Page
     /// </summary>
     private async Task LoadMembersAsync()
     {
+        // 부원을 다시 읽기 전에 — 학생을 바꿀 때(OnStudentSelected)처럼 편집 중인 학생부를 먼저
+        // 묻고, 선택한 학생을 비운다(학생 정보 화면의 LoadStudentListAsync 와 같은 규칙).
+        //
+        // 예전에는 선택 초기화가 부원을 다 읽은 "끝" 에만 있어서, 부원이 없는 동아리로 바꾸면
+        // 일찍 return 하느라 앞 동아리 학생이 선택된 채 남았다. 그 상태로 [새 기록] 을 누르면
+        // 그 학생의 기록이 **그 학생이 속하지도 않은 새 동아리** 로 만들어졌다.
+        if (SpecBox != null) await SpecBox.ConfirmLeaveAsync();
+        ClearSelectedStudent();
+
         if (_selectedClub == null)
         {
             StudentList.ClearStudents();
@@ -174,12 +183,6 @@ public sealed partial class ClubActivityPage : Page
 
             StudentList.LoadStudents(sorted);
             TxtMemberCount.Text = $"{sorted.Count}명";
-
-            // 선택 초기화
-            _selectedStudent = null;
-            LogList?.Logs?.Clear();
-            TxtSelectedStudent.Text = "활동 기록";
-            TxtLogCount.Text = "";
 
             Debug.WriteLine($"[ClubActivityPage] 부원 로드 완료: {sorted.Count}명");
         }
@@ -260,11 +263,10 @@ public sealed partial class ClubActivityPage : Page
     /// </summary>
     private async void CBoxClub_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (CBoxClub.SelectedItem is Club club)
-        {
-            _selectedClub = club;
-            await LoadMembersAsync();
-        }
+        // 선택이 풀린 경우(새로고침으로 동아리 목록이 비는 등)도 같은 길로 보낸다 —
+        // 그래야 앞 동아리의 부원 선택이 남지 않는다.
+        _selectedClub = CBoxClub.SelectedItem as Club;
+        await LoadMembersAsync();
     }
 
     /// <summary>
@@ -494,6 +496,16 @@ public sealed partial class ClubActivityPage : Page
     #endregion
 
     #region StudentSpec 로드
+
+    /// <summary>선택한 학생과 그 학생의 기록·학생부 표시를 비운다.</summary>
+    private void ClearSelectedStudent()
+    {
+        _selectedStudent = null;
+        LogList?.Logs?.Clear();
+        TxtSelectedStudent.Text = "활동 기록";
+        TxtLogCount.Text = "";
+        if (SpecBox != null) SpecBox.Visibility = Visibility.Collapsed;
+    }
 
     /// <summary>
     /// 학생부 기록 로드

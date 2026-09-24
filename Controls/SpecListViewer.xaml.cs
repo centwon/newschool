@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NewSchool.Models;
@@ -106,8 +107,29 @@ public sealed partial class SpecListViewer : UserControl
     /// <summary>
     /// 저장 대상 항목들 (체크되었거나 내용이 변경된 항목)
     /// </summary>
-    public IEnumerable<StudentSpecialViewModel> SelectedSpecs => 
+    public IEnumerable<StudentSpecialViewModel> SelectedSpecs =>
         Specs.Where(s => s.IsSelected || s.IsModified);
+
+    /// <summary>
+    /// 목록을 새로 채우기 전에 — 고친 채 저장하지 않은 행이 있으면 버려도 되는지 묻는다.
+    /// true 면 진행해도 된다(고친 것이 없거나 버리기로 함), false 면 멈춘다(먼저 [저장] 하려는 것).
+    ///
+    /// <para>예전에는 학생부·교과 세특 화면이 [조회]·수업 변경으로 목록을 다시 읽으면서 고친 행을
+    /// 말없이 버렸다. 누가기록 화면(<c>CheckUnSavedAsync</c>)과 학생 정보 화면은 그 전에 묻는다.</para>
+    /// </summary>
+    public async Task<bool> ConfirmDiscardModifiedAsync()
+    {
+        int modified = Specs.Count(s => s.IsModified);
+        if (modified == 0) return true;
+
+        return await MessageBox.ShowConfirmAsync(
+            $"고친 뒤 저장하지 않은 특기사항이 {modified}건 있습니다.\n" +
+            "계속하면 사라집니다. 먼저 [저장] 하려면 [취소] 를 누르세요.",
+            "저장하지 않은 변경", "버리고 계속", "취소");
+    }
+
+    /// <summary>고친 채 저장하지 않은 행.</summary>
+    public List<StudentSpecialViewModel> ModifiedSpecs => Specs.Where(s => s.IsModified).ToList();
 
     #endregion
 

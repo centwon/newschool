@@ -23,6 +23,29 @@ public sealed partial class ClassTimetableManagementPage : Page
     //private bool _isInitialized = false;
     private List<ClassTimetable> _timetables = new();
 
+    /// <summary>
+    /// 지금 화면에 떠 있는 시간표가 어느 학급 것인지 — [조회] 로 읽었을 때만 정해진다.
+    ///
+    /// <para>이 화면은 필터를 바꿔도 [조회] 전까지 다시 읽지 않는다. 그런데 [편집]·[삭제] 는
+    /// <b>지금 필터</b>의 학급으로 움직였다: 3학년 1반을 조회해 두고 필터만 2반으로 바꾼 뒤 [편집] 을
+    /// 누르면 2반 편집 창에 <b>1반 시간표</b>(<c>_timetables</c>)가 채워져, 저장하면 1반 시간표가
+    /// 2반에 들어갔다. [삭제] 는 화면에 없는 학급을 지웠다.</para>
+    /// </summary>
+    private (int Year, int Semester, int Grade, int Class)? _loaded;
+
+    /// <summary>[편집]·[삭제] 전에 — 화면의 시간표가 지금 필터의 학급 것인지 본다.</summary>
+    private async Task<bool> EnsureShowingSelectedClassAsync()
+    {
+        var selected = (YearSemPicker.Year, YearSemPicker.Semester, ClassFilter.Grade, ClassFilter.ClassNum);
+        if (_loaded == selected) return true;
+
+        await MessageBox.ShowAsync(
+            $"{selected.Grade}학년 {selected.ClassNum}반({selected.Year}학년도 {selected.Semester}학기)은 아직 조회하지 않았습니다.\n" +
+            "[조회] 를 먼저 눌러 이 학급의 시간표를 불러와 주세요.",
+            "알림");
+        return false;
+    }
+
     public ClassTimetableManagementPage()
     {
         this.InitializeComponent();
@@ -64,6 +87,7 @@ public sealed partial class ClassTimetableManagementPage : Page
 
             using var repo = new ClassTimetableRepository(SchoolDatabase.DbPath);
             _timetables = await repo.GetByClassAsync(schoolCode, year, semester, grade, classNo);
+            _loaded = (year, semester, grade, classNo);
 
             // 제목 설정
             TxtTitle.Text = $"{grade}학년 {classNo}반 시간표 ({year}학년도 {semester}학기)";
@@ -194,6 +218,7 @@ public sealed partial class ClassTimetableManagementPage : Page
         {
             return;
         }
+        if (!await EnsureShowingSelectedClassAsync()) return;
 
         int year = YearSemPicker.Year;
         int semester = YearSemPicker.Semester;
@@ -220,6 +245,7 @@ public sealed partial class ClassTimetableManagementPage : Page
         {
             return;
         }
+        if (!await EnsureShowingSelectedClassAsync()) return;
 
         int year = YearSemPicker.Year;
         int semester = YearSemPicker.Semester;
@@ -247,6 +273,7 @@ public sealed partial class ClassTimetableManagementPage : Page
                 EmptyState.Visibility = Visibility.Visible;
                 TimetableContainer.Visibility = Visibility.Collapsed;
                 _timetables.Clear();
+                _loaded = null;
             }
             else
             {

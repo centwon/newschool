@@ -375,12 +375,66 @@ public sealed partial class StudentSpecBatchDialog : Window
 
     #region Event Handlers — Filter
 
-    private void CBoxType_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (CBoxType.SelectedItem is not string type) return;
+    // 영역·과목 선택을 [취소] 로 되돌리는 동안 SelectionChanged 가 다시 들어오지 않게 한다.
+    private bool _revertingFilter;
+    private Course? _lastCourse;
 
-        // 현재 편집 내용 캐시 저장
+    /// <summary>
+    /// 영역·과목을 바꾸기 전에 — 창을 닫을 때(<see cref="ConfirmCloseAsync"/>)처럼 미저장 변경을 묻는다.
+    /// true 면 바꿔도 된다(저장했거나 버리기로 함), false 면 바꾸지 않는다(취소·저장 실패).
+    ///
+    /// <para>예전에는 둘 다 묻지 않고 캐시를 비워(<see cref="ClearCache"/>), 여러 학생에 걸쳐 고쳐 둔
+    /// 특기사항 N건이 영역이나 과목을 한 번 바꾸는 것으로 말없이 사라졌다. 닫을 때만 물었다.
+    /// 캐시의 특기사항은 만들어질 때 제 과목·영역을 이미 갖고 있으므로, 선택이 바뀐 뒤 저장해도
+    /// 제자리에 들어간다.</para>
+    /// </summary>
+    /// <param name="whatObject">"영역을" · "과목을" (조사까지)</param>
+    private async Task<bool> ConfirmSwitchAsync(string whatObject)
+    {
         SaveCurrentToCache();
+        if (_modifiedIds.Count == 0) return true;
+
+        var dialog = new ContentDialog
+        {
+            Title = "저장하지 않은 변경사항",
+            Content = $"{whatObject} 바꾸면 {_modifiedIds.Count}건의 미저장 변경사항이 사라집니다.\n저장하고 바꿀까요?",
+            PrimaryButtonText = "저장 후 바꾸기",
+            SecondaryButtonText = "저장 안 함",
+            CloseButtonText = "취소",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.Content.XamlRoot
+        };
+
+        var result = await MessageBox.ShowDialogAsync(dialog);
+        if (result == ContentDialogResult.None) return false;   // 취소
+
+        if (result == ContentDialogResult.Primary)
+        {
+            await SaveAllAsync();
+            if (_modifiedIds.Count > 0)
+            {
+                await MessageBox.ShowAsync(
+                    $"{_modifiedIds.Count}건이 저장되지 않아 {whatObject} 바꾸지 않았습니다.\n" +
+                    "다시 저장하거나 '저장 안 함'을 골라 주세요.",
+                    "저장 실패");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private async void CBoxType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_revertingFilter || CBoxType.SelectedItem is not string type) return;
+
+        if (!await ConfirmSwitchAsync("영역을"))
+        {
+            _revertingFilter = true;
+            CBoxType.SelectedItem = _selectedType;
+            _revertingFilter = false;
+            return;
+        }
 
         _selectedType = type;
 
@@ -402,12 +456,23 @@ public sealed partial class StudentSpecBatchDialog : Window
         }
     }
 
-    private void CBoxCourse_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void CBoxCourse_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (CBoxCourse.SelectedItem is not Course) return;
+        if (_revertingFilter || CBoxCourse.SelectedItem is not Course course) return;
+
+        if (!await ConfirmSwitchAsync("과목을"))
+        {
+            if (_lastCourse != null)
+            {
+                _revertingFilter = true;
+                CBoxCourse.SelectedItem = _lastCourse;
+                _revertingFilter = false;
+            }
+            return;
+        }
+        _lastCourse = course;
 
         // 캐시 초기화 (과목이 바뀌면 다시 로드)
-        SaveCurrentToCache();
         ClearCache();
 
         if (_currentStudent != null)
@@ -477,6 +542,15 @@ public sealed partial class StudentSpecBatchDialog : Window
         if (_modifiedIds.Count == 0)
         {
             TxtSaveStatus.Text = "변경된 항목이 없습니다.";
+            return;
+        }
+
+        // 학교를 떠난 학생에게 그 뒤 날짜로 남기는 것이면 먼저 알린다 — 학생부를 저장하는 네 길이
+        // 같은 입구를 쓴다(예전에는 이 창만 묻지 않았다). 취소하면 변경 표시를 그대로 둔다.
+        var toCheck = _modifiedIds.Where(_specCache.ContainsKey).Select(id => _specCache[id]);
+        if (!await EnrollmentGuard.ConfirmSpecsAfterLeavingAsync(toCheck))
+        {
+            TxtSaveStatus.Text = "저장을 취소했습니다.";
             return;
         }
 

@@ -124,8 +124,13 @@ public sealed partial class LessonActivityPage : Page
         ShowInfoBar(message, InfoBarSeverity.Error);
     }
 
-    private void CoursePickerCtl_CourseChanged(object? sender, CourseChangedEventArgs e)
+    private async void CoursePickerCtl_CourseChanged(object? sender, CourseChangedEventArgs e)
     {
+        // 수강생을 다시 읽기 전에 — 학생을 바꿀 때(OnStudentSelected)처럼 편집 중인 학생부를
+        // 먼저 묻는다. 예전에는 수업을 바꾸면 묻지 않고 선택만 풀어, 앞 학생의 학생부 상자가
+        // 새 수업 목록 옆에 열린 채 남았고 고치던 내용은 다음 학생을 고를 때 말없이 사라졌다.
+        if (SpecBox != null) await SpecBox.ConfirmLeaveAsync();
+
         _selectedCourse = e.Course;
         _selectedRoom = e.Room;
         _selectedYear = e.Year;
@@ -142,6 +147,7 @@ public sealed partial class LessonActivityPage : Page
 
         _selectedStudent = null;
         LogList?.Logs?.Clear();
+        if (SpecBox != null) SpecBox.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>

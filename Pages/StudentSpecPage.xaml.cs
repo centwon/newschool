@@ -112,6 +112,8 @@ public sealed partial class StudentSpecPage : Page, IDisposable
 
     private async void OnQueryClick(object sender, RoutedEventArgs e)
     {
+        // 다시 읽기 전에 고친 채 저장하지 않은 행을 묻는다(예전에는 말없이 버렸다).
+        if (!await SpecListViewer.ConfirmDiscardModifiedAsync()) return;
         await LoadSpecsAsync();
     }
 
@@ -129,25 +131,9 @@ public sealed partial class StudentSpecPage : Page, IDisposable
         {
             // 학교를 떠난 학생에게 그 뒤 날짜로 기록을 남기려는 것이면 먼저 알린다.
             // 막지는 않는다 — 전출일을 뒤늦게 넣은 경우 이미 적어 둔 기록을 못 고치게 된다.
-            var notices = new List<string>();
-            var asked = new HashSet<string>();
-            foreach (var spec in selectedSpecs)
-            {
-                var sid = spec.Special.StudentID;
-                if (string.IsNullOrWhiteSpace(sid) || !asked.Add(sid)) continue;
-                if (!DateTime.TryParse(spec.Special.Date, out var recordDate)) continue;
-
-                var notice = await EnrollmentGuard.DescribeRecordAfterLeavingAsync(
-                    sid, spec.Special.Year, recordDate);
-                if (notice != null) notices.Add(notice);
-            }
-
-            if (notices.Count > 0 &&
-                !await MessageBox.ShowConfirmAsync(
-                    string.Join("\n\n", notices), "학적 확인", "계속", "취소"))
-            {
+            // (학생부를 저장하는 네 길이 같은 입구를 쓴다 — EnrollmentGuard.ConfirmSpecsAfterLeavingAsync)
+            if (!await EnrollmentGuard.ConfirmSpecsAfterLeavingAsync(selectedSpecs.Select(s => s.Special)))
                 return;
-            }
 
             var confirmed = await MessageBox.ShowConfirmAsync(
                 $"{selectedSpecs.Count}개 항목을 저장하시겠습니까?",
@@ -232,15 +218,20 @@ public sealed partial class StudentSpecPage : Page, IDisposable
     /// <summary>
     /// 일괄 입력 — BatchDialog 열기
     /// </summary>
-    private void OnBatchInputClick(object sender, RoutedEventArgs e)
+    private async void OnBatchInputClick(object sender, RoutedEventArgs e)
     {
+        // 일괄 입력 창이 닫히면 목록을 다시 읽는다(아래 OnBatchDialogClosedReload). 그때 묻지 않는
+        // 이유는 그 순간 "저장" 을 고르면 방금 일괄로 넣은 내용을 옛 행으로 덮어쓰기 때문이다 —
+        // 그러니 창을 열기 전에 묻는다.
+        if (!await SpecListViewer.ConfirmDiscardModifiedAsync()) return;
+
         int year = YearSemPicker.Year;
         int grade = ClassFilter.Grade;
         int classNo = ClassFilter.ClassNum;
 
         if (year == 0 || grade == 0 || classNo == 0)
         {
-            _ = MessageBox.ShowAsync("학년도, 학년, 반을 모두 선택해주세요", "알림");
+            await MessageBox.ShowAsync("학년도, 학년, 반을 모두 선택해주세요", "알림");
             return;
         }
 

@@ -47,6 +47,26 @@ public sealed partial class CourseSpecPage : Page, IDisposable
     /// </summary>
     private async void CoursePickerCtl_CourseChanged(object? sender, CourseChangedEventArgs e)
     {
+        // 수업을 바꾸면 목록을 다시 읽는다 — 그 전에 고친 채 저장하지 않은 세특을 묻는다(예전에는
+        // 말없이 버렸다). 수업 선택은 이미 바뀐 뒤라 [취소] 로 멈추지 않고 저장할지 버릴지만 고른다.
+        // 저장 대상은 앞 수업의 행 그 자체라 제 수업에 들어간다.
+        var modified = SpecListViewer.ModifiedSpecs;
+        if (modified.Count > 0 &&
+            await MessageBox.ShowConfirmAsync(
+                $"고친 뒤 저장하지 않은 세특이 {modified.Count}건 있습니다.\n저장하고 수업을 바꿀까요?",
+                "저장하지 않은 변경", "저장하고 바꾸기", "버리기"))
+        {
+            try
+            {
+                await SaveSpecsAsync(modified);
+            }
+            catch (Exception ex)
+            {
+                await MessageBox.ShowAsync(
+                    $"저장 중 오류가 발생했습니다: {ex.Message}\n고친 내용은 저장되지 않았습니다.", "오류");
+            }
+        }
+
         _selectedCourse = e.Course;
         _selectedYear = e.Year;
         _currentStudents = e.Students
@@ -61,6 +81,29 @@ public sealed partial class CourseSpecPage : Page, IDisposable
     #endregion
 
     #region Event Handlers - Buttons
+
+    /// <summary>
+    /// 세특을 저장한다 — [저장] 과 수업을 바꿀 때의 "저장하고 바꾸기" 가 같이 쓴다.
+    /// 예외는 부르는 쪽이 처리한다(한 트랜잭션이라 실패하면 한 건도 들어가지 않는다).
+    /// </summary>
+    /// <returns>저장했으면 true, 학적 확인에서 취소했으면 false.</returns>
+    private async Task<bool> SaveSpecsAsync(List<StudentSpecialViewModel> specs)
+    {
+        // 신규(No==0) + 내용 없음은 빈 행을 만들지 않도록 저장 대상에서 제외
+        var toSave = specs
+            .Where(s => s.Special.No > 0 || !string.IsNullOrWhiteSpace(s.Special.Content))
+            .ToList();
+
+        // 학생부를 저장하는 네 길이 같은 학적 확인을 받는다 — 예전에는 학생부 화면만 했고,
+        // 같은 표를 저장하는 이 화면은 빠져 있었다.
+        if (!await EnrollmentGuard.ConfirmSpecsAfterLeavingAsync(toSave.Select(s => s.Special)))
+            return false;
+
+        await _specialService.SaveManyAsync(toSave.Select(s => s.Special));
+        foreach (var spec in toSave)
+            spec.MarkAsSaved();
+        return true;
+    }
 
     private async void OnSaveClick(object sender, RoutedEventArgs e)
     {
@@ -78,21 +121,8 @@ public sealed partial class CourseSpecPage : Page, IDisposable
                 $"{selectedSpecs.Count}개 항목을 저장하시겠습니까?",
                 "저장 확인", "저장", "취소");
 
-            if (confirmed)
-            {
-                // 신규(No==0) + 내용 없음은 빈 행을 만들지 않도록 저장 대상에서 제외
-                var toSave = selectedSpecs
-                    .Where(s => s.Special.No > 0 || !string.IsNullOrWhiteSpace(s.Special.Content))
-                    .ToList();
-
-                await _specialService.SaveManyAsync(toSave.Select(s => s.Special));
-                foreach (var spec in toSave)
-                {
-                    spec.MarkAsSaved();
-                }
-
+            if (confirmed && await SaveSpecsAsync(selectedSpecs))
                 await MessageBox.ShowAsync("저장되었습니다", "완료");
-            }
         }
         catch (Exception ex)
         {

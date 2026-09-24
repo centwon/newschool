@@ -184,4 +184,46 @@ public sealed class EnrollmentGuardTests : IClassFixture<SqliteTestFixture>
         Assert.Null(await EnrollmentGuard.DescribeExistingRecordsAfterAsync(
             sid, year, EnrollmentChange.Promoted, new DateTime(year, 3, 2), _db.DbPath));
     }
+
+    /// <summary>
+    /// 학생부를 저장하는 모든 경로가 학적 확인(<c>ConfirmSpecsAfterLeavingAsync</c>)을 거친다.
+    ///
+    /// <para>학생부를 저장하는 길은 넷인데(학생부 화면·교과 세특 화면·일괄 입력 창·학생부 상자)
+    /// 오랫동안 학생부 화면 하나만 이 확인을 했다. <c>EnrollmentGuard</c> 의 주석이 "모든 경로가
+    /// 불러야 한다" 고 적어 두었는데도 새 경로가 생길 때마다 빠졌다 — 그래서 소스로 센다.</para>
+    /// </summary>
+    [Fact]
+    public void 학생부를_저장하는_곳은_모두_학적_확인을_거친다()
+    {
+        var dir = new System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory());
+        while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "NewSchool.csproj")))
+            dir = dir.Parent;
+        Assert.NotNull(dir);
+        string root = dir!.FullName;
+
+        // 학생부 서비스로 저장을 부르는 꼴 — 누가기록(logService·_logService) 저장은 제 확인을 따로 한다.
+        var saveCall = new System.Text.RegularExpressions.Regex(
+            @"\b(service|_specialService)\.(SaveManyAsync|UpdateAsync|CreateAsync)\(");
+
+        var savers = new System.Collections.Generic.List<string>();
+        var offenders = new System.Collections.Generic.List<string>();
+        foreach (var file in System.IO.Directory.EnumerateFiles(root, "*.cs", System.IO.SearchOption.AllDirectories))
+        {
+            string rel = System.IO.Path.GetRelativePath(root, file).Replace(System.IO.Path.DirectorySeparatorChar, '/');
+            if (rel.Contains("/obj/") || rel.Contains("/bin/") || rel.StartsWith("obj/") || rel.StartsWith("bin/")
+                || rel.StartsWith("NewSchool.Tests/") || rel.StartsWith("Services/")) continue;
+
+            string text = System.IO.File.ReadAllText(file);
+            if (!text.Contains("StudentSpecialService") || !saveCall.IsMatch(text)) continue;
+
+            savers.Add(rel);
+            if (!text.Contains("ConfirmSpecsAfterLeavingAsync")) offenders.Add(rel);
+        }
+
+        Assert.True(savers.Count >= 4, $"학생부를 저장하는 곳을 {savers.Count}곳밖에 못 찾았다 — 검사식이 낡았다:\n  " +
+            string.Join("\n  ", savers));
+        Assert.True(offenders.Count == 0,
+            "학생부를 저장하면서 학적 확인을 거치지 않는 곳이 있다 — EnrollmentGuard.ConfirmSpecsAfterLeavingAsync 를 부를 것:\n  " +
+            string.Join("\n  ", offenders));
+    }
 }

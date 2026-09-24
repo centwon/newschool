@@ -145,16 +145,23 @@ public sealed partial class PageStudentLog : Page, IDisposable
     /// </summary>
     private async Task LoadStudentsAsync()
     {
+        // 명단을 다시 읽기 전에 — 학생·분류를 바꿀 때처럼 고치던 기록과 학생부를 먼저 묻는다
+        // (학생 정보 화면의 LoadStudentListAsync 와 같은 규칙). 예전에는 학급을 바꾸면 묻지 않고
+        // 목록을 비워서 고치던 기록이 말없이 사라졌고, 학생부 상자는 앞 학생의 것이 열린 채 남았다.
+        await CheckUnSavedAsync();
+        if (SpecBox != null) await SpecBox.ConfirmLeaveAsync();
+
         try
         {
             using var service = new EnrollmentService();
             // 명부는 학년 단위다 - 학기로 거르면 1학기에 등록한 학생이 2학기에 통째로 사라진다
             var enrollments = await service.GetEnrollmentsAsync(Settings.SchoolCode, _year, _grade, _classroom);
-            
+
             StudentList.LoadStudents(enrollments);
 
             _selectedStudent = null;
             LogList?.Logs?.Clear();
+            UpdateSpecBoxVisibility();   // 선택이 없으니 학생부 상자를 닫는다
         }
         catch (Exception ex)
         {
@@ -774,6 +781,8 @@ public sealed partial class PageStudentLog : Page, IDisposable
         {
             if (SpecBox != null)
                 SpecBox.Visibility = Visibility.Collapsed;
+            // 아래 default 갈래처럼 보기 체크 상자도 함께 닫는다 — 학생이 없는데 [학생부 보기] 만 남았다.
+            ChkShowSpec.Visibility = Visibility.Collapsed;
             return;
         }
 

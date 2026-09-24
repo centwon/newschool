@@ -68,6 +68,7 @@ public class LoadSandboxSeeder
         await SeedSchoolSchedulesAsync(school);
         await SeedClassDiariesAsync(school);
         await SeedCalendarEventsAsync(scheduler);
+        await SeedClubsAsync(school);
 
         SqliteConnection.ClearAllPools();
     }
@@ -303,6 +304,41 @@ public class LoadSandboxSeeder
     }
 
     /// <summary>학급일지 120일치 — 목록 창의 기간 조회가 관심사다.</summary>
+    /// <summary>
+    /// 동아리 둘 — 부원 셋(1반 1~3번)인 동아리와 부원 없는 동아리.
+    /// 동아리를 바꿀 때 앞 동아리의 선택이 남는지(부원 없는 쪽으로 바꾸면 일찍 return 하던 갈래)를 본다.
+    /// </summary>
+    private static async Task SeedClubsAsync(string school)
+    {
+        using var clubs = new ClubRepository(school);
+        int science = await clubs.CreateAsync(new Club
+        {
+            SchoolCode = TestData.SchoolCode, TeacherID = TestData.TeacherId, Year = TestData.Year,
+            ClubName = "과학탐구반", ActivityRoom = "과학실", Remark = string.Empty,
+            CreatedAt = DateTime.Now, UpdatedAt = DateTime.Now,
+        });
+        await clubs.CreateAsync(new Club
+        {
+            SchoolCode = TestData.SchoolCode, TeacherID = TestData.TeacherId, Year = TestData.Year,
+            ClubName = "신설반(부원 없음)", ActivityRoom = string.Empty, Remark = string.Empty,
+            CreatedAt = DateTime.Now, UpdatedAt = DateTime.Now,
+        });
+
+        var enrollmentNos = new List<int>();
+        using (var conn = new SqliteConnection($"Data Source={school}"))
+        {
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT No FROM Enrollment WHERE Grade = 3 AND Class = 1 AND Number IN (1, 2, 3) ORDER BY Number";
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) enrollmentNos.Add(reader.GetInt32(0));
+        }
+
+        using var members = new ClubEnrollmentRepository(school);
+        foreach (int no in enrollmentNos)
+            await members.CreateAsync(new ClubEnrollment { EnrollmentNo = no, ClubNo = science, Status = "활동중", Remark = string.Empty });
+    }
+
     private static async Task SeedClassDiariesAsync(string school)
     {
         using var diaries = new ClassDiaryRepository(school);

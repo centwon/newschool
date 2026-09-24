@@ -25,6 +25,7 @@ public sealed partial class StudentSpecBox : UserControl
     #region Fields
 
     private StudentSpecial? _special;
+    private StudentSpecial? _leavingCheckedFor;   // 학적 확인을 이미 받은 특기사항(아래 SaveInternalAsync)
     private bool _isModified = false;
     private string _originalContent = string.Empty;
     private string _originalTitle = string.Empty;
@@ -386,6 +387,16 @@ public sealed partial class StudentSpecBox : UserControl
     {
         if (_special == null)
             return false;
+
+        // 학교를 떠난 학생에게 그 뒤 날짜로 남기는 것이면 먼저 알린다 — 학생부를 저장하는 네 길이
+        // 같은 입구를 쓴다(예전에는 이 상자가 빠져 있었다). 칸을 떠날 때마다 자동 저장하므로 같은
+        // 특기사항에는 한 번만 묻는다. 취소하면 저장하지 않고 변경 표시를 남긴다.
+        if (!ReferenceEquals(_leavingCheckedFor, _special))
+        {
+            if (!await EnrollmentGuard.ConfirmSpecsAfterLeavingAsync(new[] { _special }))
+                return false;
+            _leavingCheckedFor = _special;
+        }
 
         try
         {
