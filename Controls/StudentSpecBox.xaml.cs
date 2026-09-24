@@ -529,5 +529,22 @@ public sealed partial class StudentSpecBox : UserControl
         return true;
     }
 
+    /// <summary>
+    /// <b>멈출 수 없는 전환</b>(학급·동아리·수업을 이미 바꾼 뒤 목록을 다시 읽을 때) 앞에서 부른다.
+    /// <see cref="ConfirmLeaveAsync"/> 와 같이 묻되, 저장을 골랐는데 저장하지 못했으면(학적 확인에서
+    /// 취소, 마감된 기록, 저장 실패) 고친 것을 버리고 그렇다고 알린다.
+    ///
+    /// <para>예전에는 결과를 보지 않아 고친 것이 말없이 사라졌고, 버리지도 않아 다음에 학생을
+    /// 고를 때 이미 떠난 앞 학생의 학생부를 저장할지 다시 물었다.</para>
+    /// </summary>
+    public async Task LeaveAsync()
+    {
+        if (await ConfirmLeaveAsync()) return;
+
+        DiscardChanges();
+        await MessageBox.ShowAsync(
+            "학생부를 저장하지 않았습니다. 고친 내용은 버렸습니다.", "저장하지 않음");
+    }
+
     #endregion
 }

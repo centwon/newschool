@@ -149,7 +149,8 @@ public sealed partial class PageStudentLog : Page, IDisposable
         // (학생 정보 화면의 LoadStudentListAsync 와 같은 규칙). 예전에는 학급을 바꾸면 묻지 않고
         // 목록을 비워서 고치던 기록이 말없이 사라졌고, 학생부 상자는 앞 학생의 것이 열린 채 남았다.
         await CheckUnSavedAsync();
-        if (SpecBox != null) await SpecBox.ConfirmLeaveAsync();
+        // 학급은 이미 바뀌었으니 멈추지 않는다 — 저장하지 못했으면 버리고 알린다(LeaveAsync).
+        if (SpecBox != null) await SpecBox.LeaveAsync();
 
         try
         {
@@ -736,10 +737,15 @@ public sealed partial class PageStudentLog : Page, IDisposable
             var modifiedLogs = LogList.Logs.Where(vm => vm.IsSelected).ToList();
             if (modifiedLogs.Count == 0) return;
 
-            // 학생을 바꾸기 직전의 저장도 같은 학적 검사를 받는다.
+            // 학생을 바꾸기 직전의 저장도 같은 학적 검사를 받는다. 여기서 취소하면 저장하지 않는데,
+            // 부르는 쪽(학생·학급·분류 바꾸기)은 멈추지 않고 목록을 다시 읽으므로 버려진다고 알린다.
             if (!await EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
                     modifiedLogs.Select(v => ((string?)v.StudentLog.StudentID, v.StudentLog.Year, v.StudentLog.Date))))
+            {
+                await MessageBox.ShowAsync(
+                    $"고친 기록 {modifiedLogs.Count}건을 저장하지 않았습니다. 고친 내용은 버렸습니다.", "저장하지 않음");
                 return;
+            }
 
             foreach (var logViewModel in modifiedLogs)
             {

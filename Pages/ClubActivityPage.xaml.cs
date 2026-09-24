@@ -147,7 +147,8 @@ public sealed partial class ClubActivityPage : Page
         // 예전에는 선택 초기화가 부원을 다 읽은 "끝" 에만 있어서, 부원이 없는 동아리로 바꾸면
         // 일찍 return 하느라 앞 동아리 학생이 선택된 채 남았다. 그 상태로 [새 기록] 을 누르면
         // 그 학생의 기록이 **그 학생이 속하지도 않은 새 동아리** 로 만들어졌다.
-        if (SpecBox != null) await SpecBox.ConfirmLeaveAsync();
+        // 동아리는 이미 바뀌었으니 멈추지 않는다 — 저장하지 못했으면 버리고 알린다(LeaveAsync).
+        if (SpecBox != null) await SpecBox.LeaveAsync();
         ClearSelectedStudent();
 
         if (_selectedClub == null)

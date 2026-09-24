@@ -58,7 +58,11 @@ public sealed partial class CourseSpecPage : Page, IDisposable
         {
             try
             {
-                await SaveSpecsAsync(modified);
+                // 학적 확인에서 취소하면 저장하지 않는다 — 수업은 이미 바뀌어 아래에서 목록을
+                // 다시 읽으므로 고친 것은 버려진다. 말없이 사라지지 않게 알린다.
+                if (!await SaveSpecsAsync(modified))
+                    await MessageBox.ShowAsync(
+                        $"고친 세특 {modified.Count}건을 저장하지 않았습니다. 고친 내용은 버렸습니다.", "저장하지 않음");
             }
             catch (Exception ex)
             {
