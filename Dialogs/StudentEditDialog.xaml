@@ -57,7 +57,9 @@
                 </Grid.ColumnDefinitions>
 
                 <NumberBox Grid.Column="0" x:Name="NumYear"   Header="학년도 *" Minimum="1900" Maximum="2200" SpinButtonPlacementMode="Hidden"/>
-                <NumberBox Grid.Column="1" x:Name="NumGrade"  Header="학년 *"   Minimum="1"    Maximum="12"   SpinButtonPlacementMode="Compact"/>
+                <!-- 학년 상한은 3(중·고등학교). 학생 추가 화면·엑셀 가져오기·초기 설정과 같은 범위다 —
+                     여기만 12 였어서 이 대화상자로는 다른 경로에서 막히는 학년이 들어갔다. -->
+                <NumberBox Grid.Column="1" x:Name="NumGrade"  Header="학년 *"   Minimum="1"    Maximum="3"    SpinButtonPlacementMode="Compact"/>
                 <NumberBox Grid.Column="2" x:Name="NumClass"  Header="반 *"     Minimum="1"    Maximum="99"   SpinButtonPlacementMode="Compact"/>
                 <NumberBox Grid.Column="3" x:Name="NumNumber" Header="번호 *"   Minimum="1"    Maximum="99"   SpinButtonPlacementMode="Compact"/>
             </Grid>

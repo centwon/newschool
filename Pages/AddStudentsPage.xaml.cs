@@ -393,8 +393,9 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
             return;
         }
 
-        // 중·고등학교라 상한은 3 이다. 엑셀 가져오기·학년 입력 상자와 같은 범위로 둔다 —
-        // 세 곳이 어긋나면 한 경로로는 들어오는 학년이 다른 경로로는 막힌다.
+        // 중·고등학교라 상한은 3 이다. 엑셀 가져오기·학년 입력 상자·학생 편집 대화상자
+        // (NumGrade)와 같은 범위로 둔다 — 어긋나면 한 경로로는 들어오는 학년이 다른
+        // 경로로는 막힌다(편집 대화상자만 12 였던 적이 있다).
         if (!int.TryParse(TxtGrade.Text, out int grade) || grade < 1 || grade > 3)
         {
             await MessageBox.ShowAsync("학년은 1~3 사이의 숫자로 입력하세요.", "오류");

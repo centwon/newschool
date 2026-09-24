@@ -37,7 +37,7 @@
                 <TextBlock Text="학년 / 반" FontWeight="SemiBold"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <NumberBox x:Name="GradeBox" AutomationProperties.Name="학년"
-                               Minimum="1" Maximum="6"
+                               Minimum="1" Maximum="3"
                                SpinButtonPlacementMode="Compact"
                                Header=""
                                MinWidth="100"
