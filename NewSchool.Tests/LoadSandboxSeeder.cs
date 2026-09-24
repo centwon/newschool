@@ -236,6 +236,9 @@ public class LoadSandboxSeeder
                     subject: subjects[(day + period) % subjects.Length], semester: 2));
 
         await courses.CreateAsync(TestData.NewCourse(grade: 3, semester: 2, rooms: "3-1"));
+
+        // 수업이 하나뿐이면 "수업을 바꿀 때" 가 드러나지 않는다(교과 세특·수업 활동 화면).
+        await courses.CreateAsync(TestData.NewCourse(subject: "수학", grade: 3, semester: 2, rooms: "3-1"));
     }
 
     /// <summary>게시판 500건. 목록이 정말 가상화되는지 보려면 이 정도는 있어야 한다.</summary>
