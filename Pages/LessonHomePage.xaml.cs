@@ -35,10 +35,25 @@ public sealed partial class LessonHomePage : Page
     private List<Course> _courses = [];
 
     /// <summary>내 시간표에서 보고 있는 주의 월요일</summary>
-    private DateTime _weekMonday = DefaultWeekMonday();
+    private DateTime _weekMonday = DefaultWeekMonday(DateTime.Today);
 
     // 오늘의 수업
     private readonly ObservableCollection<TodayLessonItem> _todayLessons = [];
+
+    /// <summary>
+    /// [오늘의 수업] 이 가리키는 날 — 불러온 날이다. 줄을 눌러 일지를 열 때도 이 날짜를 쓴다.
+    ///
+    /// <para>예전에는 누르는 순간의 <c>DateTime.Today</c> 를 썼다. 켜 둔 채 밤을 넘기면
+    /// 전날 시간표 줄이 그대로 남아 있는데 누르면 <b>오늘 날짜로 전날 수업의 교과·반</b>이
+    /// 채워진 일지가 열렸다. 이제는 날이 바뀌면 화면을 다시 읽는다(<see cref="OnMinuteTick"/>).</para>
+    /// </summary>
+    private DateTime _lessonDate = DateTime.Today;
+
+    /// <summary>[오늘의 수업] 에서 강조해 둔 교시 — 바뀌면 다시 그린다.</summary>
+    private int _shownPeriod;
+
+    /// <summary>날짜·현재 교시를 따라가는 1분 타이머(오늘 화면과 같은 방식).</summary>
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _minuteTimer;
 
     /// <summary>오늘 수업이 없을 때의 안내(XAML 기본값과 같아야 한다)</summary>
     private const string NoLessonsMessage = "오늘은 수업이 없습니다.";
@@ -52,6 +67,7 @@ public sealed partial class LessonHomePage : Page
         InitializeComponent();
         TodayLessonRepeater.ItemsSource = _todayLessons;
         Loaded += LessonHomePage_Loaded;
+        Unloaded += (_, _) => _minuteTimer?.Stop();
     }
 
     #endregion
@@ -60,8 +76,58 @@ public sealed partial class LessonHomePage : Page
 
     private async void LessonHomePage_Loaded(object sender, RoutedEventArgs e)
     {
+        if (_minuteTimer == null)
+        {
+            _minuteTimer = DispatcherQueue.CreateTimer();
+            _minuteTimer.Interval = TimeSpan.FromMinutes(1);
+            _minuteTimer.Tick += (_, _) => OnMinuteTick();
+        }
+        _minuteTimer.Start();
+
+        await LoadAllAsync();
+    }
+
+    /// <summary>
+    /// 1분마다 — 날이 바뀌었으면 화면을 통째로 다시 읽고, 교시만 바뀌었으면 강조만 옮긴다.
+    /// 예전에는 불러온 순간의 교시에 강조가 멈춰 있었다(오늘 화면은 1분마다 옮기고 있었다).
+    /// </summary>
+    private async void OnMinuteTick()
+    {
+        try
+        {
+            if (_lessonDate != DateTime.Today)
+            {
+                // 보던 주가 "처음 열 때의 주" 였으면 새 날의 기본 주로 따라간다.
+                // 사용자가 다른 주로 옮겨 둔 것은 그대로 둔다.
+                if (_weekMonday == DefaultWeekMonday(_lessonDate))
+                    _weekMonday = DefaultWeekMonday(DateTime.Today);
+
+                await LoadAllAsync();
+                return;
+            }
+
+            int period = Functions.GetPeriodNow().Index;
+            if (period == _shownPeriod) return;
+
+            _shownPeriod = period;
+            var items = _todayLessons.ToList();
+            _todayLessons.Clear();
+            foreach (var item in items)
+                _todayLessons.Add(new TodayLessonItem(item.Slot, item.ExistingPost, period));
+        }
+        catch (Exception ex)
+        {
+            // async void — 새면 앱이 죽는다. 다음 틱에 다시 해 본다.
+            NewSchool.Logging.Log.Error("LessonHomePage", "날짜·교시 갱신 실패", ex);
+        }
+    }
+
+    private async Task LoadAllAsync()
+    {
+        _lessonDate = DateTime.Today;
+
         // 페이지 헤더 날짜 표시
-        TxtPageDate.Text = DateTime.Today.ToString("yyyy년 M월 d일 (ddd)");
+        TxtPageDate.Text = _lessonDate.ToString("yyyy년 M월 d일 (ddd)");
 
         // 섹션 하나가 실패해도 나머지는 보여주되, 실패했다는 사실은 알린다.
         //
@@ -130,7 +196,7 @@ public sealed partial class LessonHomePage : Page
         {
             // 1. 오늘 예정된 수업 (평소 시간표)
             using var lessonSvc = new TeacherTimetableService();
-            var todayLessons = await lessonSvc.GetTodayLessonsAsync();
+            var todayLessons = await lessonSvc.GetMyLessonsOnAsync(_lessonDate);
 
             // 2. 과목 정보 (Subject 매핑)
             var courseDict = new Dictionary<int, Course>();
@@ -145,7 +211,7 @@ public sealed partial class LessonHomePage : Page
             //    '예정' 으로 남고 아래 "N시간 중 M건" 의 N 에도 들어갔으며, 보강은 아예
             //    나오지 않았다. 바로 옆 [내 시간표] 카드는 변경을 얹고 있었으므로
             //    한 화면이 같은 질문에 두 답을 내놓고 있었다.
-            int dayOfWeek = Helpers.SchoolCalendar.ToLessonDayOfWeek(DateTime.Today);
+            int dayOfWeek = Helpers.SchoolCalendar.ToLessonDayOfWeek(_lessonDate);
             var slots = todayLessons
                 .OrderBy(l => l.Period)
                 .Select(l => new TimetableItemViewModel
@@ -159,13 +225,14 @@ public sealed partial class LessonHomePage : Page
                 })
                 .ToList();
 
-            slots = await TeacherTimetableService.ApplyDayChangesAsync(slots, DateTime.Today);
+            slots = await TeacherTimetableService.ApplyDayChangesAsync(slots, _lessonDate);
 
             // 4. 오늘 이미 써 둔 수업 일지 (교시별)
-            var todayJournals = await LoadTodayJournalsAsync(DateTime.Today);
+            var todayJournals = await LoadTodayJournalsAsync(_lessonDate);
 
             // 5. 현재 교시 — 학교 교시 설정을 따르는 계산을 오늘 화면과 함께 쓴다
             int currentPeriod = Functions.GetPeriodNow().Index;
+            _shownPeriod = currentPeriod;
 
             // 6. TodayLessonItem 빌드
             _todayLessons.Clear();
@@ -254,7 +321,7 @@ public sealed partial class LessonHomePage : Page
         bool saved = item.ExistingPost != null
             ? await LessonJournalComposer.OpenPostAsync(item.ExistingPost.No)
             : await LessonJournalComposer.ComposeAsync(new LessonSlotSeed(
-                DateTime.Today,
+                _lessonDate,
                 item.Period,
                 item.CourseNo,
                 item.Subject,
@@ -322,10 +389,8 @@ public sealed partial class LessonHomePage : Page
     /// 처음 열 때 보여줄 주. <b>주말이면 다가오는 주</b>를 연다 —
     /// 일요일에 이미 끝난 주를 펼쳐 봐야 쓸모가 없다.
     /// </summary>
-    private static DateTime DefaultWeekMonday()
+    private static DateTime DefaultWeekMonday(DateTime today)
     {
-        var today = DateTime.Today;
-
         return today.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday
             ? MondayOf(today).AddDays(7)
             : MondayOf(today);

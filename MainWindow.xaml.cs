@@ -36,7 +36,7 @@ public sealed partial class MainWindow : Window
         // 보조 창이 닫힌 뒤 대화상자가 돌아올 자리. 등록해 두면 활성 창을 따라간다.
         Controls.MessageBox.TrackWindow(this);
 
-        this.Title = $"{Settings.SchoolName} - {DateTime.Now:yyyy년 M월 d일 dddd}";
+        UpdateTitle();
 
         // 저장된 테마 복원 — 없으면 다크로 바꿔 두고 앱을 껐다 켰을 때 라이트로 돌아온다.
         Helpers.ThemeHelper.Apply(this);
@@ -53,7 +53,94 @@ public sealed partial class MainWindow : Window
         _currentNavItem = NavView.MenuItems[0] as NavigationViewItem;
         WorkFrame.Navigate(typeof(TodayPage));
         SetAppIcon();
+
+        CheckWorkTerm();
+        StartDayWatch();
     }
+
+    #region 날짜가 바뀔 때
+
+    /// <summary>마지막으로 확인한 "오늘" — 앱을 켜 둔 채 자정을 넘겼는지 가린다.</summary>
+    private DateTime _knownToday = DateTime.Today;
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _dayTimer;
+
+    /// <summary>제목 표시줄의 학교 이름과 오늘 날짜.</summary>
+    private void UpdateTitle()
+        => this.Title = $"{Settings.SchoolName} - {DateTime.Today:yyyy년 M월 d일 dddd}";
+
+    /// <summary>
+    /// 1분마다 날짜가 바뀌었는지 본다. 예전에는 제목의 날짜를 창을 만들 때 한 번만 적어서,
+    /// 켜 둔 채 밤을 넘기면 다음 날에도 전날 날짜가 제목 표시줄과 작업 표시줄에 남았다.
+    /// 화면 안의 "오늘" 은 각 화면(오늘·수업 홈)이 스스로 다시 읽는다.
+    /// </summary>
+    private void StartDayWatch()
+    {
+        _dayTimer = DispatcherQueue.CreateTimer();
+        _dayTimer.Interval = TimeSpan.FromMinutes(1);
+        _dayTimer.Tick += (_, _) =>
+        {
+            if (_knownToday == DateTime.Today) return;
+
+            _knownToday = DateTime.Today;
+            UpdateTitle();
+            CheckWorkTerm();
+        };
+        _dayTimer.Start();
+        Closed += (_, _) => _dayTimer?.Stop();
+    }
+
+    /// <summary>
+    /// 작업 학년도·학기가 오늘보다 뒤처졌으면 위쪽 알림으로 묻는다(<see cref="Helpers.WorkTerm"/>).
+    /// 3월·9월이 지나도 설정은 그대로라, 모르고 쓰면 오늘 시간표가 지난 학기 것으로 뜨고
+    /// 새 기록이 지난 학기로 저장된다.
+    /// </summary>
+    public void CheckWorkTerm()
+    {
+        var term = Helpers.WorkTerm.BehindToday(
+            Settings.WorkYear.Value, Settings.WorkSemester.Value,
+            Settings.WorkTermNoticeDismissed.Value, DateTime.Today);
+
+        if (term is not { } t)
+        {
+            WorkTermInfoBar.IsOpen = false;
+            return;
+        }
+
+        WorkTermInfoBar.Message =
+            $"작업 학년도·학기가 {Settings.WorkYear.Value}학년도 {Settings.WorkSemester.Value}학기로 되어 있습니다. " +
+            "이대로 쓰면 시간표·기록이 그 학기 기준으로 보이고 저장됩니다.";
+        BtnWorkTermApply.Content = $"{t.Year}학년도 {t.Semester}학기로 바꾸기";
+        BtnWorkTermApply.Tag = t;
+        WorkTermInfoBar.IsOpen = true;
+    }
+
+    private void OnWorkTermApplyClick(object sender, RoutedEventArgs e)
+    {
+        if (BtnWorkTermApply.Tag is not ValueTuple<int, int> t) return;
+
+        Settings.WorkYear.Set(t.Item1);
+        Settings.WorkSemester.Set(t.Item2);
+        WorkTermInfoBar.IsOpen = false;
+
+        // 이미 떠 있는 화면은 옛 학기로 읽어 둔 것이다. 읽기만 하는 첫 화면들은 새로 연다 —
+        // 편집 중일 수 있는 다른 화면은 건드리지 않는다(다시 열면 새 학기로 보인다).
+        if (WorkFrame.Content is TodayPage or LessonHomePage)
+        {
+            WorkFrame.Navigate(WorkFrame.Content.GetType());
+            WorkFrame.BackStack.Clear();
+        }
+    }
+
+    private void OnWorkTermKeepClick(object sender, RoutedEventArgs e)
+    {
+        if (BtnWorkTermApply.Tag is ValueTuple<int, int> t)
+            Settings.WorkTermNoticeDismissed.Set(Helpers.WorkTerm.KeyOf(t.Item1, t.Item2));
+
+        WorkTermInfoBar.IsOpen = false;
+    }
+
+    #endregion
 
     /// <summary>
     /// 페이지 안에서 다른 메뉴로 넘어갈 때 쓴다 — 화면과 상단 메뉴 표시를 함께 옮긴다.

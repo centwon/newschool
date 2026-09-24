@@ -219,6 +219,9 @@ public sealed partial class SettingsPage : Page
         if (!_isInitialized) return;
         if (!double.IsNaN(args.NewValue))
             Settings.WorkYear.Set((int)args.NewValue);
+
+        // 여기서 맞췄으면 "학기가 바뀌었습니다" 알림도 걷는다.
+        (App.MainWindow as MainWindow)?.CheckWorkTerm();
     }
 
     private void OnWorkSemesterChanged(object sender, SelectionChangedEventArgs e)
@@ -232,6 +235,8 @@ public sealed partial class SettingsPage : Page
             if (int.TryParse(item.Tag?.ToString(), out int semester))
                 Settings.WorkSemester.Set(semester);
         }
+
+        (App.MainWindow as MainWindow)?.CheckWorkTerm();
     }
 
     #endregion

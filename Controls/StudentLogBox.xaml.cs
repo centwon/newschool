@@ -131,17 +131,28 @@ public sealed partial class StudentLogBox : UserControl
     {
         int v = YearSemPicker.Semester;
         if (v is 1 or 2) return v;
-        return fallback is 1 or 2 ? fallback : DateTimeHelper.SemesterOf(DateTime.Today);
+        return fallback is 1 or 2 ? fallback : DefaultSemester();
     }
+
+    /// <summary>
+    /// 새 기록의 학기 — 학년도와 같이 <b>작업 학기</b>를 따른다. 작업 학기가 없을 때만 날짜로 짐작한다.
+    ///
+    /// <para>예전에는 학년도는 작업 학년도, 학기는 오늘 날짜로 잡아 둘이 따로 놀았다. 9월에 작업
+    /// 학기를 1학기로 둔 채 쓰면 새 기록만 2학기로 저장되어, 1학기로 거른 목록(다른 화면은 모두
+    /// 작업 학기를 쓴다)에서 방금 쓴 기록이 빠졌다. 작업 학기가 달력보다 뒤처진 것은
+    /// 메인 창이 알린다(<see cref="Helpers.WorkTerm"/>).</para>
+    /// </summary>
+    private static int DefaultSemester()
+        => Settings.WorkSemester.Value is 1 or 2
+            ? Settings.WorkSemester.Value
+            : DateTimeHelper.SemesterOf(DateTime.Today);
 
     #endregion
 
     /// <summary>기본값 초기화</summary>
     private void InitializeDefaultValues()
     {
-        // 학기 규칙은 DateTimeHelper 한 곳에서만 정한다(여기 있던 `Month <= 6` 은
-        // 7·8월과 1·2월에 학기를 뒤집었다 — 3~8월이 1학기다).
-        RequestYearSemester(Settings.WorkYear.Value, DateTimeHelper.SemesterOf(DateTime.Today));
+        RequestYearSemester(Settings.WorkYear.Value, DefaultSemester());
         DatePickerLog.Date = DateTimeOffset.Now;
         CBoxCategory.SelectedIndex = 0;
     }

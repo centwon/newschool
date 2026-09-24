@@ -53,15 +53,17 @@ public class TeacherTimetableService : IDisposable
     #region 교사 시간표 조회
 
     /// <summary>
-    /// 오늘 내 수업. <c>Settings</c> 의 "나·오늘·올해·이번 학기" 를 묶는 자리다.
+    /// 그 날 내 수업. <c>Settings</c> 의 "나·올해·이번 학기" 를 묶는 자리다.
     ///
     /// <para>학년도·학기를 함께 넘기는 것이 중요하다 — 빼면 작년 같은 요일 수업이 섞인다.</para>
+    /// <para>날짜는 부르는 쪽이 준다 — 수업 홈은 불러온 날을 기억해 두고 줄을 누를 때도 그 날을
+    /// 쓴다. 여기서 <c>DateTime.Today</c> 를 다시 읽으면 자정을 넘긴 새로고침이 머리 날짜와 어긋난다.</para>
     /// </summary>
-    public async Task<List<Lesson>> GetTodayLessonsAsync()
+    public async Task<List<Lesson>> GetMyLessonsOnAsync(DateTime date)
     {
         return await _lessonRepository.GetByDateAsync(
             Settings.User.Value,
-            DateTime.Today,
+            date,
             Settings.WorkYear.Value,
             Settings.WorkSemester.Value);
     }

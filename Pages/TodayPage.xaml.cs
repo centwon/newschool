@@ -151,6 +151,23 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
         }
     }
 
+    /// <summary>보는 날짜와 상관없이 오늘을 기준으로 하는 두 카드만 다시 읽는다.</summary>
+    private async Task ReloadTodayAnchoredAsync()
+    {
+        var failed = new List<string>();
+
+        await Task.WhenAll(
+            SafeLoadAsync("학사일정",  () => ScheduleList.LoadSchedulesAsync(DateTime.Today, 28, true), failed),
+            SafeLoadAsync("할 일/일정", () => AgendaList.LoadPendingAndFutureAsync(), failed));
+
+        if (failed.Count > 0 && App.MainWindow is MainWindow main)
+        {
+            main.ShowGlobalWarning(
+                "일부 정보를 불러오지 못했습니다",
+                $"{string.Join(", ", failed)} — 새로고침하거나 잠시 후 다시 확인해주세요.");
+        }
+    }
+
     /// <summary>
     /// 날짜 헤더 갱신. 오늘이 아니면 [오늘] 버튼과 안내를 띄우고 현재 교시 배지를 감춘다 —
     /// 다른 날짜에서 "3교시"는 참이 아니다.
@@ -246,6 +263,10 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
             else
             {
                 UpdateDateHeader();
+
+                // 보던 날은 두되, 오늘을 기준으로 하는 카드(학사일정·할 일)는 새 오늘로 옮긴다 —
+                // 예전에는 이것까지 전날 기준으로 남았다.
+                _ = ReloadTodayAnchoredAsync();
             }
         }
 

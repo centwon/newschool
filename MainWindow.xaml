@@ -266,7 +266,36 @@
             </NavigationView.MenuItems>
 
             <!-- 콘텐츠 영역 -->
-            <Frame x:Name="WorkFrame" NavigationFailed="WorkFrame_NavigationFailed"/>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 작업 학년도·학기가 달력보다 뒤처졌을 때 (Helpers.WorkTerm) -->
+                <InfoBar
+                    x:Name="WorkTermInfoBar"
+                    IsOpen="False"
+                    IsClosable="True"
+                    Severity="Informational"
+                    Title="학기가 바뀌었습니다"
+                    Margin="12,8,12,0">
+                    <InfoBar.Content>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+                            <Button
+                                x:Name="BtnWorkTermApply"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Click="OnWorkTermApplyClick"/>
+                            <Button
+                                x:Name="BtnWorkTermKeep"
+                                Content="그대로 두기"
+                                Click="OnWorkTermKeepClick"/>
+                        </StackPanel>
+                    </InfoBar.Content>
+                </InfoBar>
+
+                <Frame x:Name="WorkFrame" Grid.Row="1" NavigationFailed="WorkFrame_NavigationFailed"/>
+            </Grid>
 
             <!--<ScrollViewer
                 Margin="4,8,4,4"

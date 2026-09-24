@@ -295,6 +295,12 @@ public static class Settings
     /// <summary>학생부 유형별 바이트 제한 오버라이드 ("유형=값;..." 형식, 빈 값=코드 기본값). 정책 변경 시 재빌드 없이 수정.</summary>
     public static SettingProperty<string> SpecByteLimits { get; private set; } = null!;
     public static SettingProperty<int> WorkSemester { get; private set; } = null!;
+
+    /// <summary>
+    /// 작업 학년도·학기가 뒤처졌다는 알림에서 [그대로 두기] 를 누른 학기("2027-1").
+    /// 그 학기 동안은 다시 묻지 않는다 — <see cref="Helpers.WorkTerm"/>.
+    /// </summary>
+    public static SettingProperty<string> WorkTermNoticeDismissed { get; private set; } = null!;
     public static SettingProperty<bool> TopMost { get; private set; } = null!;
     public static SettingProperty<string> UserName { get; private set; } = null!;
 
@@ -420,6 +426,7 @@ public static class Settings
         NeisApiKey = new SettingProperty<string>("NeisApiKey", NewSchool.Services.SecretsService.NeisApiKey, s => s, s => s);
         SpecByteLimits = new SettingProperty<string>("SpecByteLimits", "", s => s, s => s);
         WorkSemester = new SettingProperty<int>("WorkSemester", 0, int.Parse, i => i.ToString());
+        WorkTermNoticeDismissed = new SettingProperty<string>("WorkTermNoticeDismissed", "", s => s, s => s);
         TopMost = new SettingProperty<bool>("TopMost", false, bool.Parse, b => b.ToString().ToLower());
         UserName = new SettingProperty<string>("UserName", "", s => s, s => s);
         IsNeisEventDownloaded = new SettingProperty<bool>("IsNeisEventDownloaded", false, bool.Parse, b => b.ToString().ToLower());
@@ -516,6 +523,7 @@ public static class Settings
         NeisApiKey.Reload();
         SpecByteLimits.Reload();
         WorkSemester.Reload();
+        WorkTermNoticeDismissed.Reload();
         TopMost.Reload();
         StartWithWindows.Reload();
         AutoBackup.Reload();

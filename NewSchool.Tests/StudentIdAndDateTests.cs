@@ -120,14 +120,47 @@ public class StudentIdAndDateTests
     }
 
     /// <summary>
+    /// 작업 학년도·학기가 달력보다 <b>뒤처졌을 때만</b> 알린다(<c>Helpers.WorkTerm</c>).
+    /// 앞선 것(2월에 새 학년도를 미리 준비)은 묻지 않고, [그대로 두기] 한 학기도 다시 묻지 않는다.
+    /// </summary>
+    [Theory]
+    [InlineData(2026, 1, "", 2026, 9, 2, 2026, 2)]           // 9월인데 1학기 → 2학기로
+    [InlineData(2026, 2, "", 2027, 3, 2, 2027, 1)]           // 새 학년도 첫날
+    [InlineData(2025, 2, "", 2026, 9, 24, 2026, 2)]          // 한 해 넘게 뒤처짐
+    [InlineData(2026, 0, "", 2026, 3, 2, 2026, 1)]           // 학기 미설정
+    public void WorkTerm_뒤처지면_오늘의_학기를_준다(
+        int workYear, int workSemester, string dismissed, int y, int m, int d, int expYear, int expSemester)
+    {
+        var term = NewSchool.Helpers.WorkTerm.BehindToday(workYear, workSemester, dismissed, new DateTime(y, m, d));
+        Assert.Equal((expYear, expSemester), term);
+    }
+
+    [Theory]
+    [InlineData(2026, 2, "", 2026, 9, 1)]         // 맞음
+    [InlineData(2026, 2, "", 2027, 2, 20)]        // 2월은 아직 지난 학년도 2학기
+    [InlineData(2027, 1, "", 2027, 2, 20)]        // 새 학년도를 미리 준비 — 앞선 것
+    [InlineData(2026, 1, "2026-2", 2026, 10, 1)]  // 이 학기에 [그대로 두기]
+    [InlineData(0, 0, "", 2026, 9, 1)]            // 초기 설정 전
+    public void WorkTerm_맞거나_앞서거나_그대로_두기면_묻지_않는다(
+        int workYear, int workSemester, string dismissed, int y, int m, int d)
+        => Assert.Null(NewSchool.Helpers.WorkTerm.BehindToday(workYear, workSemester, dismissed, new DateTime(y, m, d)));
+
+    [Fact]
+    public void WorkTerm_그대로_두기는_다음_학기에_다시_묻는다()
+    {
+        string dismissed = NewSchool.Helpers.WorkTerm.KeyOf(2026, 2);
+        Assert.Equal((2027, 1), NewSchool.Helpers.WorkTerm.BehindToday(2026, 1, dismissed, new DateTime(2027, 3, 2)));
+    }
+
+    /// <summary>
     /// 학년도 기본값을 달력 연도로 잡는 자리가 없어야 한다.
     ///
     /// <para><c>SchoolYearOf</c> 를 만든 뒤에도 학생 추가 화면·학생부 입력 칸·동아리·학사일정
     /// 목록·설정의 대체값·모델 기본값 등 열다섯 곳이 <c>DateTime.Today.Year</c> 를 그대로 학년도로
     /// 썼다. 1·2월에만 드러나는 병이라 눈으로는 잡히지 않는다.</para>
     ///
-    /// <para>달력 연도가 맞는 자리만 허용한다 — 달 선택기(달력의 연도)와 "3/2" 같은 월·일 글을
-    /// 날짜로 바꾸는 <c>Tools</c>.</para>
+    /// <para>달력 연도가 맞는 자리만 허용한다 — 달 선택기(달력의 연도). "3/2" 같은 월·일 글을
+    /// 날짜로 바꾸던 <c>Tools.cs</c> 는 쓰는 곳이 없어 지웠다(2026-09-24).</para>
     /// </summary>
     [Fact]
     public void 학년도를_달력_연도로_잡지_않는다()
@@ -141,7 +174,6 @@ public class StudentIdAndDateTests
         var calendarYearIsRight = new System.Collections.Generic.HashSet<string>
         {
             "Controls/MonthPicker.xaml.cs",
-            "Tools.cs",
         };
 
         var offenders = new System.Collections.Generic.List<string>();
