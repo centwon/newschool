@@ -111,6 +111,24 @@ public class PrintOutputGuardTests
     }
 
     /// <summary>
+    /// 게시본에서 Lato 를 빼는 것(csproj)과 "없는 글꼴이면 멈춤" 을 끄는 것(PdfLibrarySetup)은 짝이다.
+    ///
+    /// <para>시험 폴더에는 Lato 가 그대로 복사되므로 위 시험은 Lato 가 없을 때를 재현하지 못한다 —
+    /// 그래서 짝이 맞는지를 따로 본다. 한쪽만 바뀌면: Lato 를 넣으면 PDF 의 영문·숫자가 지금까지
+    /// 게시한 판(Segoe UI)과 달라지고, 멈춤을 켜면 게시본의 PDF 가 전부 실패한다(2026-09-24 실측).</para>
+    /// </summary>
+    [Fact]
+    public void Lato_를_빼는_것과_글꼴_멈춤_해제는_짝이다()
+    {
+        string csproj = Read("NewSchool.csproj");
+        Assert.Contains("StartsWith('QuestPDF.Fonts.Lato')", csproj);
+
+        NewSchool.Helpers.PdfLibrarySetup.Apply();
+        Assert.False(QuestPDF.Settings.ThrowOnMissingFontFamilies,
+            "게시본에는 Lato 가 없다 — 없는 글꼴에서 멈추면 PDF 가 전부 실패한다.");
+    }
+
+    /// <summary>
     /// 같은 규칙의 다른 꼴 — <c>Process.Start</c> 를 직접 부르는 자리도 정해진 곳뿐이어야 한다.
     ///
     /// <para>위 검사는 <c>file:///</c> 꼴만 봐서, 누가기록 인쇄·누가기록/학생부 일괄 출력 세 곳이

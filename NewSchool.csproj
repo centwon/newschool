@@ -348,10 +348,15 @@
     </None>
   </ItemGroup>
 
-  <!-- QuestPDF LatoFont 출력 제외 (~12MB 절약, 코드에서 미사용) -->
+  <!-- QuestPDF 내장 글꼴(Lato) 출력 제외 — 코드에서 쓰지 않는다.
+       2026.8 까지는 LatoFont 폴더(~12MB), 2026.9 부터는 QuestPDF.Fonts.Lato.br 한 파일(~3MB)이다.
+       이름이 바뀐 것을 몰라 2026.9 로 올린 뒤 한동안 .br 이 게시본에 들어갔고, 그러자 PDF 의
+       영문·숫자가 Segoe UI(지금까지 게시한 판) 대신 Lato 로 바뀌었다(2026-09-24 실측).
+       ⚠ Lato 가 없으면 QuestPDF 는 기본 글꼴을 못 찾아 생성을 멈춘다 — Helpers.PdfLibrarySetup 의
+       ThrowOnMissingFontFamilies = false 와 짝이다. 둘 중 하나만 바꾸지 말 것. -->
   <Target Name="RemoveQuestPdfLaToFont" BeforeTargets="AssignTargetPaths">
     <ItemGroup>
-      <None Remove="@(None)" Condition="'%(None.Link)' != '' and $([System.String]::new('%(None.Link)').StartsWith('LatoFont'))" />
+      <None Remove="@(None)" Condition="'%(None.Link)' != '' and ($([System.String]::new('%(None.Link)').StartsWith('LatoFont')) or $([System.String]::new('%(None.Link)').StartsWith('QuestPDF.Fonts.Lato')))" />
     </ItemGroup>
   </Target>
 

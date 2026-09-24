@@ -30,5 +30,11 @@ public static class PdfLibrarySetup
         //    학생 메모·기록은 사람이 쓴 글이라 이모지나 드문 한자가 섞인다 — 그 한 글자 때문에
         //    학급 전체 인쇄가 실패하는 것보다, 그 글자만 빈 칸으로 찍히는 쪽이 낫다.
         QuestPDF.Settings.ThrowOnMissingTextGlyphs = false;
+
+        // 3) 기본 글꼴 이름("Lato")을 찾지 못하면 생성을 멈추게 됐다. 게시본에는 Lato 를 넣지
+        //    않는다(csproj RemoveQuestPdfLaToFont, ~3MB) — 지금까지 게시한 판도 Lato 없이 영문·숫자를
+        //    Segoe UI 로 찍었다. 멈추지 않으면 예전처럼 시스템 글꼴로 넘어간다(2026-09-24 실측).
+        //    ⚠ csproj 의 제외 규칙과 짝이다. 둘 중 하나만 바꾸지 말 것.
+        QuestPDF.Settings.ThrowOnMissingFontFamilies = false;
     }
 }
