@@ -524,9 +524,12 @@ public sealed partial class StudentManagementPage : Page, IDisposable
             //   끝나면 "N명의 학생이 삭제되었습니다" 라고 했다.
             var lastOnes = await FindLastEnrollmentsAsync(enrollmentRepo, selectedStudents);
 
+            // 학적을 지우면 그 학적을 가리키는 수강(CourseEnrollment)·동아리(ClubEnrollment) 명단이
+            // CASCADE 로 함께 지워진다 — 예전 문구는 지워지지 않는 것만 말했다.
             string message =
                 $"선택한 {selectedStudents.Count}명을 {YearSemPicker.Year}학년도 명부에서 뺍니다.\n" +
-                "학생 정보와 기록(누가기록·학생부·사진)은 지워지지 않습니다.";
+                "학생 정보와 기록(누가기록·학생부·사진)은 지워지지 않습니다.\n" +
+                "다만 그 학년도의 수업 수강생·동아리 부원 명단에서는 함께 빠집니다.";
 
             if (lastOnes.Count > 0)
             {

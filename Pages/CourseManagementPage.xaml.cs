@@ -416,8 +416,14 @@ public sealed partial class CourseManagementPage : Page
     {
         if ((sender as Button)?.Tag is not Course course) return;
 
+        // 문구는 스키마와 맞춘다 — CourseEnrollment 는 CASCADE(수강생 명단이 함께 지워진다),
+        // StudentLog·StudentSpecial 의 CourseNo 는 SET NULL(기록은 남지만 수업과의 연결이 끊겨
+        // 수업별 화면에서 사라진다). 예전 문구는 시간표·단원·진도만 말해서 이 둘을 몰랐다.
         var confirmed = await MessageBox.ShowConfirmAsync(
-            $"'{course.Subject}' 수업을 삭제하시겠습니까?\n연결된 시간표 배치·단원·진도도 함께 삭제됩니다.",
+            $"'{course.Subject}' 수업을 삭제하시겠습니까?\n" +
+            "연결된 시간표 배치·단원·진도와 수강생 명단도 함께 삭제됩니다.\n" +
+            "이 수업에 적은 누가기록·교과 세특은 지워지지 않지만, 수업과의 연결이 끊겨\n" +
+            "교과 세특 화면처럼 수업별로 보는 곳에서는 더 이상 보이지 않습니다.",
             "수업 삭제", "삭제", "취소");
         if (!confirmed) return;
 
