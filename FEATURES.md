@@ -200,7 +200,6 @@
 | `LessonChangeDialog.xaml` | 앞으로 걸린 수업 변경 목록 (읽기·되돌리기) |
 | `SubstituteInputDialog.xaml` | 보결 입력 (남의 수업 과목명 직접 적기) |
 | `LessonJournalWindow.xaml` | 수업 일지 작성·편집 창 (머리 정보 + 제목 + 본문 + 첨부, 저장까지). 시간표 칸에서 열면 채워진 채 뜬다 |
-| `MaterialEditDialog.xaml` | 자료 편집 |
 | `ClubEditDialog.xaml` | 동아리 편집 |
 | `ClubEnrollmentDialog.xaml` | 동아리 등록 |
 

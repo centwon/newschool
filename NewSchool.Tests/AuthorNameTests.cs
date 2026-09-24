@@ -67,7 +67,6 @@ public class AuthorNameTests
     [InlineData("Board/ViewModels/PostDetailViewModel.cs")]
     [InlineData("Board/Controls/MemoBoard.xaml.cs")]
     [InlineData("Dialogs/LessonJournalWindow.xaml.cs")]
-    [InlineData("Dialogs/MaterialEditDialog.xaml.cs")]
     public void 작성자를_적는_화면은_모두_같은_한_벌을_쓴다(string relativePath)
     {
         var path = Path.Combine(RepoRoot().FullName,
