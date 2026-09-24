@@ -155,14 +155,14 @@
        NuGet 패키지
        ========================================== -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.12" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
     <PackageReference Include="MiniExcel" Version="1.46.0" />
-    <PackageReference Include="QuestPDF" Version="2026.8.0" />
+    <PackageReference Include="QuestPDF" Version="2026.9.0" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageReference Include="SQLitePCLRaw.core" Version="3.0.5" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.11" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
   </ItemGroup>
 
   <!-- 미사용 전이 의존성(WebView2·Windows AI/ML)의 런타임 자산 게시 제외는
@@ -175,9 +175,10 @@
        게시가 9개 → 70개(44MB → 97MB)로 불어난다.
        올리기 전에 반드시 이 조합으로 빌드해 볼 것.
        (아래 0.9.x 기록은 메타패키지가 2.3.1 이던 시절의 것이다: 0.9.1 = 하한선 2.2.1 → 적합,
-        0.9.0 = 하한선 2.3.2 → 부적합. 지금 조합은 메타패키지 2.4.0 + 이 패키지 1.1.0 이다.) -->
+        0.9.0 = 하한선 2.3.2 → 부적합. 지금 조합은 메타패키지 2.5.1 + 이 패키지 1.2.0(하한선 2.2.1)
+        이다 — 2026-09-24 빌드·테스트 확인.) -->
   <ItemGroup>
-    <PackageReference Include="WinUIRichEditor" Version="1.1.0" />
+    <PackageReference Include="WinUIRichEditor" Version="1.2.0" />
   </ItemGroup>
 
   <!-- ==========================================
