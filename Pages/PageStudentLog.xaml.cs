@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -381,8 +380,10 @@ public sealed partial class PageStudentLog : Page, IDisposable
             var printService = new StudentLogPrintService();
             string filePath = printService.GenerateStudentLogPdf(studentVm, logs);
 
-            // PDF 열기
-            Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+            // 만든 파일을 여는 길은 한 곳이다(45차 규칙). 예전에는 여기서 Process.Start 를
+            // 직접 불러, PDF 뷰어가 없으면 파일은 만들어 놓고 "인쇄 중 오류" 로 끝났다.
+            if (!Helpers.ExportPaths.TryOpen(filePath))
+                await MessageBox.ShowAsync($"누가기록을 저장했습니다.\n{filePath}", "저장 완료");
         }
         catch (Exception ex)
         {
@@ -495,8 +496,9 @@ public sealed partial class PageStudentLog : Page, IDisposable
                 filePath = exportService.ExportClassLogsToExcel(year, grade, classNo, studentLogsList);
             }
 
-            // 파일 열기
-            Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+            // 파일 열기 — 못 열어도 아래 안내가 저장 위치를 알려 주므로 결과는 보지 않는다.
+            // (Process.Start 를 직접 부르면 던진 예외가 이 안내를 건너뛰고 "오류" 로 끝났다.)
+            Helpers.ExportPaths.TryOpen(filePath);
 
             await ShowInfoDialogAsync(
                 $"{studentLogsList.Count}명, 총 {totalLogs}건의 기록을 출력했습니다.\n저장 위치: {filePath}",

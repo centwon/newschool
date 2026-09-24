@@ -300,8 +300,11 @@ public class KeyboardOnlyGuardTests
                 if (e.Attrs.Contains("AutomationProperties.Name")) continue;
                 if (Regex.IsMatch(e.Attrs, @"\bContent=""[^""]+""")) continue;   // 문자열 Content 는 곧 이름이다
 
+                // 기호 글꼴을 입힌 TextBlock 도 그림이다 — 달력 머리글의 이전·다음·설정 단추가
+                // 이 꼴이라 아이콘 요소만 세던 이 검사를 빠져나갔다(툴팁만 달려 있었다).
                 bool hasIcon = Regex.IsMatch(VisiblePart(e.Inner),
-                                             @"<(FontIcon|SymbolIcon|PathIcon|BitmapIcon|ImageIcon|AnimatedIcon)\b");
+                                             @"<(FontIcon|SymbolIcon|PathIcon|BitmapIcon|ImageIcon|AnimatedIcon)\b" +
+                                             @"|<TextBlock\b[^>]*\bFontFamily=""[^""]*(SymbolThemeFontFamily|Segoe (MDL2|Fluent) Icons)");
                 if (!hasIcon) continue;
 
                 // 글자가 문자열 Content 로 있지 않은 채 아이콘만 보이는 단추

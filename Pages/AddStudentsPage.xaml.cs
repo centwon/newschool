@@ -59,8 +59,11 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
     {
         InitializeComponent();
 
-        // 기본값 설정
-        TxtYear.Text = DateTime.Today.Year.ToString();
+        // 기본값 설정. 학년도는 다른 화면들처럼 작업 학년도를 먼저 본다 — 예전에는 달력
+        // 연도를 그대로 넣어, 1·2월(아직 지난 학년도)에 넣은 학생이 한 해 앞선 학년도
+        // 학적으로 들어갔다. 작업 학년도가 없을 때도 달력 연도가 아니라 학년도로 잡는다.
+        int workYear = Settings.WorkYear.Value;
+        TxtYear.Text = (workYear > 0 ? workYear : DateTimeHelper.SchoolYearOf(DateTime.Today)).ToString();
         TxtGrade.Text = "1";
         TxtClass.Text = "1";
     }
@@ -109,9 +112,9 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
             BtnAddFromExcel.IsEnabled = false;
 
             // Excel 파일 처리
-            await ProcessExcelFileAsync(file, year);
+            var tally = await ProcessExcelFileAsync(file, year);
 
-            await MessageBox.ShowAsync($"총 {NewStudents.Count}명의 학생을 목록에 추가했습니다.", "알림");
+            await MessageBox.ShowAsync(BuildImportSummary(tally), "알림");
         }
         catch (Exception ex)
         {
@@ -149,24 +152,66 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
     }
 
     /// <summary>
+    /// 엑셀 가져오기 한 번의 결과. 시트가 여럿이면 모든 시트를 걸쳐 센다.
+    ///
+    /// <para>예전에는 완료 안내가 <c>NewStudents.Count</c> 하나뿐이었다 — 손으로 먼저 넣은
+    /// 학생까지 세어 "추가했습니다" 라고 했고, 번호·이름을 못 읽어 건너뛴 행은 아무 데도
+    /// 드러나지 않았다(40행 명부에서 다섯 명이 빠져도 알 길이 없었다).</para>
+    /// </summary>
+    private sealed class ExcelImportTally
+    {
+        public int Added;
+        public int NoNumber;        // 이름은 있는데 번호를 읽지 못한 행
+        public int NoName;          // 번호는 있는데 이름이 빈 행
+        public int NoGradeOrClass;  // 학년·반을 묻는 창에서 취소했거나 잘못 넣은 행
+        public int Duplicate;       // 이미 있는 번호라 [계속] 으로 넘긴 행
+        public bool Stopped;        // [중단] 을 눌렀거나 더 진행할 수 없어 멈춤
+
+        public int Skipped => NoNumber + NoName + NoGradeOrClass + Duplicate;
+    }
+
+    private static string BuildImportSummary(ExcelImportTally t)
+    {
+        var message = t.Stopped
+            ? $"가져오기를 멈췄습니다. 그 전까지 {t.Added}명을 목록에 추가했습니다."
+            : $"{t.Added}명의 학생을 목록에 추가했습니다.";
+
+        if (t.Skipped == 0) return message;
+
+        var reasons = new List<string>();
+        if (t.NoNumber > 0) reasons.Add($"번호를 읽지 못함 {t.NoNumber}");
+        if (t.NoName > 0) reasons.Add($"이름 없음 {t.NoName}");
+        if (t.NoGradeOrClass > 0) reasons.Add($"학년·반 모름 {t.NoGradeOrClass}");
+        if (t.Duplicate > 0) reasons.Add($"이미 있는 번호 {t.Duplicate}");
+
+        return $"{message}\n\n건너뛴 행 {t.Skipped}개 — {string.Join(" · ", reasons)}";
+    }
+
+    /// <summary>
     /// Excel 파일 처리 (MiniExcel 사용)
     /// </summary>
-    private async Task ProcessExcelFileAsync(StorageFile file, int year)
+    private async Task<ExcelImportTally> ProcessExcelFileAsync(StorageFile file, int year)
     {
         // 파일 파싱은 백그라운드에서 (대용량 파일에서도 UI 멈춤 방지)
         var sheetsData = await ExcelHelper.DataToTextAsync(file.Path);
 
+        var tally = new ExcelImportTally();
         foreach (var sheetData in sheetsData)
         {
-            await ProcessWorksheetData(sheetData, year);
+            await ProcessWorksheetData(sheetData, year, tally);
+
+            // [중단] 은 가져오기 전체를 멈춘다. 예전에는 ProcessWorksheetData 의 return 이
+            // 그 시트만 끝내서, 시트가 여럿인 통합문서는 다음 시트부터 계속 들어왔다.
+            if (tally.Stopped) break;
         }
+        return tally;
     }
 
     /// <summary>
     /// 워크시트 데이터 처리 (string[,] 배열 사용)
     /// string[,] 배열은 1-based 인덱스 사용 (Excel과 동일)
     /// </summary>
-    private async Task ProcessWorksheetData(string[,] sheetData, int year)
+    private async Task ProcessWorksheetData(string[,] sheetData, int year, ExcelImportTally tally)
     {
         int rowCount = sheetData.GetLength(0);
         int colCount = sheetData.GetLength(1);
@@ -230,14 +275,26 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
         // 데이터 행 처리 (1-based 인덱스)
         for (int row = titleRow + 1; row < rowCount; row++)
         {
-            // 번호 ("1번", "1" 등 처리)
-            if (!TryParseNumberFromText(sheetData[row, numberCol], out int number) || number < 1)
-                continue;
-
             // 이름 (1-based)
             string name = (sheetData[row, nameCol] ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(name))
+
+            // 번호 ("1번", "1" 등 처리)
+            bool hasNumber = TryParseNumberFromText(sheetData[row, numberCol], out int number) && number >= 1;
+
+            // 번호도 이름도 없는 행은 빈 행이다 — 서식만 남은 줄까지 "건너뜀" 으로 세면
+            // 안내가 쓸모없어지므로 세지 않는다. 어느 한쪽이라도 있으면 사람이 적은 줄이다.
+            if (!hasNumber && string.IsNullOrWhiteSpace(name))
                 continue;
+            if (!hasNumber)
+            {
+                tally.NoNumber++;
+                continue;
+            }
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                tally.NoName++;
+                continue;
+            }
 
             // 성별 ("남"/"여", 없으면 "남" 기본값)
             string sex = "남";
@@ -255,7 +312,11 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
                 else if (defaultGrade == 0)
                     grade = await GetGradeInputAsync($"학생 '{name}'의 학년 정보를 입력하세요.");
             }
-            if (grade == 0) continue;
+            if (grade == 0)
+            {
+                tally.NoGradeOrClass++;
+                continue;
+            }
 
             // 학급 ("1반", "1" 등 처리)
             int cls = defaultClass;
@@ -266,7 +327,11 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
                 else if (defaultClass == 0)
                     cls = await GetClassInputAsync($"학생 '{name}'의 학급 정보를 입력하세요.");
             }
-            if (cls == 0) continue;
+            if (cls == 0)
+            {
+                tally.NoGradeOrClass++;
+                continue;
+            }
 
             // 중복 검사
             if (await IsDuplicateAsync(year, grade, cls, number))
@@ -274,8 +339,12 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
                 if (!await MessageBox.ShowConfirmAsync(
                     $"{year}학년도 {grade}학년 {cls}반 {number}번은 이미 존재합니다.\n계속하시겠습니까?",
                     "중복 학생", "계속", "중단"))
+                {
+                    tally.Stopped = true;
                     return;
+                }
 
+                tally.Duplicate++;
                 continue;
             }
 
@@ -284,6 +353,7 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
             if (string.IsNullOrEmpty(studentId))
             {
                 await MessageBox.ShowAsync("고유 ID 생성 실패", "오류");
+                tally.Stopped = true;
                 return;
             }
 
@@ -297,6 +367,7 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
                 Name = name,
                 Sex = sex
             });
+            tally.Added++;
         }
     }
 

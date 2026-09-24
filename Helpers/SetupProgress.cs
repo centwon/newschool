@@ -26,7 +26,9 @@ public static class SetupProgress
     {
         try
         {
-            var repository = new StudentRepository(SchoolDatabase.DbPath);
+            // using 을 빠뜨리면 부를 때마다 연결이 하나씩 열린 채 남는다 — 이 함수는 학급
+            // 화면 다섯이 열릴 때마다 불린다(아래 HasAnyCourseAsync 는 처음부터 using 이었다).
+            using var repository = new StudentRepository(SchoolDatabase.DbPath);
             return await repository.GetCountAsync() > 0;
         }
         catch (Exception ex)

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -358,7 +357,10 @@ public sealed partial class StudentSpecPage : Page, IDisposable
                 filePath = exportService.ExportClassSpecsToExcel(year, grade, classNo, studentSpecsList);
             }
 
-            Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+            // 만든 파일을 여는 길은 한 곳이다(45차 규칙). 못 열어도 아래 안내가 저장 위치를
+            // 알려 주므로 결과는 보지 않는다 — Process.Start 를 직접 부르면 던진 예외가
+            // 이 안내를 건너뛰고, 파일은 만들어 놓고 "일괄 출력 중 오류" 로 끝났다.
+            Helpers.ExportPaths.TryOpen(filePath);
 
             await MessageBox.ShowAsync(
                 $"{studentSpecsList.Count}명, 총 {totalSpecs}건의 특기사항을 출력했습니다.\n저장 위치: {filePath}",
