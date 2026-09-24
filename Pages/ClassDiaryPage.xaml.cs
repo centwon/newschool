@@ -34,6 +34,7 @@ public sealed partial class ClassDiaryPage : Page
         this.InitializeComponent();
         InitializeControls();
         Loaded += OnPageLoaded;
+        Unloaded += OnPageUnloaded;
     }
 
     /// <summary>
@@ -145,6 +146,10 @@ public sealed partial class ClassDiaryPage : Page
     /// </summary>
     private async Task LoadDailyLogsAsync()
     {
+        // 다시 읽기 전에 고친 기록을 묻는다 — 학급·날짜를 바꾸거나 새로고침·기록 추가 뒤 다시
+        // 읽는 길이 모두 여기를 지난다.
+        await CheckUnSavedLogsAsync();
+
         if (_currentYear == 0 || _currentGrade == 0 || _currentClass == 0)
         {
             DailyLogList.Clear();
@@ -274,6 +279,96 @@ public sealed partial class ClassDiaryPage : Page
     }
 
     /// <summary>
+    /// 고친 기록 저장.
+    ///
+    /// <para>예전에는 이 목록의 칸을 고칠 수만 있고 저장할 길이 없어서, 고친 것은 날짜·학급을
+    /// 바꾸거나 화면을 떠나는 순간 늘 사라졌다. 학생 정보 화면의 [저장] 과 같은 길
+    /// (<see cref="LogListViewer.SaveChangedLogsAsync"/> — 학적 확인 포함)을 쓴다.</para>
+    /// </summary>
+    private async void BtnSaveDailyLogs_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var (attempted, saved) = await DailyLogList.SaveChangedLogsAsync();
+
+            if (attempted == 0)
+            {
+                await MessageBox.ShowAsync(
+                    "저장할 기록이 없습니다.\n수정한 기록의 체크박스를 선택한 뒤 저장하세요.", "저장");
+            }
+            else if (saved == attempted)
+            {
+                await MessageBox.ShowAsync($"누가기록 {saved}건이 저장되었습니다.", "저장");
+            }
+            else
+            {
+                NewSchool.Logging.Log.Warning("ClassDiaryPage", $"누가기록 저장 일부 실패: {saved}/{attempted}");
+                await MessageBox.ShowAsync(
+                    $"{attempted}건 중 {saved}건만 저장되었습니다.\n저장되지 않은 기록을 다시 확인해 주세요.", "저장 실패");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync($"저장 오류: {ex.Message}", "오류");
+        }
+    }
+
+    /// <summary>
+    /// Ctrl+S — 포커스가 기록 목록 안이면 기록을, 그 밖(일지 칸 등)이면 일지를 저장한다.
+    /// 일지는 스스로 저장되지만, 일지를 쓰다 Ctrl+S 를 눌렀는데 "저장할 기록이 없습니다" 가
+    /// 뜨면 무엇이 저장되는지 헷갈린다.
+    /// </summary>
+    private async void SaveAccelerator_Invoked(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+
+        if (IsFocusInside(DailyLogList))
+            BtnSaveDailyLogs_Click(BtnSaveDailyLogs, new RoutedEventArgs());
+        else
+            await DiaryBox.SaveDiaryAsync();
+    }
+
+    private bool IsFocusInside(DependencyObject container)
+    {
+        var node = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+        while (node != null)
+        {
+            if (ReferenceEquals(node, container)) return true;
+            node = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(node);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 목록을 다시 읽기 전에 고친 채 저장하지 않은 기록을 묻는다 — 누가기록 화면과 같은 한 벌
+    /// (<see cref="LogListViewer.AskSaveModifiedAsync"/>). 이 목록은 여러 학생의 기록이 섞여
+    /// 있으므로 대상자는 행마다 제 학생을 쓴다.
+    /// </summary>
+    private async Task CheckUnSavedLogsAsync()
+    {
+        try
+        {
+            await DailyLogList.AskSaveModifiedAsync();
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync($"저장 확인 중 오류가 발생했습니다: {ex.Message}", "오류");
+        }
+    }
+
+    private void OnPageUnloaded(object sender, RoutedEventArgs e)
+    {
+        // 화면을 떠날 때도 누가기록 화면(LogList_Unloaded)처럼 고친 기록을 묻는다.
+        _ = CheckUnSavedLogsAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                System.Diagnostics.Debug.WriteLine($"[ClassDiaryPage] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
+    }
+
+    /// <summary>
     /// 당일 기록 새로고침
     /// </summary>
     private async void BtnRefreshLogs_Click(object sender, RoutedEventArgs e)
@@ -310,6 +405,8 @@ public sealed partial class ClassDiaryPage : Page
     {
         var student = StudentList.SelectedStudent;
         if (student == null) return;
+
+        await CheckUnSavedLogsAsync();
 
         try
         {

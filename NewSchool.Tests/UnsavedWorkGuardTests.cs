@@ -101,15 +101,15 @@ public class UnsavedWorkGuardTests
     }
 
     /// <summary>
-    /// <b>학생을 골라 그 학생의 누가기록을 고치는 화면은, 학생을 바꾸기 전에 고친 기록을 묻는다.</b>
+    /// <b>누가기록 목록을 놓은 화면은, 목록을 다시 읽기 전에 고친 기록을 묻는다.</b>
     ///
     /// <para>누가기록 목록(<c>LogListViewer</c>)은 칸을 고치면 [저장] 을 눌러야 들어간다. 누가기록
     /// 화면만 학생·학급을 바꾸기 전에 물었고, 같은 목록을 쓰는 동아리·수업 활동·학생 정보 화면은
-    /// 묻지 않고 다시 읽어 고친 기록이 사라졌다(2026-09-24). 묻는 일은 한 벌
-    /// (<c>LogListViewer.AskSaveModifiedAsync</c>)이다.</para>
+    /// 묻지 않고 다시 읽어 고친 기록이 사라졌다. 학급 일지는 저장할 길조차 없었다(2026-09-24).
+    /// 묻는 일은 한 벌(<c>LogListViewer.AskSaveModifiedAsync</c>)이다.</para>
     /// </summary>
     [Fact]
-    public void 누가기록_목록이_있는_학생_선택_화면은_바꾸기_전에_고친_기록을_묻는다()
+    public void 누가기록_목록을_놓은_화면은_다시_읽기_전에_고친_기록을_묻는다()
     {
         string root = RepoRoot();
         var offenders = new List<string>();
@@ -124,16 +124,15 @@ public class UnsavedWorkGuardTests
             string code = xaml + ".cs";
             if (!File.Exists(code)) continue;
             string source = File.ReadAllText(code);
-            if (!source.Contains("StudentSelected +=")) continue;   // 학생을 골라 보는 화면만
 
             pages++;
             if (!source.Contains("AskSaveModifiedAsync("))
                 offenders.Add(rel + ".cs");
         }
 
-        Assert.True(pages >= 4, $"학생을 골라 누가기록을 보는 화면이 {pages}개뿐이다 — 검색이 빗나갔다");
+        Assert.True(pages >= 5, $"누가기록 목록을 놓은 화면이 {pages}개뿐이다 — 검색이 빗나갔다");
         Assert.True(offenders.Count == 0,
-            "학생을 바꾸면 고친 누가기록이 묻지 않고 사라지는 화면이 있다. " +
+            "목록을 다시 읽으면 고친 누가기록이 묻지 않고 사라지는 화면이 있다. " +
             "목록을 다시 읽기 전에 LogList.AskSaveModifiedAsync 를 부를 것:\n  " + string.Join("\n  ", offenders));
     }
 

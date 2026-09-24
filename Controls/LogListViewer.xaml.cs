@@ -628,8 +628,11 @@ public sealed partial class LogListViewer : UserControl
     /// 버려진다고 알린다. 예전에는 누가기록 화면만 이것을 했고, 같은 목록을 쓰는 동아리·수업
     /// 활동 화면은 학생을 바꾸면 고친 기록이 말없이 사라졌다(2026-09-24).</para>
     /// </summary>
-    /// <param name="who">안내에 보일 대상자(예: "3학년 1반 1번 홍길동").</param>
-    public async Task AskSaveModifiedAsync(string who)
+    /// <param name="who">
+    /// 안내에 보일 대상자(예: "3학년 1반 1번 홍길동"). 한 학생의 기록만 보이는 화면이 넘긴다.
+    /// 비우면 행마다 제 학생을 쓴다 — 학급 일지처럼 여러 학생의 기록이 한 목록에 섞인 화면.
+    /// </param>
+    public async Task AskSaveModifiedAsync(string? who = null)
     {
         var modifiedLogs = Logs.Where(vm => vm.IsSelected).ToList();
         if (modifiedLogs.Count == 0) return;
@@ -649,7 +652,7 @@ public sealed partial class LogListViewer : UserControl
             var log = logViewModel.StudentLog;
             bool save = await MessageBox.ShowConfirmAsync(
                 $"저장되지 않은 자료가 있습니다. 저장할까요?\n\n" +
-                $"대상자: {who}\n" +
+                $"대상자: {who ?? logViewModel.StudentInfo}\n" +
                 $"날짜: {log.Date:yyyy년 M월 d일}\n" +
                 $"주제: {log.Topic}\n",
                 "저장 확인", "예", "아니오");
