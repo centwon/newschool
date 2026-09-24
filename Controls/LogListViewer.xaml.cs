@@ -621,6 +621,62 @@ public sealed partial class LogListViewer : UserControl
     }
 
     /// <summary>
+    /// 목록을 다시 읽기 직전(학생·분류·학급/동아리/수업을 바꿀 때, 화면을 떠날 때)에 부른다 —
+    /// 고친 채(선택된 채) 저장하지 않은 기록을 한 건씩 저장할지 묻는다.
+    ///
+    /// <para>부르는 쪽은 멈추지 않고 목록을 다시 읽는다. 그래서 학적 확인에서 취소하면
+    /// 버려진다고 알린다. 예전에는 누가기록 화면만 이것을 했고, 같은 목록을 쓰는 동아리·수업
+    /// 활동 화면은 학생을 바꾸면 고친 기록이 말없이 사라졌다(2026-09-24).</para>
+    /// </summary>
+    /// <param name="who">안내에 보일 대상자(예: "3학년 1반 1번 홍길동").</param>
+    public async Task AskSaveModifiedAsync(string who)
+    {
+        var modifiedLogs = Logs.Where(vm => vm.IsSelected).ToList();
+        if (modifiedLogs.Count == 0) return;
+
+        // 학생을 바꾸기 직전의 저장도 같은 학적 검사를 받는다.
+        if (!await EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
+                modifiedLogs.Select(v => ((string?)v.StudentLog.StudentID, v.StudentLog.Year, v.StudentLog.Date))))
+        {
+            await MessageBox.ShowAsync(
+                $"고친 기록 {modifiedLogs.Count}건을 저장하지 않았습니다. 고친 내용은 버렸습니다.", "저장하지 않음");
+            return;
+        }
+
+        using var logService = new StudentLogService();
+        foreach (var logViewModel in modifiedLogs)
+        {
+            var log = logViewModel.StudentLog;
+            bool save = await MessageBox.ShowConfirmAsync(
+                $"저장되지 않은 자료가 있습니다. 저장할까요?\n\n" +
+                $"대상자: {who}\n" +
+                $"날짜: {log.Date:yyyy년 M월 d일}\n" +
+                $"주제: {log.Topic}\n",
+                "저장 확인", "예", "아니오");
+            if (!save) continue;
+
+            // 목록을 다시 읽기 직전의 마지막 저장 기회다 — 반영되지 않았는데 선택을
+            // 풀어버리면 그대로 유실된다. 실패하면 표시를 유지하고 알린다.
+            bool ok;
+            if (log.No > 0)
+            {
+                ok = await logService.UpdateAsync(log);
+            }
+            else
+            {
+                log.No = await logService.InsertAsync(log);
+                ok = log.No > 0;
+            }
+
+            if (ok)
+                logViewModel.IsSelected = false;
+            else
+                await MessageBox.ShowAsync(
+                    "저장되지 않았습니다. 기록은 선택된 채로 남겨 둡니다.", "저장 실패");
+        }
+    }
+
+    /// <summary>
     /// 저장 대상 로그를 저장한다.
     /// 체크된 항목뿐 아니라 아직 DB 에 없는 신규 항목(No &lt;= 0)도 포함한다
     /// — 신규 항목은 기본적으로 체크가 안 된 상태라 예전에는 조용히 사라졌다.

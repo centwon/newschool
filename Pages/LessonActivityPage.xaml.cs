@@ -130,6 +130,7 @@ public sealed partial class LessonActivityPage : Page
         // 먼저 묻는다. 예전에는 수업을 바꾸면 묻지 않고 선택만 풀어, 앞 학생의 학생부 상자가
         // 새 수업 목록 옆에 열린 채 남았고 고치던 내용은 다음 학생을 고를 때 말없이 사라졌다.
         // 수업은 이미 바뀌었으니 멈추지 않는다 — 저장하지 못했으면 버리고 알린다(LeaveAsync).
+        await CheckUnSavedAsync();
         if (SpecBox != null) await SpecBox.LeaveAsync();
 
         _selectedCourse = e.Course;
@@ -156,7 +157,8 @@ public sealed partial class LessonActivityPage : Page
     /// </summary>
     private async void OnStudentSelected(object? sender, Enrollment student)
     {
-        // 미저장 학생부 편집을 저장/폐기 확인 — 저장 실패(false) 시 학생 전환 중단
+        // 고친 기록을 먼저 묻고, 미저장 학생부 편집을 저장/폐기 확인 — 저장 실패(false) 시 학생 전환 중단
+        await CheckUnSavedAsync();
         if (SpecBox != null && !await SpecBox.ConfirmLeaveAsync())
             return;
 
@@ -527,7 +529,34 @@ public sealed partial class LessonActivityPage : Page
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
+        // 화면을 떠날 때도 누가기록 화면(LogList_Unloaded)처럼 고친 기록을 묻는다.
+        _ = CheckUnSavedAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.WriteLine($"[LessonActivityPage] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
+
         StudentList.StudentSelected -= OnStudentSelected;
+    }
+
+    /// <summary>
+    /// 목록을 다시 읽기 전에 고친 채 저장하지 않은 기록을 묻는다 — 누가기록 화면과 같은 한 벌
+    /// (<see cref="LogListViewer.AskSaveModifiedAsync"/>). 예전에는 학생·수업을 바꾸면
+    /// 고친 기록이 묻지 않고 사라졌다(학생부 상자만 물었다).
+    /// </summary>
+    private async Task CheckUnSavedAsync()
+    {
+        if (_selectedStudent == null || LogList == null) return;
+
+        try
+        {
+            var s = _selectedStudent;
+            await LogList.AskSaveModifiedAsync($"{s.Grade}학년 {s.Class}반 {s.Number}번 {s.Name}");
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync($"저장 확인 중 오류가 발생했습니다: {ex.Message}", "오류");
+        }
     }
 
     /// <summary>

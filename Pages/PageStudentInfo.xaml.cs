@@ -46,6 +46,9 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     private int _currentClass = Settings.HomeRoom.Value;
     private string? _currentStudentId;
 
+    /// <summary>지금 보이는 학생 — 고친 기록을 물을 때 "대상자" 로 보인다.</summary>
+    private string _currentStudentLabel = string.Empty;
+
     // Services
     private StudentService? _studentService;
     private StudentLogService? _studentLogService;
@@ -188,8 +191,12 @@ public sealed partial class PageStudentInfo : Page, IDisposable
             return;
         }
 
+        // 고친 채 저장하지 않은 누가기록도 묻는다 — 누가기록·동아리·수업 활동 화면과 같은 한 벌.
+        await CheckUnSavedLogsAsync();
+
         // 새 학생 로드
         _currentStudentId = e.StudentID;
+        _currentStudentLabel = $"{e.Grade}학년 {e.Class}반 {e.Number}번 {e.Name}";
         System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] _currentStudentId 설정됨: {_currentStudentId}");
 
         await LoadStudentInfoAsync(e.StudentID);
@@ -516,6 +523,25 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     #region Data Loading
 
     /// <summary>
+    /// 목록을 다시 읽기 전에 고친 채 저장하지 않은 누가기록을 묻는다
+    /// (<see cref="LogListViewer.AskSaveModifiedAsync"/>). 학생카드는 스스로 저장하지만 아래
+    /// 누가기록 칸은 [저장] 을 눌러야 해서, 예전에는 학생·학급을 바꾸면 고친 기록이 사라졌다.
+    /// </summary>
+    private async Task CheckUnSavedLogsAsync()
+    {
+        if (string.IsNullOrEmpty(_currentStudentId)) return;
+
+        try
+        {
+            await LogList.AskSaveModifiedAsync(_currentStudentLabel);
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync($"저장 확인 중 오류가 발생했습니다: {ex.Message}", "오류");
+        }
+    }
+
+    /// <summary>
     /// 학생 목록 로드
     /// </summary>
     private async Task LoadStudentListAsync()
@@ -523,6 +549,7 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         // 목록을 다시 읽으면 StudentCard 가 Clear() 되어 미저장 편집이 사라진다.
         // 학년/반·학기 전환 등 어느 경로로 들어오든 먼저 내려쓴다.
         await FlushPendingCardEditsAsync();
+        await CheckUnSavedLogsAsync();
 
         using var enrollmentService = new EnrollmentService();
         try

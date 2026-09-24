@@ -148,6 +148,7 @@ public sealed partial class ClubActivityPage : Page
         // 일찍 return 하느라 앞 동아리 학생이 선택된 채 남았다. 그 상태로 [새 기록] 을 누르면
         // 그 학생의 기록이 **그 학생이 속하지도 않은 새 동아리** 로 만들어졌다.
         // 동아리는 이미 바뀌었으니 멈추지 않는다 — 저장하지 못했으면 버리고 알린다(LeaveAsync).
+        await CheckUnSavedAsync();
         if (SpecBox != null) await SpecBox.LeaveAsync();
         ClearSelectedStudent();
 
@@ -275,6 +276,7 @@ public sealed partial class ClubActivityPage : Page
     /// </summary>
     private async void OnStudentSelected(object? sender, Enrollment student)
     {
+        await CheckUnSavedAsync();
         if (SpecBox != null && !await SpecBox.ConfirmLeaveAsync())
             return;
 
@@ -294,6 +296,7 @@ public sealed partial class ClubActivityPage : Page
     {
         if (CBoxCategory.SelectedItem is LogCategory category)
         {
+            await CheckUnSavedAsync();
             _category = category;
             await LoadLogsAsync();
         }
@@ -630,7 +633,34 @@ public sealed partial class ClubActivityPage : Page
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
+        // 화면을 떠날 때도 누가기록 화면(LogList_Unloaded)처럼 고친 기록을 묻는다.
+        _ = CheckUnSavedAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.WriteLine($"[ClubActivityPage] {t.Exception?.InnerException?.Message}");
+        }, TaskContinuationOptions.OnlyOnFaulted);
+
         StudentList.StudentSelected -= OnStudentSelected;
+    }
+
+    /// <summary>
+    /// 목록을 다시 읽기 전에 고친 채 저장하지 않은 기록을 묻는다 — 누가기록 화면과 같은 한 벌
+    /// (<see cref="LogListViewer.AskSaveModifiedAsync"/>). 예전에는 학생·영역·동아리를 바꾸면
+    /// 고친 기록이 묻지 않고 사라졌다(학생부 상자만 물었다).
+    /// </summary>
+    private async Task CheckUnSavedAsync()
+    {
+        if (_selectedStudent == null || LogList == null) return;
+
+        try
+        {
+            var s = _selectedStudent;
+            await LogList.AskSaveModifiedAsync($"{s.Grade}학년 {s.Class}반 {s.Number}번 {s.Name}");
+        }
+        catch (Exception ex)
+        {
+            await MessageBox.ShowAsync($"저장 확인 중 오류가 발생했습니다: {ex.Message}", "오류");
+        }
     }
 
     /// <summary>

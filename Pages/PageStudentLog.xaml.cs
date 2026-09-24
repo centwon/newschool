@@ -620,8 +620,8 @@ public sealed partial class PageStudentLog : Page, IDisposable
         }, TaskContinuationOptions.OnlyOnFaulted);
 
         // ⚠ 여기서 _logService 를 닫지 않는다. 목록 컨트롤이 내려가는 것과 화면이 끝나는
-        // 것은 다른 일이고, 위의 CheckUnSavedAsync 는 아직 돌고 있다 — 그 사이에 닫으면
-        // 마지막 저장이 닫힌 연결을 쓴다. 서비스는 화면의 Unloaded → Dispose() 가 닫는다.
+        // 것은 다른 일이다(위의 마지막 저장은 LogListViewer 가 제 연결로 한다).
+        // 서비스는 화면의 Unloaded → Dispose() 가 닫는다.
         if (StudentList != null)
             StudentList.StudentSelected -= OnStudentSelected;
     }
@@ -734,46 +734,9 @@ public sealed partial class PageStudentLog : Page, IDisposable
 
         try
         {
-            var modifiedLogs = LogList.Logs.Where(vm => vm.IsSelected).ToList();
-            if (modifiedLogs.Count == 0) return;
-
-            // 학생을 바꾸기 직전의 저장도 같은 학적 검사를 받는다. 여기서 취소하면 저장하지 않는데,
-            // 부르는 쪽(학생·학급·분류 바꾸기)은 멈추지 않고 목록을 다시 읽으므로 버려진다고 알린다.
-            if (!await EnrollmentGuard.ConfirmRecordsAfterLeavingAsync(
-                    modifiedLogs.Select(v => ((string?)v.StudentLog.StudentID, v.StudentLog.Year, v.StudentLog.Date))))
-            {
-                await MessageBox.ShowAsync(
-                    $"고친 기록 {modifiedLogs.Count}건을 저장하지 않았습니다. 고친 내용은 버렸습니다.", "저장하지 않음");
-                return;
-            }
-
-            foreach (var logViewModel in modifiedLogs)
-            {
-                var log = logViewModel.StudentLog;
-                var result = await ShowSaveConfirmDialogAsync(log);
-
-                if (result)
-                {
-                    // 학생을 바꾸기 직전의 마지막 저장 기회다 — 반영되지 않았는데 선택을
-                    // 풀어버리면 그대로 유실된다. 실패하면 표시를 유지하고 알린다.
-                    bool ok;
-                    if (log.No > 0)
-                    {
-                        ok = await _logService.UpdateAsync(log);
-                    }
-                    else
-                    {
-                        log.No = await _logService.InsertAsync(log);
-                        ok = log.No > 0;
-                    }
-
-                    if (ok)
-                        logViewModel.IsSelected = false;
-                    else
-                        await MessageBox.ShowAsync(
-                            "저장되지 않았습니다. 기록은 선택된 채로 남겨 둡니다.", "저장 실패");
-                }
-            }
+            // 동아리·수업 활동 화면과 같은 한 벌(LogListViewer) — 학적 확인·한 건씩 묻기·취소 알림.
+            var s = _selectedStudent;
+            await LogList.AskSaveModifiedAsync($"{s.Grade}학년 {s.Class}반 {s.Number}번 {s.Name}");
         }
         catch (Exception ex)
         {
@@ -891,16 +854,6 @@ public sealed partial class PageStudentLog : Page, IDisposable
     #endregion
 
     #region Dialog Methods
-
-    private async Task<bool> ShowSaveConfirmDialogAsync(StudentLog log)
-    {
-        return await MessageBox.ShowConfirmAsync(
-            $"저장되지 않은 자료가 있습니다. 저장할까요?\n\n" +
-            $"대상자: {_selectedStudent?.Grade}학년 {_selectedStudent?.Class}반 {_selectedStudent?.Number}번 {_selectedStudent?.Name}\n" +
-            $"날짜: {log.Date:yyyy년 M월 d일}\n" +
-            $"주제: {log.Topic}\n",
-            "저장 확인", "예", "아니오");
-    }
 
     private async Task<bool> ShowDeleteConfirmDialogAsync(StudentLog log)
     {
