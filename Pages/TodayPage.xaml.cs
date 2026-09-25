@@ -12,6 +12,7 @@ using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Board;
 using NewSchool.Board.Services;
 using NewSchool.Dialogs;
+using NewSchool.Helpers;
 using NewSchool.Models;
 using NewSchool.Repositories;
 using NewSchool.Services;
@@ -240,7 +241,8 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     {
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromMinutes(1);
-        timer.Tick += (_, _) => UpdateCurrentPeriod();
+        // 약하게 잇는다 — 람다로 이으면 홈 페이지가 수거되지 않는다(TimerTick 주석).
+        timer.TickWeakly(this, static page => page.UpdateCurrentPeriod());
         return timer;
     }
 

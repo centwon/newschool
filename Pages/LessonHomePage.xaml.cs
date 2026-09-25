@@ -13,6 +13,7 @@ using NewSchool.Board;
 using NewSchool.Board.Controls;
 using NewSchool.Controls;
 using NewSchool.Dialogs;
+using NewSchool.Helpers;
 using NewSchool.Models;
 using NewSchool.Services;
 using NewSchool.ViewModels;
@@ -80,7 +81,8 @@ public sealed partial class LessonHomePage : Page
         {
             _minuteTimer = DispatcherQueue.CreateTimer();
             _minuteTimer.Interval = TimeSpan.FromMinutes(1);
-            _minuteTimer.Tick += (_, _) => OnMinuteTick();
+            // 약하게 잇는다 — 람다로 이으면 수업홈이 수거되지 않는다(TimerTick 주석).
+            _minuteTimer.TickWeakly(this, static page => page.OnMinuteTick());
         }
         _minuteTimer.Start();
 

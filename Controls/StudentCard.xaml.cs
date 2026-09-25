@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using NewSchool.Helpers;
 using NewSchool.ViewModels;
 
 namespace NewSchool.Controls;
@@ -109,7 +110,8 @@ public sealed partial class StudentCard : UserControl
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromMilliseconds(AutoSaveDelayMs);
         timer.IsRepeating = false;
-        timer.Tick += async (_, _) => await SaveChangedAsync();
+        // 약하게 잇는다 — 람다로 이으면 카드가 수거되지 않는다(TimerTick 주석).
+        timer.TickWeakly(this, static async card => await card.SaveChangedAsync());
         return timer;
     }
 

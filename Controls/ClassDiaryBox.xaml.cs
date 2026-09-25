@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using NewSchool.Helpers;
 using NewSchool.Services;
 using NewSchool.ViewModels;
 
@@ -44,7 +45,8 @@ public sealed partial class ClassDiaryBox : UserControl
         _autoSaveTimer = DispatcherQueue.CreateTimer();
         _autoSaveTimer.Interval = TimeSpan.FromMilliseconds(AutoSaveDelayMs);
         _autoSaveTimer.IsRepeating = false;
-        _autoSaveTimer.Tick += async (_, _) => await SaveDiaryAsync();
+        // 약하게 잇는다 — 람다로 이으면 이 칸이 수거되지 않는다(TimerTick 주석).
+        _autoSaveTimer.TickWeakly(this, static async box => await box.SaveDiaryAsync());
 
         foreach (var box in new[] { TBoxAbsent, TBoxLate, TBoxLeaveEarly, TBoxMemo })
             box.LostFocus += async (_, _) => await SaveDiaryAsync();
