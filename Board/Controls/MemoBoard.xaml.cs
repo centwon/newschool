@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -134,10 +135,8 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         _isUpdating = false;
         _isModified = false;
 
-        // 나머지 = compact 목록
-        CompactPanel.Children.Clear();
-        foreach (var memo in _memos.Skip(1))
-            CompactPanel.Children.Add(BuildCompactItem(memo));
+        // 나머지 = compact 목록. 컬렉션째 갈아 끼운다 — 비우고 하나씩 넣으면 줄마다 변경 알림이 간다.
+        CompactRepeater.ItemsSource = new ObservableCollection<MemoRow>(_memos.Skip(1).Select(m => new MemoRow(m)));
     }
 
     public Task CreateNewMemoAsync()
@@ -175,87 +174,6 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     #endregion
 
     #region Compact list
-
-    /// <summary>나머지 활성 메모 한 줄. 본문 영역 클릭 → 다이얼로그, 체크 → 완료(숨김).</summary>
-    private Grid BuildCompactItem(Post memo)
-    {
-        var grid = new Grid
-        {
-            Padding = new Thickness(12, 4, 12, 4),
-            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
-            BorderThickness = new Thickness(0, 0, 0, 1),
-            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
-            MinHeight = 40,
-            ColumnSpacing = 8,
-            Tag = memo
-        };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.Tapped += CompactItem_Tapped;
-
-        // 완료 체크 (탭은 체크박스가 소비 → 행 Tapped 미발생)
-        var chk = new CheckBox { MinWidth = 0, VerticalAlignment = VerticalAlignment.Center, Tag = memo };
-        chk.Click += CompactCheck_Click;
-        Grid.SetColumn(chk, 0);
-        grid.Children.Add(chk);
-
-        // 카테고리 배지 — 같은 색을 옅게 깔고 테두리로만 진하게(아래 GetCategoryColor 주석)
-        var accent = GetCategoryColor(memo.Category);
-        var badge = new Border
-        {
-            Background = SoftenCategoryColor(accent),
-            BorderBrush = new SolidColorBrush(accent),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 2, 6, 2),
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = new TextBlock
-            {
-                Text = memo.Category ?? "기타",
-                FontSize = 10,
-                Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
-            }
-        };
-        Grid.SetColumn(badge, 1);
-        grid.Children.Add(badge);
-
-        // 제목 (+ 첨부 아이콘)
-        var titlePanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        titlePanel.Children.Add(new TextBlock
-        {
-            Text = string.IsNullOrWhiteSpace(memo.Title) ? "(제목 없음)" : memo.Title,
-            FontSize = 13,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
-        });
-        if (memo.HasFile)
-        {
-            titlePanel.Children.Add(new FontIcon
-            {
-                Glyph = "",
-                FontSize = 10,
-                Margin = new Thickness(6, 0, 0, 0),
-                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-            });
-        }
-        Grid.SetColumn(titlePanel, 2);
-        grid.Children.Add(titlePanel);
-
-        // 날짜
-        var date = new TextBlock
-        {
-            Text = memo.DateTime.ToString("M/d HH:mm"),
-            FontSize = 11,
-            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(date, 3);
-        grid.Children.Add(date);
-
-        return grid;
-    }
 
     private async void CompactItem_Tapped(object sender, TappedRoutedEventArgs e)
     {
@@ -483,7 +401,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     /// (파랑·초록·빨강·노랑) 목록에서 <b>배지가 제목보다 먼저 눈에 들어왔다</b> — 먼저 읽혀야
     /// 할 것은 메모의 제목이다. 일정 목록의 분류 배지(<c>KAgendaControl</c>)도 같이 손봤다.</para>
     /// </summary>
-    private static Color GetCategoryColor(string? category) => category switch
+    internal static Color GetCategoryColor(string? category) => category switch
     {
         CategoryNames.Lesson => Color.FromArgb(0xFF, 0x42, 0x85, 0xF4),
         CategoryNames.Homeroom => Color.FromArgb(0xFF, 0x0F, 0x9D, 0x58),
@@ -497,8 +415,32 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     /// 파스텔로, 어두운 테마에서는 어두운 바탕에 은은하게 얹혀 <b>양쪽 다 글자를 삼키지
     /// 않는다</b>(42차-b: 배경만 밝은 색으로 고정하면 다크 테마에서 글자가 사라진다).
     /// </summary>
-    private static SolidColorBrush SoftenCategoryColor(Color color)
+    internal static SolidColorBrush SoftenCategoryColor(Color color)
         => new(Color.FromArgb(56, color.R, color.G, color.B));
 
     #endregion
+}
+
+/// <summary>
+/// 메모판 compact 목록의 한 줄(<c>CompactRepeater</c> 의 x:Bind 대상). 본문 영역 클릭 → 다이얼로그,
+/// 체크 → 완료(숨김). 붓은 줄이 화면에 올라올 때만 만든다 — 보이지 않는 줄은 붓도 없다.
+/// </summary>
+internal sealed class MemoRow(Post memo)
+{
+    public Post Memo { get; } = memo;
+
+    public string TitleText => string.IsNullOrWhiteSpace(Memo.Title) ? "(제목 없음)" : Memo.Title;
+
+    public string CategoryText => Memo.Category ?? "기타";
+
+    public string DateText => Memo.DateTime.ToString("M/d HH:mm");
+
+    public Visibility FileIconVisibility => Memo.HasFile ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>체크박스의 UIA 이름. 예전 줄은 이름이 없어 낭독기가 "확인란"이라고만 읽었다.</summary>
+    public string CheckName => $"완료로 표시해 숨기기: {TitleText}";
+
+    public SolidColorBrush BadgeBackground => MemoBoard.SoftenCategoryColor(MemoBoard.GetCategoryColor(Memo.Category));
+
+    public SolidColorBrush BadgeBorder => new(MemoBoard.GetCategoryColor(Memo.Category));
 }

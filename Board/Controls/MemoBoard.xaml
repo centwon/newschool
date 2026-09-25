@@ -7,6 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:appcontrols="using:NewSchool.Controls"
     xmlns:board="using:NewSchool.Board"
+    xmlns:local="using:NewSchool.Board.Controls"
     mc:Ignorable="d">
 
     <Border Style="{StaticResource DashboardCard}">
@@ -118,9 +119,60 @@
                 </Border>
             </Grid>
 
-            <!-- 나머지 활성 메모: compact 목록 (클릭 → 다이얼로그 편집), 남은 공간 채움 -->
+            <!-- 나머지 활성 메모: compact 목록 (클릭 → 다이얼로그 편집), 남은 공간 채움.
+                 ⚠ StackPanel 에 줄을 다 만들지 말 것 — 보이는 줄만 만드는 ItemsRepeater 여야 한다.
+                 체크박스 하나가 체크 애니메이션 때문에 약 0.45MB·핸들 11개를 쓴다. 예전처럼 전부
+                 만들면 메모 500개 모래상자에서 체크박스만 약 220MB였다(2026-09-25 실측). -->
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="CompactPanel" Spacing="0"/>
+                <ItemsRepeater x:Name="CompactRepeater">
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="local:MemoRow">
+                            <!-- 배경을 투명으로라도 깔아야 줄 전체가 눌린다(빈 곳 Tapped) -->
+                            <Grid Padding="12,4,12,4" MinHeight="40" ColumnSpacing="8"
+                                  Background="Transparent"
+                                  BorderThickness="0,0,0,1"
+                                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                  Tag="{x:Bind Memo}"
+                                  Tapped="CompactItem_Tapped">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- 완료 체크 (탭은 체크박스가 소비 → 행 Tapped 미발생) -->
+                                <CheckBox MinWidth="0" VerticalAlignment="Center"
+                                          AutomationProperties.Name="{x:Bind CheckName}"
+                                          Tag="{x:Bind Memo}"
+                                          Click="CompactCheck_Click"/>
+
+                                <!-- 분류 배지 — 같은 색을 옅게 깔고 테두리로만 진하게(GetCategoryColor 주석) -->
+                                <Border Grid.Column="1" BorderThickness="1" CornerRadius="3"
+                                        Padding="6,2,6,2" VerticalAlignment="Center"
+                                        Background="{x:Bind BadgeBackground}"
+                                        BorderBrush="{x:Bind BadgeBorder}">
+                                    <TextBlock Text="{x:Bind CategoryText}" FontSize="10"
+                                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                </Border>
+
+                                <!-- 제목 (+ 첨부 아이콘) -->
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind TitleText}" FontSize="13"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    <FontIcon Glyph="&#xE723;" FontSize="10" Margin="6,0,0,0"
+                                              Visibility="{x:Bind FileIconVisibility}"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="3" Text="{x:Bind DateText}" FontSize="11"
+                                           VerticalAlignment="Center"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
             </ScrollViewer>
 
             <!-- 빈 상태 -->
