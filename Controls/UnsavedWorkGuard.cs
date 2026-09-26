@@ -76,8 +76,10 @@ public static class UnsavedWorkGuard
         ArgumentNullException.ThrowIfNull(confirmCloseAsync);
 
         // 버튼 쪽(CloseAsync)이 같은 확인을 찾을 수 있게 창에 달아 둔다.
+        // 닫히면 뺀다 — 그래서 Guards 는 "지금 열려 있는, 지킬 것이 있는 창" 목록이기도 하다(CloseOthersAsync).
         var guard = new CloseGuard(confirmCloseAsync);
         Guards.AddOrUpdate(window, guard);
+        window.Closed += (_, _) => Guards.Remove(window);
 
         var appWindow = GetAppWindow(window);
         if (appWindow == null) return;   // 창 핸들을 못 얻으면 막지 않는다 — 못 닫는 쪽이 더 나쁘다
@@ -102,15 +104,41 @@ public static class UnsavedWorkGuard
     /// 52차에 버튼을 <c>Close()</c> 하나로 줄이면서 "Closing 이 물어 준다" 고 믿었는데,
     /// 실제로 몰아 보니 X 는 묻고 [닫기] 는 묻지 않고 닫아 고치던 것이 사라졌다(2026-09-24).</para>
     /// </summary>
-    public static async Task CloseAsync(Window window)
+    /// <returns>닫았으면 true, 사용자가 [계속 편집] 을 골라 남겼으면 false.</returns>
+    public static async Task<bool> CloseAsync(Window window)
     {
         ArgumentNullException.ThrowIfNull(window);
 
         if (Guards.TryGetValue(window, out var guard) && !guard.Confirmed &&
             !await guard.ConfirmAsync())
-            return;
+            return false;
 
         window.Close();
+        return true;
+    }
+
+    /// <summary>
+    /// 메인 창을 닫기 전에 부른다 — 열려 있는 보조 창(누가기록·수업 일지·메모 편집 …)을
+    /// 하나씩 앞으로 불러 <b>그 창의 확인</b>을 거쳐 닫는다.
+    ///
+    /// <para>보조 창은 소유자 없는 독립 창이라, 예전에는 메인 창만 닫히고 보조 창이 혼자 남았다.
+    /// 거기서 [저장] 을 누르면 이미 닫힌 화면이 목록을 다시 읽다가 오류 안내를 띄우려 했고,
+    /// 닫힌 메인 창을 건드려 앱이 죽었다(2026-09-26 실측).</para>
+    /// </summary>
+    /// <param name="except">닫으려는 메인 창 자신.</param>
+    /// <returns>모두 닫았으면 true. 하나라도 [계속 편집] 이면 false — 메인 창을 닫지 말 것.</returns>
+    public static async Task<bool> CloseOthersAsync(Window except)
+    {
+        var others = new System.Collections.Generic.List<Window>();
+        foreach (var pair in Guards)
+            if (!ReferenceEquals(pair.Key, except)) others.Add(pair.Key);
+
+        foreach (var window in others)
+        {
+            window.Activate();   // 무엇을 묻는지 보이게 앞으로
+            if (!await CloseAsync(window)) return false;
+        }
+        return true;
     }
 
     private static readonly ConditionalWeakTable<Window, CloseGuard> Guards = new();

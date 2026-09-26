@@ -376,6 +376,7 @@ public sealed partial class ClubActivityPage : Page, NewSchool.Controls.IAsksBef
     private async void OnLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
     {
         if (sender is Window w) w.Closed -= OnLogDialogClosedReload;
+        if (!IsLoaded) return;   // 창을 연 채 이 화면을 떠났다 — 닫힌 서비스로 읽지 않는다(PageStudentLog 주석)
         await LoadLogsAsync();
     }
 

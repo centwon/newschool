@@ -1374,6 +1374,7 @@ public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Contr
     private async void OnLogDialogClosedReloadStudent(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
     {
         if (sender is Window w) w.Closed -= OnLogDialogClosedReloadStudent;
+        if (!IsLoaded) return;   // 창을 연 채 이 화면을 떠났다 — 닫힌 서비스로 읽지 않는다(PageStudentLog 주석)
         if (_currentStudentId != null)
             await LoadStudentLogsAsync(_currentStudentId);
     }

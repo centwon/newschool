@@ -235,9 +235,13 @@ public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Contro
 
     // 다이얼로그가 닫힐 때 자기 이벤트를 해제하고 현재 학생 로그 재로드
     // — 람다 대신 named method 를 써 GC 회수가 보장되도록 한 패턴
+    // ⚠ 편집 창은 독립 창이라, 창을 연 채 메뉴로 이 화면을 떠날 수 있다. 그 뒤 창에서 저장하면
+    //   떠난 화면이 이미 닫힌 서비스로 다시 읽다가 "로그 로드 중 오류 … connection is open" 을
+    //   띄웠다 — 저장은 됐는데(2026-09-26 실측). 떠난 화면은 다시 읽지 않는다(돌아오면 새로 읽는다).
     private async void OnLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
     {
         if (sender is Window w) w.Closed -= OnLogDialogClosedReload;
+        if (!IsLoaded) return;
         if (_selectedStudent != null)
             await LoadLogsAsync();
     }
@@ -245,6 +249,7 @@ public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Contro
     private async void OnBatchLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
     {
         if (sender is Window w) w.Closed -= OnBatchLogDialogClosedReload;
+        if (!IsLoaded) return;
         if (_selectedStudent != null)
             await LoadLogsAsync();
     }
@@ -252,6 +257,7 @@ public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Contro
     private async void OnPersonalLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
     {
         if (sender is Window w) w.Closed -= OnPersonalLogDialogClosedReload;
+        if (!IsLoaded) return;
         await LoadLogsAsync();
     }
 

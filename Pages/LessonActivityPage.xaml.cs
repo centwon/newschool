@@ -212,6 +212,7 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
         async void OnBatchDialogClosed(object s, Microsoft.UI.Xaml.WindowEventArgs args)
         {
             capturedDialog.Closed -= OnBatchDialogClosed;
+            if (!IsLoaded) return;   // 창을 연 채 이 화면을 떠났다 — 닫힌 서비스로 읽지 않는다(PageStudentLog 주석)
             if (capturedDialog.IsSuccess)
             {
                 await LoadLogsAsync();
@@ -226,6 +227,7 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
     private async void OnLogDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
     {
         if (sender is Window w) w.Closed -= OnLogDialogClosedReload;
+        if (!IsLoaded) return;   // 창을 연 채 이 화면을 떠났다 — 닫힌 서비스로 읽지 않는다(PageStudentLog 주석)
         await LoadLogsAsync();
     }
 

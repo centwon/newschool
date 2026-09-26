@@ -363,6 +363,11 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private async Task<bool> ConfirmCloseAsync()
     {
+        // 열려 있는 보조 창(누가기록·수업 일지·메모 편집 …)부터 그 창의 확인을 거쳐 닫는다.
+        // 그냥 두면 메인 창만 닫히고 보조 창이 혼자 남는다(UnsavedWorkGuard.CloseOthersAsync 주석).
+        if (!await Controls.UnsavedWorkGuard.CloseOthersAsync(this))
+            return false;
+
         // 누가기록 목록을 놓은 화면은 떠날 때 스스로 묻는데, 그게 창이 닫힌 뒤(Unloaded)라
         // 앱을 닫는 길에서는 물을 곳이 없다 — 창이 살아 있는 지금 먼저 묻게 한다.
         if (WorkFrame.Content is Controls.IAsksBeforeLeaving asks)

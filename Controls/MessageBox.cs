@@ -137,9 +137,26 @@ public static class MessageBox
     /// 한 번 정해 캐시해 두면 그 창이 닫힌 뒤에도 계속 그것을 써서 표시가 통째로 실패한다.
     /// </summary>
     private static XamlRoot? ResolveXamlRoot()
-        => _activeWindow?.Content?.XamlRoot
-           ?? App.MainWindow?.Content?.XamlRoot
+        => RootOf(_activeWindow)
+           ?? RootOf(App.MainWindow)
            ?? _xamlRoot;
+
+    /// <summary>
+    /// 창의 XamlRoot. ⚠ 닫힌 창은 <c>Content</c> 를 읽기만 해도 COMException 을 던진다 —
+    /// 메인 창을 닫은 뒤 뒤늦게 뜬 오류 안내가 여기서 터져 앱이 죽었다(2026-09-26 실측).
+    /// 안내를 못 띄우는 것은 괜찮지만 앱이 죽으면 안 된다.
+    /// </summary>
+    private static XamlRoot? RootOf(Window? window)
+    {
+        try
+        {
+            return window?.Content?.XamlRoot;
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            return null;
+        }
+    }
 
     // 기본 메시지박스 (WPF와 동일한 사용법)
     public static async Task<MessageBoxResult> ShowAsync(string message)

@@ -275,6 +275,7 @@ public sealed partial class ClassDiaryPage : Page, NewSchool.Controls.IAsksBefor
     private async void OnLogDialogClosedReloadDaily(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
     {
         if (sender is Window w) w.Closed -= OnLogDialogClosedReloadDaily;
+        if (!IsLoaded) return;   // 창을 연 채 이 화면을 떠났다 — 닫힌 서비스로 읽지 않는다(PageStudentLog 주석)
         await LoadDailyLogsAsync();
     }
 
@@ -367,6 +368,8 @@ public sealed partial class ClassDiaryPage : Page, NewSchool.Controls.IAsksBefor
 
     private void OnPageUnloaded(object sender, RoutedEventArgs e)
     {
+        _diaryListWin?.Close();
+
         // 화면을 떠날 때도 누가기록 화면(LogList_Unloaded)처럼 고친 기록을 묻는다.
         _ = CheckUnSavedLogsAsync().ContinueWith(t =>
         {
@@ -467,6 +470,12 @@ public sealed partial class ClassDiaryPage : Page, NewSchool.Controls.IAsksBefor
     /// <summary>
     /// 일지 목록 보기
     /// </summary>
+    /// <summary>
+    /// 열어 둔 일지 목록 창. 이 화면이 내려갈 때 함께 닫는다 — 독립 창이라 그냥 두면 화면을
+    /// 떠나거나 앱을 닫아도 혼자 남았고, 거기서 일지를 고르면 이미 치운 일지 칸을 건드렸다.
+    /// </summary>
+    private ClassDiaryListWin? _diaryListWin;
+
     private async void BtnViewDiaryList_Click(object sender, RoutedEventArgs e)
     {
         if (_currentYear == 0 || _currentGrade == 0 || _currentClass == 0)
@@ -483,7 +492,13 @@ public sealed partial class ClassDiaryPage : Page, NewSchool.Controls.IAsksBefor
 
         // 일지 선택 시 해당 날짜로 이동 — 람다 대신 named method 로 구독
         listWin.DiarySelected += OnDiarySelected;
-        listWin.Closed += (s, e) => listWin.DiarySelected -= OnDiarySelected;
+        listWin.Closed += (s, e) =>
+        {
+            listWin.DiarySelected -= OnDiarySelected;
+            if (ReferenceEquals(_diaryListWin, listWin)) _diaryListWin = null;
+        };
+        _diaryListWin?.Close();   // 하나만 — 두 번 누르면 새것으로 바꾼다
+        _diaryListWin = listWin;
 
         // 목록 한 줄은 날짜(140) + 내용 + 아이콘(40)뿐이라 1400 은 지나치게 넓었다.
         // 같은 화면에서 여는 일지 편집 창(ClassDiaryBox)과 크기를 맞춘다.

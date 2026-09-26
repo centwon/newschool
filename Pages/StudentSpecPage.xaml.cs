@@ -251,6 +251,7 @@ public sealed partial class StudentSpecPage : Page, IDisposable
     private async void OnBatchDialogClosedReload(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
     {
         if (sender is Window w) w.Closed -= OnBatchDialogClosedReload;
+        if (!IsLoaded) return;   // 창을 연 채 이 화면을 떠났다 — 닫힌 서비스로 읽지 않는다(PageStudentLog 주석)
 
         // 필터가 온전할 때만 다시 읽는다. LoadSpecsAsync 는 비어 있으면 안내 대화상자를
         // 띄우는데, 창을 닫았을 뿐인 사용자에게 그것이 튀어나오면 뜬금없다.

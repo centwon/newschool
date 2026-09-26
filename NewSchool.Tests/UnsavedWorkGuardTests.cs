@@ -124,6 +124,42 @@ public class UnsavedWorkGuardTests
     }
 
     /// <summary>
+    /// <b>편집 창이 닫힐 때 목록을 다시 읽는 페이지는, 그 사이 페이지를 떠났으면 읽지 않는다.</b>
+    ///
+    /// <para>편집 창(누가기록·일괄 입력)은 독립 창이라 연 채로 메뉴를 옮길 수 있다. 그 뒤 창에서
+    /// 저장하면 떠난 페이지가 이미 닫힌 서비스로 다시 읽다가, 저장은 됐는데 "로그 로드 중 오류 …
+    /// connection is open" 을 띄웠다(2026-09-26 실측).</para>
+    /// </summary>
+    [Fact]
+    public void 창이_닫힐_때_다시_읽는_페이지는_떠났으면_읽지_않는다()
+    {
+        string root = RepoRoot();
+        var offenders = new List<string>();
+        int handlers = 0;
+
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(root, "Pages"), "*.xaml.cs"))
+        {
+            string source = File.ReadAllText(file);
+            var matches = Regex.Matches(source,
+                @"async void (?<name>\w+)\(object\?? \w+, (Microsoft\.UI\.Xaml\.)?WindowEventArgs \w+\)\s*\{(?<body>.*?)\n\s*\}",
+                RegexOptions.Singleline);
+
+            foreach (Match m in matches)
+            {
+                if (!m.Groups["body"].Value.Contains("Load")) continue;   // 다시 읽는 처리기만
+                handlers++;
+                if (!m.Groups["body"].Value.Contains("IsLoaded"))
+                    offenders.Add($"{Path.GetFileName(file)}: {m.Groups["name"].Value}");
+            }
+        }
+
+        Assert.True(handlers >= 5, $"창이 닫힐 때 다시 읽는 처리기를 {handlers}개밖에 못 찾았다 — 검색이 빗나갔다");
+        Assert.True(offenders.Count == 0,
+            "창이 닫힐 때 다시 읽는데, 그 사이 페이지를 떠났는지(IsLoaded) 보지 않는 처리기:\n  " +
+            string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
     /// 창을 닫는 길이 둘(버튼·X)이므로, <b>버튼 쪽에서 결과를 먼저 확정하면 안 된다</b>.
     ///
     /// <para>닫기 확인에서 [계속 편집] 을 골랐는데 이미 <c>TrySetResult(false)</c> 를 해 뒀다면,
