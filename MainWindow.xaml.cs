@@ -143,6 +143,26 @@ public sealed partial class MainWindow : Window
     #endregion
 
     /// <summary>
+    /// 메뉴로 옮겨 갈 때 지난 화면 기록을 버린다 — 뒤로 가기 목록과 <b>페이지 캐시</b> 둘 다.
+    ///
+    /// <para>⚠ <c>BackStack.Clear()</c> 만으로는 캐시가 비지 않는다. 게시판 목록(<c>PostListPage</c>)은
+    /// 글을 보고 [목록으로] 돌아올 때 보던 쪽·검색을 살리려고 <c>NavigationCacheMode.Enabled</c> 인데,
+    /// 메뉴로 게시판에 들어갈 때마다 새 목록이 만들어지고 옛것은 프레임 캐시에 남았다 —
+    /// <c>CacheSize</c>(10)도 넘겨 끝없이 쌓였다(게시판 14번 드나들어 19개 생존, 2026-09-25 실측).
+    /// 글 보기에서 곧장 메뉴로 떠나면 남은 목록이 다음 진입 때 되살아나 옛 쪽·검색어를 보였다.</para>
+    ///
+    /// <para><c>CacheSize</c> 를 0 으로 내렸다 되돌리면 프레임이 캐시를 비운다. 게시판 안의
+    /// 목록→글→목록 은 메뉴를 거치지 않으므로 그대로 캐시를 쓴다.</para>
+    /// </summary>
+    private void ForgetHistory()
+    {
+        WorkFrame.BackStack.Clear();
+        int cacheSize = WorkFrame.CacheSize;
+        WorkFrame.CacheSize = 0;
+        WorkFrame.CacheSize = cacheSize;
+    }
+
+    /// <summary>
     /// 페이지 안에서 다른 메뉴로 넘어갈 때 쓴다 — 화면과 상단 메뉴 표시를 함께 옮긴다.
     ///
     /// <para><c>Frame.Navigate</c> 만 부르면 화면은 바뀌는데 상단 메뉴는 원래 있던 항목을
@@ -156,7 +176,7 @@ public sealed partial class MainWindow : Window
     /// <param name="navTag">상단 메뉴에서 고를 항목의 Tag</param>
     public void NavigateTo(Type pageType, string navTag)
     {
-        WorkFrame.BackStack.Clear();
+        ForgetHistory();
         WorkFrame.Navigate(pageType);
 
         var target = FindNavItem(NavView.MenuItems, navTag);
@@ -446,6 +466,26 @@ public sealed partial class MainWindow : Window
         {
             string tag = item.Tag?.ToString() ?? "";
 
+            // 화면을 옮기지 않는 항목 — 나갈지 묻지도, 기록을 버리지도 않는다.
+            // 예전에는 아래 절차를 다 탔다: 게시판 글을 보다가 하위 메뉴를 펴 보려고 [설정] 만 눌러도
+            // 뒤로 가기 기록이 사라져, [목록으로] 가 보던 게시판이 아니라 모든 게시판이 섞인 목록을
+            // 열었다. 묶음 항목(학급·수업·업무·설정 — Tag 없음)도 누르면 ItemInvoked 가 온다(실측).
+            // ⚠ 이 항목들에 SelectsOnInvoked="False" 를 주면 안 된다 — 누를 때 지금 골라진 항목의
+            //   ItemInvoked 가 한 번 더 와서 보던 화면이 새로 열리고, 하위 항목은 두 번 불리며
+            //   펼친 메뉴도 닫히지 않았다(2026-09-25 실측).
+            if (tag.Length == 0) return;
+            if (tag is "Help" or "CheckUpdate")
+            {
+                // 고르기는 이미 이 항목으로 옮겨 가 있다 — 보던 화면의 메뉴로 되돌린다(아래 [계속 편집] 과 같은 방식).
+                object? keep = TopLevelOwnerOf(_currentNavItem) ?? _currentNavItem;
+                if (keep != null)
+                    DispatcherQueue.TryEnqueue(() => NavView.SelectedItem = keep);
+
+                if (tag == "Help") await OpenHelpInBrowserAsync();
+                else await CheckForUpdateAsync();
+                return;
+            }
+
             // ⚠ 고치던 것을 두고 나가려는 것인지 먼저 묻는다(52차). 예전에는 작성 중인 글도
             //   바꿔 놓은 자리도 메뉴를 누르는 순간 아무 말 없이 사라졌다 — 그 화면의
             //   [취소] 버튼은 물어봤는데 메뉴로 나가는 길만 묻지 않았다.
@@ -472,8 +512,8 @@ public sealed partial class MainWindow : Window
 
             _currentNavItem = item;
 
-            // 메뉴 네비게이션 시 BackStack 정리 (메모리 절약)
-            WorkFrame.BackStack.Clear();
+            // 메뉴 네비게이션 시 뒤로 가기 기록·페이지 캐시 정리 (메모리 절약)
+            ForgetHistory();
 
             // 태그에 따라 페이지 네비게이션
             switch (tag)
@@ -605,12 +645,6 @@ public sealed partial class MainWindow : Window
                     break;
                 case "SchoolWork":
                     WorkFrame.Navigate(typeof(PageSchoolWork));
-                    break;
-                case "Help":
-                    await OpenHelpInBrowserAsync();
-                    break;
-                case "CheckUpdate":
-                    await CheckForUpdateAsync();
                     break;
                 default:
                     break;

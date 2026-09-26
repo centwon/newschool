@@ -40,7 +40,8 @@ public sealed partial class PostListPage : Page
         Debug.WriteLine("PostListPage 생성자 시작");
         this.InitializeComponent();
 
-        // 페이지 캐싱 — 뒤로 돌아올 때 상태 유지
+        // 페이지 캐싱 — 뒤로 돌아올 때 상태 유지.
+        // 메뉴로 떠날 때 캐시를 비우는 것은 MainWindow.ForgetHistory 몫이다(안 비우면 끝없이 쌓였다).
         this.NavigationCacheMode = NavigationCacheMode.Enabled;
 
         ViewModel = new PostListViewModel();
