@@ -25,6 +25,8 @@ Data/
 
 # Claude Code temp files
 tmpclaude-*
+# Claude Code 개인 설정(로컬 경로가 든 권한 허용 목록) — 공유 설정은 .claude/settings.json 에 둔다
+.claude/settings.local.json
 
 # Secrets (통합 secrets.json — Google OAuth + NEIS API key)
 secrets.json
