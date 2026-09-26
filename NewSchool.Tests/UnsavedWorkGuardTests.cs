@@ -43,6 +43,20 @@ public class UnsavedWorkGuardTests
         return dir!.FullName;
     }
 
+    /// <summary>
+    /// 빌드 산출물 경로인가. 저장소 뿌리 바로 아래의 <c>obj/</c> 는 앞에 <c>/</c> 가 없어
+    /// <c>Contains("/obj/")</c> 로는 걸러지지 않는다 — 빌드가 복사해 둔 .xaml 을 세게 된다.
+    /// </summary>
+    private static bool IsBuildOutput(string rel) =>
+        rel.StartsWith("obj/") || rel.StartsWith("bin/") || rel.Contains("/obj/") || rel.Contains("/bin/");
+
+    /// <summary>
+    /// 이 XAML 의 뿌리가 Page 인가. 앞에 <c>&lt;?xml ...?&gt;</c> 선언이 붙은 파일이 있어
+    /// "&lt;Page 로 시작하는가" 로는 동아리·수업 활동 화면을 놓친다.
+    /// </summary>
+    private static bool IsPage(string markup) =>
+        Regex.IsMatch(markup, @"^\s*(<\?xml[^>]*\?>\s*)?(<!--.*?-->\s*)*<Page\s", RegexOptions.Singleline);
+
     /// <summary>저장 버튼을 가진 화면.</summary>
     private static readonly Regex SaveButton = new(@"\b(BtnSave|SaveButton|BtnSaveAll)_Click\b");
 
@@ -58,7 +72,7 @@ public class UnsavedWorkGuardTests
         foreach (var file in Directory.EnumerateFiles(root, "*.xaml.cs", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/');
-            if (rel.Contains("/obj/") || rel.Contains("/bin/")) continue;
+            if (IsBuildOutput(rel)) continue;
 
             string source = File.ReadAllText(file);
             if (!SaveButton.IsMatch(source)) continue;
@@ -73,6 +87,40 @@ public class UnsavedWorkGuardTests
             "페이지면 IUnsavedWork 를 구현하고(메뉴 이동·앱 종료가 본다), 창이면 " +
             "UnsavedWorkGuard.AskBeforeClosing 으로 X 를 막을 것. 잃을 것이 없으면 이 시험의 " +
             "Allowed 에 이유와 함께 적을 것:\n  " + string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
+    /// <b>안에 Frame 을 품은 페이지는, 그 Frame 에 놓인 화면의 판정을 넘긴다.</b>
+    ///
+    /// <para>메뉴 이동·앱 닫기는 메인 창 Frame 에 놓인 페이지만 본다. 업무 관리 화면은 업무 게시판을
+    /// 제 Frame 에 품는데, 거기서 [새 글 쓰기] 로 연 편집 화면은 보이지 않아 쓰던 글을 두고 메뉴를
+    /// 눌러도 묻지 않고 사라졌다(2026-09-25).</para>
+    /// </summary>
+    [Fact]
+    public void Frame_을_품은_페이지는_안쪽_화면의_판정을_넘긴다()
+    {
+        string root = RepoRoot();
+        var offenders = new List<string>();
+        int hosts = 0;
+
+        foreach (var xaml in Directory.EnumerateFiles(root, "*.xaml", SearchOption.AllDirectories))
+        {
+            string rel = Path.GetRelativePath(root, xaml).Replace(Path.DirectorySeparatorChar, '/');
+            if (IsBuildOutput(rel)) continue;
+            if (rel == "MainWindow.xaml") continue;   // 판정하는 쪽이다
+
+            string markup = File.ReadAllText(xaml);
+            if (!IsPage(markup) || !Regex.IsMatch(markup, @"<Frame\b")) continue;
+
+            hosts++;
+            string code = File.Exists(xaml + ".cs") ? File.ReadAllText(xaml + ".cs") : "";
+            if (!code.Contains("IUnsavedWork")) offenders.Add(rel);
+        }
+
+        Assert.True(hosts > 0, "Frame 을 품은 페이지를 하나도 찾지 못했다 — 검색이 깨졌다");
+        Assert.True(offenders.Count == 0,
+            "Frame 을 품었는데 IUnsavedWork 로 안쪽 화면의 판정을 넘기지 않는 페이지:\n  " +
+            string.Join("\n  ", offenders));
     }
 
     /// <summary>
@@ -118,7 +166,7 @@ public class UnsavedWorkGuardTests
         foreach (var xaml in Directory.EnumerateFiles(root, "*.xaml", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(root, xaml).Replace(Path.DirectorySeparatorChar, '/');
-            if (rel.Contains("/obj/") || rel.Contains("/bin/")) continue;
+            if (IsBuildOutput(rel)) continue;
             if (!File.ReadAllText(xaml).Contains("<controls:LogListViewer")) continue;
 
             string code = xaml + ".cs";
@@ -134,6 +182,39 @@ public class UnsavedWorkGuardTests
         Assert.True(offenders.Count == 0,
             "목록을 다시 읽으면 고친 누가기록이 묻지 않고 사라지는 화면이 있다. " +
             "목록을 다시 읽기 전에 LogList.AskSaveModifiedAsync 를 부를 것:\n  " + string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
+    /// <b>누가기록 목록을 놓은 페이지는 앱을 닫기 전에도 묻는다.</b>
+    ///
+    /// <para>이 화면들은 떠날 때(<c>Unloaded</c>) 고친 기록을 묻는데, 앱을 닫는 길에서는 그때 창이
+    /// 이미 닫혀 물을 곳이 없다 — 누가기록 한 줄을 고치고 X 를 누르면 묻지 않고 꺼졌다(2026-09-25
+    /// 실측). 닫기 확인이 창을 닫기 전에 부르는 <c>IAsksBeforeLeaving</c> 을 구현해야 한다.</para>
+    /// </summary>
+    [Fact]
+    public void 누가기록_목록을_놓은_페이지는_앱을_닫기_전에_묻는다()
+    {
+        string root = RepoRoot();
+        var offenders = new List<string>();
+        int pages = 0;
+
+        foreach (var xaml in Directory.EnumerateFiles(root, "*.xaml", SearchOption.AllDirectories))
+        {
+            string rel = Path.GetRelativePath(root, xaml).Replace(Path.DirectorySeparatorChar, '/');
+            if (IsBuildOutput(rel)) continue;
+
+            string markup = File.ReadAllText(xaml);
+            if (!IsPage(markup) || !markup.Contains("<controls:LogListViewer")) continue;
+
+            pages++;
+            string code = File.Exists(xaml + ".cs") ? File.ReadAllText(xaml + ".cs") : "";
+            if (!code.Contains("IAsksBeforeLeaving")) offenders.Add(rel + ".cs");
+        }
+
+        Assert.True(pages >= 5, $"누가기록 목록을 놓은 페이지가 {pages}개뿐이다 — 검색이 빗나갔다");
+        Assert.True(offenders.Count == 0,
+            "앱을 닫으면 고친 누가기록이 묻지 않고 사라지는 페이지가 있다. " +
+            "NewSchool.Controls.IAsksBeforeLeaving 을 구현할 것:\n  " + string.Join("\n  ", offenders));
     }
 
     /// <summary>
@@ -155,7 +236,7 @@ public class UnsavedWorkGuardTests
         foreach (var file in Directory.EnumerateFiles(root, "*.xaml.cs", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/');
-            if (rel.Contains("/obj/") || rel.Contains("/bin/")) continue;
+            if (IsBuildOutput(rel)) continue;
             if (rel == "MainWindow.xaml.cs") continue;   // 앱 창에는 닫기 버튼이 없다(X 뿐)
 
             string source = File.ReadAllText(file);

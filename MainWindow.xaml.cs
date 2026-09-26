@@ -361,8 +361,15 @@ public sealed partial class MainWindow : Window
     /// 앱을 닫아도 되는가 — 지금 화면이 저장하지 않은 편집을 들고 있으면 묻는다.
     /// 메뉴로 옮겨 갈 때와 <b>같은 판정</b>을 쓴다(<see cref="Controls.IUnsavedWork"/>).
     /// </summary>
-    private Task<bool> ConfirmCloseAsync() =>
-        Controls.UnsavedWorkGuard.ConfirmLeaveAsync(WorkFrame.Content);
+    private async Task<bool> ConfirmCloseAsync()
+    {
+        // 누가기록 목록을 놓은 화면은 떠날 때 스스로 묻는데, 그게 창이 닫힌 뒤(Unloaded)라
+        // 앱을 닫는 길에서는 물을 곳이 없다 — 창이 살아 있는 지금 먼저 묻게 한다.
+        if (WorkFrame.Content is Controls.IAsksBeforeLeaving asks)
+            await asks.AskBeforeLeavingAsync();
+
+        return await Controls.UnsavedWorkGuard.ConfirmLeaveAsync(WorkFrame.Content);
+    }
 
     /// <summary>
     /// 창 크기 초기화 및 변경 이벤트 등록

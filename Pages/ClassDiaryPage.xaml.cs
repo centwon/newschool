@@ -11,7 +11,7 @@ using NewSchool.ViewModels;
 
 namespace NewSchool.Pages;
 
-public sealed partial class ClassDiaryPage : Page
+public sealed partial class ClassDiaryPage : Page, NewSchool.Controls.IAsksBeforeLeaving
 {
     private DateTime _currentDate = DateTime.Today;
     private int _currentYear;
@@ -356,6 +356,13 @@ public sealed partial class ClassDiaryPage : Page
         {
             await MessageBox.ShowAsync($"저장 확인 중 오류가 발생했습니다: {ex.Message}", "오류");
         }
+    }
+
+    /// <summary>앱을 닫기 전에 부른다 — 닫을 때는 아래 Unloaded 가 창이 닫힌 뒤라 물을 수 없다.</summary>
+    public async Task AskBeforeLeavingAsync()
+    {
+        await CheckUnSavedLogsAsync();
+        DailyLogList.ClearSelection();   // 저장하지 않은 것은 버린 것 — 닫히는 창에서 또 묻지 않게
     }
 
     private void OnPageUnloaded(object sender, RoutedEventArgs e)

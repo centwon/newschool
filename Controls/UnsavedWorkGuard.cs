@@ -175,3 +175,16 @@ public interface IUnsavedWork
     /// <summary>물어볼 때 보여 줄 첫 줄(무엇이 사라지는지 이름을 대야 한다).</summary>
     string UnsavedWorkMessage { get; }
 }
+
+/// <summary>
+/// 화면을 떠날 때 <b>스스로</b> 고친 것을 한 건씩 저장할지 묻는 화면(누가기록 목록을 놓은 화면).
+///
+/// <para>메뉴로 옮겨 갈 때는 화면이 내려가면서(<c>Unloaded</c>) 묻는다 — 새 화면 위에 뜰 뿐 물을 수는
+/// 있다. 그런데 앱을 닫을 때는 창이 먼저 닫혀 물을 곳이 없어, 고친 기록이 묻지도 않고 사라졌다
+/// (2026-09-25 실측). 그래서 닫기 확인이 창을 닫기 <b>전에</b> 이것을 부른다.</para>
+/// </summary>
+public interface IAsksBeforeLeaving
+{
+    /// <summary>고친 채 저장하지 않은 것을 묻고 저장한다. 끝나면 남은 것은 버린 것으로 친다.</summary>
+    Task AskBeforeLeavingAsync();
+}

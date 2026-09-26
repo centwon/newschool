@@ -18,7 +18,7 @@ namespace NewSchool.Pages;
 /// 수업 활동 기록 페이지
 /// 교사가 담당하는 과목의 학생 활동 기록 관리
 /// </summary>
-public sealed partial class LessonActivityPage : Page
+public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksBeforeLeaving
 {
     #region Fields
 
@@ -526,6 +526,13 @@ public sealed partial class LessonActivityPage : Page
     #endregion
 
     #region Helper Methods
+
+    /// <summary>앱을 닫기 전에 부른다 — 닫을 때는 아래 Unloaded 가 창이 닫힌 뒤라 물을 수 없다.</summary>
+    public async Task AskBeforeLeavingAsync()
+    {
+        await CheckUnSavedAsync();
+        LogList.ClearSelection();   // 저장하지 않은 것은 버린 것 — 닫히는 창에서 또 묻지 않게
+    }
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {

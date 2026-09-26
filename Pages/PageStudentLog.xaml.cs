@@ -19,7 +19,7 @@ namespace NewSchool.Pages;
 /// WPF PageLog를 WinUI3로 전환
 /// Enrollment 모델 직접 사용 (StudentListItemViewModel 제거)
 /// </summary>
-public sealed partial class PageStudentLog : Page, IDisposable
+public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Controls.IAsksBeforeLeaving
 {
     private bool _disposed;
 
@@ -610,6 +610,13 @@ public sealed partial class PageStudentLog : Page, IDisposable
     #endregion
 
     #region Event Handlers - Other
+
+    /// <summary>앱을 닫기 전에 부른다 — 닫을 때는 아래 Unloaded 가 창이 닫힌 뒤라 물을 수 없다.</summary>
+    public async Task AskBeforeLeavingAsync()
+    {
+        await CheckUnSavedAsync();
+        LogList.ClearSelection();   // 저장하지 않은 것은 버린 것 — 닫히는 창에서 또 묻지 않게
+    }
 
     private void LogList_Unloaded(object sender, RoutedEventArgs e)
     {

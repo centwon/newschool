@@ -12,9 +12,18 @@ namespace NewSchool.Pages;
 /// - 좌측: 할 일 + 일정 (KAgendaControl) + 메모 (MemoBoard)
 /// - 우측: 업무 게시판 (PostListPage 임베드, 카테고리=업무, 주제 필터 표시)
 /// </summary>
-public sealed partial class PageSchoolWork : Page
+public sealed partial class PageSchoolWork : Page, NewSchool.Controls.IUnsavedWork
 {
     private bool _isBoardInitialized;
+
+    // 메뉴 이동·앱 닫기는 WorkFrame 에 놓인 이 페이지만 본다. 품은 게시판에서 [새 글 쓰기]·[수정] 을
+    // 누르면 글 편집 화면이 BoardFrame 안에서 열리므로, 그 판정을 그대로 넘겨야 한다 — 예전에는
+    // 쓰던 글을 두고 메뉴를 눌러도 묻지 않고 사라졌다(2026-09-25 실측).
+    public bool HasUnsavedWork =>
+        BoardFrame.Content is NewSchool.Controls.IUnsavedWork work && work.HasUnsavedWork;
+
+    public string UnsavedWorkMessage =>
+        (BoardFrame.Content as NewSchool.Controls.IUnsavedWork)?.UnsavedWorkMessage ?? "";
 
     public PageSchoolWork()
     {

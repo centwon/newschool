@@ -26,7 +26,7 @@ namespace NewSchool.Pages;
 /// 학생 정보 관리 페이지
 /// 학생 목록 + StudentCard + 누가기록 통합
 /// </summary>
-public sealed partial class PageStudentInfo : Page, IDisposable
+public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Controls.IAsksBeforeLeaving
 {
     private bool _disposed;
 
@@ -116,6 +116,18 @@ public sealed partial class PageStudentInfo : Page, IDisposable
         catch (Exception ex)
         {
             Logging.Log.Error("PageStudentInfo", "페이지 이탈 시 자동 저장 예외", ex);
+        }
+
+        // 고친 채 저장하지 않은 누가기록도 묻는다 — 같은 목록을 쓰는 누가기록·동아리·수업 활동·
+        // 학급 일지 화면은 떠날 때 물었는데 여기만 묻지 않고 버렸다(2026-09-25 실측).
+        // 학생카드와 달리 [저장] 을 눌러야 들어가는 칸이다. 대화상자는 새 화면 위에 뜬다.
+        try
+        {
+            await CheckUnSavedLogsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logging.Log.Error("PageStudentInfo", "페이지 이탈 시 누가기록 저장 확인 예외", ex);
         }
 
         // Service Dispose
@@ -527,6 +539,13 @@ public sealed partial class PageStudentInfo : Page, IDisposable
     /// (<see cref="LogListViewer.AskSaveModifiedAsync"/>). 학생카드는 스스로 저장하지만 아래
     /// 누가기록 칸은 [저장] 을 눌러야 해서, 예전에는 학생·학급을 바꾸면 고친 기록이 사라졌다.
     /// </summary>
+    /// <summary>앱을 닫기 전에 부른다 — 닫을 때는 Unloaded 가 창이 닫힌 뒤라 물을 수 없다.</summary>
+    public async Task AskBeforeLeavingAsync()
+    {
+        await CheckUnSavedLogsAsync();
+        LogList.ClearSelection();   // 저장하지 않은 것은 버린 것 — 닫히는 창에서 또 묻지 않게
+    }
+
     private async Task CheckUnSavedLogsAsync()
     {
         if (string.IsNullOrEmpty(_currentStudentId)) return;
