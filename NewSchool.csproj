@@ -60,39 +60,9 @@
        빌드 제외 항목
        ========================================== -->
   <ItemGroup>
-    <Compile Remove="Board\FileItemBox.xaml.cs" />
-    <Compile Remove="Board\PostBox.xaml.cs" />
-    <Compile Remove="Board\PostFileListBox.xaml.cs" />
     <!-- 테스트 프로젝트는 별도 csproj 로 빌드되므로 메인 프로젝트의 implicit glob 에서 제외 -->
     <Compile Remove="NewSchool.Tests\**\*.cs" />
     <None Remove="NewSchool.Tests\**\*" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="Board\Controls\FileItemBox.xaml" />
-    <None Remove="Board\Controls\PostFileListBox.xaml" />
-    <None Remove="Board\FileItemBox.xaml" />
-    <None Remove="Board\Pages\PostDetailPage.xaml" />
-    <None Remove="Board\Pages\PostEditPage.xaml" />
-    <None Remove="Board\Pages\PostListPage.xaml" />
-    <None Remove="Board\PostBox.xaml" />
-    <None Remove="Board\PostFileListBox.xaml" />
-    <None Remove="Controls\MonthPicker.xaml" />
-    <None Remove="Controls\SchoolMealBox.xaml" />
-    <None Remove="Controls\StudentCard.xaml" />
-    <None Remove="Dialogs\SchoolSearchDialog.xaml" />
-    <None Remove="Pages\AddStudentsPage.xaml" />
-    <None Remove="Pages\StudentInfoExportPage.xaml" />
-    <None Remove="Pages\StudentManagementPage.xaml" />
-    <None Remove="Pages\TodayPage.xaml" />
-    <None Remove="Scheduler\DayCell.xaml" />
-    <None Remove="Scheduler\Kcalendar.xaml" />
-    <None Remove="SettingsPage.xaml" />
-    <None Remove="Pages\InitialSetupWindow.xaml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Page Remove="Board\FileItemBox.xaml" />
-    <Page Remove="Board\PostBox.xaml" />
-    <Page Remove="Board\PostFileListBox.xaml" />
   </ItemGroup>
 
   <!-- ==========================================
@@ -195,66 +165,6 @@
     </ApplicationDefinition>
   </ItemGroup>
 
-  <!-- XAML Generator 설정 -->
-  <ItemGroup>
-    <Page Update="Board\Controls\PostFileListBox.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Board\Controls\FileItemBox.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Board\Pages\PostEditPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Board\Pages\PostDetailPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Board\Pages\PostListPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Scheduler\UnifiedItemDialog.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Scheduler\DayCell.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Scheduler\Kcalendar.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Controls\MonthPicker.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Dialogs\SchoolSearchDialog.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="SettingsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Pages\StudentManagementPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Pages\InitialSetupWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Pages\AddStudentsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Pages\TodayPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Pages\StudentInfoExportPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Scheduler\KAgendaControl.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Controls\SchoolMealBox.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Controls\StudentCard.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <WebView2EnableCsWinRTProjection>False</WebView2EnableCsWinRTProjection>
   </PropertyGroup>
@@ -320,17 +230,13 @@
     <Content Remove="**\*.md" />
     <None Remove="**\*.md" />
 
-    <!-- Docs 디렉토리 전체 제외 -->
-    <Content Remove="Docs\**" />
-    <None Remove="Docs\**" />
+    <!-- docs 디렉토리 전체 제외 -->
+    <Content Remove="docs\**" />
+    <None Remove="docs\**" />
 
     <!-- .gitignore 제외 -->
     <Content Remove=".gitignore" />
     <None Remove=".gitignore" />
-
-    <!-- Inno Setup 스크립트 출력 제외 -->
-    <Content Remove="installer.iss" />
-    <None Remove="installer.iss" />
 
     <!-- Properties 디렉토리 출력 제외 (launchSettings, PublishProfiles) -->
     <Content Remove="Properties\launchSettings.json" />
@@ -360,17 +266,6 @@
     </ItemGroup>
   </Target>
 
-  <!-- 게시 폴더에 복사 방지 -->
-  <ItemGroup>
-    <Content Remove="installer.iss" />
-    <Content Remove="prerequisites\**" />
-    <None Remove="installer.iss" />
-    <None Remove="prerequisites\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Installer\prerequisites\" />
-  </ItemGroup>
-
   <!-- 게시 전에 게시 폴더를 비운다.
        dotnet publish 는 덮어쓰기만 하고 지난 게시의 파일을 지우지 않는데, 설치 스크립트는
        이 폴더를 통째로(*) 담는다. 그래서 빠지도록 고친 파일도 폴더에 남아 설치 파일로 들어간다
@@ -390,7 +285,6 @@
       <_PublishGitignoreFiles Include="$(PublishDir).gitignore" />
       <_PublishPropertiesFiles Include="$(PublishDir)Properties\**\*" />
       <_PublishInstallerFiles Include="$(PublishDir)Installer\**\*" />
-      <_PublishPrereqFiles Include="$(PublishDir)prerequisites\**\*" />
       <!-- 개발용/내장 전환된 파일은 게시 폴더에 두지 않음(이전 게시 잔존분도 제거) -->
       <_PublishEditorConfig Include="$(PublishDir).editorconfig" />
       <_PublishSecretsJson Include="$(PublishDir)secrets.json" />
@@ -480,7 +374,6 @@
     <Delete Files="@(_PublishGitignoreFiles)" />
     <Delete Files="@(_PublishPropertiesFiles)" />
     <Delete Files="@(_PublishInstallerFiles)" />
-    <Delete Files="@(_PublishPrereqFiles)" />
     <Delete Files="@(_PublishEditorConfig)" />
     <Delete Files="@(_PublishSecretsJson)" />
     <Delete Files="@(_PublishWinmdFiles)" />
@@ -494,7 +387,6 @@
     <RemoveDir Directories="$(PublishDir)Board" />
     <RemoveDir Directories="$(PublishDir)Scheduler" />
     <RemoveDir Directories="$(PublishDir)Installer" />
-    <RemoveDir Directories="$(PublishDir)prerequisites" />
     <Message Text="[CleanPublishOutput] 불필요 파일/폴더 정리 완료" Importance="high" />
   </Target>
 
