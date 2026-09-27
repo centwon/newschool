@@ -326,7 +326,10 @@ public sealed partial class CourseManagementPage : Page
     {
         int index = TabsPivot.SelectedIndex;
         if (index < 0 || index >= TabCount) return;
-        if (!_dirty[index]) return;
+
+        // 진도 예정은 단원·시간표 배치·시수 조정·주별 시간표 변경 네 탭 모두에 따라 움직이는데,
+        // 그중 배치만 알림을 준다. 한 수업 분량이라 가벼우니 진도 탭은 열 때마다 다시 계산한다.
+        if (!_dirty[index] && index != TabProgress) return;
 
         _dirty[index] = false;
 

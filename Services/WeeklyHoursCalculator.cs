@@ -22,8 +22,13 @@ public static class WeeklyHoursCalculator
     public const string UnassignedRoom = "(미지정)";
 
     /// <summary>
-    /// 표에 세울 학급(강의실) 열을 정한다.
-    /// 수업에 등록된 강의실 순서를 먼저 따르고, 거기에 없는데 배치에만 있는 강의실을 뒤에 붙인다.
+    /// 표에 세울 학급(강의실) 열을 정한다 — 시수표와 진도표가 <b>같은 열</b>을 쓴다.
+    /// 수업에 등록된 강의실을 등록 순서대로 <b>모두</b> 세우고, 거기에 없는데 배치에만 있는
+    /// 강의실을 뒤에 붙인다.
+    ///
+    /// <para>예전에는 시수표가 "등록 강의실 중 배치된 것" 만, 진도표는 "등록 강의실 전부" 를
+    /// 세워 두 표의 열이 어긋났다. 진도 예정일을 시수에서 계산하려면 열이 같아야 한다.
+    /// 배치가 없는 학급은 시수표에서 0 으로 드러난다 — 아직 시간표에 안 넣었다는 뜻이다.</para>
     /// </summary>
     public static List<string> ResolveRooms(Course course, IEnumerable<Lesson> lessons)
     {
@@ -36,7 +41,7 @@ public static class WeeklyHoursCalculator
 
         foreach (var room in course?.RoomList ?? [])
         {
-            if (placed.Contains(room))
+            if (!ordered.Contains(room))
                 ordered.Add(room);
         }
 

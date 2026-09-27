@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -116,6 +118,107 @@ public static class LessonJournalComposer
             await UserErrorReporter.ReportAsync("수업 일지 쓰기", ex);
             return false;
         }
+    }
+
+    /// <summary>
+    /// 그 칸(날짜·교시)에 써 둔 일지가 있으면 그 글을, 없으면 새 일지를 연다.
+    /// 시간표·진도표 칸에서 "수업 일지 쓰기" 를 누르면 같은 수업의 일지가 두 벌 생기지 않게 한다.
+    /// </summary>
+    /// <returns>저장했으면 true</returns>
+    public static async Task<bool> OpenOrComposeAsync(LessonSlotSeed seed)
+    {
+        var existing = await FindByDateAsync(seed.Date);
+        return existing.TryGetValue(seed.Period, out var post)
+            ? await OpenPostAsync(post.No)
+            : await ComposeAsync(seed);
+    }
+
+    /// <summary>
+    /// 그 날짜에 써 둔 수업 일지를 교시별로 모은다.
+    ///
+    /// 게시글에는 날짜·교시를 담을 칸이 없어서 제목 규칙(<see cref="LessonJournalTitle"/>)을
+    /// 되읽는다. 제목을 손으로 고친 글은 못 알아본다 — 글이 사라지는 것은 아니고 목록에는 남는다.
+    /// 읽지 못하면 빈 결과다(부르는 쪽은 "아직 안 씀" 으로 보인다).
+    /// </summary>
+    public static async Task<Dictionary<int, Post>> FindByDateAsync(DateTime date)
+    {
+        var byPeriod = new Dictionary<int, Post>();
+
+        try
+        {
+            // 제목이 "8/21 " 로 시작하는 글만 추린 뒤 교시를 되읽는다.
+            using var service = NewSchool.Board.Board.CreateCachedService();
+            var page = await service.GetPostsPagedAsync(
+                pageNumber: 1,
+                pageSize: 50,
+                category: Category,
+                subject: Subject,
+                searchTitle: true,
+                searchText: $"{date.Month}/{date.Day} ");
+
+            foreach (var post in page.Items)
+            {
+                // 해가 바뀌면 "8/21" 이 겹치므로 쓴 해까지 본다.
+                if (post.DateTime.Year != date.Year) continue;
+
+                int period = LessonJournalTitle.PeriodOf(post.Title, date);
+                if (period > 0) byPeriod.TryAdd(period, post);
+            }
+        }
+        catch (Exception ex)
+        {
+            NewSchool.Logging.Log.Warning("LessonJournalComposer", $"그 날의 수업 일지를 읽지 못했다: {ex.Message}");
+        }
+
+        return byPeriod;
+    }
+
+    /// <summary>
+    /// 한 학급의 수업 일지 가운데 날짜가 [<paramref name="from"/>, <paramref name="to"/>] 안인 것 — 날짜 순.
+    /// 진도표의 "이 단원의 수업 일지" 가 쓴다. 제목 규칙의 꼬리("역사 3-1")로 학급을 가린다.
+    /// </summary>
+    public static async Task<List<(DateTime Date, int Period, Post Post)>> FindForRoomAsync(
+        string subject, string room, DateTime from, DateTime to)
+    {
+        var result = new List<(DateTime, int, Post)>();
+        var tail = LessonJournalTitle.Build(null, 0, subject, room);
+
+        try
+        {
+            using var service = NewSchool.Board.Board.CreateCachedService();
+            var page = await service.GetPostsPagedAsync(
+                pageNumber: 1,
+                pageSize: 1000,
+                category: Category,
+                subject: Subject,
+                searchTitle: true,
+                searchText: tail);
+
+            foreach (var post in page.Items)
+            {
+                if (LessonJournalTitle.Head(post.Title) is not { } head) continue;
+                if (!string.Equals(head.Tail, tail, StringComparison.Ordinal)) continue;
+
+                // 제목에는 해가 없다 — 기간에 걸리는 해(2학기는 해를 넘긴다)로 맞춰 본다.
+                foreach (var year in new[] { from.Year, to.Year }.Distinct())
+                {
+                    if (head.Day > DateTime.DaysInMonth(year, head.Month)) continue;
+
+                    var date = new DateTime(year, head.Month, head.Day);
+                    if (date >= from.Date && date <= to.Date)
+                    {
+                        result.Add((date, head.Period, post));
+                        break;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            NewSchool.Logging.Log.Warning("LessonJournalComposer", $"학급의 수업 일지를 읽지 못했다: {ex.Message}");
+        }
+
+        return result.OrderBy(r => r.Item1).ThenBy(r => r.Item2).ToList();
     }
 
     /// <summary>

@@ -37,7 +37,6 @@ namespace NewSchool.Controls;
 /// </summary>
 public sealed partial class WeeklyTimetableView : UserControl
 {
-    private const int WeekCount = 3;
     private const int DayCount = 5;          // 월~금
     private const string DragSlot = "weekslot";
 
@@ -73,9 +72,48 @@ public sealed partial class WeeklyTimetableView : UserControl
     private bool _focused;
     private (DateTime Date, int Period)? _dragFrom;
 
+    /// <summary>(날짜, 교시) → 그 칸에 써 둔 수업 일지 글 번호 (<see cref="Compact"/> 일 때만 읽는다)</summary>
+    private readonly Dictionary<(DateTime Date, int Period), int> _journals = [];
+
+    /// <summary>수업 → 진도 계획. 칸 메뉴를 열 때 읽고, 다시 읽기·진도 표시 때 버린다.</summary>
+    private readonly Dictionary<int, CourseProgressPlan> _plans = [];
+
+    /// <summary>
+    /// 간단 모드 — 수업 홈의 "내 시간표" 카드. <b>1주</b>만 보이고, 도구 모음·주 띠·상태 줄이 없고,
+    /// 열이 카드 폭을 채운다. 칸을 누르면 바로 메뉴가 뜨고, 칸끼리 끌어 맞바꾸기(교체)는 꺼진다 —
+    /// 홈은 훑어보는 화면이라 실수로 끌어 시간표가 바뀌면 안 된다(교체는 메뉴로만).
+    /// 일지를 써 둔 칸에는 공책 표시가 붙는다. XAML 에서 한 번 정한다.
+    /// </summary>
+    public bool Compact { get; set; }
+
+    /// <summary>한 번에 보이는 주 수 — 수업 관리는 3주, 간단 모드는 1주.</summary>
+    private int WeekCount => Compact ? 1 : 3;
+
+    /// <summary>보고 있는 주에 수업이 한 칸이라도 있는가 — 빈 시간표에 안내를 얹을지 정할 때 쓴다.</summary>
+    public bool HasAnyLesson => _lessons.Count > 0 || _changes.Values.Any(c => c.HasCourse);
+
+    /// <summary>칸 메뉴에서 수업 일지를 쓰거나 진도를 표시했다 — 홈의 목록을 다시 읽을 때 쓴다.</summary>
+    public event EventHandler? LessonRecordChanged;
+
     public WeeklyTimetableView()
     {
         this.InitializeComponent();
+        Loaded += (_, _) => ApplyMode();
+    }
+
+    /// <summary>간단 모드면 도구 모음·상태 줄·카드 테두리를 걷고 가로 스크롤을 끈다.</summary>
+    private void ApplyMode()
+    {
+        if (!Compact) return;
+
+        ToolbarGrid.Visibility = Visibility.Collapsed;
+        TxtStatus.Visibility = Visibility.Collapsed;
+        TableCard.BorderThickness = new Thickness(0);
+        TableCard.Background = null;
+        TableInner.Margin = new Thickness(0);
+        WeekScroll.HorizontalScrollMode = ScrollMode.Disabled;
+        WeekScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        OuterScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
     }
 
     #region 로드
@@ -87,7 +125,8 @@ public sealed partial class WeeklyTimetableView : UserControl
     /// 모두 보여야 한다. 예전에는 고른 수업을 받아 Enter 로 그 수업을 넣었는데, 정작 이 탭에는
     /// 무엇이 골라져 있는지 보이지 않았다. 지금 Enter 는 <b>그 칸의 메뉴를 연다</b>.</para>
     /// </summary>
-    public async Task LoadAsync(int year, int semester, IReadOnlyList<Course> courses)
+    /// <param name="firstDate">이 날이 든 주부터 보여 준다. null 이면 이번 주(학년도·학기가 바뀌었을 때) 또는 보던 주.</param>
+    public async Task LoadAsync(int year, int semester, IReadOnlyList<Course> courses, DateTime? firstDate = null)
     {
         bool scopeChanged = _year != year || _semester != semester;
 
@@ -100,7 +139,9 @@ public sealed partial class WeeklyTimetableView : UserControl
         _courses.Clear();
         _courses.AddRange(courses);
 
-        if (scopeChanged || _firstMonday == default)
+        if (firstDate != null)
+            _firstMonday = MondayOf(firstDate.Value);
+        else if (scopeChanged || _firstMonday == default)
             _firstMonday = MondayOf(DateTime.Today);
 
         if (scopeChanged || _schedules.Count == 0)
@@ -137,6 +178,8 @@ public sealed partial class WeeklyTimetableView : UserControl
     {
         _lessons.Clear();
         _changes.Clear();
+        _journals.Clear();
+        _plans.Clear();
 
         if (string.IsNullOrEmpty(_teacherId) || _year == 0 || _semester == 0)
         {
@@ -162,6 +205,9 @@ public sealed partial class WeeklyTimetableView : UserControl
                 var (_, end) = WeeklyHoursCalculator.DefaultSemesterRange(_year, _semester);
                 _futureChangeCount = (await repo.GetRangeAsync(_teacherId, DateTime.Today, end)).Count;
             }
+
+            if (Compact)
+                await LoadJournalMarksAsync();
         }
         catch (Exception ex)
         {
@@ -171,6 +217,22 @@ public sealed partial class WeeklyTimetableView : UserControl
 
         BuildTable();
     }
+
+    /// <summary>보고 있는 주의 칸마다 수업 일지를 써 두었는지 — 공책 표시용.</summary>
+    private async Task LoadJournalMarksAsync()
+    {
+        for (int i = 0; i < WeekCount * 7; i++)
+        {
+            var date = _firstMonday.AddDays(i);
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) continue;
+
+            foreach (var (period, post) in await Dialogs.LessonJournalComposer.FindByDateAsync(date))
+                _journals[(date.Date, period)] = post.No;
+        }
+    }
+
+    /// <summary>보고 있는 주를 다시 읽는다(수업 일지를 쓰고 돌아왔을 때 등).</summary>
+    public Task RefreshAsync() => ReloadAsync();
 
     private async void OnRefreshClick(object sender, RoutedEventArgs e)
         => await RunAsync(ReloadAsync, "다시 읽기");
@@ -281,6 +343,9 @@ public sealed partial class WeeklyTimetableView : UserControl
     /// <summary>과목명 줄 + 강의실 줄이 들어가므로 넉넉히 잡는다 — 낮으면 아래 줄이 잘린다.</summary>
     private const double SlotRowHeight = 62;
 
+    /// <summary>간단 모드(홈 카드)의 칸 높이 — 두 줄이 겨우 들어가는 만큼.</summary>
+    private const double CompactSlotRowHeight = 46;
+
     private void BuildTable()
     {
         WeekGrid.Children.Clear();
@@ -292,30 +357,36 @@ public sealed partial class WeeklyTimetableView : UserControl
         _cells.Clear();
         _dates.Clear();
 
+        ApplyMode();
+
         // ── 행: [주 띠] [날짜] [1교시] … [n교시] ─ 두 표가 같은 높이를 쓴다.
+        //    간단 모드는 1주뿐이라 주 띠를 두지 않는다(높이 0) — 범위는 홈 카드 머리에 있다.
         foreach (var grid in new[] { PeriodGrid, WeekGrid })
         {
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(BandRowHeight) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(Compact ? 0 : BandRowHeight) });
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(DateRowHeight) });
             for (int period = 0; period < _maxPeriod; period++)
-                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(SlotRowHeight) });
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(Compact ? CompactSlotRowHeight : SlotRowHeight) });
         }
 
         // ── 고정 열(교시)
-        PeriodGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(PeriodColumnWidth) });
-        AddHeader(PeriodGrid, string.Empty, 0, 0);       // 주 띠와 마주 보는 빈 모서리
-        AddHeader(PeriodGrid, "교시", 1, 0);
+        PeriodGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Compact ? 32 : PeriodColumnWidth) });
+        if (!Compact) AddHeader(PeriodGrid, string.Empty, 0, 0);       // 주 띠와 마주 보는 빈 모서리
+        AddHeader(PeriodGrid, Compact ? "" : "교시", 1, 0);
         for (int period = 1; period <= _maxPeriod; period++)
             AddHeader(PeriodGrid, $"{period}", period + 1, 0);
 
-        // ── 날짜 열들
+        // ── 날짜 열들 — 간단 모드는 카드 폭을 나눠 채운다(가로 스크롤 없음)
         for (int i = 0; i < WeekCount * DayCount; i++)
-            WeekGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(DateColumnWidth) });
+            WeekGrid.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = Compact ? new GridLength(1, GridUnitType.Star) : new GridLength(DateColumnWidth)
+            });
 
         for (int week = 0; week < WeekCount; week++)
         {
             var monday = _firstMonday.AddDays(week * 7);
-            AddWeekBand(monday, week * DayCount);
+            if (!Compact) AddWeekBand(monday, week * DayCount);
 
             for (int day = 0; day < DayCount; day++)
             {
@@ -467,7 +538,8 @@ public sealed partial class WeeklyTimetableView : UserControl
 
         var border = new Border
         {
-            AllowDrop = available,
+            // 간단 모드는 끌어 맞바꾸기를 끈다 — 교체는 메뉴로만
+            AllowDrop = available && !Compact,
             Tag = (date, period)
         };
 
@@ -475,11 +547,17 @@ public sealed partial class WeeklyTimetableView : UserControl
 
         if (available)
         {
-            border.DragEnter += OnSlotDragOver;
-            border.DragOver += OnSlotDragOver;
-            border.Drop += OnSlotDrop;
-            border.DragStarting += OnSlotDragStarting;
+            if (!Compact)
+            {
+                border.DragEnter += OnSlotDragOver;
+                border.DragOver += OnSlotDragOver;
+                border.Drop += OnSlotDrop;
+                border.DragStarting += OnSlotDragStarting;
+            }
             border.PointerPressed += OnSlotPointerPressed;
+
+            // 메뉴는 열 때 만든다 — 수업 일지·진도 항목이 그 순간의 기록을 봐야 한다.
+            border.ContextRequested += OnSlotContextRequested;
         }
 
         Grid.SetRow(border, period + 1);
@@ -495,7 +573,6 @@ public sealed partial class WeeklyTimetableView : UserControl
             border.Style = null;
             border.Child = null;
             border.CanDrag = false;
-            border.ContextFlyout = null;
             ToolTipService.SetToolTip(border, null);
             return;
         }
@@ -507,7 +584,6 @@ public sealed partial class WeeklyTimetableView : UserControl
             border.Style = CellStyle("WeekEmptySlotStyle");
             border.Child = null;
             border.CanDrag = false;
-            border.ContextFlyout = BuildSlotMenu(date, period, slot);
             ToolTipService.SetToolTip(border, null);
             return;
         }
@@ -530,25 +606,45 @@ public sealed partial class WeeklyTimetableView : UserControl
                 : "WeekSubjectStyle")
         });
 
-        if (!string.IsNullOrWhiteSpace(slot.Room))
-            panel.Children.Add(new TextBlock { Text = slot.Room, Style = CellStyle("WeekRoomTextStyle") });
+        bool journal = _journals.ContainsKey((date.Date, period));
+
+        if (!string.IsNullOrWhiteSpace(slot.Room) || journal)
+        {
+            // 강의실 줄 — 일지를 써 둔 칸이면 공책 표시를 옆에 붙인다
+            var roomLine = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Spacing = 3
+            };
+            if (!string.IsNullOrWhiteSpace(slot.Room))
+                roomLine.Children.Add(new TextBlock { Text = slot.Room, Style = CellStyle("WeekRoomTextStyle") });
+            if (journal)
+                roomLine.Children.Add(new FontIcon
+                {
+                    Glyph = "",
+                    FontSize = 11,
+                    Foreground = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"]
+                });
+            panel.Children.Add(roomLine);
+        }
 
         border.Child = panel;
-        border.CanDrag = slot.Movable;
-        border.ContextFlyout = BuildSlotMenu(date, period, slot);
+        border.CanDrag = slot.Movable && !Compact;
 
         var memo = _changes.TryGetValue((date.Date, period), out var change) ? change.Memo : string.Empty;
         var tip = $"{date:M월 d일} {period}교시\n{slot.Subject}";
         if (!string.IsNullOrWhiteSpace(slot.Room)) tip += $" · {slot.Room}";
         if (slot.Kind != LessonChangeKind.None) tip += $"\n[{LessonChangeLabels.Name(slot.Kind)}]";
         if (!string.IsNullOrWhiteSpace(memo)) tip += $" {memo}";
+        if (journal) tip += "\n수업 일지 씀";
 
         ToolTipService.SetToolTip(border, tip);
     }
 
-    private MenuFlyout BuildSlotMenu(DateTime date, int period, SlotView slot)
+    /// <summary>수업 변경 항목들(휴강·내 수업 넣기·대강·강의실·되돌리기)을 <paramref name="items"/> 에 붙인다.</summary>
+    private void AddChangeItems(IList<MenuFlyoutItemBase> items, DateTime date, int period, SlotView slot)
     {
-        var menu = new MenuFlyout();
 
         if (slot.Kind != LessonChangeKind.Cancelled && !slot.IsBlank)
         {
@@ -559,7 +655,7 @@ public sealed partial class WeeklyTimetableView : UserControl
                 Tag = (date, period)
             };
             cancel.Click += OnMenuCancelClick;
-            menu.Items.Add(cancel);
+            items.Add(cancel);
         }
 
         // 내 수업 넣기 — 수업과 강의실을 함께 고른다.
@@ -596,7 +692,7 @@ public sealed partial class WeeklyTimetableView : UserControl
                 sub.Items.Add(byCourse);
             }
 
-            menu.Items.Add(sub);
+            items.Add(sub);
         }
 
         var substitute = new MenuFlyoutItem
@@ -606,7 +702,7 @@ public sealed partial class WeeklyTimetableView : UserControl
             Tag = (date, period)
         };
         substitute.Click += OnMenuSubstituteClick;
-        menu.Items.Add(substitute);
+        items.Add(substitute);
 
         // 강의실 바꾸기 — 내 수업일 때만 후보를 낼 수 있다
         var course2 = FindCourse(slot.CourseNo);
@@ -622,13 +718,13 @@ public sealed partial class WeeklyTimetableView : UserControl
                     item.Click += OnMenuRoomClick;
                     sub.Items.Add(item);
                 }
-                menu.Items.Add(sub);
+                items.Add(sub);
             }
         }
 
         if (_changes.ContainsKey((date.Date, period)))
         {
-            menu.Items.Add(new MenuFlyoutSeparator());
+            items.Add(new MenuFlyoutSeparator());
 
             var revert = new MenuFlyoutItem
             {
@@ -637,10 +733,140 @@ public sealed partial class WeeklyTimetableView : UserControl
                 Tag = (date, period)
             };
             revert.Click += OnMenuRevertClick;
-            menu.Items.Add(revert);
+            items.Add(revert);
+        }
+    }
+
+    /// <summary>
+    /// 칸 메뉴. 내 수업 칸이면 <b>수업 일지 쓰기 · 진도 완료 표시 ▸ · 수업 변경 ▸</b>,
+    /// 빈 칸·휴강·대강이면 수업 변경 항목만 바로 늘어놓는다.
+    /// </summary>
+    private async Task<MenuFlyout> BuildSlotMenuAsync(DateTime date, int period, SlotView slot)
+    {
+        var menu = new MenuFlyout();
+        var course = FindCourse(slot.CourseNo);
+
+        bool mine = course != null && !slot.IsBlank
+                    && slot.Kind is not (LessonChangeKind.Cancelled or LessonChangeKind.Substitute);
+        if (!mine)
+        {
+            AddChangeItems(menu.Items, date, period, slot);
+            return menu;
         }
 
+        var room = string.IsNullOrWhiteSpace(slot.Room) ? WeeklyHoursCalculator.UnassignedRoom : slot.Room;
+        var plan = await GetPlanAsync(course!);
+        var current = plan?.CurrentSection(room);
+
+        // ① 수업 일지 쓰기 — 써 둔 일지가 있으면 그 글을 연다
+        bool written = _journals.ContainsKey((date.Date, period));
+        var write = new MenuFlyoutItem
+        {
+            Text = written ? "수업 일지 보기" : "수업 일지 쓰기",
+            Icon = new FontIcon { Glyph = "" }
+        };
+        write.Click += async (_, _) => await RunAsync(async () =>
+        {
+            var seed = new Dialogs.LessonSlotSeed(date, period, course!.No, course.Subject, slot.Room);
+            if (await Dialogs.LessonJournalComposer.OpenOrComposeAsync(seed))
+                await AfterRecordChangedAsync();
+        }, "수업 일지");
+        menu.Items.Add(write);
+
+        // ② 진도 완료 표시 ▸ — 할 차례인 단원부터. 앞날의 수업은 아직 표시할 수 없다.
+        var progress = new MenuFlyoutSubItem { Text = "진도 완료 표시", Icon = new FontIcon { Glyph = "" } };
+        if (plan == null || plan.Sections.Count == 0)
+        {
+            progress.Items.Add(new MenuFlyoutItem { Text = "단원이 없습니다 — 수업 관리의 [단원 관리] 에서 넣습니다", IsEnabled = false });
+        }
+        else if (current == null)
+        {
+            progress.Items.Add(new MenuFlyoutItem { Text = "이 학급은 모든 단원을 마쳤습니다", IsEnabled = false });
+        }
+        else
+        {
+            bool past = date.Date <= DateTime.Today;
+            int start = plan.Sections.ToList().FindIndex(s => s.No == current.No);
+
+            foreach (var section in plan.Sections.Skip(start).Take(6))
+            {
+                var item = new MenuFlyoutItem
+                {
+                    Text = section.No == current.No
+                        ? $"{section.FullPath} {section.SectionName} · 할 차례"
+                        : $"{section.FullPath} {section.SectionName}",
+                    IsEnabled = past
+                };
+                item.Click += async (_, _) => await RunAsync(async () =>
+                {
+                    if (await CourseProgressPlan.MarkCompletedAsync(section.No, room, date, period))
+                    {
+                        ShowInfo($"{room} · {section.SectionName} 을(를) {date:M/d} {period}교시에 완료로 표시했습니다.");
+                        await AfterRecordChangedAsync();
+                    }
+                    else
+                    {
+                        ShowWarning("진도를 표시하지 못했습니다.");
+                    }
+                }, "진도 표시");
+                progress.Items.Add(item);
+            }
+
+            if (!past)
+                progress.Items.Add(new MenuFlyoutItem { Text = "앞으로의 수업은 그 날이 지나야 표시할 수 있습니다", IsEnabled = false });
+        }
+        menu.Items.Add(progress);
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        // ③ 수업 변경 ▸
+        var change = new MenuFlyoutSubItem { Text = "수업 변경", Icon = new FontIcon { Glyph = "" } };
+        AddChangeItems(change.Items, date, period, slot);
+        menu.Items.Add(change);
+
         return menu;
+    }
+
+    /// <summary>그 수업의 진도 계획 — 메뉴를 열 때 읽어 두고, 기록이 바뀌면 버린다.</summary>
+    private async Task<CourseProgressPlan?> GetPlanAsync(Course course)
+    {
+        if (_plans.TryGetValue(course.No, out var cached)) return cached;
+
+        try
+        {
+            var plan = await CourseProgressPlan.LoadAsync(course, DateTime.Today);
+            _plans[course.No] = plan;
+            return plan;
+        }
+        catch (Exception ex)
+        {
+            // 진도를 못 읽어도 일지 쓰기·수업 변경은 된다 — 진도 항목만 비운다.
+            NewSchool.Logging.Log.Warning("WeeklyTimetableView", $"진도 계획을 읽지 못해 진도 항목을 비운다: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>일지를 쓰거나 진도를 표시했다 — 공책 표시와 진도 계획을 다시 읽고 바깥에 알린다.</summary>
+    private async Task AfterRecordChangedAsync()
+    {
+        _plans.Clear();
+        if (Compact)
+        {
+            _journals.Clear();
+            await LoadJournalMarksAsync();
+            BuildTable();
+        }
+        LessonRecordChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async void OnSlotContextRequested(UIElement sender, ContextRequestedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not Border border || border.Tag is not ValueTuple<DateTime, int> tag) return;
+
+        _cursor = (tag.Item1.Date, tag.Item2);
+        UpdateCursorVisual();
+        await ShowSlotMenuAsync(tag.Item1, tag.Item2, e.TryGetPosition(border, out var p) ? p : null);
     }
 
     private void RefreshSlot(DateTime date, int period)
@@ -978,7 +1204,7 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     #region 키보드 · 포인터
 
-    private void OnSlotPointerPressed(object sender, PointerRoutedEventArgs e)
+    private async void OnSlotPointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (sender is not Border border || border.Tag is not ValueTuple<DateTime, int> tag)
             return;
@@ -987,6 +1213,14 @@ public sealed partial class WeeklyTimetableView : UserControl
         WeekGrid.Focus(FocusState.Programmatic);
         UpdateCursorVisual();
         UpdateStatus();
+
+        // 간단 모드(홈)는 누르면 바로 메뉴 — 오른쪽 단추를 찾지 않아도 된다.
+        var point = e.GetCurrentPoint(border);
+        if (Compact && point.Properties.IsLeftButtonPressed)
+        {
+            e.Handled = true;
+            await ShowSlotMenuAsync(tag.Item1, tag.Item2, point.Position);
+        }
     }
 
     private void OnGridGotFocus(object sender, RoutedEventArgs e)
@@ -1033,7 +1267,7 @@ public sealed partial class WeeklyTimetableView : UserControl
             case VirtualKey.Enter:
             case VirtualKey.Space:
                 e.Handled = true;
-                ShowSlotMenu(_cursor.Value.Date, _cursor.Value.Period);
+                await ShowSlotMenuAsync(_cursor.Value.Date, _cursor.Value.Period, null);
                 return;
 
             case VirtualKey.Delete:
@@ -1090,11 +1324,21 @@ public sealed partial class WeeklyTimetableView : UserControl
             WeekScroll.ChangeView(right - viewport, null, null, true);
     }
 
-    /// <summary>그 칸의 메뉴를 연다 (오른쪽 클릭과 같은 것).</summary>
-    private void ShowSlotMenu(DateTime date, int period)
+    /// <summary>그 칸의 메뉴를 연다 — 오른쪽 클릭·Enter·(간단 모드의) 클릭이 모두 여기로 온다.</summary>
+    private async Task ShowSlotMenuAsync(DateTime date, int period, Windows.Foundation.Point? at)
     {
         if (!_cells.TryGetValue((date.Date, period), out var border)) return;
-        border.ContextFlyout?.ShowAt(border);
+
+        int day = SchoolCalendar.ToLessonDayOfWeek(date);
+        if (period > _periods.ForDay(day)) return;
+
+        var menu = await BuildSlotMenuAsync(date, period, Resolve(date, period));
+        if (menu.Items.Count == 0) return;
+
+        if (at is { } point)
+            menu.ShowAt(border, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions { Position = point });
+        else
+            menu.ShowAt(border);
     }
 
     /// <summary>
@@ -1143,6 +1387,15 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     private void ShowWarning(string message)
     {
+        WeekInfoBar.Severity = InfoBarSeverity.Warning;
+        WeekInfoBar.Message = message;
+        WeekInfoBar.IsOpen = true;
+    }
+
+    /// <summary>한 일이 눈에 보이지 않는 동작(진도 표시)의 확인.</summary>
+    private void ShowInfo(string message)
+    {
+        WeekInfoBar.Severity = InfoBarSeverity.Success;
         WeekInfoBar.Message = message;
         WeekInfoBar.IsOpen = true;
     }

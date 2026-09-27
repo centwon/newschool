@@ -78,9 +78,8 @@
 
                             <!--
                                 주를 옮기면 그 주의 휴강·교체·보강·대강이 얹혀 보인다.
-                                칸을 누르면 그 수업의 수업 일지를 쓴다 — 시간표 자체를 고치지는
-                                않는다. 변경을 넣고 고치는 곳은 수업 관리의
-                                [주별 시간표 확인 및 변경] 탭이다.
+                                칸을 누르면 바로 메뉴가 뜬다 — 수업 일지 쓰기 · 진도 완료 표시 · 수업 변경.
+                                수업 관리의 [주별 시간표] 와 같은 컨트롤을 1주 간단 모드로 쓴다(끌어 맞바꾸기는 끔).
                             -->
                             <StackPanel Orientation="Horizontal" Spacing="4"
                                         HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -103,10 +102,10 @@
                             </StackPanel>
                         </Grid>
 
-                        <controls:TimetableControl x:Name="Timetable"
+                        <controls:WeeklyTimetableView x:Name="Timetable"
                                                    Grid.Row="1"
-                                                   IsSlotClickable="True"
-                                                   SlotInvoked="Timetable_SlotInvoked"
+                                                   Compact="True"
+                                                   LessonRecordChanged="Timetable_LessonRecordChanged"
                                                    HorizontalAlignment="Stretch"
                                                    VerticalAlignment="Top"/>
 

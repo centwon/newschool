@@ -270,45 +270,11 @@ public sealed partial class LessonHomePage : Page
     }
 
     /// <summary>
-    /// 그 날짜에 써 둔 수업 일지를 교시별로 모은다.
-    ///
-    /// 게시글에는 날짜·교시를 담을 칸이 없어서 제목 규칙(<see cref="LessonJournalTitle"/>)을
-    /// 되읽는다. 제목을 손으로 고친 글은 못 알아보고 그 교시가 다시 '예정'으로 보이는데,
-    /// 글이 사라지는 것은 아니고 목록에는 그대로 남는다.
+    /// 그 날짜에 써 둔 수업 일지를 교시별로 모은다(<see cref="LessonJournalComposer.FindByDateAsync"/>).
+    /// 못 읽으면 빈 결과 — 오늘의 수업까지 버리지는 않고 전부 '예정' 으로 보일 뿐이다.
     /// </summary>
-    private static async Task<Dictionary<int, Post>> LoadTodayJournalsAsync(DateTime date)
-    {
-        var byPeriod = new Dictionary<int, Post>();
-
-        try
-        {
-            // 제목이 "8/21 " 로 시작하는 글만 추린 뒤 교시를 되읽는다.
-            using var service = NewSchool.Board.Board.CreateCachedService();
-            var page = await service.GetPostsPagedAsync(
-                pageNumber: 1,
-                pageSize: 50,
-                category: LessonJournalComposer.Category,
-                subject: LessonJournalComposer.Subject,
-                searchTitle: true,
-                searchText: $"{date.Month}/{date.Day} ");
-
-            foreach (var post in page.Items)
-            {
-                // 해가 바뀌면 "8/21" 이 겹치므로 쓴 해까지 본다.
-                if (post.DateTime.Year != date.Year) continue;
-
-                int period = LessonJournalTitle.PeriodOf(post.Title, date);
-                if (period > 0) byPeriod.TryAdd(period, post);
-            }
-        }
-        catch (Exception ex)
-        {
-            // 일지를 못 읽었다고 오늘의 수업까지 버리지는 않는다 — 전부 '예정' 으로 보일 뿐이다.
-            NewSchool.Logging.Log.Warning("LessonHomePage", $"오늘 일지를 읽지 못해 모두 '예정' 으로 보인다: {ex.Message}");
-        }
-
-        return byPeriod;
-    }
+    private static Task<Dictionary<int, Post>> LoadTodayJournalsAsync(DateTime date)
+        => LessonJournalComposer.FindByDateAsync(date);
 
     /// <summary>
     /// 오늘의 수업 아이템 클릭 — 써 둔 일지가 있으면 그 글로, 없으면 새 일지 쓰기로.
@@ -353,19 +319,11 @@ public sealed partial class LessonHomePage : Page
     }
 
     /// <summary>
-    /// 내 시간표 칸 클릭 — 그 칸의 날짜·교시·교과·강의실로 일지를 시작한다.
-    /// 날짜는 <b>보고 있는 주</b>의 그 요일이다(지난 주를 펼쳐 놓고 눌렀으면 그 날짜).
+    /// 내 시간표 칸 메뉴에서 수업 일지를 쓰거나 진도를 표시했다 — 목록과 오늘의 수업 완료 표시를 다시 읽는다.
+    /// 메뉴 자체(일지 쓰기·진도·수업 변경)는 <c>WeeklyTimetableView</c> 가 연다.
     /// </summary>
-    private async void Timetable_SlotInvoked(object sender, TimetableItemViewModel item)
-    {
-        var date = _weekMonday.AddDays(item.DayOfWeek - 1);
-
-        if (await LessonJournalComposer.ComposeAsync(new LessonSlotSeed(
-                date, item.Period, item.CourseNo, item.SubjectName, item.Room)))
-        {
-            await RefreshJournalsAsync();
-        }
-    }
+    private async void Timetable_LessonRecordChanged(object? sender, EventArgs e)
+        => await RefreshJournalsAsync();
 
     #endregion
 
@@ -414,13 +372,13 @@ public sealed partial class LessonHomePage : Page
 
     /// <summary>
     /// 그 주 시간표를 그린다 — 평소 시간표에 그 주 변경(휴강·교체·보강·대강)이 얹힌다.
-    /// 읽기 전용이다: 변경을 넣고 고치는 곳은 수업 관리의 [주별 시간표 확인 및 변경] 탭이다.
+    /// 칸을 누르면 수업 일지 · 진도 · 수업 변경 메뉴가 뜬다.
     /// </summary>
     private async Task LoadWeekAsync(DateTime monday)
     {
         _weekMonday = monday;
 
-        await Timetable.LoadMyWeekScheduleAsync(monday);
+        await Timetable.LoadAsync(Settings.WorkYear.Value, Settings.WorkSemester.Value, _courses, monday);
 
         // 한 칸도 없으면 빈 격자 대신 어디서 넣는지 안내한다 —
         // 격자만 남으면 아직 안 넣은 것인지 못 읽어 온 것인지 알 수 없다.

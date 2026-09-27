@@ -255,8 +255,9 @@ public class WeeklyHoursCalculatorTests
 
         var rooms = WeeklyHoursCalculator.ResolveRooms(course, lessons);
 
-        // 등록 순서(1-1, 1-3)가 먼저, 등록에 없는 강의실은 뒤에
-        Assert.Equal(["1-1", "1-3", "과학실"], rooms);
+        // 등록한 강의실은 배치가 없어도(1-2) 등록 순서대로 모두, 등록에 없는 강의실은 뒤에.
+        // 진도표도 이 열을 쓴다 — 두 표의 열이 어긋나면 진도 예정일을 시수로 계산할 수 없다.
+        Assert.Equal(["1-1", "1-2", "1-3", "과학실"], rooms);
     }
 
     [Fact]

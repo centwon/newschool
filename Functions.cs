@@ -358,6 +358,10 @@ internal static class Functions
         return sb.ToString();
     }
 
+    /// <summary>그 교시가 시작하는 시각 — <see cref="GetPeriodAt"/> 과 같은 시정 계산.</summary>
+    public static TimeSpan PeriodStartTime(int period, PeriodTimes t)
+        => CalculatePeriodStart(period, t.DayStarting + t.AssemblyTime + t.BreakTime, t);
+
     private static TimeSpan CalculatePeriodStart(int period, TimeSpan firstPeriodStart, PeriodTimes t)
     {
         if (period <= 0) return firstPeriodStart;
