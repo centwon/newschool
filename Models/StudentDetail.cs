@@ -269,11 +269,9 @@ public class StudentDetail : NotifyPropertyChangedBase
         return (string.Empty, string.Empty, string.Empty);
     }
 
-    /// <summary>주 보호자의 연락처. 판단은 <see cref="ResolvePrimaryGuardian"/> 한 곳에 있다.</summary>
-    public string GetPrimaryContact() => ResolvePrimaryGuardian().Phone;
-
-    /// <summary>주 보호자의 이름. 판단은 <see cref="ResolvePrimaryGuardian"/> 한 곳에 있다.</summary>
-    public string GetPrimaryGuardianName() => ResolvePrimaryGuardian().Name;
+    // 이름·연락처만 따로 꺼내던 GetPrimaryGuardianName·GetPrimaryContact 는 테스트만 불러
+    // 지웠다(2026-09-28). 내보내기는 ResolvePrimaryGuardian 으로 사람을 한 번에 고른다 —
+    // 이름과 연락처를 따로 고르면 "이름은 어머니, 번호는 보호자" 가 한 줄에 실린다.
 
     /// <summary>
     /// 특이사항 여부 확인

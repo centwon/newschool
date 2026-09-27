@@ -103,19 +103,6 @@ public class PrimaryGuardianTests
         Assert.Equal(string.Empty, g.Relation);
     }
 
-    /// <summary>낱개 함수 둘은 이제 같은 판단을 지나간다.</summary>
-    [Fact]
-    public void 낱개_함수도_같은_판단을_쓴다()
-    {
-        var detail = new StudentDetail
-        {
-            GuardianName = "김철수",
-            GuardianPhone = "010-1111-1111",
-            MotherName = "이영희",
-            MotherPhone = "010-2222-2222",
-        };
-
-        Assert.Equal("김철수", detail.GetPrimaryGuardianName());
-        Assert.Equal("010-1111-1111", detail.GetPrimaryContact());
-    }
+    // 낱개 함수 둘(GetPrimaryGuardianName·GetPrimaryContact)의 테스트는 그 함수들과 함께
+    // 뺐다(2026-09-28) — 앱에서 부르는 곳 없이 이 테스트만 부르고 있었다.
 }
