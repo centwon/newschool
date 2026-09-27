@@ -27,8 +27,7 @@ internal static class Functions
         Timeout = TimeSpan.FromSeconds(15)
     };
 
-    // 설정값 캐시 (Native AOT를 위한 정적 필드)
-    private static readonly object _settingsLock = new object();
+    // 설정값 캐시용 잠금(_settingsLock)은 아무도 잠그지 않아 지웠다(2026-09-28).
 
     /// <summary>
     /// 급식 정보 가져오기 (Native AOT 최적화)

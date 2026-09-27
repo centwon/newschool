@@ -487,14 +487,8 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
         await ShowSlotMenuAsync(tag.Item1, tag.Item2, e.TryGetPosition(border, out var p) ? p : null);
     }
 
-    private void RefreshSlot(DateTime date, int period)
-    {
-        if (!_cells.TryGetValue((date.Date, period), out var border)) return;
-
-        int day = SchoolCalendar.ToLessonDayOfWeek(date);
-        ApplySlotVisual(border, date, period, period <= _periods.ForDay(day));
-        UpdateCursorVisual();
-    }
+    // 칸 하나만 다시 칠하던 RefreshSlot 은 칸 메뉴를 LessonSlotMenu 로 떼어 낸 뒤(31ba67a)
+    // 부르는 곳이 없어 지웠다(2026-09-28).
 
     private void UpdateCursorVisual()
     {

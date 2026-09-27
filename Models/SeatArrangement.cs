@@ -61,40 +61,6 @@ public class SeatAssignment
     public bool IsFixed { get; set; }
 }
 
-/// <summary>
-/// 짝 이력 한 건 — DB `SeatHistory`.
-/// 저장 시점마다 짝(인접 좌석)이었던 모든 학생 쌍을 기록한다.
-/// </summary>
-public class SeatHistoryEntry
-{
-    public int No { get; set; }
-    public string SchoolCode { get; set; } = string.Empty;
-    public int Year { get; set; }
-    public int Grade { get; set; }
-    public int Class { get; set; }
-    public string StudentID_A { get; set; } = string.Empty;
-    public string StudentID_B { get; set; } = string.Empty;
-    public int Round { get; set; }
-
-    /// <summary>Pair = 짝 (인접 좌석). 향후 확장용.</summary>
-    public string Kind { get; set; } = "Pair";
-
-    public DateTime SavedAt { get; set; } = DateTime.Now;
-}
-
-/// <summary>
-/// 좌석 위치 이력 — DB `SeatPosHistory`. 지난 자리 배제용.
-/// </summary>
-public class SeatPosHistoryEntry
-{
-    public int No { get; set; }
-    public string SchoolCode { get; set; } = string.Empty;
-    public int Year { get; set; }
-    public int Grade { get; set; }
-    public int Class { get; set; }
-    public string StudentID { get; set; } = string.Empty;
-    public int Row { get; set; }
-    public int Col { get; set; }
-    public int Round { get; set; }
-    public DateTime SavedAt { get; set; } = DateTime.Now;
-}
+// 짝 이력(SeatHistoryEntry — DB `SeatHistory`)·좌석 위치 이력(SeatPosHistoryEntry —
+// DB `SeatPosHistory`) 모델은 쓰는 곳이 없어 지웠다(2026-09-28). 두 테이블은 그대로 있고,
+// SeatService 가 SQL 로 직접 쓰고 읽는다(행을 객체로 옮기지 않는다).

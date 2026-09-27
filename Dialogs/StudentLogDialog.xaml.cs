@@ -326,17 +326,7 @@ public sealed partial class StudentLogDialog : Window
         CBoxClass.Visibility = Visibility.Collapsed;
     }
 
-    private void SelectCategory(LogCategory category)
-    {
-        for (int i = 0; i < CBoxCategory.Items.Count; i++)
-        {
-            if (CBoxCategory.Items[i] is LogCategory cat && cat == category)
-            {
-                CBoxCategory.SelectedIndex = i;
-                break;
-            }
-        }
-    }
+    // 영역 콤보를 값으로 고르는 SelectCategory 는 호출부가 없어 지웠다(2026-09-28).
 
     /// <summary>교과활동 비동기 초기화: 과목 로드 → 선택 → 수강생 로드 → _isInitializing 해제</summary>
     private async Task InitCourseAsync(int year, int semester, string teacherId)

@@ -182,50 +182,7 @@ public class ClassDiaryRepository : BaseRepository
     // 최근 일지 한 건(GetLatestAsync)과 존재 확인(ExistsAsync)은 호출부가 없어 지웠다(39차).
     // 학급일지는 날짜로 직접 읽고(GetByDateAsync), 없으면 그 자리에서 새로 만든다.
 
-    /// <summary>
-    /// 검색 (메모, 알림장, 생활 기록에서 키워드 검색)
-    /// </summary>
-    public async Task<List<ClassDiary>> SearchAsync(string schoolCode, int year, int semester, int grade, int classNum, string keyword)
-    {
-        const string query = @"
-                SELECT * FROM ClassDiary 
-                WHERE SchoolCode = @SchoolCode 
-                  AND Year = @Year 
-                  AND Semester = @Semester 
-                  AND Grade = @Grade 
-                  AND Class = @Class
-                  AND (Memo LIKE @Keyword OR Notice LIKE @Keyword OR Life LIKE @Keyword)
-                ORDER BY Date DESC";
-
-        var diaries = new List<ClassDiary>();
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
-            cmd.Parameters.AddWithValue("@Year", year);
-            cmd.Parameters.AddWithValue("@Semester", semester);
-            cmd.Parameters.AddWithValue("@Grade", grade);
-            cmd.Parameters.AddWithValue("@Class", classNum);
-            cmd.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            var cache = new ReaderColumnCache();
-            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-            while (await reader.ReadAsync())
-            {
-                diaries.Add(MapDiary(reader, cache));
-            }
-
-            LogInfo($"일지 검색: '{keyword}' - {diaries.Count}건");
-            return diaries;
-        }
-        catch (Exception ex)
-        {
-            LogError($"일지 검색 실패: '{keyword}'", ex);
-            throw;
-        }
-    }
+    // 키워드 검색(SearchAsync — 메모·알림장·생활 기록)은 호출부가 없어 지웠다(2026-09-28).
 
     #endregion
 

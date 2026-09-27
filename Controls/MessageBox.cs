@@ -408,6 +408,5 @@ public static class MessageBox
 
     #endregion
 
-    // 초기화 상태 확인
-    public static bool IsInitialized => _xamlRoot != null;
+    // 초기화 상태 확인(IsInitialized)은 호출부가 없어 지웠다(2026-09-28).
 }

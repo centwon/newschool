@@ -27,7 +27,7 @@ public static class SetupProgress
         try
         {
             // using 을 빠뜨리면 부를 때마다 연결이 하나씩 열린 채 남는다 — 이 함수는 학급
-            // 화면 다섯이 열릴 때마다 불린다(아래 HasAnyCourseAsync 는 처음부터 using 이었다).
+            // 화면 다섯이 열릴 때마다 불린다.
             using var repository = new StudentRepository(SchoolDatabase.DbPath);
             return await repository.GetCountAsync() > 0;
         }
@@ -38,23 +38,6 @@ public static class SetupProgress
         }
     }
 
-    /// <summary>
-    /// 현재 사용자의 이번 학년도·학기 수업이 하나라도 개설되어 있는지.
-    /// (학생과 달리 수업은 "내 수업" 이 기준이다 — 화면들이 모두 그렇게 읽는다.)
-    /// </summary>
-    /// <remarks>실패 시 <c>true</c> 인 이유는 <see cref="HasAnyStudentAsync"/> 와 같다.</remarks>
-    public static async Task<bool> HasAnyCourseAsync()
-    {
-        try
-        {
-            using var service = new CourseService(SchoolDatabase.DbPath);
-            var courses = await service.GetMyCoursesAsync();
-            return courses.Count > 0;
-        }
-        catch (Exception ex)
-        {
-            NewSchool.Logging.Log.Warning("SetupProgress", $"수업 수를 세지 못해 '있음' 으로 본다(첫 실행 안내 생략): {ex.Message}");
-            return true;
-        }
-    }
+    // 수업이 하나라도 있는지(HasAnyCourseAsync)는 호출부가 없어 지웠다(2026-09-28).
+    // 되살린다면 기준은 "내 수업"(CourseService.GetMyCoursesAsync), 실패 시 true 로.
 }

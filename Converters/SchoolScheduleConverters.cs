@@ -54,22 +54,5 @@ public partial class BoolToVacationColorConverter : IValueConverter
 //   죽은 컨버터였다(선언만 XAML 에 남아 있었다). 오늘 날짜 강조가 필요해지면
 //   XAML 에서 ThemeResource 로 붙인다.
 
-/// <summary>
-/// 빈 문자열을 Visibility로 변환 (비어있으면 Collapsed)
-/// </summary>
-public partial class EmptyStringToVisibilityConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, string language)
-    {
-        if (value is string str && !string.IsNullOrWhiteSpace(str))
-        {
-            return Visibility.Visible;
-        }
-        return Visibility.Collapsed;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        throw new NotImplementedException();
-    }
-}
+// EmptyStringToVisibilityConverter 제거 (2026-09-28): XAML 리소스에도 등록되지 않은
+//   죽은 컨버터였다.

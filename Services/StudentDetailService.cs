@@ -150,18 +150,7 @@ public sealed class StudentDetailService : IDisposable
 
     // 항목별 부분 업데이트(부모·보호자·가족·교우·진로·건강)는 호출부가 없어 지웠다(39차).
     // 화면은 학생카드에서 한 번에 담아 UpdateAsync 로 통째로 저장한다.
-
-    /// <summary>
-    /// 메모 업데이트
-    /// </summary>
-    public async Task<bool> UpdateMemoAsync(string studentId, string memo)
-    {
-        var detail = await GetOrCreateDetailAsync(studentId);
-        detail.Memo = memo;
-        detail.UpdatedAt = DateTime.Now;
-
-        return await _detailRepo.UpdateAsync(detail);
-    }
+    // 메모만 고치는 UpdateMemoAsync 도 같은 까닭으로 지웠다(2026-09-28).
 
     #endregion
 

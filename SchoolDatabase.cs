@@ -104,40 +104,10 @@ public static class SchoolDatabase
     // 미사용 메서드 제거 (2026-08-16): BackupDatabaseAsync·RestoreDatabaseAsync — 호출처 0건.
     // 전자는 Settings.Backup 이 쓰는 Backups\ 와 별개로 Backup\ 폴더에 School_*.db 를 쌓아
     // 정리 정책도 복원 경로도 없는 사본을 만들었다. 백업은 Settings.Backup/Restore 하나로 간다.
-
-    /// <summary>
-    /// 데이터베이스 완전 초기화 (모든 데이터 삭제)
-    /// </summary>
-    public static async Task<bool> ResetDatabaseAsync()
-    {
-        try
-        {
-            Debug.WriteLine("[SchoolDatabase] 데이터베이스 완전 초기화 시작");
-
-            // DB 파일 삭제
-            if (File.Exists(DbPath))
-            {
-                File.Delete(DbPath);
-                Debug.WriteLine("[SchoolDatabase] 기존 DB 파일 삭제 완료");
-            }
-
-            // 재초기화. ⚠ 결과를 버리면 "초기화했습니다" 라고 말해 놓고 테이블이 없는 채로
-            // 남는다 — 지우는 것만 성공하고 다시 만들지 못한 상태가 가장 나쁘다.
-            if (!await InitAsync())
-            {
-                Logging.Log.Error("SchoolDatabase", "DB 를 지운 뒤 다시 만들지 못했다");
-                return false;
-            }
-
-            Debug.WriteLine("[SchoolDatabase] 데이터베이스 완전 초기화 완료");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Logging.Log.Error("SchoolDatabase", "DB 완전 초기화 실패", ex);
-            return false;
-        }
-    }
+    //
+    // 완전 초기화(ResetDatabaseAsync)도 호출처가 없어 지웠다(2026-09-28). Board·Scheduler 쪽의
+    // 같은 메서드는 39차에 이미 지웠다. ⚠ 되살린다면 InitAsync 의 결과를 버리지 말 것 —
+    // 지우기만 성공하고 다시 만들지 못한 채 "초기화했습니다" 라고 하는 것이 가장 나쁘다.
 
     #endregion
 

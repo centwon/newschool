@@ -488,42 +488,8 @@ public sealed partial class RosterTableDialog : ContentDialog
         return result;
     }
 
-    /// <summary>
-    /// 수업의 학생을 강의실별로 그룹화하여 반환 (가로 레이아웃용 간이 버전)
-    /// </summary>
-    private async Task<Dictionary<string, List<(int Number, string Name)>>> LoadCourseStudentsByRoomAsync(int courseNo)
-    {
-        using var courseService = new CourseService();
-        var enrollments = await courseService.GetCourseEnrollmentsAsync(
-            Settings.SchoolCode, Settings.WorkYear.Value, Settings.WorkSemester.Value, courseNo);
-
-        var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
-        using var enrollService = new EnrollmentService();
-        // 학생당 1행은 서비스(DedupeByYear)가 보장한다 — 아래 GroupBy 는 그 위의 안전망이다.
-        var allEnrollments = await enrollService.GetEnrollmentsAsync(
-            Settings.SchoolCode, Settings.WorkYear.Value);
-
-        var studentMap = allEnrollments
-            .Where(e => studentIds.Contains(e.StudentID))
-            .GroupBy(e => e.StudentID)
-            .ToDictionary(g => g.Key, g => (g.First().Number, g.First().Name));
-
-        var result = new Dictionary<string, List<(int Number, string Name)>>();
-        foreach (var ce in enrollments.OrderBy(e => e.Room))
-        {
-            var room = string.IsNullOrWhiteSpace(ce.Room) ? "미지정" : ce.Room;
-            if (!result.ContainsKey(room))
-                result[room] = new();
-            if (studentMap.TryGetValue(ce.StudentID, out var student))
-                result[room].Add(student);
-        }
-
-        // 각 강의실 내 번호순 정렬
-        foreach (var list in result.Values)
-            list.Sort((a, b) => a.Number.CompareTo(b.Number));
-
-        return result;
-    }
+    // 강의실별로 묶어 읽는 간이판(LoadCourseStudentsByRoomAsync)은 호출부가 없어
+    // 지웠다(2026-09-28). 수업 명렬은 아래 LoadCourseStudentsAsync 하나로 읽는다.
 
     private async Task<List<(int Number, string Name)>> LoadCourseStudentsAsync(int courseNo)
     {
