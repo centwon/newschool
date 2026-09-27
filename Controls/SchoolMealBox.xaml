@@ -38,7 +38,8 @@
                             <StackPanel Spacing="4" Margin="4,0">
                                 <!-- 식사 유형 헤더 (조식/중식/석식) -->
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="{x:Bind MealIcon}" FontSize="13"/>
+                                    <FontIcon Glyph="{x:Bind MealGlyph}" FontSize="13" VerticalAlignment="Center"
+                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
                                     <TextBlock Text="{x:Bind MMEAL_SC_NM}"
                                                FontWeight="SemiBold"
                                                FontSize="13"

@@ -109,13 +109,32 @@
                     </Button>
                 </Grid>
 
-                <!-- 에디터 (적당한 높이로 제한, 긴 메모는 내부 스크롤 → 목록 공간 확보) -->
+                <!-- 에디터 (적당한 높이로 제한, 긴 메모는 내부 스크롤 → 목록 공간 확보)
+                     ⚠ 편집기는 누를 때 만든다(x:Load). 서식 편집기는 Win2D 그래픽 장치를 따로 만들어
+                     첫 하나가 약 24MB 다 — 홈 화면을 켜 두기만 해도 그만큼 쓰고 있었다(2026-09-26 실측,
+                     켠 직후 120→97MB). 그 전에는 본문 글자만 미리보기로 보여 준다. -->
                 <Border Grid.Row="1" Padding="4,4">
-                    <appcontrols:RichTextEditor x:Name="Editor"
-                                                Mode="Simple"
-                                                ShowToolbar="False"
-                                                MinHeight="120"
-                                                MaxHeight="220"/>
+                    <Grid>
+                        <Button x:Name="EditorPreview"
+                                AutomationProperties.Name="메모 본문 — 눌러서 편집"
+                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top"
+                                MinHeight="120" MaxHeight="220" Padding="8,6"
+                                Background="Transparent" BorderThickness="0"
+                                Click="EditorPreview_Click">
+                            <Grid>
+                                <TextBlock x:Name="TxtPreview" TextWrapping="Wrap"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="TxtPreviewHint" Text="눌러서 메모를 적습니다"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Grid>
+                        </Button>
+                        <appcontrols:RichTextEditor x:Name="Editor" x:Load="False"
+                                                    Mode="Simple"
+                                                    ShowToolbar="False"
+                                                    MinHeight="120"
+                                                    MaxHeight="220"/>
+                    </Grid>
                 </Border>
             </Grid>
 

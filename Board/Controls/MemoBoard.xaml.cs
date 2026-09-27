@@ -22,6 +22,8 @@ namespace NewSchool.Board.Controls;
 ///
 /// 구 설계의 단일 에디터 reparent 트릭은 WebView2/Jodit 이 무거워서 쓰던 우회책이었으나,
 /// WinUIRichEditor(공유 Win2D 디바이스, 인스턴스당 +0.1~0.5MB)로 전환하며 제거함.
+/// ⚠ 다만 <b>첫 인스턴스</b>는 그 공유 장치를 만드느라 약 24MB 다(2026-09-26 실측). 그래서 인라인
+/// 편집기는 누를 때 만들고(<see cref="EditorPreview_Click"/>), 그 전에는 본문 글자만 보여 준다.
 /// </summary>
 public sealed partial class MemoBoard : UserControl, IDisposable
 {
@@ -44,7 +46,6 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         InitializeComponent();
         Loaded += MemoBoard_Loaded;
         Unloaded += MemoBoard_Unloaded;
-        Editor.PropertyChanged += Editor_PropertyChanged;
     }
 
     #region Lifecycle
@@ -74,8 +75,11 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        Editor.PropertyChanged -= Editor_PropertyChanged;
-        Editor.Dispose();
+        if (Editor != null)
+        {
+            Editor.PropertyChanged -= Editor_PropertyChanged;
+            Editor.Dispose();
+        }
         GC.SuppressFinalize(this);
     }
 
@@ -126,12 +130,12 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             ChkRecent.IsChecked = _recentPost.IsCompleted;     // 미완료만 로드되므로 항상 false
             SelectComboBoxByTag(CBoxRecentCategory, _recentPost.Category);
             TxtRecentTitle.Text = _recentPost.Title ?? "";
-            Editor.LoadFlow(_recentPost.Content);
         }
-        else
-        {
-            Editor.LoadFlow(null);
-        }
+        // 편집기를 한 번 만들었으면 그대로 쓴다(장치 비용은 이미 치렀다). 아직이면 미리보기만.
+        Editor?.LoadFlow(_recentPost?.Content);
+        string preview = _recentPost?.PlainText?.Trim() ?? "";
+        TxtPreview.Text = preview;
+        TxtPreviewHint.Visibility = preview.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         _isUpdating = false;
         _isModified = false;
 
@@ -190,6 +194,21 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     #endregion
 
     #region Recent memo handlers
+
+    /// <summary>미리보기를 누르면 그때 편집기를 만들어 본문을 싣고, 캐럿을 끝에 두어 바로 이어 쓰게 한다.</summary>
+    private void EditorPreview_Click(object sender, RoutedEventArgs e)
+    {
+        if (Editor == null)
+        {
+            FindName(nameof(Editor));   // x:Load="False" 를 실체화 — 이후 Editor 필드가 채워진다
+            Editor!.PropertyChanged += Editor_PropertyChanged;
+            _isUpdating = true;
+            Editor.LoadFlow(_recentPost?.Content);
+            _isUpdating = false;
+            EditorPreview.Visibility = Visibility.Collapsed;
+        }
+        Editor.FocusDocumentEnd();
+    }
 
     private void Editor_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -276,12 +295,18 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             string oldCategory = _recentPost.No > 0 ? _recentPost.Category : string.Empty;
 
             _recentPost.Category = GetRecentCategory();
-            _recentPost.Content = Editor.GetFlowBytes();
-            _recentPost.PlainText = Editor.PlainText;
+
+            // ⚠ 편집기를 아직 만들지 않았으면(미리보기 상태) 본문은 손대지 않은 것이다 —
+            //   분류만 바꿔 [저장] 하는 경로. 여기서 빈 편집기의 값을 읽으면 본문이 지워진다.
+            if (Editor != null)
+            {
+                _recentPost.Content = Editor.GetFlowBytes();
+                _recentPost.PlainText = Editor.PlainText;
+            }
 
             // 제목이 비어있을 때만 본문 첫 줄로 자동 생성 (기존 제목 보존)
             if (string.IsNullOrWhiteSpace(_recentPost.Title))
-                _recentPost.Title = ExtractTitle(Editor.PlainText);
+                _recentPost.Title = ExtractTitle(_recentPost.PlainText);
 
             _recentPost.DateTime = DateTime.Now;
             TxtRecentTitle.Text = _recentPost.Title;

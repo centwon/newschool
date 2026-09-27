@@ -33,6 +33,7 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
     private RichEditor? _editor;       // 실제 편집면 (두 경우 모두)
     private byte[]? _pendingFlow;      // Build 전에 LoadFlow 호출 시 보류 (Text DP 와 동일 패턴)
     private string? _pendingHtml;      // Build 전에 InsertHtml 호출 시 보류 (동일 패턴)
+    private bool _pendingFocusEnd;     // Build 전에 FocusDocumentEnd 호출 시 보류 (동일 패턴)
     private bool _isUpdatingFromEditor;
     private bool _disposed;
 
@@ -98,6 +99,29 @@ public sealed partial class RichTextEditor : UserControl, INotifyPropertyChanged
         // Build 전에 들어온 InsertHtml 을 여기서 흘려보낸다.
         // (새 글의 머리말 삽입처럼 페이지 초기화 중에 호출되는 경로 — 그때는 _editor 가 아직 없다)
         if (_pendingHtml != null) { _editor.InsertHtml(_pendingHtml); _pendingHtml = null; }
+
+        // 캔버스가 아직 트리에 붙기 전이라 여기서 바로 부르면 포커스가 가지 않는다.
+        if (_pendingFocusEnd)
+        {
+            _pendingFocusEnd = false;
+            var editor = _editor;
+            void OnEditorLoaded(object s, RoutedEventArgs e)
+            {
+                editor.Loaded -= OnEditorLoaded;
+                editor.FocusDocumentEnd();
+            }
+            editor.Loaded += OnEditorLoaded;
+        }
+    }
+
+    /// <summary>
+    /// 편집면에 포커스를 주고 캐럿을 문서 끝으로 옮긴다. 아직 Build 전이면 만들어진 뒤에 한다
+    /// (<c>MemoBoard</c> 가 편집기를 누를 때 만드는 경로).
+    /// </summary>
+    public void FocusDocumentEnd()
+    {
+        if (_editor == null) { _pendingFocusEnd = true; return; }
+        _editor.FocusDocumentEnd();
     }
 
     /// <summary>

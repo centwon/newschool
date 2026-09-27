@@ -122,23 +122,37 @@
                               Padding="6,2" VerticalAlignment="Center"
                               SelectionChanged="CBoxFilter_SelectionChanged"/>
 
+                    <!-- ⚠ 이모지(✓·📅)를 글자로 넣지 말 것 — 컬러 이모지 한 글자를 그리려고 XAML 이
+                         D2D 장치를 따로 만들고 WARP(소프트웨어 렌더러)까지 올린다. 홈 화면 첫 화면에서
+                         약 2.5MB(2026-09-26 실측). 글리프 아이콘은 그 경로를 타지 않는다.
+                         내용이 문자열이 아니면 UIA 이름이 비므로 이름을 따로 준다. -->
                     <ToggleButton x:Name="TbTask" Grid.Column="3"
-                                  Content="✓ 할 일"
+                                  AutomationProperties.Name="할 일"
                                   IsChecked="True"
                                   Height="24" FontSize="11"
                                   Padding="6,2"
                                   VerticalAlignment="Center"
                                   Checked="Filter_Changed"
-                                  Unchecked="Filter_Changed"/>
+                                  Unchecked="Filter_Changed">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE73E;" FontSize="10"/>
+                            <TextBlock Text="할 일"/>
+                        </StackPanel>
+                    </ToggleButton>
 
                     <ToggleButton x:Name="TbEvent" Grid.Column="5"
-                                  Content="📅 일정"
+                                  AutomationProperties.Name="일정"
                                   IsChecked="True"
                                   Height="24" FontSize="11"
                                   Padding="6,2"
                                   VerticalAlignment="Center"
                                   Checked="Filter_Changed"
-                                  Unchecked="Filter_Changed"/>
+                                  Unchecked="Filter_Changed">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE787;" FontSize="10"/>
+                            <TextBlock Text="일정"/>
+                        </StackPanel>
+                    </ToggleButton>
 
                     <Button x:Name="BtnAdd" Grid.Column="7"
                             Click="BtnAdd_Click"

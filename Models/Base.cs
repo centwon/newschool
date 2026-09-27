@@ -34,14 +34,18 @@ public sealed class SchoolMeal
     // 급식 카드는 요리명을 여러 줄로 그대로 보여 준다.
 
     /// <summary>
-    /// 식사 유형별 아이콘
+    /// 식사 유형별 아이콘 — Segoe Fluent Icons 글리프(해돋이·해·달·컵).
+    ///
+    /// <para>예전에는 컬러 이모지(🌅☀️🌙🍽️)였다. 이모지 한 글자를 그리려고 XAML 이 D2D 장치를
+    /// 따로 만들고 WARP(소프트웨어 렌더러)까지 올려서, 급식이 뜨는 날은 홈 화면만으로 수 MB 를
+    /// 더 썼다(2026-09-26 실측, <c>KAgendaControl</c> 의 할 일·일정 단추와 같은 병).</para>
     /// </summary>
-    public string MealIcon => MMEAL_SC_NM switch
+    public string MealGlyph => MMEAL_SC_NM switch
     {
-        "조식" => "🌅",
-        "중식" => "☀️",
-        "석식" => "🌙",
-        _ => "🍽️"
+        "조식" => "",
+        "중식" => "",
+        "석식" => "",
+        _ => ""
     };
 
     /// <summary>
