@@ -257,73 +257,8 @@ public class LessonProgressRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 학급별 완료 수 집계 (격차 분석용)
-    /// </summary>
-    public async Task<List<ProgressGap>> GetProgressGapsAsync(int courseNo, List<string> rooms)
-    {
-        var gaps = new List<ProgressGap>();
-        if (rooms.Count == 0) return gaps;
-
-        try
-        {
-            int totalCount;
-            using (var countCmd = CreateCommand("SELECT COUNT(*) FROM CourseSection WHERE Course = @CourseNo"))
-            {
-                countCmd.Parameters.Add("@CourseNo", SqliteType.Integer).Value = courseNo;
-                totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
-            }
-
-            var completedByRoom = new Dictionary<string, int>();
-            const string query = @"
-                SELECT lp.Room, COUNT(*) AS CompletedCount
-                FROM LessonProgress lp
-                INNER JOIN CourseSection cs ON lp.CourseSectionId = cs.No
-                WHERE cs.Course = @CourseNo AND lp.IsCompleted = 1
-                GROUP BY lp.Room";
-
-            using (var cmd = CreateCommand(query))
-            {
-                cmd.Parameters.Add("@CourseNo", SqliteType.Integer).Value = courseNo;
-                using var reader = await cmd.ExecuteReaderAsync();
-                var cache = new ReaderColumnCache();
-                cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-                while (await reader.ReadAsync())
-                    completedByRoom[reader.GetString(0)] = reader.GetInt32(1);
-            }
-
-            int maxCompleted = 0;
-            double sum = 0;
-            foreach (var room in rooms)
-            {
-                int completed = completedByRoom.GetValueOrDefault(room, 0);
-                if (completed > maxCompleted) maxCompleted = completed;
-                sum += completed;
-            }
-
-            double average = sum / rooms.Count;
-
-            foreach (var room in rooms)
-            {
-                int completed = completedByRoom.GetValueOrDefault(room, 0);
-                gaps.Add(new ProgressGap
-                {
-                    Room = room,
-                    CompletedCount = completed,
-                    TotalCount = totalCount,
-                    GapFromMax = maxCompleted - completed,
-                    GapFromAverage = Math.Round(average - completed, 1)
-                });
-            }
-
-            return gaps;
-        }
-        catch (Exception ex)
-        {
-            LogError($"진도 격차 조회 실패: Course={courseNo}", ex);
-            throw;
-        }
-    }
+    // 학급별 완료 수 집계(GetProgressGapsAsync)는 지웠다(2026-09-28) — 격차 분석 창이 학급
+    // 머리의 남은 시간·차시(CourseProgressPlan)로 바뀐 뒤로 부르는 곳이 없었다.
 
     #endregion
 
@@ -348,37 +283,9 @@ public class LessonProgressRepository : BaseRepository
         return await UpdateAsync(progress);
     }
 
-    /// <summary>보강 처리</summary>
-    public async Task<bool> MarkAsMakeupAsync(int sectionId, string room, DateTime date, string? memo = null)
-    {
-        var progress = await GetOrCreateAsync(sectionId, room);
-        progress.MarkAsMakeup(date, memo);
-        return await UpdateAsync(progress);
-    }
-
-    /// <summary>병합 처리</summary>
-    public async Task<bool> MarkAsMergedAsync(int sectionId, string room, DateTime? date = null, string? memo = null)
-    {
-        var progress = await GetOrCreateAsync(sectionId, room);
-        progress.MarkAsMerged(date, memo);
-        return await UpdateAsync(progress);
-    }
-
-    /// <summary>건너뛰기 처리</summary>
-    public async Task<bool> MarkAsSkippedAsync(int sectionId, string room, string? reason = null)
-    {
-        var progress = await GetOrCreateAsync(sectionId, room);
-        progress.MarkAsSkipped(reason);
-        return await UpdateAsync(progress);
-    }
-
-    /// <summary>결강 처리</summary>
-    public async Task<bool> MarkAsCancelledAsync(int sectionId, string room, string? reason = null)
-    {
-        var progress = await GetOrCreateAsync(sectionId, room);
-        progress.MarkAsCancelled(reason);
-        return await UpdateAsync(progress);
-    }
+    // 보강·병합·건너뜀·결강 처리(MarkAsMakeupAsync·MarkAsMergedAsync·MarkAsSkippedAsync·
+    // MarkAsCancelledAsync)는 지웠다(2026-09-28) — 진도 칸 메뉴에서 그 항목들을 뺀 뒤로
+    // 부르는 곳이 없었다. 휴강·보강은 LessonChange 로 넣으면 예정일에 저절로 반영된다.
 
     #endregion
 

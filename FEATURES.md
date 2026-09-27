@@ -171,7 +171,7 @@
 | `CourseScopeBar.xaml` | 공통 범위 선택줄 (학년도·학기·학년·수업, `ShowYear`/`ShowGrade`/`ShowCourse` 로 가림) |
 | `CourseSectionView.xaml` | 단원 관리 (CRUD · 드래그 정렬 · CSV 입출력) |
 | `CourseHoursView.xaml` | 수업 시수 (주차 × 학급, 손으로 고친 칸만 저장. 학사일정의 방학 다음 주부터 끝까지 뺀다) |
-| `ProgressMatrixView.xaml` | 진도 관리 (단원 × 학급 매트릭스, 격차 분석·CSV) |
+| `ProgressMatrixView.xaml` | 진도 관리 (단원 × 학급 매트릭스, 학급별 남은 시간·차시·CSV) |
 | `CourseTimetableBoard.xaml` | 수업 시간표 입력 (요일 × 교시 배치판, 드래그·키보드. 필요 칸 수 = 주당 시수 × 강의실 수) |
 | `WeeklyTimetableView.xaml` | 주별 시간표 확인 및 변경 (**교시 × 날짜**, 3주치 가로 스크롤·교시 열 고정·휠=가로) |
 | `LessonSlotBook.cs` | 교사 시간표를 날짜로 푼 장부 — 기초 + 그 날 변경 + 휴업일·학년 행사, 변경 저장(맞바꾸기 트랜잭션). 주별 시간표·오늘 화면이 함께 쓴다 |

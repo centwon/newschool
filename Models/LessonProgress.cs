@@ -154,52 +154,10 @@ public class LessonProgress
         UpdatedAt = DateTime.Now;
     }
 
-    /// <summary>
-    /// 보강으로 표시
-    /// </summary>
-    public void MarkAsMakeup(DateTime date, string? memo = null)
-    {
-        ProgressType = ProgressType.Makeup;
-        IsCompleted = true;
-        CompletedDate = date;
-        Memo = memo;
-        UpdatedAt = DateTime.Now;
-    }
-
-    /// <summary>
-    /// 병합 처리 (여러 단원을 한 차시에 나감)
-    /// </summary>
-    public void MarkAsMerged(DateTime? date = null, string? memo = null)
-    {
-        ProgressType = ProgressType.Merged;
-        IsCompleted = true;
-        CompletedDate = date ?? DateTime.Today;
-        Memo = memo;
-        UpdatedAt = DateTime.Now;
-    }
-
-    /// <summary>
-    /// 건너뛰기 처리
-    /// </summary>
-    public void MarkAsSkipped(string? reason = null)
-    {
-        ProgressType = ProgressType.Skipped;
-        IsCompleted = true;
-        CompletedDate = DateTime.Today;
-        Memo = reason;
-        UpdatedAt = DateTime.Now;
-    }
-
-    /// <summary>
-    /// 결강 처리
-    /// </summary>
-    public void MarkAsCancelled(string? reason = null)
-    {
-        ProgressType = ProgressType.Cancelled;
-        IsCompleted = false;
-        Memo = reason;
-        UpdatedAt = DateTime.Now;
-    }
+    // 보강·병합·건너뜀·결강 표시(MarkAsMakeup·MarkAsMerged·MarkAsSkipped·MarkAsCancelled)는
+    // 지웠다(2026-09-28) — 진도 칸 메뉴에서 그 항목들을 뺀 뒤로 부르는 곳이 없었다.
+    // 휴강·보강은 LessonChange 로 넣고, 건너뛴 단원은 뒤 단원을 완료로 표시한다.
+    // 예전 기록을 읽어야 하므로 ProgressType 값은 그대로 둔다.
 
     #endregion
 }
@@ -225,65 +183,6 @@ public enum ProgressType
     Cancelled = 4
 }
 
-/// <summary>
-/// 진도 격차 정보 (학급별 완료 수 비교)
-/// </summary>
-public class ProgressGap
-{
-    /// <summary>학급/강의실</summary>
-    public string Room { get; set; } = string.Empty;
-
-    /// <summary>완료된 단원 수</summary>
-    public int CompletedCount { get; set; }
-
-    /// <summary>전체 단원 수</summary>
-    public int TotalCount { get; set; }
-
-    /// <summary>완료율 (%)</summary>
-    public double CompletionRate => TotalCount > 0
-        ? Math.Round((double)CompletedCount / TotalCount * 100, 1)
-        : 0;
-
-    /// <summary>최대 완료 학급 대비 격차</summary>
-    public int GapFromMax { get; set; }
-
-    /// <summary>평균 대비 격차</summary>
-    public double GapFromAverage { get; set; }
-
-    /// <summary>격차 상태</summary>
-    public GapStatus Status => GapFromMax switch
-    {
-        0 => GapStatus.Leading,
-        1 or 2 => GapStatus.OnTrack,
-        3 or 4 => GapStatus.SlightlyBehind,
-        _ => GapStatus.Behind
-    };
-
-    /// <summary>상태 표시</summary>
-    public string StatusDisplay => Status switch
-    {
-        GapStatus.Leading => "선두",
-        GapStatus.OnTrack => "정상",
-        GapStatus.SlightlyBehind => "약간 뒤처짐",
-        GapStatus.Behind => "뒤처짐",
-        _ => "알 수 없음"
-    };
-}
-
-/// <summary>
-/// 격차 상태
-/// </summary>
-public enum GapStatus
-{
-    /// <summary>선두 (가장 빠름)</summary>
-    Leading,
-
-    /// <summary>정상 범위</summary>
-    OnTrack,
-
-    /// <summary>약간 뒤처짐</summary>
-    SlightlyBehind,
-
-    /// <summary>뒤처짐</summary>
-    Behind
-}
+// 진도 격차(ProgressGap·GapStatus)는 이를 채우던 LessonProgressRepository.GetProgressGapsAsync
+// 와 함께 지웠다(2026-09-28) — 격차 분석 창이 학급 머리의 남은 시간·차시로 바뀐 뒤로
+// 부르는 곳이 없었다.
