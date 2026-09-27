@@ -194,42 +194,9 @@ public class CourseRepository : BaseRepository
     // 학년별 수업 목록(GetByGradeAsync)은 호출부가 없어 지웠다(39차) —
     // 수업은 담당 교사 기준으로 읽는다.
 
-    /// <summary>
-    /// 여러 No로 수업 일괄 조회
-    /// </summary>
-    public async Task<List<Course>> GetByIdsAsync(List<int> ids)
-    {
-        if (ids == null || ids.Count == 0)
-            return [];
-
-        var placeholders = string.Join(",", ids.Select((_, i) => $"@id{i}"));
-        var query = $"SELECT * FROM Course WHERE No IN ({placeholders})";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            for (int i = 0; i < ids.Count; i++)
-            {
-                cmd.Parameters.AddWithValue($"@id{i}", ids[i]);
-            }
-
-            var courses = new List<Course>();
-            using var reader = await cmd.ExecuteReaderAsync();
-            var cache = new ReaderColumnCache();
-            cache.Initialize(reader);   // 컬럼 인덱스를 행마다 다시 찾지 않도록 한 번만
-            while (await reader.ReadAsync())
-            {
-                courses.Add(MapCourse(reader, cache));
-            }
-
-            return courses;
-        }
-        catch (Exception ex)
-        {
-            LogError($"수업 일괄 조회 실패: {ids.Count}건", ex);
-            throw;
-        }
-    }
+    // 여러 No 로 일괄 조회(GetByIdsAsync)는 지웠다(2026-09-28) — 유일한 호출자였던
+    // TeacherTimetableService 의 격자 채우기가 함께 사라졌다. 교사 시간표(LessonSlotBook)는
+    // 화면이 넘겨준 그 교사의 수업 목록(SetScopeAsync)에서 과목을 찾는다.
 
     #endregion
 

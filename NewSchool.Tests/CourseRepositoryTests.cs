@@ -48,20 +48,6 @@ public class CourseRepositoryTests : IClassFixture<SqliteTestFixture>
     }
 
     [Fact]
-    public async Task GetByIds_배치조회_빈목록과_다건()
-    {
-        using var repo = new CourseRepository(_db.DbPath);
-        int no1 = await repo.CreateAsync(TestData.NewCourse(subject: "배치A"));
-        int no2 = await repo.CreateAsync(TestData.NewCourse(subject: "배치B"));
-
-        var empty = await repo.GetByIdsAsync([]);
-        Assert.Empty(empty);
-
-        var two = await repo.GetByIdsAsync([no1, no2, 999_999]);
-        Assert.Equal(2, two.Count);
-    }
-
-    [Fact]
     public async Task Section_수정_왕복()
     {
         // 회귀 방지: UPDATE 문 마지막 필드 뒤에 후행 쉼표가 있어 SQL 문법 오류로
