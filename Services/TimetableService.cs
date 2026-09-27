@@ -12,8 +12,10 @@ namespace NewSchool.Services;
 /// <summary>
 /// <b>학급</b> 시간표 — "이 반은 언제 무슨 수업" 을 답한다. <c>ClassTimetable</c> 을 읽는다.
 ///
-/// <para>교사 시간표는 <see cref="TeacherTimetableService"/> 가 맡는다. 둘은 중복이 아니라
-/// <b>관점</b>으로 갈리고, 보는 표부터 다르다(이쪽 <c>ClassTimetable</c>, 저쪽 <c>Lesson</c>).</para>
+/// <para>교사 시간표는 <see cref="Controls.LessonSlotBook"/> 가 맡는다. 둘은 중복이 아니라
+/// <b>관점</b>으로 갈리고, 보는 표부터 다르다(이쪽 <c>ClassTimetable</c>, 저쪽 <c>Lesson</c>).
+/// 저쪽을 맡던 <c>TeacherTimetableService</c> 는 오늘 화면이 장부로 옮겨 가며 호출처가
+/// 없어져 지웠다(2026-09-28).</para>
 ///
 /// <para>여기에 있던 교사 시간표(<c>GetTeacherTimetableAsync</c>)는 호출부가 없어
 /// 지웠다(39차) — 그 일은 저쪽이 한다. 되살리지 말 것.</para>

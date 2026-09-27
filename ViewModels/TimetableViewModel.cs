@@ -17,9 +17,6 @@ public class TimetableItemViewModel : NotifyPropertyChangedBase
     private int _dayOfWeek; // 1=월, 2=화, 3=수, 4=목, 5=금
     private int _period;    // 1~7교시
     private bool _isEmpty = true;
-    private bool _isCurrentPeriod;
-    private LessonChangeKind _changeKind = LessonChangeKind.None;
-    private string _changeMemo = string.Empty;
 
     /// <summary>
     /// Lesson.No (FK)
@@ -45,11 +42,7 @@ public class TimetableItemViewModel : NotifyPropertyChangedBase
     public string SubjectName
     {
         get => _subjectName;
-        set
-        {
-            if (SetProperty(ref _subjectName, value))
-                OnPropertyChanged(nameof(SubjectWithPrefix));
-        }
+        set => SetProperty(ref _subjectName, value);
     }
 
     /// <summary>
@@ -97,65 +90,12 @@ public class TimetableItemViewModel : NotifyPropertyChangedBase
         set => SetProperty(ref _isEmpty, value);
     }
 
-    /// <summary>현재 진행 중인 교시 여부 (UI 강조용, DB 비저장)</summary>
-    public bool IsCurrentPeriod
-    {
-        get => _isCurrentPeriod;
-        set => SetProperty(ref _isCurrentPeriod, value);
-    }
-
-    /// <summary>
-    /// 이 교시가 평소와 어떻게 다른가 (오늘 화면 전용 — 주간 시간표에서는 항상 None).
-    /// </summary>
-    public LessonChangeKind ChangeKind
-    {
-        get => _changeKind;
-        set
-        {
-            if (SetProperty(ref _changeKind, value))
-            {
-                OnPropertyChanged(nameof(HasChange));
-                OnPropertyChanged(nameof(IsCancelled));
-                OnPropertyChanged(nameof(ChangeLabel));
-                OnPropertyChanged(nameof(SubjectWithPrefix));
-                OnPropertyChanged(nameof(ChangeTooltip));
-            }
-        }
-    }
-
-    /// <summary>변경 사유 — 툴팁에 쓴다</summary>
-    public string ChangeMemo
-    {
-        get => _changeMemo;
-        set
-        {
-            if (SetProperty(ref _changeMemo, value))
-                OnPropertyChanged(nameof(ChangeTooltip));
-        }
-    }
-
-    /// <summary>변경 툴팁 — 사유가 없으면 구분만 보여 준다(빈 툴팁 상자가 뜨지 않게)</summary>
-    public string ChangeTooltip => string.IsNullOrWhiteSpace(ChangeMemo)
-        ? ChangeLabel
-        : $"{ChangeLabel} · {ChangeMemo}";
-
-    /// <summary>평소와 다른 교시인가</summary>
-    public bool HasChange => ChangeKind != LessonChangeKind.None;
-
-    /// <summary>휴강인가</summary>
-    public bool IsCancelled => ChangeKind == LessonChangeKind.Cancelled;
-
-    /// <summary>구분 이름 (휴강 · 교체 · 보강 · 대강) — 툴팁 문구를 만들 때 쓴다</summary>
-    public string ChangeLabel => LessonChangeLabels.Name(ChangeKind);
-
-    // ChangePrefix 는 바인딩도 호출도 없어 지웠다 — 표식이 필요한 곳은 전부
-    // SubjectWithPrefix 로 과목명과 함께 받는다. (39차 검사는 nameof 자기 참조 때문에 놓쳤다.)
-
-    /// <summary>표식이 붙은 과목명 (예: "(교)영어")</summary>
-    public string SubjectWithPrefix => LessonChangeLabels.WithPrefix(ChangeKind, SubjectName);
-
-    // DisplayText·DayHeader 는 바인딩도 호출도 없어 지웠다(39차) —
-    // 시간표 칸은 SubjectWithPrefix 와 Room 을 따로 그린다.
+    // 현재 교시 강조(IsCurrentPeriod)와 그날 변경 멤버(ChangeKind·ChangeMemo·ChangeTooltip·
+    // HasChange·IsCancelled·ChangeLabel·SubjectWithPrefix)는 지웠다(2026-09-28). 쓰던 곳이
+    // 오늘 화면 하나였는데, 그 화면이 LessonSlotBook(DaySlot.Kind)으로 풀게 되면서 남은
+    // 학급 시간표(TimetableControl)는 평소 칸만 그린다. 변경 표식은 LessonChangeLabels 에 있다.
+    //
+    // DisplayText·DayHeader 는 바인딩도 호출도 없어 지웠다(39차).
 }
 
 /// <summary>

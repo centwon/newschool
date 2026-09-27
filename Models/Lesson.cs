@@ -6,7 +6,7 @@ namespace NewSchool.Models;
 /// <b>교사 시간표의 한 칸</b> — 이 선생이 무슨 요일 몇 교시에 어느 수업을 어디서 하는가.
 ///
 /// <para>학급 시간표가 아니다. 그건 <c>ClassTimetable</c> 이 맡고, 보는 표부터 다르다
-/// (<see cref="Services.TeacherTimetableService"/> 와 <c>TimetableService</c> 의 짝을 볼 것).</para>
+/// (<see cref="Controls.LessonSlotBook"/> 와 <c>TimetableService</c> 의 짝을 볼 것).</para>
 ///
 /// <para><b>여기 칸을 더하기 전에 읽을 것.</b> 원래 이 표는 "수업 한 건" 을 통째로 담으려 해서
 /// 주제·완료·휴강·비정기 날짜까지 들고 있었다. 그 일들은 하나씩 다른 곳으로 옮겨 갔고,

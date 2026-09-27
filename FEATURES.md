@@ -226,7 +226,6 @@
 | 파일 | 기능 |
 |------|------|
 | `CourseService.cs` | 수업(교과) 관리 |
-| `TeacherTimetableService.cs` | **교사** 시간표 — 내 수업이 언제 어디 (`Lesson` 기반) |
 | `EnrollmentService.cs` | 수강 등록 |
 | `TimetableService.cs` | **학급** 시간표 — 이 반은 언제 무슨 수업 (`ClassTimetable` 기반) |
 
@@ -236,7 +235,6 @@
 | 파일 | 기능 |
 |------|------|
 | `WeeklyHoursCalculator.cs` | 주차별 수업 가능 시수 계산 (시간표 배치 + 학사일정). 학기 경계는 여름방학(수업일 14일 이상 공백)에서 유추하고, 표는 학사일정이 "방학"이라 적은 첫 휴업일의 다음 주부터 끊는다 |
-| `TimetableChangeMerger.cs` | 날짜별 시간표 변경(`LessonChange`)을 평소 시간표에 얹기 — 오늘 화면·수업 홈이 함께 쓴다 |
 | `Helpers/SchoolCalendar.cs` | 휴업일·학년 행사(`IsGradeOnlyEvent`)·수업일(`IsTeachingDayFor`) 판정. 휴업 여부는 **수업공제일자명 한 칸**으로만 본다 — 행사명 짐작은 "여름방학식"을 휴업일로 만들었다 |
 
 ### 기타

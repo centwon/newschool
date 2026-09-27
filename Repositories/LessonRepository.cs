@@ -105,14 +105,14 @@ public class LessonRepository : BaseRepository
     }
 
     // 정기 시간표 일괄 생성(CreateFromSchedulesAsync)은 이를 부르던
-    // TeacherTimetableService.CreateScheduleFromCourseAsync 와 함께 지웠다(39차)
-    // — 둘 다 호출부가 없었다. (그때 그 서비스의 이름은 LessonService 였다.)
+    // 서비스 쪽 CreateScheduleFromCourseAsync 와 함께 지웠다(39차) — 둘 다 호출부가
+    // 없었다. (그 서비스 LessonService → TeacherTimetableService 는 2026-09-28 에 통째로 지웠다.)
 
     #endregion
 
     #region Read
 
-    // No 하나로 읽는 조회(GetByIdAsync)는 지웠다 — 유일한 호출자가 TeacherTimetableService 의
+    // No 하나로 읽는 조회(GetByIdAsync)는 지웠다 — 유일한 호출자가 서비스 쪽(지금은 없음)
     // 통과 래퍼였고 그것도 부르는 곳이 없었다. 시간표 화면들은 언제나 묶음으로 읽는다
     // (교사별·과목별·날짜별). 한 줄만 필요해지면 그때 되살리면 된다.
 
@@ -225,8 +225,8 @@ public class LessonRepository : BaseRepository
         }
     }
 
-    // 시간대 수업 조회(GetBySlotAsync)는 이를 쓰던 TeacherTimetableService.HasConflictAsync
-    // 와 함께 지웠다(39차. 그때 그 서비스의 이름은 LessonService 였다).
+    // 시간대 수업 조회(GetBySlotAsync)는 이를 쓰던 서비스 쪽 HasConflictAsync 와 함께
+    // 지웠다(39차. 그 서비스도 2026-09-28 에 통째로 지웠다).
 
     #endregion
 
