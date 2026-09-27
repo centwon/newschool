@@ -7,7 +7,7 @@ namespace NewSchool.Tests;
 
 /// <summary>
 /// KEvent 할일/일정 변환·표시 로직 테스트 (TEST_PLAN 4단계).
-/// 색상 매핑 · 종일/시간 라벨 · 상태 판정 · 할일 완료 취소선을 검증한다.
+/// 색상 매핑 · 종일/시간 라벨 · 기본 유형 · 할일 완료 취소선을 검증한다.
 /// </summary>
 public class KEventTests
 {
@@ -62,26 +62,12 @@ public class KEventTests
         Assert.Equal("09:05", e.TimeLabel);
     }
 
-    [Theory]
-    [InlineData("cancelled", true, false)]
-    [InlineData("tentative", false, true)]
-    [InlineData("confirmed", false, false)]
-    public void 상태_판정(string status, bool cancelled, bool tentative)
-    {
-        var e = new KEvent { Status = status };
-        Assert.Equal(cancelled, e.IsCancelled);
-        Assert.Equal(tentative, e.IsTentative);
-    }
-
-    [Theory]
-    [InlineData("task", true)]
-    [InlineData("event", false)]
-    public void 할일_판정(string itemType, bool expected)
-        => Assert.Equal(expected, new KEvent { ItemType = itemType }.IsTaskItem);
+    // 상태·할 일 판정(IsCancelled·IsTentative·IsTaskItem) 테스트는 그 속성들과 함께
+    // 뺐다(2026-09-28) — 앱에서 부르는 곳 없이 이 테스트만 부르고 있었다.
 
     [Fact]
     public void 기본_ItemType은_event()
-        => Assert.False(new KEvent().IsTaskItem);
+        => Assert.Equal("event", new KEvent().ItemType);
 
     [Fact]
     public void 완료된_할일은_취소선()

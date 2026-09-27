@@ -162,14 +162,8 @@ public partial class KEvent : INotifyPropertyChanged
     /// </summary>
     public string TimeLabel => IsAllday ? string.Empty : Start.ToString("HH:mm");
 
-    /// <summary>이벤트가 취소 상태인지</summary>
-    public bool IsCancelled => Status == "cancelled";
-
-    /// <summary>이벤트가 임시(미확정) 상태인지</summary>
-    public bool IsTentative => Status == "tentative";
-
-    /// <summary>할 일인지 여부</summary>
-    public bool IsTaskItem => ItemType == "task";
+    // 상태·할 일 판정(IsCancelled·IsTentative·IsTaskItem)은 테스트만 불러 지웠다(2026-09-28).
+    // 앱 코드는 ItemType == "task" 를 직접 비교한다(KAgendaControl·GoogleSyncService 등).
 
     /// <summary>
     /// 텍스트 장식 (완료된 할 일은 취소선 표시)
