@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using NewSchool.Board;
+using NewSchool.Controls;
 using NewSchool.Board.Services;
 using NewSchool.Dialogs;
 using NewSchool.Helpers;
@@ -25,7 +26,7 @@ namespace NewSchool.Pages;
 /// 상단 날짜 헤더(오늘 날짜·요일·오늘 행사·현재 교시) + 내 수업/우리 반 오늘 시간표.
 /// (Avalonia SaemDesk TodayPage 설계 이식)
 /// </summary>
-public sealed partial class TodayPage : Page, INotifyPropertyChanged
+public sealed partial class TodayPage : Page, INotifyPropertyChanged, ILessonSlotMenuHost
 {
     private TodayPageViewModel? _viewModel;
 
@@ -44,9 +45,15 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     private bool IsViewingToday => _viewDate == DateTime.Today;
     private readonly bool _isHomeroom = Settings.HomeGrade.Value > 0 && Settings.HomeRoom.Value > 0;
 
-    // 현재 교시 행 강조를 위해 로드된 슬롯 참조 유지 (1분 주기로 재계산)
-    private List<TimetableItemViewModel> _teacherSlots = new();
-    private List<ClassTimetable> _classSlots = new();
+    /// <summary>내 수업 — 기초 + 그 날 변경 + 일지 표시. 수업 홈 시간표와 같은 장부·같은 칸 메뉴를 쓴다.</summary>
+    private readonly LessonSlotBook _book = new();
+    private readonly LessonSlotMenu _menu;
+
+    /// <summary>우리 반 — 보고 있는 날의 교시 → 학급 시간표 칸 (담임일 때만)</summary>
+    private Dictionary<int, ClassTimetable> _classSlots = [];
+
+    /// <summary>시간표 카드의 줄들 (현재 교시 강조를 1분 주기로 다시 매긴다)</summary>
+    private List<TodayPeriodRow> _rows = [];
 
     /// <summary>
     /// ViewModel - x:Bind를 위한 public 속성
@@ -67,6 +74,7 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     public TodayPage()
     {
         InitializeComponent();
+        _menu = new LessonSlotMenu(_book, this);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -108,7 +116,6 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
             {
                 ClassColumn.Width = new GridLength(0);
                 ClassHeaderCell.Visibility = Visibility.Collapsed;
-                ClassBodyCell.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -290,10 +297,8 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     /// </summary>
     private void HighlightCurrentPeriod(int index)
     {
-        foreach (var s in _teacherSlots)
-            s.IsCurrentPeriod = index >= 1 && s.Period == index;
-        foreach (var s in _classSlots)
-            s.IsCurrentPeriod = index >= 1 && s.Period == index;
+        foreach (var row in _rows)
+            row.IsCurrentPeriod = index >= 1 && row.Period == index;
     }
 
     /// <summary>현재 교시 강조 표시 여부 → Visibility (DataTemplate x:Bind용 순수 함수)</summary>
@@ -339,101 +344,128 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
 
     #endregion
 
-    #region 오늘 시간표 (내 수업 / 우리 반)
-
-    /// <summary>그날이 학사일정상 휴업일/공휴일이면 그 사유명(예: "휴업일"), 아니면 null.</summary>
-    private static async Task<string?> GetHolidayNameAsync(DateTime date)
-    {
-        using var svc = new SchoolScheduleService(SchoolDatabase.DbPath);
-        var (success, _, list) = await svc.GetSchedulesByDataRangeAsync(
-            Settings.SchoolCode.Value, date, date.AddDays(1));
-        if (!success || list == null) return null;
-        return list.FirstOrDefault(s => s.IsHoliday)?.SBTR_DD_SC_NM;
-    }
-
-    private async Task LoadTimetableSlotsAsync()
-    {
-        // .NET DayOfWeek: 0=일 … 6=토 / 시간표 DayOfWeek: 1=월 … 5=금
-        int netDow = (int)_viewDate.DayOfWeek;
-        int dow = (netDow >= 1 && netDow <= 5) ? netDow : 0;
-
-        // 학사일정상 휴업일/공휴일이면 수업·학급 시간표를 표시하지 않는다(빈 상태에 사유 표시).
-        string? holidayName = await GetHolidayNameAsync(_viewDate);
-        if (holidayName != null) dow = 0;
-        TxtNoTeacherSlots.Text = holidayName ?? "수업 없음";
-        TxtNoClassSlots.Text   = holidayName ?? "시간표 없음";
-
-        // 내 수업 (교사 시간표)
-        var teacherSlots = new List<TimetableItemViewModel>();
-        if (dow != 0)
-        {
-            using var svc = new TeacherTimetableService();
-            var tvm = await svc.GetTeacherTimetableViewModelAsync(
-                Settings.User.Value, Settings.WorkYear.Value, Settings.WorkSemester.Value);
-            teacherSlots = tvm.Items
-                .Where(x => x.DayOfWeek == dow && !x.IsEmpty)
-                .OrderBy(x => x.Period)
-                .ToList();
-        }
-
-        // 그날만 걸리는 변경(휴강·교체·보강·대강)을 얹는다.
-        // 휴업일이라 정기 수업을 안 그리는 날에도 보강은 있을 수 있으므로 dow 와 무관하게 읽는다.
-        teacherSlots = await TeacherTimetableService.ApplyDayChangesAsync(teacherSlots, _viewDate);
-        if (teacherSlots.Count > 0)
-            TxtNoTeacherSlots.Text = holidayName ?? "수업 없음";
-
-        _teacherSlots = teacherSlots;
-        TeacherSlotsList.ItemsSource = teacherSlots;
-        bool hasTeacher = teacherSlots.Count > 0;
-        TeacherSlotsList.Visibility = hasTeacher ? Visibility.Visible : Visibility.Collapsed;
-        TxtNoTeacherSlots.Visibility = hasTeacher ? Visibility.Collapsed : Visibility.Visible;
-
-        // 우리 반 (담임인 경우만)
-        if (_isHomeroom)
-        {
-            var classSlots = new List<ClassTimetable>();
-            if (dow != 0)
-            {
-                using var repo = new ClassTimetableRepository(SchoolDatabase.DbPath);
-                var all = await repo.GetByClassAsync(
-                    Settings.SchoolCode.Value, Settings.WorkYear.Value, Settings.WorkSemester.Value,
-                    Settings.HomeGrade.Value, Settings.HomeRoom.Value);
-                classSlots = all.Where(x => x.DayOfWeek == dow).OrderBy(x => x.Period).ToList();
-            }
-            _classSlots = classSlots;
-            ClassSlotsList.ItemsSource = classSlots;
-            bool hasClass = classSlots.Count > 0;
-            ClassSlotsList.Visibility = hasClass ? Visibility.Visible : Visibility.Collapsed;
-            TxtNoClassSlots.Visibility = hasClass ? Visibility.Collapsed : Visibility.Visible;
-        }
-
-        // 로드는 첫 타이머 틱 이후 완료되므로, 새 슬롯에 현재 교시 강조를 즉시 반영
-        HighlightCurrentPeriod(Functions.GetPeriodNow().Index);
-    }
-
-    // 변경 얹기는 TeacherTimetableService.ApplyDayChangesAsync 로 옮겼다 —
-    // 수업 홈의 [오늘의 수업] 이 같은 단계를 거치지 않아 두 화면이 다른 답을 내고 있었다.
-    // 화면마다 따로 짜면 또 빠뜨리므로 한 곳에 둔다.
+    #region 오늘 시간표 (한 줄 = 한 교시: 내 수업 | 우리 반)
 
     /// <summary>
-    /// 수업 한 줄의 툴팁 (DataTemplate x:Bind용 순수 함수).
-    ///
-    /// <para>변경이 걸린 교시면 사유 메모까지 함께 보여 준다 — 예전에는 이 내용이 변경 배지에
-    /// 달려 있었는데, 배지 자체가 과목명 앞 표식과 겹쳐 없앴다. 메모까지 같이 사라지면 안 된다.</para>
+    /// 보고 있는 날의 시간표를 읽는다 — 내 수업은 수업 홈 시간표와 같은 장부(<see cref="LessonSlotBook"/>)로
+    /// 풀어서, 휴업일·학년 행사·그 날 변경 판정이 두 화면에서 같다.
     /// </summary>
-    public static string SlotTooltip(bool hasChange, string changeTooltip)
-        => hasChange && !string.IsNullOrWhiteSpace(changeTooltip)
-            ? $"{changeTooltip} · 눌러서 수업 일지 쓰기"
-            : "눌러서 수업 일지 쓰기";
+    private async Task LoadTimetableSlotsAsync()
+    {
+        List<Course> courses;
+        using (var courseService = new CourseService())
+            courses = await courseService.GetMyCoursesAsync();
+
+        await _book.SetScopeAsync(Settings.WorkYear.Value, Settings.WorkSemester.Value, courses);
+        await _book.LoadRangeAsync(_viewDate, _viewDate, withJournals: true);
+
+        // 우리 반 (담임인 경우만) — 학교 전체가 쉬는 날은 비운다.
+        var classSlots = new Dictionary<int, ClassTimetable>();
+        int day = SchoolCalendar.ToLessonDayOfWeek(_viewDate);
+        if (_isHomeroom && IsWeekday(_viewDate) && _book.OffDayReason(_viewDate) == null)
+        {
+            using var repo = new ClassTimetableRepository(SchoolDatabase.DbPath);
+            var all = await repo.GetByClassAsync(
+                Settings.SchoolCode.Value, Settings.WorkYear.Value, Settings.WorkSemester.Value,
+                Settings.HomeGrade.Value, Settings.HomeRoom.Value);
+            foreach (var slot in all.Where(x => x.DayOfWeek == day))
+                classSlots[slot.Period] = slot;
+        }
+        _classSlots = classSlots;
+
+        BuildRows();
+    }
+
+    private static bool IsWeekday(DateTime date)
+        => date.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday);
+
+    /// <summary>
+    /// 장부와 우리 반 칸으로 줄을 만든다(DB 는 읽지 않는다 — 메뉴로 바꾼 뒤에도 이것만 다시 부른다).
+    ///
+    /// <para>교시 수는 설정의 그 요일 교시 수이고, 그보다 뒤 교시에 수업·변경이 있으면 거기까지 늘린다.
+    /// 휴업일(학교 전체)에는 그 날 넣은 보강이 없으면 줄 대신 사유를 띄운다.</para>
+    /// </summary>
+    private void BuildRows()
+    {
+        var date = _viewDate;
+        var rows = new List<TodayPeriodRow>();
+        string? off = _book.OffDayReason(date);
+
+        if (IsWeekday(date))
+        {
+            int day = SchoolCalendar.ToLessonDayOfWeek(date);
+            int last = PeriodCounts.Parse(Settings.PeriodsPerDay.Value).ForDay(day);
+
+            var changed = _book.Changes.Keys.Where(k => k.Date == date).Select(k => k.Period);
+            last = Math.Max(last, changed.DefaultIfEmpty(0).Max());
+            last = Math.Max(last, _classSlots.Keys.DefaultIfEmpty(0).Max());
+
+            bool anyLesson = false;
+            var classWidth = _isHomeroom ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+
+            for (int period = 1; period <= last; period++)
+            {
+                var slot = _book.Resolve(date, period);
+                if (!slot.IsBlank) anyLesson = true;
+
+                _classSlots.TryGetValue(period, out var cls);
+
+                rows.Add(new TodayPeriodRow
+                {
+                    Period = period,
+                    Subject = LessonChangeLabels.WithPrefix(slot.Kind, slot.Subject),
+                    Room = slot.Room,
+                    IsCancelled = slot.Kind == LessonChangeKind.Cancelled,
+                    HasJournal = _book.Journals.ContainsKey((date, period)),
+                    Tooltip = SlotTooltip(slot, _book.MemoOf(date, period)),
+                    ClassSubject = cls?.SubjectName ?? string.Empty,
+                    ClassTeacher = cls?.TeacherName ?? string.Empty,
+                    ClassColumnWidth = classWidth
+                });
+            }
+
+            // 학교가 통째로 쉬는 날은 넣은 수업이 없으면 빈 줄 대신 사유를 띄운다.
+            if (off != null && !anyLesson) rows.Clear();
+        }
+
+        _rows = rows;
+        PeriodRowsList.ItemsSource = rows;
+
+        bool has = rows.Count > 0;
+        TxtNoSlots.Text = off ?? "수업 없음";
+        PeriodRowsList.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
+        TxtNoSlots.Visibility = has ? Visibility.Collapsed : Visibility.Visible;
+
+        // 로드는 첫 타이머 틱 이후 완료되므로, 새 줄에 현재 교시 강조를 즉시 반영
+        HighlightCurrentPeriod(IsViewingToday ? Functions.GetPeriodNow().Index : 0);
+    }
+
+    /// <summary>
+    /// 내 수업 칸의 툴팁. 변경이 걸린 교시면 사유 메모까지 함께 보여 준다 — 변경 배지를 없애면서
+    /// 메모가 옮겨 온 자리다.
+    /// </summary>
+    private static string SlotTooltip(DaySlot slot, string memo)
+    {
+        if (slot.IsBlank) return "눌러서 수업 넣기 · 대강 입력";
+
+        var tip = slot.Kind == LessonChangeKind.None ? string.Empty : $"[{LessonChangeLabels.Name(slot.Kind)}]";
+        if (!string.IsNullOrWhiteSpace(memo)) tip += $" {memo}";
+
+        const string hint = "눌러서 수업 일지 · 진도 · 수업 변경";
+        return tip.Length == 0 ? hint : $"{tip.Trim()} · {hint}";
+    }
 
     /// <summary>
     /// 교시 줄 단추의 UIA 이름. 단추 안은 교시·과목·교실을 담은 패널이라 이름이 되지 않고
     /// 툴팁도 이름이 아니어서, 낭독기가 줄마다 그냥 "단추" 라고만 읽었다.
     /// </summary>
-    public static string SlotName(int period, string? subjectWithPrefix, string? room)
-        => string.IsNullOrWhiteSpace(room)
-            ? $"{period}교시 {subjectWithPrefix} — 수업 일지 쓰기"
-            : $"{period}교시 {subjectWithPrefix} {room} — 수업 일지 쓰기";
+    public static string SlotName(int period, string? subject, string? room)
+    {
+        if (string.IsNullOrWhiteSpace(subject)) return $"{period}교시 빈 시간 — 메뉴";
+        return string.IsNullOrWhiteSpace(room)
+            ? $"{period}교시 {subject} — 메뉴"
+            : $"{period}교시 {subject} {room} — 메뉴";
+    }
 
     /// <summary>휴강이면 취소선 (DataTemplate x:Bind용 순수 함수)</summary>
     public static Windows.UI.Text.TextDecorations StrikeIfCancelled(bool isCancelled)
@@ -442,23 +474,55 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged
     /// <summary>휴강은 흐리게 (DataTemplate x:Bind용 순수 함수)</summary>
     public static double DimIfCancelled(bool isCancelled) => isCancelled ? 0.5 : 1.0;
 
-    /// <summary>하지 않은 수업의 일지를 쓸 일은 없다 (DataTemplate x:Bind용 순수 함수)</summary>
-    public static bool ClickableIfNotCancelled(bool isCancelled) => !isCancelled;
-
     #endregion
 
-    #region 수업 일지
+    #region 칸 메뉴 (수업 홈 시간표와 같은 메뉴)
 
     /// <summary>
-    /// 내 수업 한 줄 클릭 → 그 수업의 수업 일지 쓰기.
+    /// 내 수업 칸 클릭 → 수업 홈 시간표와 같은 칸 메뉴(수업 일지 · 진도 완료 표시 · 수업 변경).
     /// 날짜는 <b>보고 있는 날짜</b>다 — 날짜를 옮겨 둔 채 누르면 그 날짜로 쓴다.
+    ///
+    /// <para>예전에는 누르면 곧장 새 일지를 열었다(<c>ComposeAsync</c>). 이미 써 둔 일지가 있어도
+    /// 새 글이 열려 같은 수업 일지가 두 벌 생길 수 있었다 — 메뉴의 일지 항목은 써 둔 글을 연다.</para>
     /// </summary>
     private async void TeacherSlot_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: TimetableItemViewModel slot }) return;
+        if (sender is not Button { Tag: TodayPeriodRow row } button) return;
 
-        await LessonJournalComposer.ComposeAsync(new LessonSlotSeed(
-            _viewDate, slot.Period, slot.CourseNo, slot.SubjectName, slot.Room));
+        try
+        {
+            var menu = await _menu.BuildAsync(_viewDate, row.Period);
+            if (menu.Items.Count > 0)
+                menu.ShowAt(button);
+        }
+        catch (Exception ex)
+        {
+            await Controls.UserErrorReporter.ReportAsync("시간표 메뉴", ex);
+        }
+    }
+
+    XamlRoot? ILessonSlotMenuHost.XamlRoot => XamlRoot;
+
+    Task ILessonSlotMenuHost.OnSlotChangedAsync(DateTime date, int period)
+    {
+        BuildRows();
+        return Task.CompletedTask;
+    }
+
+    async Task ILessonSlotMenuHost.OnRecordChangedAsync()
+    {
+        await _book.LoadJournalMarksAsync();
+        BuildRows();
+    }
+
+    void ILessonSlotMenuHost.ShowInfo(string message) => ShowSlotNotice(InfoBarSeverity.Success, message);
+    void ILessonSlotMenuHost.ShowWarning(string message) => ShowSlotNotice(InfoBarSeverity.Warning, message);
+
+    private void ShowSlotNotice(InfoBarSeverity severity, string message)
+    {
+        SlotInfoBar.Severity = severity;
+        SlotInfoBar.Message = message;
+        SlotInfoBar.IsOpen = true;
     }
 
     #endregion

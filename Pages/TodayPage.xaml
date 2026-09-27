@@ -91,8 +91,10 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- 시간표 카드: 내 수업 | 우리 반 (오늘 슬롯) -->
-                <Border Grid.Row="0" Style="{StaticResource DashboardCard}">
+                <!-- 시간표 카드 + 그 아래 알림 줄 (닫혀 있으면 자리를 차지하지 않는다) -->
+                <StackPanel Grid.Row="0">
+                <!-- 시간표 카드: 내 수업 | 우리 반 (한 줄 = 한 교시) -->
+                <Border Style="{StaticResource DashboardCard}">
                     <Grid x:Name="TimetableTable">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -123,111 +125,87 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- 본문: 내 수업 -->
-                        <Grid Grid.Row="1" Grid.Column="0" MinHeight="56">
-                            <TextBlock x:Name="TxtNoTeacherSlots" Text="수업 없음"
+                        <!--
+                            본문: 한 줄 = 한 교시. 왼쪽 내 수업 · 오른쪽 우리 반이 같은 교시를 가리킨다.
+                            공강도 빈 줄로 둔다 — 그 줄을 눌러 보강·대강을 넣는다.
+                        -->
+                        <Grid Grid.Row="1" Grid.ColumnSpan="2" MinHeight="56">
+                            <TextBlock x:Name="TxtNoSlots" Text="수업 없음"
                                        HorizontalAlignment="Center" Margin="0,12" FontSize="11"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <ItemsControl x:Name="TeacherSlotsList" Padding="4,4,4,8" Visibility="Collapsed">
+                            <ItemsControl x:Name="PeriodRowsList" Padding="4,4,4,8" Visibility="Collapsed">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:TimetableItemViewModel">
-                                        <!--
-                                            줄 전체가 수업 일지로 가는 버튼이다. 배경을 투명으로 둬서
-                                            생김새는 그대로 두고 눌림·포커스만 얹는다.
-                                            휴강 줄은 hit test 를 꺼서 눌러도 아무 일이 없게 한다.
-                                        -->
-                                        <Button Margin="4,1" MinHeight="20" Padding="0"
-                                                Background="Transparent" BorderThickness="0"
-                                                HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Stretch"
-                                                VerticalContentAlignment="Center"
-                                                Tag="{x:Bind}"
-                                                AutomationProperties.Name="{x:Bind local:TodayPage.SlotName(Period, SubjectWithPrefix, Room), Mode=OneWay}"
-                                                Click="TeacherSlot_Click"
-                                                IsHitTestVisible="{x:Bind local:TodayPage.ClickableIfNotCancelled(IsCancelled), Mode=OneWay}"
-                                                ToolTipService.ToolTip="{x:Bind local:TodayPage.SlotTooltip(HasChange, ChangeTooltip), Mode=OneWay}">
-                                        <Grid MinHeight="20">
-                                            <!-- 현재 교시 강조 배경 -->
-                                            <Border CornerRadius="5"
+                                    <DataTemplate x:DataType="vm:TodayPeriodRow">
+                                        <Grid Margin="4,1" MinHeight="22">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="{x:Bind ClassColumnWidth}"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- 현재 교시 강조 배경 (두 열에 걸쳐) -->
+                                            <Border Grid.ColumnSpan="2" CornerRadius="5"
                                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                                     Visibility="{x:Bind local:TodayPage.ShowIfNow(IsCurrentPeriod), Mode=OneWay}"/>
-                                            <Grid ColumnSpacing="6" Padding="2,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="22"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Border Grid.Column="0" Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
-                                                        CornerRadius="4" Padding="0,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind Period}" FontSize="11" FontWeight="SemiBold"
-                                                               HorizontalAlignment="Center"
-                                                               Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
-                                                </Border>
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind SubjectWithPrefix, Mode=OneWay}" FontSize="12"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               Opacity="{x:Bind local:TodayPage.DimIfCancelled(IsCancelled), Mode=OneWay}"
-                                                               TextDecorations="{x:Bind local:TodayPage.StrikeIfCancelled(IsCancelled), Mode=OneWay}"/>
-                                                    <TextBlock Text="{x:Bind Room}" FontSize="12"
-                                                               Opacity="{x:Bind local:TodayPage.DimIfCancelled(IsCancelled), Mode=OneWay}"
-                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
+                                            <!--
+                                                내 수업 칸이 단추다 — 누르면 수업 홈 시간표와 같은 칸 메뉴
+                                                (수업 일지 · 진도 완료 표시 · 수업 변경)가 뜬다.
+                                                배경을 투명으로 둬서 생김새는 그대로 두고 눌림·포커스만 얹는다.
+                                            -->
+                                            <Button Grid.Column="0" MinHeight="22" Padding="0"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    VerticalContentAlignment="Center"
+                                                    Tag="{x:Bind}"
+                                                    AutomationProperties.Name="{x:Bind local:TodayPage.SlotName(Period, Subject, Room)}"
+                                                    ToolTipService.ToolTip="{x:Bind Tooltip}"
+                                                    Click="TeacherSlot_Click">
+                                                <Grid ColumnSpacing="6" Padding="2,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="22"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Grid.Column="0" Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                                            CornerRadius="4" Padding="0,2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind Period}" FontSize="11" FontWeight="SemiBold"
+                                                                   HorizontalAlignment="Center"
+                                                                   Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
+                                                    </Border>
                                                     <!--
                                                         변경 배지(휴강·교체·보강·대강)는 두지 않는다 — 과목명 앞의
-                                                        표식이 (휴)·(교)·(보)·(대) 로 같은 말을 이미 하고 있어서,
-                                                        "(보)영어 1-1 [보강]" 처럼 두 번 읽힌다.
-                                                        변경 사유 메모는 줄 전체의 툴팁으로 옮겼다.
+                                                        표식이 (휴)·(교)·(보)·(대) 로 같은 말을 이미 하고 있다.
+                                                        변경 사유 메모는 줄의 툴팁에 있다.
                                                     -->
-                                                </StackPanel>
-                                            </Grid>
-                                            <!-- '지금' 배지 (오버레이, 우측) -->
-                                            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0"
-                                                    CornerRadius="7" Padding="5,1"
-                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                                    Visibility="{x:Bind local:TodayPage.ShowIfNow(IsCurrentPeriod), Mode=OneWay}">
-                                                <TextBlock Text="지금" FontSize="9" FontWeight="SemiBold"
-                                                           Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
-                                            </Border>
-                                        </Grid>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Grid>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind Subject}" FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Opacity="{x:Bind local:TodayPage.DimIfCancelled(IsCancelled)}"
+                                                                   TextDecorations="{x:Bind local:TodayPage.StrikeIfCancelled(IsCancelled)}"/>
+                                                        <TextBlock Text="{x:Bind Room}" FontSize="12"
+                                                                   Opacity="{x:Bind local:TodayPage.DimIfCancelled(IsCancelled)}"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        <!-- 일지를 써 둔 교시 — 수업 홈 시간표의 공책 표시와 같다 -->
+                                                        <FontIcon Glyph="&#xE70B;" FontSize="11" VerticalAlignment="Center"
+                                                                  Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                                                  Visibility="{x:Bind local:TodayPage.ShowIfNow(HasJournal)}"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Button>
 
-                        <!-- 본문: 우리 반 -->
-                        <Grid x:Name="ClassBodyCell" Grid.Row="1" Grid.Column="1" MinHeight="56">
-                            <TextBlock x:Name="TxtNoClassSlots" Text="시간표 없음"
-                                       HorizontalAlignment="Center" Margin="0,12" FontSize="11"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <ItemsControl x:Name="ClassSlotsList" Padding="4,4,4,8" Visibility="Collapsed">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="models:ClassTimetable">
-                                        <Grid Margin="4,1" MinHeight="20">
-                                            <!-- 현재 교시 강조 배경 -->
-                                            <Border CornerRadius="5"
-                                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                                    Visibility="{x:Bind local:TodayPage.ShowIfNow(IsCurrentPeriod), Mode=OneWay}"/>
-                                            <Grid ColumnSpacing="6" Padding="2,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="22"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Border Grid.Column="0" Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
-                                                        CornerRadius="4" Padding="0,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind Period}" FontSize="11" FontWeight="SemiBold"
-                                                               HorizontalAlignment="Center"
-                                                               Foreground="{ThemeResource SystemFillColorAttentionBrush}"/>
-                                                </Border>
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind SubjectName}" FontSize="12"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{x:Bind TeacherName}" FontSize="12"
-                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                </StackPanel>
-                                            </Grid>
-                                            <!-- '지금' 배지 (오버레이, 우측) -->
-                                            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0"
-                                                    CornerRadius="7" Padding="5,1"
+                                            <!-- 우리 반 -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                                        Padding="10,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind ClassSubject}" FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind ClassTeacher}" FontSize="12"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            </StackPanel>
+
+                                            <!-- '지금' 배지 (오버레이, 줄의 오른쪽 끝) -->
+                                            <Border Grid.ColumnSpan="2"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0"
+                                                    CornerRadius="7" Padding="5,1" IsHitTestVisible="False"
                                                     Background="{ThemeResource AccentFillColorDefaultBrush}"
                                                     Visibility="{x:Bind local:TodayPage.ShowIfNow(IsCurrentPeriod), Mode=OneWay}">
                                                 <TextBlock Text="지금" FontSize="9" FontWeight="SemiBold"
@@ -240,6 +218,10 @@
                         </Grid>
                     </Grid>
                 </Border>
+
+                <!-- 칸 메뉴로 한 일의 확인·실패 (진도 표시처럼 눈에 안 보이는 동작) -->
+                <InfoBar x:Name="SlotInfoBar" Margin="0,8,0,0" IsOpen="False" IsClosable="True"/>
+                </StackPanel>
 
                 <!-- 학사일정 카드 -->
                 <controls:SchoolScheduleListControl x:Name="ScheduleList" Grid.Row="1"/>

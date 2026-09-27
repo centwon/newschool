@@ -8,7 +8,7 @@
 ### 단독 항목
 | Tag | 메뉴 | Page | 기능 |
 |-----|------|------|------|
-| `Home` | 홈 | `TodayPage.xaml` | 오늘 대시보드 — 날짜 이동(`◀ 날짜 ▶ 오늘`), 현재 교시, 오늘 시간표(내 수업/우리 반, 담임만 '우리 반'), 그날의 휴강·교체·보강·대강 반영, 학사일정, 급식, 할 일·일정, 메모 |
+| `Home` | 홈 | `TodayPage.xaml` | 오늘 대시보드 — 날짜 이동(`◀ 날짜 ▶ 오늘`), 현재 교시, 오늘 시간표(한 줄 = 한 교시: 내 수업 | 우리 반, 담임만 '우리 반'. 내 수업 칸 = 수업 홈과 같은 칸 메뉴), 그날의 휴강·교체·보강·대강 반영, 학사일정, 급식, 할 일·일정, 메모 |
 | `Calendar` | 달력 | `Scheduler/Kcalendar.xaml` | 일정 관리 캘린더 |
 | `Archive` | 아카이브 | `Board/Pages/PostListPage.xaml` | 전 카테고리 게시글(카테고리 변경 허용) |
 
@@ -174,6 +174,8 @@
 | `ProgressMatrixView.xaml` | 진도 관리 (단원 × 학급 매트릭스, 격차 분석·CSV) |
 | `CourseTimetableBoard.xaml` | 수업 시간표 입력 (요일 × 교시 배치판, 드래그·키보드. 필요 칸 수 = 주당 시수 × 강의실 수) |
 | `WeeklyTimetableView.xaml` | 주별 시간표 확인 및 변경 (**교시 × 날짜**, 3주치 가로 스크롤·교시 열 고정·휠=가로) |
+| `LessonSlotBook.cs` | 교사 시간표를 날짜로 푼 장부 — 기초 + 그 날 변경 + 휴업일·학년 행사, 변경 저장(맞바꾸기 트랜잭션). 주별 시간표·오늘 화면이 함께 쓴다 |
+| `LessonSlotMenu.cs` | 시간표 칸 메뉴(수업 일지 · 진도 완료 표시 · 수업 변경) — 주별 시간표·수업 홈·오늘 화면 공용 |
 
 ---
 
@@ -471,7 +473,7 @@
 | 수업 시수 | `Controls/CourseHoursView.xaml`, `Services/WeeklyHoursCalculator.cs` |
 | 진도 관리 | `Controls/ProgressMatrixView.xaml`, `Repositories/LessonProgressRepository.cs` |
 | 수업 시간표 입력 | `Controls/CourseTimetableBoard.xaml`, `Repositories/LessonRepository.cs` |
-| 주별 시간표·수업 변경 | `Controls/WeeklyTimetableView.xaml`, `Models/LessonChange.cs`, `Services/TimetableChangeMerger.cs` |
+| 주별 시간표·수업 변경 | `Controls/WeeklyTimetableView.xaml`, `Controls/LessonSlotBook.cs`, `Controls/LessonSlotMenu.cs`, `Models/LessonChange.cs` |
 | 수업 일지 | `Board/Pages/PostListPage.xaml`(카테고리 `수업`·주제 `수업일지`), `Dialogs/LessonJournalComposer.cs`(진입점·제목 규칙), `Dialogs/LessonJournalWindow.xaml`(작성·편집 창), `Board/Controls/LessonJournalList.xaml` |
 | 동아리 | `Pages/ClubManagementPage.xaml`, `Services/ClubService.cs` |
 | 게시판 | `Board/Pages/PostListPage.xaml`, `Board/Services/BoardService.cs` |
