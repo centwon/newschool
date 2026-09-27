@@ -487,7 +487,15 @@ public class PostItemViewModel : NotifyPropertyChangedBase
     public int ReadCount => _post.ReadCount;
     public bool HasFile => _post.HasFile;
     public bool HasComment => _post.HasComment;
-    public bool IsCompleted => _post.IsCompleted;
+
+    /// <summary>
+    /// 목록에서 제목에 가운데 줄을 긋는가 — <b>메모를 읽기 완료했을 때만</b>.
+    ///
+    /// <para>완료(<c>IsCompleted</c>)는 메모의 "읽음 처리" 다(상세 화면도 메모에만 그 토글을 준다).
+    /// 그런데 예전 자료에는 일반 글에도 이 값이 켜진 것이 있어, 아카이브 목록에서 중요 글이
+    /// 줄이 그어진 채 흐리게 보였다. 일반 글은 이 값과 상관없이 글자만 보인다.</para>
+    /// </summary>
+    public bool IsReadMemo => _post.IsCompleted && _post.Subject == "메모";
 
     // 중요 글 여부(IsPinned)를 그대로 내주던 속성도 읽는 곳이 없어 지웠다(2026-09-04).
     // 목록이 쓰는 것은 아래 PinIconVisibility 하나고, 정렬은 SQL 이 한다
