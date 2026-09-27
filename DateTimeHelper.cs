@@ -64,20 +64,8 @@ public static class DateTimeHelper
     /// </summary>
     public const string NEIS_DATE_FORMAT = "yyyyMMdd";
 
-    /// <summary>
-    /// 사용자 표시용 날짜 시간 형식
-    /// </summary>
-    public const string DISPLAY_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
-
-    /// <summary>
-    /// 사용자 표시용 날짜 형식
-    /// </summary>
-    public const string DISPLAY_DATE_FORMAT = "yyyy-MM-dd";
-
-    /// <summary>
-    /// 사용자 표시용 시간 형식
-    /// </summary>
-    public const string DISPLAY_TIME_FORMAT = "HH:mm:ss";
+    // 사용자 표시용 형식 셋(DISPLAY_DATETIME_FORMAT·DISPLAY_DATE_FORMAT·DISPLAY_TIME_FORMAT)은
+    // 이를 쓰던 ToDisplayString 과 함께 지웠다(2026-09-28, 아래 유틸리티 메서드 참고).
     #endregion
 
     #region DateTime → String 변환 (저장용)
@@ -232,24 +220,9 @@ public static class DateTimeHelper
 
     #region 유틸리티 메서드
 
-    /// <summary>
-    /// DateTime이 유효한지 확인
-    /// </summary>
-    public static bool IsValid(DateTime dateTime)
-    {
-        return dateTime != DateTime.MinValue && dateTime != DateTime.MaxValue;
-    }
-
     // 같은 날 비교(IsSameDay)와 하루의 시작(ToStartOfDay)은 호출부가 없어 지웠다(39차) —
-    // 코드에서는 `.Date` 를 직접 비교한다.
-
-    /// <summary>
-    /// 오늘인지 확인
-    /// </summary>
-    public static bool IsToday(DateTime dateTime)
-    {
-        return dateTime.Date == DateTime.Today;
-    }
+    // 코드에서는 `.Date` 를 직접 비교한다. 같은 까닭으로 오늘인지(IsToday)·유효한지(IsValid)
+    // 도 지웠다(2026-09-28).
 
     /// <summary>
     /// 날짜를 하루의 끝 시간으로 설정 (23:59:59.999)
@@ -259,86 +232,11 @@ public static class DateTimeHelper
         return dateTime.Date.AddDays(1).AddMilliseconds(-1);
     }
 
-    /// <summary>
-    /// 사용자 표시용 문자열 변환
-    /// </summary>
-    public static string ToDisplayString(DateTime dateTime, bool includeTime = true)
-    {
-        if (!IsValid(dateTime))
-            return string.Empty;
-
-        if (includeTime)
-        {
-            return dateTime.ToString(DISPLAY_DATETIME_FORMAT, CultureInfo.CurrentCulture);
-        }
-        else
-        {
-            return dateTime.ToString(DISPLAY_DATE_FORMAT, CultureInfo.CurrentCulture);
-        }
-    }
-
-    /// <summary>
-    /// 상대 시간 표시 (예: "5분 전", "어제", "3일 전")
-    /// </summary>
-    public static string ToRelativeTimeString(DateTime dateTime)
-    {
-        var now = DateTime.Now;
-        var span = now - dateTime;
-
-        if (span.TotalMinutes < 1)
-            return "방금 전";
-        if (span.TotalMinutes < 60)
-            return $"{(int)span.TotalMinutes}분 전";
-        if (span.TotalHours < 24)
-            return $"{(int)span.TotalHours}시간 전";
-        if (span.TotalDays < 2)
-            return "어제";
-        if (span.TotalDays < 7)
-            return $"{(int)span.TotalDays}일 전";
-        if (span.TotalDays < 30)
-            return $"{(int)(span.TotalDays / 7)}주 전";
-        if (span.TotalDays < 365)
-            return $"{(int)(span.TotalDays / 30)}개월 전";
-
-        return $"{(int)(span.TotalDays / 365)}년 전";
-    }
+    // 사용자 표시용 문자열(ToDisplayString)과 상대 시간("5분 전", ToRelativeTimeString)은
+    // 지웠다(2026-09-28) — 부르는 곳이 확장 메서드 판뿐이었고 그 확장도 아무도 쓰지 않았다.
+    // 화면은 각자 필요한 형식으로 ToString 한다.
     #endregion
 }
 
-/// <summary>
-/// DateTime 확장 메서드
-/// </summary>
-public static class DateTimeExtensions
-{
-    /// <summary>
-    /// DateTime을 표준 문자열로 변환
-    /// </summary>
-    public static string ToStandardString(this DateTime dateTime)
-    {
-        return DateTimeHelper.ToStandardString(dateTime);
-    }
-
-    /// <summary>
-    /// DateTimeOffset을 표준 문자열로 변환
-    /// </summary>
-    public static string ToStandardString(this DateTimeOffset dateTimeOffset)
-    {
-        return DateTimeHelper.ToStandardString(dateTimeOffset);
-    }
-
-    /// <summary>
-    /// 사용자 표시용 문자열 변환
-    /// </summary>
-    public static string ToDisplayString(this DateTime dateTime, bool includeTime = true)
-    {
-        return DateTimeHelper.ToDisplayString(dateTime, includeTime);
-    }
-
-    /// <summary>
-    /// 상대 시간 표시
-    /// </summary>
-    public static string ToRelativeTimeString(this DateTime dateTime)
-    {
-        return DateTimeHelper.ToRelativeTimeString(dateTime);
-    }
-}
+// 확장 메서드 판(DateTimeExtensions: ToStandardString 둘·ToDisplayString·ToRelativeTimeString)은
+// 호출부가 없어 지웠다(2026-09-28). 저장용 문자열은 DateTimeHelper.ToStandardString 을 직접 부른다.
