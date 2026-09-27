@@ -83,13 +83,6 @@ public class ViewModelNotifyTests
         Assert.NotEmpty(seen);
     }
 
-    [Fact]
-    public void StudentListItemViewModel_이_알림을_낸다()
-    {
-        var vm = new StudentListItemViewModel();
-
-        var seen = Capture(vm, () => vm.Name = "박지민");
-
-        Assert.Contains(nameof(StudentListItemViewModel.Name), seen);
-    }
+    // StudentListItemViewModel 의 알림 테스트는 그 뷰모델과 함께 뺐다(2026-09-28) —
+    // 학생 목록이 Enrollment 를 직접 쓰게 된 뒤로 앱에서 쓰는 곳이 없었다.
 }

@@ -580,15 +580,6 @@ public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Contr
                 _currentGrade,
                 _currentClass);
 
-            //var studentViewModels = roster.Select(r => new StudentListItemViewModel
-            //{
-            //    StudentID = r.StudentID,
-            //    Name = r.Name,
-            //    Number = r.Number,
-            //    Grade = r.Grade,
-            //    Class = r.Class
-            //}).ToList();
-
             // ListStudent 컨트롤에 로드
             StudentList.LoadStudents(roster);
 
