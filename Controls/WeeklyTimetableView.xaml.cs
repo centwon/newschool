@@ -35,22 +35,18 @@ namespace NewSchool.Controls;
 /// 죽은 패턴(매주 입력 요구·보상은 나중)이라 택하지 않았다 — 지나간 날 실제로 무엇을 했는지는
 /// 수업일지가 답한다. 그래서 기본으로 <b>이번 주부터 앞으로</b> 3주를 보여 준다.
 /// </summary>
-public sealed partial class WeeklyTimetableView : UserControl
+public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHost
 {
     private const int DayCount = 5;          // 월~금
     private const string DragSlot = "weekslot";
 
     private static readonly string[] DayNames = ["월", "화", "수", "목", "금"];
 
-    private readonly List<Course> _courses = [];
-    private readonly List<Lesson> _lessons = [];
-    private List<SchoolSchedule> _schedules = [];
+    /// <summary>기초·변경·학사일정·일지 표시 — 칸 풀기와 변경 저장도 여기서 한다.</summary>
+    private readonly LessonSlotBook _book = new();
 
-    /// <summary>학교의 학년 수 (0 = 모름 → 학사일정 판정이 종전 기준으로 돈다)</summary>
-    private int _gradeCount;
-
-    /// <summary>(날짜, 교시) → 변경</summary>
-    private readonly Dictionary<(DateTime Date, int Period), LessonChange> _changes = [];
+    /// <summary>칸 메뉴 (수업 홈 · 오늘 화면과 같은 메뉴)</summary>
+    private readonly LessonSlotMenu _menu;
 
     /// <summary>표에 그린 칸 — (날짜, 교시) → Border</summary>
     private readonly Dictionary<(DateTime Date, int Period), Border> _cells = [];
@@ -58,9 +54,6 @@ public sealed partial class WeeklyTimetableView : UserControl
     /// <summary>표에 그린 날짜들 (왼쪽에서 오른쪽 순서)</summary>
     private readonly List<DateTime> _dates = [];
 
-    private int _year;
-    private int _semester;
-    private string _teacherId = string.Empty;
     private PeriodCounts _periods = PeriodCounts.Default;
     private int _maxPeriod = 7;
     private int _futureChangeCount;
@@ -71,12 +64,6 @@ public sealed partial class WeeklyTimetableView : UserControl
     private (DateTime Date, int Period)? _cursor;
     private bool _focused;
     private (DateTime Date, int Period)? _dragFrom;
-
-    /// <summary>(날짜, 교시) → 그 칸에 써 둔 수업 일지 글 번호 (<see cref="Compact"/> 일 때만 읽는다)</summary>
-    private readonly Dictionary<(DateTime Date, int Period), int> _journals = [];
-
-    /// <summary>수업 → 진도 계획. 칸 메뉴를 열 때 읽고, 다시 읽기·진도 표시 때 버린다.</summary>
-    private readonly Dictionary<int, CourseProgressPlan> _plans = [];
 
     /// <summary>
     /// 간단 모드 — 수업 홈의 "내 시간표" 카드. <b>1주</b>만 보이고, 도구 모음·주 띠·상태 줄이 없고,
@@ -90,7 +77,7 @@ public sealed partial class WeeklyTimetableView : UserControl
     private int WeekCount => Compact ? 1 : 3;
 
     /// <summary>보고 있는 주에 수업이 한 칸이라도 있는가 — 빈 시간표에 안내를 얹을지 정할 때 쓴다.</summary>
-    public bool HasAnyLesson => _lessons.Count > 0 || _changes.Values.Any(c => c.HasCourse);
+    public bool HasAnyLesson => _book.Lessons.Count > 0 || _book.Changes.Values.Any(c => c.HasCourse);
 
     /// <summary>칸 메뉴에서 수업 일지를 쓰거나 진도를 표시했다 — 홈의 목록을 다시 읽을 때 쓴다.</summary>
     public event EventHandler? LessonRecordChanged;
@@ -98,6 +85,7 @@ public sealed partial class WeeklyTimetableView : UserControl
     public WeeklyTimetableView()
     {
         this.InitializeComponent();
+        _menu = new LessonSlotMenu(_book, this);
         Loaded += (_, _) => ApplyMode();
     }
 
@@ -128,86 +116,29 @@ public sealed partial class WeeklyTimetableView : UserControl
     /// <param name="firstDate">이 날이 든 주부터 보여 준다. null 이면 이번 주(학년도·학기가 바뀌었을 때) 또는 보던 주.</param>
     public async Task LoadAsync(int year, int semester, IReadOnlyList<Course> courses, DateTime? firstDate = null)
     {
-        bool scopeChanged = _year != year || _semester != semester;
-
-        _year = year;
-        _semester = semester;
-        _teacherId = Settings.User.Value;
         _periods = PeriodCounts.Parse(Settings.PeriodsPerDay.Value);
         _maxPeriod = Math.Max(1, Enumerable.Range(1, DayCount).Max(_periods.ForDay));
 
-        _courses.Clear();
-        _courses.AddRange(courses);
+        bool scopeChanged = await _book.SetScopeAsync(year, semester, courses);
 
         if (firstDate != null)
             _firstMonday = MondayOf(firstDate.Value);
         else if (scopeChanged || _firstMonday == default)
             _firstMonday = MondayOf(DateTime.Today);
 
-        if (scopeChanged || _schedules.Count == 0)
-            await LoadSchedulesAsync();
-
         await ReloadAsync();
     }
 
     private static DateTime MondayOf(DateTime date) => DateTimeHelper.MondayOf(date);
 
-    private async Task LoadSchedulesAsync()
-    {
-        _schedules = [];
-
-        var schoolCode = Settings.SchoolCode.Value;
-        if (string.IsNullOrEmpty(schoolCode) || _year == 0) return;
-
-        try
-        {
-            using var repo = new SchoolScheduleRepository(SchoolDatabase.DbPath);
-            _schedules = await repo.GetBySchoolYearAsync(schoolCode, _year);
-
-            // 학년 수를 알아야 "1·2학년만 수련회" 같은 날을 그 학년의 휴강 사유로 잡는다.
-            _gradeCount = await SchoolProfile.GetGradeCountAsync();
-        }
-        catch (Exception ex)
-        {
-            // 학사일정이 없으면 휴업일 표시만 빠질 뿐 표는 그대로 쓸 수 있다.
-            NewSchool.Logging.Log.Warning("WeeklyTimetableView", $"학사일정을 읽지 못해 휴업일 표시가 빠진다: {ex.Message}");
-        }
-    }
-
     private async Task ReloadAsync()
     {
-        _lessons.Clear();
-        _changes.Clear();
-        _journals.Clear();
-        _plans.Clear();
-
-        if (string.IsNullOrEmpty(_teacherId) || _year == 0 || _semester == 0)
-        {
-            BuildTable();
-            return;
-        }
-
         try
         {
-            using (var repo = new LessonRepository(SchoolDatabase.DbPath))
-            {
-                var lessons = await repo.GetTeacherScheduleAsync(_teacherId, _year, _semester);
-                var known = _courses.Select(c => c.No).ToHashSet();
-                _lessons.AddRange(lessons.Where(l => known.Contains(l.Course)));
-            }
+            await _book.LoadRangeAsync(_firstMonday, _firstMonday.AddDays(WeekCount * 7 - 1), withJournals: Compact);
 
-            using (var repo = new LessonChangeRepository(SchoolDatabase.DbPath))
-            {
-                var last = _firstMonday.AddDays(WeekCount * 7 - 1);
-                foreach (var change in await repo.GetRangeAsync(_teacherId, _firstMonday, last))
-                    _changes[(change.Date.Date, change.Period)] = change;
-
-                var (_, end) = WeeklyHoursCalculator.DefaultSemesterRange(_year, _semester);
-                _futureChangeCount = (await repo.GetRangeAsync(_teacherId, DateTime.Today, end)).Count;
-            }
-
-            if (Compact)
-                await LoadJournalMarksAsync();
+            if (_book.HasScope)
+                await RefreshFutureCountAsync();
         }
         catch (Exception ex)
         {
@@ -216,19 +147,6 @@ public sealed partial class WeeklyTimetableView : UserControl
         }
 
         BuildTable();
-    }
-
-    /// <summary>보고 있는 주의 칸마다 수업 일지를 써 두었는지 — 공책 표시용.</summary>
-    private async Task LoadJournalMarksAsync()
-    {
-        for (int i = 0; i < WeekCount * 7; i++)
-        {
-            var date = _firstMonday.AddDays(i);
-            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) continue;
-
-            foreach (var (period, post) in await Dialogs.LessonJournalComposer.FindByDateAsync(date))
-                _journals[(date.Date, period)] = post.No;
-        }
     }
 
     /// <summary>보고 있는 주를 다시 읽는다(수업 일지를 쓰고 돌아왔을 때 등).</summary>
@@ -257,7 +175,7 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     private async void OnChangeListClick(object sender, RoutedEventArgs e)
     {
-        var dialog = new Dialogs.LessonChangeDialog(_year, _semester) { XamlRoot = this.XamlRoot };
+        var dialog = new Dialogs.LessonChangeDialog(_book.Year, _book.Semester) { XamlRoot = this.XamlRoot };
         await MessageBox.ShowDialogAsync(dialog);
 
         // 창에서 되돌린 변경이 표에도 반영돼야 한다.
@@ -274,62 +192,6 @@ public sealed partial class WeeklyTimetableView : UserControl
         {
             await UserErrorReporter.ReportAsync(context, ex);
         }
-    }
-
-    #endregion
-
-    #region 칸 내용 풀기
-
-    /// <summary>한 칸이 그 날 실제로 무엇인가 — 기초 위에 그 날 변경을 얹은 결과.</summary>
-    private readonly record struct SlotView(string Subject, string Room, LessonChangeKind Kind, int CourseNo)
-    {
-        public bool IsBlank => string.IsNullOrEmpty(Subject);
-
-        /// <summary>맞바꾸기에서 옮겨 갈 내용 (휴강은 "없음"으로 친다)</summary>
-        public bool Movable => !IsBlank && Kind != LessonChangeKind.Cancelled;
-    }
-
-    private SlotView Resolve(DateTime date, int period)
-    {
-        int day = SchoolCalendar.ToLessonDayOfWeek(date);
-        var lesson = _lessons.FirstOrDefault(l => l.DayOfWeek == day && l.Period == period);
-        var baseCourse = lesson != null ? FindCourse(lesson.Course) : null;
-
-        // 그 학년이 수업하지 않는 날(학교 휴업일, "3학년만 수련회" 같은 그 학년 행사)에는
-        // 평소 수업이 없다. 시수 계산·진도 예정일과 같은 판정(IsTeachingDayFor)이라야
-        // 시간표에 보이는 수업과 세는 수업이 어긋나지 않는다. 그 날 따로 넣은 변경(보강 등)은
-        // 아래에서 그대로 얹힌다.
-        if (lesson != null
-            && !SchoolCalendar.IsTeachingDayFor(date, _schedules, baseCourse?.Grade ?? lesson.Grade, _gradeCount))
-        {
-            lesson = null;
-            baseCourse = null;
-        }
-
-        if (!_changes.TryGetValue((date.Date, period), out var change))
-        {
-            return new SlotView(
-                baseCourse?.Subject ?? string.Empty,
-                lesson?.Room ?? string.Empty,
-                LessonChangeKind.None,
-                lesson?.Course ?? 0);
-        }
-
-        if (change.IsCancellation)
-        {
-            // 휴강은 무엇이 빠졌는지 보이도록 원래 수업을 그대로 들고 있는다.
-            return new SlotView(
-                baseCourse?.Subject ?? string.Empty,
-                lesson?.Room ?? string.Empty,
-                LessonChangeKind.Cancelled,
-                lesson?.Course ?? 0);
-        }
-
-        var kind = change.IsSubstitute
-            ? LessonChangeKind.Substitute
-            : lesson != null ? LessonChangeKind.Replaced : LessonChangeKind.Added;
-
-        return new SlotView(change.Subject, change.Room ?? string.Empty, kind, change.CourseNo ?? 0);
     }
 
     #endregion
@@ -440,7 +302,7 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     private void AddWeekBand(DateTime monday, int startColumn)
     {
-        int count = _changes.Keys.Count(k => k.Date >= monday && k.Date <= monday.AddDays(4));
+        int count = _book.Changes.Keys.Count(k => k.Date >= monday && k.Date <= monday.AddDays(4));
 
         var text = $"{monday:M/d}(월) ~ {monday.AddDays(4):M/d}(금)";
         if (count > 0) text += $"   ·   변경 {count}건";
@@ -463,8 +325,8 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     private void AddDateCell(DateTime date, int column)
     {
-        string? off = OffDayReason(date);
-        string? note = off == null ? GradeEventNote(date) : null;
+        string? off = _book.OffDayReason(date);
+        string? note = off == null ? _book.GradeEventNote(date) : null;
         bool today = date == DateTime.Today;
 
         var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
@@ -498,48 +360,6 @@ public sealed partial class WeeklyTimetableView : UserControl
         Grid.SetRow(border, 1);
         Grid.SetColumn(border, column);
         WeekGrid.Children.Add(border);
-    }
-
-    /// <summary>그 날 학교가 통째로 쉬는 사유 (없으면 null)</summary>
-    private string? OffDayReason(DateTime date)
-    {
-        foreach (var schedule in _schedules)
-        {
-            if (schedule == null || schedule.IsDeleted) continue;
-            if (schedule.AA_YMD.Date != date.Date) continue;
-
-            if (SchoolCalendar.IsNonTeachingDay(schedule))
-                return string.IsNullOrWhiteSpace(schedule.EVENT_NM) ? schedule.SBTR_DD_SC_NM : schedule.EVENT_NM;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// 그 날 <b>일부 학년만</b> 걸리는 행사 (없으면 null).
-    ///
-    /// <para>예전에는 "위에서 고른 수업의 학년" 으로 판정했다. 이 탭에서 수업 선택을 걷어내면서
-    /// <b>내가 가르치는 학년들</b> 기준으로 바꿨다 — 어느 수업을 골랐는지와 무관하게 내 시간표에
-    /// 걸리는 행사면 알려야 한다.</para>
-    /// </summary>
-    private string? GradeEventNote(DateTime date)
-    {
-        var grades = _courses.Select(c => c.Grade).Where(g => g > 0).Distinct().OrderBy(g => g).ToList();
-        if (grades.Count == 0) return null;
-
-        foreach (var schedule in _schedules)
-        {
-            if (schedule == null || schedule.IsDeleted) continue;
-            if (schedule.AA_YMD.Date != date.Date) continue;
-
-            foreach (int grade in grades)
-            {
-                if (SchoolCalendar.IsGradeOnlyEvent(schedule, grade, _gradeCount))
-                    return $"{grade}학년 {schedule.EVENT_NM}";
-            }
-        }
-
-        return null;
     }
 
     private void AddSlotCell(DateTime date, int period, int column)
@@ -588,13 +408,13 @@ public sealed partial class WeeklyTimetableView : UserControl
             return;
         }
 
-        var slot = Resolve(date, period);
+        var slot = _book.Resolve(date, period);
 
         if (slot.IsBlank)
         {
             // 학교 휴업일이면 그 열의 빈 칸을 옅게 칠해 휴일임을 드러낸다(날짜 머리와 같은 색).
             // 그 학년만 빠지는 행사 날은 다른 학년 수업이 있으므로 칠하지 않는다.
-            var off = OffDayReason(date);
+            var off = _book.OffDayReason(date);
             border.Style = CellStyle(off != null ? "WeekOffSlotStyle" : "WeekEmptySlotStyle");
             border.Child = null;
             border.CanDrag = false;
@@ -620,7 +440,7 @@ public sealed partial class WeeklyTimetableView : UserControl
                 : "WeekSubjectStyle")
         });
 
-        bool journal = _journals.ContainsKey((date.Date, period));
+        bool journal = _book.Journals.ContainsKey((date.Date, period));
 
         if (!string.IsNullOrWhiteSpace(slot.Room) || journal)
         {
@@ -646,7 +466,7 @@ public sealed partial class WeeklyTimetableView : UserControl
         border.Child = panel;
         border.CanDrag = slot.Movable && !Compact;
 
-        var memo = _changes.TryGetValue((date.Date, period), out var change) ? change.Memo : string.Empty;
+        var memo = _book.MemoOf(date, period);
         var tip = $"{date:M월 d일} {period}교시\n{slot.Subject}";
         if (!string.IsNullOrWhiteSpace(slot.Room)) tip += $" · {slot.Room}";
         if (slot.Kind != LessonChangeKind.None) tip += $"\n[{LessonChangeLabels.Name(slot.Kind)}]";
@@ -656,222 +476,6 @@ public sealed partial class WeeklyTimetableView : UserControl
         ToolTipService.SetToolTip(border, tip);
     }
 
-    /// <summary>수업 변경 항목들(휴강·내 수업 넣기·대강·강의실·되돌리기)을 <paramref name="items"/> 에 붙인다.</summary>
-    private void AddChangeItems(IList<MenuFlyoutItemBase> items, DateTime date, int period, SlotView slot)
-    {
-
-        if (slot.Kind != LessonChangeKind.Cancelled && !slot.IsBlank)
-        {
-            var cancel = new MenuFlyoutItem
-            {
-                Text = "이 날 휴강",
-                Icon = new FontIcon { Glyph = "" },
-                Tag = (date, period)
-            };
-            cancel.Click += OnMenuCancelClick;
-            items.Add(cancel);
-        }
-
-        // 내 수업 넣기 — 수업과 강의실을 함께 고른다.
-        // 강의실을 자동으로 첫 번째로 골라 주면, 학급이 여럿인 수업에서 엉뚱한 반이 들어간다.
-        if (_courses.Count > 0)
-        {
-            var sub = new MenuFlyoutSubItem { Text = "내 수업 넣기" };
-
-            foreach (var course in _courses)
-            {
-                var rooms = course.RoomList;
-
-                if (rooms.Count == 0)
-                {
-                    // 강의실이 등록되지 않은 수업은 과목만 넣는다
-                    var plain = new MenuFlyoutItem
-                    {
-                        Text = course.DisplayName,
-                        Tag = (date, period, course, string.Empty)
-                    };
-                    plain.Click += OnMenuPutCourseClick;
-                    sub.Items.Add(plain);
-                    continue;
-                }
-
-                var byCourse = new MenuFlyoutSubItem { Text = course.DisplayName };
-                foreach (var room in rooms)
-                {
-                    var item = new MenuFlyoutItem { Text = room, Tag = (date, period, course, room) };
-                    item.Click += OnMenuPutCourseClick;
-                    byCourse.Items.Add(item);
-                }
-
-                sub.Items.Add(byCourse);
-            }
-
-            items.Add(sub);
-        }
-
-        var substitute = new MenuFlyoutItem
-        {
-            Text = "대강 입력…",
-            Icon = new FontIcon { Glyph = "" },
-            Tag = (date, period)
-        };
-        substitute.Click += OnMenuSubstituteClick;
-        items.Add(substitute);
-
-        // 강의실 바꾸기 — 내 수업일 때만 후보를 낼 수 있다
-        var course2 = FindCourse(slot.CourseNo);
-        if (course2 != null && slot.Kind != LessonChangeKind.Cancelled)
-        {
-            var rooms = course2.RoomList;
-            if (rooms.Count > 0)
-            {
-                var sub = new MenuFlyoutSubItem { Text = "강의실" };
-                foreach (var room in rooms)
-                {
-                    var item = new MenuFlyoutItem { Text = room, Tag = (date, period, room) };
-                    item.Click += OnMenuRoomClick;
-                    sub.Items.Add(item);
-                }
-                items.Add(sub);
-            }
-        }
-
-        if (_changes.ContainsKey((date.Date, period)))
-        {
-            items.Add(new MenuFlyoutSeparator());
-
-            var revert = new MenuFlyoutItem
-            {
-                Text = "평소대로 되돌리기",
-                Icon = new FontIcon { Glyph = "" },
-                Tag = (date, period)
-            };
-            revert.Click += OnMenuRevertClick;
-            items.Add(revert);
-        }
-    }
-
-    /// <summary>
-    /// 칸 메뉴. 내 수업 칸이면 <b>수업 일지 쓰기 · 진도 완료 표시 ▸ · 수업 변경 ▸</b>,
-    /// 빈 칸·휴강·대강이면 수업 변경 항목만 바로 늘어놓는다.
-    /// </summary>
-    private async Task<MenuFlyout> BuildSlotMenuAsync(DateTime date, int period, SlotView slot)
-    {
-        var menu = new MenuFlyout();
-        var course = FindCourse(slot.CourseNo);
-
-        bool mine = course != null && !slot.IsBlank
-                    && slot.Kind is not (LessonChangeKind.Cancelled or LessonChangeKind.Substitute);
-        if (!mine)
-        {
-            AddChangeItems(menu.Items, date, period, slot);
-            return menu;
-        }
-
-        var room = string.IsNullOrWhiteSpace(slot.Room) ? WeeklyHoursCalculator.UnassignedRoom : slot.Room;
-        var plan = await GetPlanAsync(course!);
-        var current = plan?.CurrentSection(room);
-
-        // ① 수업 일지 쓰기 — 써 둔 일지가 있으면 그 글을 연다
-        bool written = _journals.ContainsKey((date.Date, period));
-        var write = new MenuFlyoutItem
-        {
-            Text = written ? "수업 일지 보기" : "수업 일지 쓰기",
-            Icon = new FontIcon { Glyph = "" }
-        };
-        write.Click += async (_, _) => await RunAsync(async () =>
-        {
-            var seed = new Dialogs.LessonSlotSeed(date, period, course!.No, course.Subject, slot.Room);
-            if (await Dialogs.LessonJournalComposer.OpenOrComposeAsync(seed))
-                await AfterRecordChangedAsync();
-        }, "수업 일지");
-        menu.Items.Add(write);
-
-        // ② 진도 완료 표시 ▸ — 할 차례인 단원부터. 앞날의 수업은 아직 표시할 수 없다.
-        var progress = new MenuFlyoutSubItem { Text = "진도 완료 표시", Icon = new FontIcon { Glyph = "" } };
-        if (plan == null || plan.Sections.Count == 0)
-        {
-            progress.Items.Add(new MenuFlyoutItem { Text = "단원이 없습니다 — 수업 관리의 [단원 관리] 에서 넣습니다", IsEnabled = false });
-        }
-        else if (current == null)
-        {
-            progress.Items.Add(new MenuFlyoutItem { Text = "이 학급은 모든 단원을 마쳤습니다", IsEnabled = false });
-        }
-        else
-        {
-            bool past = date.Date <= DateTime.Today;
-            int start = plan.Sections.ToList().FindIndex(s => s.No == current.No);
-
-            foreach (var section in plan.Sections.Skip(start).Take(6))
-            {
-                var item = new MenuFlyoutItem
-                {
-                    Text = section.No == current.No
-                        ? $"{section.FullPath} {section.SectionName} · 할 차례"
-                        : $"{section.FullPath} {section.SectionName}",
-                    IsEnabled = past
-                };
-                item.Click += async (_, _) => await RunAsync(async () =>
-                {
-                    if (await CourseProgressPlan.MarkCompletedAsync(section.No, room, date, period))
-                    {
-                        ShowInfo($"{room} · {section.SectionName} 을(를) {date:M/d} {period}교시에 완료로 표시했습니다.");
-                        await AfterRecordChangedAsync();
-                    }
-                    else
-                    {
-                        ShowWarning("진도를 표시하지 못했습니다.");
-                    }
-                }, "진도 표시");
-                progress.Items.Add(item);
-            }
-
-            if (!past)
-                progress.Items.Add(new MenuFlyoutItem { Text = "앞으로의 수업은 그 날이 지나야 표시할 수 있습니다", IsEnabled = false });
-        }
-        menu.Items.Add(progress);
-
-        menu.Items.Add(new MenuFlyoutSeparator());
-
-        // ③ 수업 변경 ▸
-        var change = new MenuFlyoutSubItem { Text = "수업 변경", Icon = new FontIcon { Glyph = "" } };
-        AddChangeItems(change.Items, date, period, slot);
-        menu.Items.Add(change);
-
-        return menu;
-    }
-
-    /// <summary>그 수업의 진도 계획 — 메뉴를 열 때 읽어 두고, 기록이 바뀌면 버린다.</summary>
-    private async Task<CourseProgressPlan?> GetPlanAsync(Course course)
-    {
-        if (_plans.TryGetValue(course.No, out var cached)) return cached;
-
-        try
-        {
-            var plan = await CourseProgressPlan.LoadAsync(course, DateTime.Today);
-            _plans[course.No] = plan;
-            return plan;
-        }
-        catch (Exception ex)
-        {
-            // 진도를 못 읽어도 일지 쓰기·수업 변경은 된다 — 진도 항목만 비운다.
-            NewSchool.Logging.Log.Warning("WeeklyTimetableView", $"진도 계획을 읽지 못해 진도 항목을 비운다: {ex.Message}");
-            return null;
-        }
-    }
-
-    /// <summary>일지를 쓰거나 진도를 표시했다 — 공책 표시와 진도 계획을 다시 읽고 바깥에 알린다.</summary>
-    private async Task AfterRecordChangedAsync()
-    {
-        _plans.Clear();
-        if (Compact)
-        {
-            _journals.Clear();
-            await LoadJournalMarksAsync();
-            BuildTable();
-        }
-        LessonRecordChanged?.Invoke(this, EventArgs.Empty);
-    }
 
     private async void OnSlotContextRequested(UIElement sender, ContextRequestedEventArgs e)
     {
@@ -915,196 +519,21 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     #endregion
 
-    #region 변경 저장
-
-    /// <summary>
-    /// 그 날 한 칸의 최종 내용을 정한다.
-    ///
-    /// 결과가 평소와 같아지면 <b>변경 행을 지운다</b> — 남겨 두면 나중에 기초 시간표를 고쳤을 때
-    /// 옛 내용이 그 날에만 고정으로 버틴다.
-    /// </summary>
-    private async Task SetSlotAsync(
-        DateTime date, int period, Course? course, string subjectText, string room, string? memo = null)
-    {
-        var plan = PlanSlot(date, period, course, subjectText, room, memo);
-
-        using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
-        if (!await ApplyPlanAsync(repo, plan))
-        {
-            ShowWarning(plan.Change != null
-                ? "변경을 저장하지 못했습니다."
-                : "변경을 되돌리지 못했습니다.");
-            return;
-        }
-
-        RememberPlan(plan);
-
-        _cursor = (plan.Date, plan.Period);
-        RefreshSlot(plan.Date, plan.Period);
-        await RefreshFutureCountAsync();
-        BuildTable();
-    }
-
-    /// <summary>
-    /// 한 칸에 무엇을 쓸지 정한 결과. DB 를 건드리기 <b>전에</b> 계산해 둔다 —
-    /// 맞바꾸기는 두 칸의 계획을 먼저 세운 뒤 한 트랜잭션으로 함께 적용한다.
-    /// </summary>
-    /// <param name="Change">쓸 내용. null 이면 "평소대로" 라서 기존 변경 행을 지운다.</param>
-    /// <param name="DeleteNo">지울 변경 행 번호(0 이면 지울 것이 없다).</param>
-    private readonly record struct SlotPlan(
-        DateTime Date, int Period, LessonChange? Change, int DeleteNo);
-
-    /// <summary>그 칸의 최종 내용을 정한다(DB 는 건드리지 않는다).</summary>
-    private SlotPlan PlanSlot(
-        DateTime date, int period, Course? course, string subjectText, string room, string? memo)
-    {
-        int day = SchoolCalendar.ToLessonDayOfWeek(date);
-        var lesson = _lessons.FirstOrDefault(l => l.DayOfWeek == day && l.Period == period);
-
-        bool cancelling = course == null && string.IsNullOrWhiteSpace(subjectText);
-        bool sameAsUsual = cancelling
-            ? lesson == null
-            : course != null && lesson != null && lesson.Course == course.No && lesson.Room == room;
-
-        _changes.TryGetValue((date.Date, period), out var existing);
-
-        // 결과가 평소와 같아지면 변경 행을 지운다 — 남겨 두면 나중에 기초 시간표를 고쳤을 때
-        // 옛 내용이 그 날에만 고정으로 버틴다.
-        if (sameAsUsual)
-            return new SlotPlan(date.Date, period, null, existing?.No ?? 0);
-
-        var change = new LessonChange
-        {
-            TeacherID = _teacherId,
-            Year = _year,
-            Semester = _semester,
-            Date = date.Date,
-            Period = period,
-            CourseNo = course?.No,
-            SubjectText = course == null ? subjectText : string.Empty,
-            Room = cancelling ? string.Empty : room,
-            Memo = memo ?? existing?.Memo ?? string.Empty,
-            CourseSubject = course?.Subject ?? string.Empty
-        };
-
-        return new SlotPlan(date.Date, period, change, 0);
-    }
-
-    /// <summary>계획 한 건을 DB 에 적용한다. 지울 것도 쓸 것도 없으면 성공으로 본다.</summary>
-    private static async Task<bool> ApplyPlanAsync(LessonChangeRepository repo, SlotPlan plan)
-    {
-        if (plan.Change != null) return await repo.UpsertAsync(plan.Change);
-        if (plan.DeleteNo > 0) return await repo.DeleteAsync(plan.DeleteNo);
-        return true;
-    }
-
-    /// <summary>DB 반영이 끝난 계획을 화면 쪽 _changes 에도 반영한다.</summary>
-    private void RememberPlan(SlotPlan plan)
-    {
-        if (plan.Change != null) _changes[(plan.Date, plan.Period)] = plan.Change;
-        else _changes.Remove((plan.Date, plan.Period));
-    }
-
-    /// <summary>그 칸의 변경을 지워 평소대로 되돌린다.</summary>
-    private async Task RevertSlotAsync(DateTime date, int period)
-    {
-        if (!_changes.TryGetValue((date.Date, period), out var change)) return;
-
-        using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
-        // ⚠ 결과를 봐야 한다. 예전에는 삭제 결과를 버리고 화면의 _changes 에서만 지웠다 —
-        // 지우지 못했는데도 칸은 평소 수업으로 돌아가 보이고, 다시 열면 변경이 되살아났다.
-        // 바로 위 SetSlotAsync 는 UpsertAsync 결과를 확인한다. 같은 기준을 맞춘다.
-        if (!await repo.DeleteAsync(change.No))
-        {
-            ShowWarning("변경을 되돌리지 못했습니다.");
-            return;
-        }
-
-        _changes.Remove((date.Date, period));
-
-        _cursor = (date.Date, period);
-        RefreshSlot(date, period);
-        await RefreshFutureCountAsync();
-        BuildTable();
-    }
+    #region 앞으로의 변경 수
 
     private async Task RefreshFutureCountAsync()
     {
         try
         {
-            var (_, end) = WeeklyHoursCalculator.DefaultSemesterRange(_year, _semester);
+            var (_, end) = WeeklyHoursCalculator.DefaultSemesterRange(_book.Year, _book.Semester);
             using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
-            _futureChangeCount = (await repo.GetRangeAsync(_teacherId, DateTime.Today, end)).Count;
+            _futureChangeCount = (await repo.GetRangeAsync(_book.TeacherId, DateTime.Today, end)).Count;
         }
         catch (Exception ex)
         {
             NewSchool.Logging.Log.Warning("WeeklyTimetableView", $"앞으로의 변경 수를 세지 못했다: {ex.Message}");
         }
     }
-
-    #endregion
-
-    #region 메뉴
-
-    private async void OnMenuCancelClick(object sender, RoutedEventArgs e)
-    {
-        if (Slot(sender) is not var (date, period)) return;
-        await RunAsync(() => SetSlotAsync(date, period, null, string.Empty, string.Empty), "휴강 처리");
-    }
-
-    private async void OnMenuRevertClick(object sender, RoutedEventArgs e)
-    {
-        if (Slot(sender) is not var (date, period)) return;
-        await RunAsync(() => RevertSlotAsync(date, period), "되돌리기");
-    }
-
-    private async void OnMenuPutCourseClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem item
-            || item.Tag is not ValueTuple<DateTime, int, Course, string> payload)
-            return;
-
-        var (date, period, course, room) = payload;
-
-        await RunAsync(() => SetSlotAsync(date, period, course, string.Empty, room), "수업 넣기");
-    }
-
-    private async void OnMenuRoomClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem item || item.Tag is not ValueTuple<DateTime, int, string> payload)
-            return;
-
-        var (date, period, room) = payload;
-        var slot = Resolve(date, period);
-        var course = FindCourse(slot.CourseNo);
-
-        await RunAsync(() => SetSlotAsync(date, period, course, slot.Subject, room), "강의실 변경");
-    }
-
-    private async void OnMenuSubstituteClick(object sender, RoutedEventArgs e)
-    {
-        if (Slot(sender) is not var (date, period)) return;
-
-        _changes.TryGetValue((date.Date, period), out var existing);
-
-        var dialog = new Dialogs.SubstituteInputDialog(
-            date, period,
-            existing?.SubjectText, existing?.Room, existing?.Memo)
-        {
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await MessageBox.ShowDialogAsync(dialog) != ContentDialogResult.Primary) return;
-
-        await RunAsync(
-            () => SetSlotAsync(date, period, null, dialog.Subject, dialog.Room, dialog.Memo),
-            "대강 입력");
-    }
-
-    private static (DateTime Date, int Period)? Slot(object sender)
-        => sender is MenuFlyoutItem item && item.Tag is ValueTuple<DateTime, int> tag
-            ? (tag.Item1, tag.Item2)
-            : null;
 
     #endregion
 
@@ -1118,7 +547,7 @@ public sealed partial class WeeklyTimetableView : UserControl
             return;
         }
 
-        if (!Resolve(tag.Item1, tag.Item2).Movable)
+        if (!_book.Resolve(tag.Item1, tag.Item2).Movable)
         {
             e.Cancel = true;
             return;
@@ -1155,63 +584,18 @@ public sealed partial class WeeklyTimetableView : UserControl
         await RunAsync(() => SwapAsync(from.Value, to), "맞바꾸기");
     }
 
-    /// <summary>
-    /// 두 칸을 맞바꾼다 — 그 날들의 변경 두 줄로 표현된다.
-    ///
-    /// <para>⚠ 두 줄은 <b>한 트랜잭션</b>으로 함께 들어가야 한다. 예전에는 <c>SetSlotAsync</c> 를
-    /// 두 번 불러 각자 연결·각자 저장이었고, 두 번째가 실패하면 첫 칸만 바뀐 채로 남아
-    /// <b>같은 수업이 두 칸에</b> 보였다(원래 자리는 그대로, 옮긴 자리에도 하나).</para>
-    ///
-    /// <para>계획(<see cref="SlotPlan"/>)은 둘 다 DB 를 건드리기 전에 세운다 — 먼저 쓴 내용이
-    /// 두 번째 계획의 "평소와 같은가" 판정을 흔들지 않도록.</para>
-    /// </summary>
+    /// <summary>두 칸을 맞바꾼다 — 한 트랜잭션으로 함께 저장한다(<see cref="LessonSlotBook.SwapAsync"/>).</summary>
     private async Task SwapAsync((DateTime Date, int Period) a, (DateTime Date, int Period) b)
     {
-        var slotA = Resolve(a.Date, a.Period);
-        var slotB = Resolve(b.Date, b.Period);
-
-        var planB = PlanFor(b, slotA);
-        var planA = PlanFor(a, slotB);
-
-        using var repo = new LessonChangeRepository(SchoolDatabase.DbPath);
-        repo.BeginTransaction();
-        try
+        if (!await _book.SwapAsync(a, b))
         {
-            if (!await ApplyPlanAsync(repo, planB) || !await ApplyPlanAsync(repo, planA))
-            {
-                repo.Rollback();
-                ShowWarning("맞바꾸지 못했습니다. 시간표는 그대로 둡니다.");
-                return;
-            }
-
-            repo.Commit();
+            ShowWarning("맞바꾸지 못했습니다. 시간표는 그대로 둡니다.");
+            return;
         }
-        catch
-        {
-            repo.Rollback();
-            throw;
-        }
-
-        RememberPlan(planB);
-        RememberPlan(planA);
 
         _cursor = b;
         await RefreshFutureCountAsync();
         BuildTable();
-
-        SlotPlan PlanFor((DateTime Date, int Period) target, SlotView content)
-        {
-            if (!content.Movable)
-                return PlanSlot(target.Date, target.Period, null, string.Empty, string.Empty, null);
-
-            var course = FindCourse(content.CourseNo);
-            return PlanSlot(
-                target.Date, target.Period,
-                course,
-                course == null ? content.Subject : string.Empty,
-                content.Room,
-                null);
-        }
     }
 
     #endregion
@@ -1287,15 +671,13 @@ public sealed partial class WeeklyTimetableView : UserControl
             case VirtualKey.Delete:
             case VirtualKey.Back:
                 e.Handled = true;
-                var slot = Resolve(_cursor.Value.Date, _cursor.Value.Period);
+                var slot = _book.Resolve(_cursor.Value.Date, _cursor.Value.Period);
 
                 // 보강·대강은 "휴강" 이 아니라 그냥 되돌리는 게 맞다 — 평소에 없던 수업이다.
                 if (slot.Kind is LessonChangeKind.Added or LessonChangeKind.Substitute)
-                    await RunAsync(() => RevertSlotAsync(_cursor.Value.Date, _cursor.Value.Period), "되돌리기");
+                    await _menu.RevertAsync(_cursor.Value.Date, _cursor.Value.Period);
                 else if (!slot.IsBlank && slot.Kind != LessonChangeKind.Cancelled)
-                    await RunAsync(
-                        () => SetSlotAsync(_cursor.Value.Date, _cursor.Value.Period, null, string.Empty, string.Empty),
-                        "휴강 처리");
+                    await _menu.CancelAsync(_cursor.Value.Date, _cursor.Value.Period);
                 return;
         }
     }
@@ -1346,7 +728,7 @@ public sealed partial class WeeklyTimetableView : UserControl
         int day = SchoolCalendar.ToLessonDayOfWeek(date);
         if (period > _periods.ForDay(day)) return;
 
-        var menu = await BuildSlotMenuAsync(date, period, Resolve(date, period));
+        var menu = await _menu.BuildAsync(date, period);
         if (menu.Items.Count == 0) return;
 
         if (at is { } point)
@@ -1382,14 +764,39 @@ public sealed partial class WeeklyTimetableView : UserControl
 
     #endregion
 
-    #region Helper
+    #region 칸 메뉴의 뒷일 (ILessonSlotMenuHost)
 
-    private Course? FindCourse(int courseNo)
-        => courseNo <= 0 ? null : _courses.FirstOrDefault(c => c.No == courseNo);
+    XamlRoot? ILessonSlotMenuHost.XamlRoot => XamlRoot;
+
+    /// <summary>메뉴로 그 칸을 바꿨다 — 커서를 그 칸에 두고 다시 그린다.</summary>
+    async Task ILessonSlotMenuHost.OnSlotChangedAsync(DateTime date, int period)
+    {
+        _cursor = (date.Date, period);
+        await RefreshFutureCountAsync();
+        BuildTable();
+    }
+
+    /// <summary>일지를 쓰거나 진도를 표시했다 — 공책 표시를 다시 읽고 바깥에 알린다.</summary>
+    async Task ILessonSlotMenuHost.OnRecordChangedAsync()
+    {
+        if (Compact)
+        {
+            await _book.LoadJournalMarksAsync();
+            BuildTable();
+        }
+        LessonRecordChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    void ILessonSlotMenuHost.ShowInfo(string message) => ShowInfo(message);
+    void ILessonSlotMenuHost.ShowWarning(string message) => ShowWarning(message);
+
+    #endregion
+
+    #region Helper
 
     private void UpdateStatus()
     {
-        int inRange = _changes.Count;
+        int inRange = _book.Changes.Count;
 
         var text = $"보는 구간 변경 {inRange}건 · 앞으로 등록된 변경 {_futureChangeCount}건";
 
