@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -74,6 +75,8 @@ public sealed partial class LessonJournalWindow : Window
 
         Initialize("수업 일지");
     }
+
+    private WinUIRichEditor.Controls.RichEditor Editor => EditorView.Editor;
 
     private void Initialize(string title)
     {
@@ -180,7 +183,7 @@ public sealed partial class LessonJournalWindow : Window
 
             // 여기까지가 "연 그대로" 다. 이후 달라지면 저장하지 않은 편집이 있는 것이다(52차).
             _openedTitle = TxtTitle.Text;
-            _openedText = Editor.PlainText;
+            Editor.MarkSaved();
         }
     }
 
@@ -198,10 +201,9 @@ public sealed partial class LessonJournalWindow : Window
     /// <summary>연 뒤로 제목이나 본문이 달라졌는가(읽는 중에는 늘 false).</summary>
     private bool HasUnsavedWork =>
         !_isLoading && !Result &&
-        (TxtTitle.Text != _openedTitle || Editor.PlainText != _openedText);
+        (TxtTitle.Text != _openedTitle || Editor.IsModified);
 
     private string _openedTitle = string.Empty;
-    private string _openedText = string.Empty;
 
     private async Task LoadNewAsync()
     {
@@ -221,7 +223,12 @@ public sealed partial class LessonJournalWindow : Window
     private async Task LoadExistingAsync()
     {
         TxtTitle.Text = _post.Title ?? string.Empty;
-        Editor.LoadFlow(_post.Content);
+        if (_post.Content is { Length: > 0 } flow)
+        {
+            using var ms = new MemoryStream(flow);
+            await Editor.LoadPackageAsync(ms);
+        }
+        else Editor.Clear();
 
         await ApplyTitleToHeaderAsync(_post.Title);
 
@@ -435,7 +442,7 @@ public sealed partial class LessonJournalWindow : Window
 
         var line = BuildFirstLine();
 
-        if (line.Length > 0 && string.IsNullOrWhiteSpace(Editor.PlainText))
+        if (line.Length > 0 && string.IsNullOrWhiteSpace(Editor.GetPlainText()))
             Editor.InsertHtml($"<p>{WebUtility.HtmlEncode(line)}</p><p></p>");
 
         UpdateHint();
@@ -449,7 +456,7 @@ public sealed partial class LessonJournalWindow : Window
             return;
         }
 
-        TxtHint.Text = SelectedSection != null && !string.IsNullOrWhiteSpace(Editor.PlainText)
+        TxtHint.Text = SelectedSection != null && !string.IsNullOrWhiteSpace(Editor.GetPlainText())
             ? "단원은 본문이 비어 있을 때만 첫 줄에 들어갑니다."
             : string.Empty;
     }
@@ -469,7 +476,7 @@ public sealed partial class LessonJournalWindow : Window
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(Editor.PlainText))
+        if (string.IsNullOrWhiteSpace(Editor.GetPlainText()))
         {
             await MessageBox.ShowErrorAsync("본문을 적어 주세요.");
             return;
@@ -486,8 +493,12 @@ public sealed partial class LessonJournalWindow : Window
             _post.Category = LessonJournalComposer.Category;
             _post.Subject = LessonJournalComposer.Subject;
             _post.Title = title;
-            _post.Content = Editor.GetFlowBytes();
-            _post.PlainText = Editor.PlainText;
+            using (var ms = new MemoryStream())
+            {
+                await Editor.SavePackageAsync(ms);
+                _post.Content = ms.ToArray();
+            }
+            _post.PlainText = Editor.GetPlainText();
 
             // 작성일시는 새 글일 때만 찍는다 — 고칠 때마다 밀면 '언제 쓴 일지'인지가 사라진다.
             if (_isNew) _post.DateTime = DateTime.Now;
@@ -535,7 +546,7 @@ public sealed partial class LessonJournalWindow : Window
     {
         // 제목표시줄 X 로 닫은 경우도 취소다(저장 경로에서 이미 결과를 넣었으면 무시된다).
         _dialogResult.TrySetResult(false);
-        Editor?.Dispose();
+        Editor.Clear();
     }
 
     #endregion

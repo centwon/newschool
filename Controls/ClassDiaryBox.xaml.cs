@@ -24,6 +24,20 @@ public sealed partial class ClassDiaryBox : UserControl
 
     private bool _isChanged = false;
 
+    /// <summary>
+    /// 알림장 본문(HTML). 저장·요약·편집 창은 이것을 쓴다 — <c>NoticeBox</c> 는 보여 주기만 한다.
+    /// 편집면에서 다시 뽑으면(<c>ToHtml</c>) 저장된 글과 글자 하나 다르지 않아도 모양이 바뀔 수 있다.
+    /// </summary>
+    private string _noticeHtml = string.Empty;
+
+    /// <summary>알림장 본문을 바꾸고 미리보기 칸에 싣는다.</summary>
+    private void SetNotice(string? html)
+    {
+        _noticeHtml = html ?? string.Empty;
+        if (_noticeHtml.Length == 0) NoticeBox.Clear();
+        else NoticeBox.LoadHtml(_noticeHtml);
+    }
+
     /// <summary>마지막 입력 후 이만큼 지나면 자동 저장한다.</summary>
     private const int AutoSaveDelayMs = 3000;
 
@@ -34,8 +48,6 @@ public sealed partial class ClassDiaryBox : UserControl
         this.InitializeComponent();
         ViewModel = new ClassDiaryViewModel();
         
-        // 알림장 편집기(RichTextEditor) TextChanged 이벤트 구독
-        NoticeBox.TextChanged += NoticeBox_TextChanged;
 
         // ⚠ 저장 시점을 앞당기는 장치다.
         //    예전에는 저장이 날짜 변경·목록 이동·화면 언로드에서만 일어나서, 알림장을 쓰고
@@ -83,10 +95,10 @@ public sealed partial class ClassDiaryBox : UserControl
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] Notice 길이: {ViewModel.Notice?.Length ?? 0} chars");
         
         // 알림장 내용 로드
-        NoticeBox.Text = ViewModel.Notice ?? string.Empty;
+        SetNotice(ViewModel.Notice);
         UpdateNoticePreview();
 
-        System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] NoticeBox.Text 설정 완료");
+        System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] 알림장 설정 완료");
         
         // 시간표도 일지와 같은 학년도·학기로 읽는다 — 둘이 갈리면 지난 학년도 일지 옆에
         // 올해 시간표가 붙는다.
@@ -160,7 +172,7 @@ public sealed partial class ClassDiaryBox : UserControl
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] SaveDiaryAsync 시작: No={ViewModel.No}, Absent={ViewModel.Absent}, Memo={ViewModel.Memo?.Length ?? 0} chars");
         
         // 알림장 내용 저장
-        ViewModel.Notice = NoticeBox.Text;
+        ViewModel.Notice = _noticeHtml;
         
         System.Diagnostics.Debug.WriteLine($"[ClassDiaryBox] Notice 저장: {ViewModel.Notice?.Length ?? 0} chars");
 
@@ -207,21 +219,11 @@ public sealed partial class ClassDiaryBox : UserControl
     #region 이벤트 핸들러
 
     /// <summary>
-    /// 알림장 (RichTextEditor) 텍스트 변경 - ReadOnly 모드에서는 호출되지 않음
-    /// </summary>
-    private void NoticeBox_TextChanged(object? sender, string e)
-    {
-        _isChanged = true;
-        UpdateNoticePreview();
-        RestartAutoSaveTimer();
-    }
-
-    /// <summary>
     /// 알림장 미리보기 텍스트 업데이트
     /// </summary>
     private void UpdateNoticePreview()
     {
-        string content = NoticeBox.Text ?? string.Empty;
+        string content = _noticeHtml;
 
         // 헤더("알림장" + 날짜)는 모든 알림장에 똑같이 들어가므로 요약에서 뺀다.
         // 안 그러면 50자 미리보기의 앞부분을 매번 같은 글자가 차지한다.
@@ -308,7 +310,7 @@ public sealed partial class ClassDiaryBox : UserControl
         //    어긋나면 헤더가 본문에 눌러앉아 편집할 때마다 중복되거나 본문 첫 줄이 잘렸다.
         //    헤더를 본문에 두면 그 위험이 통째로 사라진다 — 일지는 (학년도·학년·반·날짜)로
         //    고정된 행이라 날짜가 나중에 어긋날 일도 없다.
-        string current = NoticeBox.Text ?? string.Empty;
+        string current = _noticeHtml;
         string initialHtml = ShouldInsertNoticeHeader(current)
             ? BuildNoticeHeaderHtml() + current
             : current;
@@ -320,10 +322,7 @@ public sealed partial class ClassDiaryBox : UserControl
         //    열 때의 대상을 적어 두고 돌아와서 같은지 본다.
         var target = (ViewModel.Grade, ViewModel.Class, ViewModel.Date.Date);
 
-        var editorWin = new RichTextEditorWin(
-            "알림장 편집",
-            initialHtml,
-            RichTextEditor.EditorMode.Full);
+        var editorWin = new RichTextEditorWin("알림장 편집", initialHtml);
 
         editorWin.SetSize(1000, 800);
 
@@ -342,7 +341,7 @@ public sealed partial class ClassDiaryBox : UserControl
         }
 
         // 편집 결과를 그대로 쓴다(헤더도 본문의 일부다)
-        NoticeBox.Text = editorWin.Text;
+        SetNotice(editorWin.Text);
         _isChanged = true;
         UpdateNoticePreview();
         RestartAutoSaveTimer();

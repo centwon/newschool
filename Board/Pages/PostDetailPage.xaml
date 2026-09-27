@@ -6,6 +6,7 @@
     xmlns:controls="using:NewSchool.Board.Controls"
     xmlns:board="using:NewSchool.Board"
     xmlns:appcontrols="using:NewSchool.Controls"
+    xmlns:rich="using:WinUIRichEditor.Controls"
     xmlns:converters="using:NewSchool.Converters"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
@@ -102,7 +103,7 @@
             </StackPanel>
         </Border>
 
-        <!-- 내용 (RichTextEditor 읽기 전용) - 남은 공간을 채우며 내부 스크롤 -->
+        <!-- 내용 (서식 편집기 읽기 전용) - 남은 공간을 채우며 내부 스크롤 -->
         <Border Grid.Row="2"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -115,9 +116,11 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <appcontrols:RichTextEditor x:Name="ContentViewer"
-                                         Grid.Row="0"
-                                         Mode="ReadOnly"/>
+                <!-- 읽기 전용이면 툴바는 쪽·확대만 남는다. 글자 수 상태바는 읽는 사람에게 쓸모가 없다. -->
+                <rich:RichEditorView x:Name="ContentViewerView"
+                                     Grid.Row="0"
+                                     IsReadOnly="True"
+                                     ShowStatusBar="False"/>
 
                 <!-- 첨부파일 (파일이 있을 때만 표시) -->
                 <controls:PostFileListBox x:Name="DetailFileListBox"

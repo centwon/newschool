@@ -48,14 +48,15 @@ public sealed partial class MemoEditDialog : Window
         Closed += OnWindowClosed;
     }
 
+    private WinUIRichEditor.Controls.RichEditor Editor => EditorView.Editor;
+
     /// <summary>연 뒤로 제목이나 본문이 달라졌는가(읽는 중에는 늘 false).</summary>
     private bool HasUnsavedWork =>
         !_isLoading && !Result &&
-        (TxtTitle.Text != _openedTitle || Editor.PlainText != _openedText);
+        (TxtTitle.Text != _openedTitle || Editor.IsModified);
 
     private bool _isLoading = true;
     private string _openedTitle = string.Empty;
-    private string _openedText = string.Empty;
 
     #region Window Size / Position
 
@@ -126,7 +127,12 @@ public sealed partial class MemoEditDialog : Window
             TxtTitle.Text = _post.Title ?? "";
 
             // 에디터
-            Editor.LoadFlow(_post.Content);
+            if (_post.Content is { Length: > 0 } flow)
+            {
+                using var ms = new MemoryStream(flow);
+                await Editor.LoadPackageAsync(ms);
+            }
+            else Editor.Clear();
 
             // 메타정보
             TxtMetadata.Text = $"작성일시: {_post.DateTime:yyyy-MM-dd HH:mm:ss}";
@@ -146,7 +152,7 @@ public sealed partial class MemoEditDialog : Window
         {
             // 여기까지가 "연 그대로" 다. 이후 달라지면 저장하지 않은 편집이 있는 것이다(52차).
             _openedTitle = TxtTitle.Text;
-            _openedText = Editor.PlainText;
+            Editor.MarkSaved();
             _isLoading = false;
         }
     }
@@ -175,8 +181,12 @@ public sealed partial class MemoEditDialog : Window
             _post.IsCompleted = ChkCompleted.IsChecked == true;
             _post.Category = GetSelectedCategory();
             _post.Title = TxtTitle.Text;
-            _post.Content = Editor.GetFlowBytes();
-            _post.PlainText = Editor.PlainText;
+            using (var ms = new MemoryStream())
+            {
+                await Editor.SavePackageAsync(ms);
+                _post.Content = ms.ToArray();
+            }
+            _post.PlainText = Editor.GetPlainText();
             _post.DateTime = DateTime.Now;
 
             // 쓰기는 캐시 서비스로 — 게시판 목록·상세가 옛 제목·카테고리를 물고 있지 않도록
@@ -231,7 +241,7 @@ public sealed partial class MemoEditDialog : Window
     {
         // 타이틀바 X 버튼으로 닫은 경우도 취소로 처리 (버튼으로 이미 완료된 경우 TrySetResult는 안전하게 무시됨)
         _dialogResult.TrySetResult(false);
-        Editor?.Dispose();
+        Editor.Clear();
     }
 
     private static void SelectComboBoxByTag(ComboBox comboBox, string? tag)

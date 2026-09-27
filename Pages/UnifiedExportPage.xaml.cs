@@ -19,8 +19,10 @@ public sealed partial class UnifiedExportPage : Page
     public UnifiedExportPage()
     {
         InitializeComponent();
-        Unloaded += (_, _) => PreviewEditor?.Dispose();   // 페이지 이탈 시 에디터 해제
+        Unloaded += (_, _) => PreviewEditor.Clear();   // 페이지 이탈 시 에디터 해제
     }
+
+    private WinUIRichEditor.Controls.RichEditor PreviewEditor => PreviewEditorView.Editor;
 
     private async void YearSemPicker_YearSemesterChanged(object sender, YearSemesterChangedEventArgs e)
     {
@@ -49,12 +51,12 @@ public sealed partial class UnifiedExportPage : Page
 
             if (string.IsNullOrEmpty(html))
             {
-                PreviewEditor.Text = string.Empty;
+                PreviewEditor.Clear();
                 SetBusy(false, "해당 조건에 맞는 데이터가 없습니다.");
                 return;
             }
 
-            PreviewEditor.Text = html;
+            PreviewEditor.LoadHtml(html);
             SetBusy(false, "미리보기 준비 완료");
         }
         catch (Exception ex)

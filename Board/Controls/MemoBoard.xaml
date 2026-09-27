@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:appcontrols="using:NewSchool.Controls"
+    xmlns:rich="using:WinUIRichEditor.Controls"
     xmlns:board="using:NewSchool.Board"
     xmlns:local="using:NewSchool.Board.Controls"
     mc:Ignorable="d">
@@ -129,11 +129,10 @@
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             </Grid>
                         </Button>
-                        <appcontrols:RichTextEditor x:Name="Editor" x:Load="False"
-                                                    Mode="Simple"
-                                                    ShowToolbar="False"
-                                                    MinHeight="120"
-                                                    MaxHeight="220"/>
+                        <!-- 빠른 메모라 툴바 없이 편집면만. 서식은 단축키·붙여넣기로, 넓게 고치려면 [편집 창]. -->
+                        <rich:RichEditor x:Name="Editor" x:Load="False"
+                                         MinHeight="120"
+                                         MaxHeight="220"/>
                     </Grid>
                 </Border>
             </Grid>

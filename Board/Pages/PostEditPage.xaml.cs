@@ -25,7 +25,7 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
     /// 굴었다(52차). 판정을 이리로 올려 두 길이 같은 것을 본다.</para>
     /// </summary>
     public bool HasUnsavedWork =>
-        TitleTextBox.Text != _originalTitle || ContentEditor.PlainText != _originalPlainText;
+        TitleTextBox.Text != _originalTitle || ContentEditor.IsModified;
 
     public string UnsavedWorkMessage => "작성 중인 글이 저장되지 않습니다.";
 
@@ -36,7 +36,6 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
     private List<string> _allCategories = new();
     private string _originalCategory = string.Empty; // 수정 모드에서 카테고리 변경 감지용
     private string _originalTitle = string.Empty;    // 취소 시 미저장 변경 감지용
-    private string _originalPlainText = string.Empty;
 
     // 기본 카테고리 목록
     private static readonly List<string> _defaultCategories = new()
@@ -55,8 +54,10 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
     public PostEditPage()
     {
         this.InitializeComponent();
-        Unloaded += (_, _) => ContentEditor?.Dispose();   // 페이지 이탈 시 에디터 해제
+        Unloaded += (_, _) => ContentEditor.Clear();   // 페이지 이탈 시 에디터 해제
     }
+
+    private WinUIRichEditor.Controls.RichEditor ContentEditor => ContentEditorView.Editor;
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
@@ -94,7 +95,12 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
                 _originalCategory = _post.Category;
                 TitleTextBox.Text = _post.Title;
                 PinnedCheckBox.IsChecked = _post.IsPinned;
-                ContentEditor.LoadFlow(_post.Content);
+                if (_post.Content is { Length: > 0 } flow)
+                {
+                    using var ms = new MemoryStream(flow);
+                    await ContentEditor.LoadPackageAsync(ms);
+                }
+                else ContentEditor.Clear();
 
                 // 카테고리 선택
                 if (!string.IsNullOrEmpty(_post.Category))
@@ -167,7 +173,7 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
 
         // 취소 시 미저장 변경 감지 기준값 저장
         _originalTitle = TitleTextBox.Text;
-        _originalPlainText = ContentEditor.PlainText;
+        ContentEditor.MarkSaved();
     }
 
     private async Task LoadCategoriesAsync()
@@ -365,8 +371,12 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
             if (_post != null)
             {
                 _post.Title = TitleTextBox.Text;
-                _post.Content = ContentEditor.GetFlowBytes();
-                _post.PlainText = ContentEditor.PlainText;
+                using (var ms = new MemoryStream())
+                {
+                    await ContentEditor.SavePackageAsync(ms);
+                    _post.Content = ms.ToArray();
+                }
+                _post.PlainText = ContentEditor.GetPlainText();
                 _post.Subject = SubjectComboBox.Text.Trim();
                 _post.IsPinned = PinnedCheckBox.IsChecked == true;
 
@@ -467,7 +477,7 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(ContentEditor.Text))
+        if (string.IsNullOrWhiteSpace(ContentEditor.ToHtml()))
         {
             _ = ShowErrorAsync("내용을 입력하세요.").ContinueWith(t =>
             {

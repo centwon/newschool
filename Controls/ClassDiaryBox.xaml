@@ -6,6 +6,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewmodels="using:NewSchool.ViewModels"
     xmlns:controls="using:NewSchool.Controls"
+    xmlns:rich="using:WinUIRichEditor.Controls"
     xmlns:helpers="using:NewSchool.Helpers"
     mc:Ignorable="d">
 
@@ -232,8 +233,9 @@
                         Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
                         MinHeight="150"
                         MaxHeight="300">
-                    <controls:RichTextEditor x:Name="NoticeBox"
-                                          Mode="ReadOnly"/>
+                    <!-- 좁은 칸의 읽기 전용 미리보기라 툴바 없이 편집면만. 고치기는 [편집] 창에서. -->
+                    <rich:RichEditor x:Name="NoticeBox"
+                                     IsReadOnly="True"/>
                 </Border>
             </Expander.Content>
         </Expander>

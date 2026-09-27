@@ -5,6 +5,7 @@
     xmlns:local="using:NewSchool.Board.Pages"
     xmlns:controls="using:NewSchool.Board.Controls"
     xmlns:appcontrols="using:NewSchool.Controls"
+    xmlns:rich="using:WinUIRichEditor.Controls"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Padding="16,8,16,8">
@@ -80,10 +81,9 @@
                  MaxLength="200"
                  Margin="0,0,0,6"/>
 
-        <!-- Row2: 내용 (RichTextEditor) -->
-        <appcontrols:RichTextEditor x:Name="ContentEditor"
-                                 Grid.Row="2"
-                                 Mode="Full"/>
+        <!-- Row2: 내용 (서식 편집기) -->
+        <rich:RichEditorView x:Name="ContentEditorView"
+                             Grid.Row="2"/>
 
         <!-- Row3: 첨부파일 -->
         <controls:PostFileListBox x:Name="FileListBox"

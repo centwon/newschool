@@ -104,26 +104,10 @@ public class KeyboardOnlyGuardTests
     private static string VisiblePart(string inner) =>
         Regex.Replace(inner, @"<(\w+)\.Flyout>.*?</\1\.Flyout>", string.Empty, RegexOptions.Singleline);
 
-    /// <summary>
-    /// 리치 편집기에서 <b>빠져나가는 길</b>이 살아 있어야 한다.
-    ///
-    /// <para>이 편집기는 앱 안 열 곳에서 쓰인다. Tab 을 편집기가 삼키므로(실측: Tab 은
-    /// 실제로 탭 문자를 넣는다 — 그래서 뺏지 않았다) <c>Esc</c> 가 유일한 탈출구다.</para>
-    /// </summary>
-    [Fact]
-    public void 리치_편집기에서_Esc_로_나올_수_있다()
-    {
-        string source = Read("Controls/RichTextEditor.xaml.cs");
-
-        Assert.Contains("VirtualKey.Escape", source);
-
-        // ⚠ handledEventsToo 가 없으면 편집기가 이미 Handled 로 표시해 넘겨 영영 안 온다.
-        Assert.Contains("handledEventsToo: true", source);
-
-        // ⚠ 인자 없는 TryMoveFocus 는 데스크톱 앱에서 던진다. SearchRoot 를 준 과부하여야 한다.
-        Assert.Contains("FindNextElementOptions", source);
-        Assert.Contains("SearchRoot", source);
-    }
+    // ※ 서식 편집기에서 키보드로 빠져나오기(Esc)는 지원하지 않기로 했다(2026-09-27).
+    //   편집기 안에서 Tab 은 탭 문자를 넣고 Shift+Tab 도 머문다(1.2.0 실측) — 빠져나오기는 마우스로 한다.
+    //   앱에서 Esc 를 가로채면 서식 복사 취소·찾기 막대 닫기·한글 조합처럼 편집기가 Esc 를 쓰는
+    //   자리에서 포커스까지 튕겨 나갔다. 54차에 두었던 시험 두 개는 그래서 지웠다.
 
     /// <summary>
     /// <c>ItemsRepeater</c> 항목을 <b>키보드로 고를 수 있어야</b> 한다.

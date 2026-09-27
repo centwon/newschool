@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -30,7 +31,16 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     private readonly List<Post> _memos = [];   // 활성(미완료) 메모, 최신순
     private Post? _recentPost;                  // 인라인 에디터에 표시 중인 최신 메모
     private bool _isLoading;
-    private bool _isModified;
+    private bool _isModified;                   // 본문 밖(분류)을 고쳤거나 [저장] 을 눌렀다
+
+    /// <summary>
+    /// 편집기가 본문을 들고 있는가. 아니면(아직 누르지 않았거나 싣다가 실패해 미리보기로 돌아갔으면)
+    /// 본문은 손대지 않은 것이다 — 편집기 값을 읽어 저장하면 원래 본문을 덮어쓴다.
+    /// </summary>
+    private bool EditorInUse => Editor != null && EditorPreview.Visibility == Visibility.Collapsed;
+
+    /// <summary>저장할 것이 있는가. 본문은 편집기의 <c>IsModified</c> 가 안다(불러온 직후는 false).</summary>
+    private bool HasChanges => _isModified || (EditorInUse && Editor!.IsModified);
     private bool _isInitialized;
     private bool _isUpdating;                   // 모델→UI 반영 중 역방향 이벤트 억제
     private bool _disposed;
@@ -67,7 +77,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
 
     private async void MemoBoard_Unloaded(object sender, RoutedEventArgs e)
     {
-        if (_isModified) await SaveRecentMemoAsync();
+        if (HasChanges) await SaveRecentMemoAsync();
         Dispose();
     }
 
@@ -75,11 +85,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        if (Editor != null)
-        {
-            Editor.PropertyChanged -= Editor_PropertyChanged;
-            Editor.Dispose();
-        }
+        Editor?.Clear();
         GC.SuppressFinalize(this);
     }
 
@@ -101,7 +107,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
 
             _memos.Clear();
             _memos.AddRange(memos.OrderByDescending(m => m.DateTime));
-            Render();
+            await RenderAsync();
         }
         catch (Exception ex)
         {
@@ -116,7 +122,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     }
 
     /// <summary>최신 메모를 인라인 에디터에, 나머지를 compact 목록에 반영.</summary>
-    private void Render()
+    private async Task RenderAsync()
     {
         _recentPost = _memos.FirstOrDefault();
         bool hasAny = _recentPost != null;
@@ -131,19 +137,37 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             SelectComboBoxByTag(CBoxRecentCategory, _recentPost.Category);
             TxtRecentTitle.Text = _recentPost.Title ?? "";
         }
-        // 편집기를 한 번 만들었으면 그대로 쓴다(장치 비용은 이미 치렀다). 아직이면 미리보기만.
-        Editor?.LoadFlow(_recentPost?.Content);
         string preview = _recentPost?.PlainText?.Trim() ?? "";
         TxtPreview.Text = preview;
         TxtPreviewHint.Visibility = preview.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         _isUpdating = false;
         _isModified = false;
 
+        // 편집기를 한 번 열었으면 그대로 쓴다(장치 비용은 이미 치렀다). 아직이면 미리보기만.
+        if (EditorInUse)
+        {
+            try
+            {
+                if (_recentPost?.Content is { Length: > 0 } flow)
+                {
+                    using var ms = new MemoryStream(flow);
+                    await Editor!.LoadPackageAsync(ms);
+                }
+                else Editor!.Clear();
+            }
+            catch (Exception ex)
+            {
+                // 편집기에는 앞 메모가 남아 있다 — 미리보기로 돌아가 그것이 이 메모로 저장되지 않게 한다.
+                NewSchool.Logging.Log.Error("MemoBoard", "메모 본문을 편집기에 싣지 못했다", ex);
+                EditorPreview.Visibility = Visibility.Visible;
+            }
+        }
+
         // 나머지 = compact 목록. 컬렉션째 갈아 끼운다 — 비우고 하나씩 넣으면 줄마다 변경 알림이 간다.
         CompactRepeater.ItemsSource = new ObservableCollection<MemoRow>(_memos.Skip(1).Select(m => new MemoRow(m)));
     }
 
-    public Task CreateNewMemoAsync()
+    public async Task CreateNewMemoAsync()
     {
         try
         {
@@ -162,17 +186,16 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             };
 
             // 빈 메모를 즉시 DB 에 저장하지 않는다(No=0, 메모리 보관).
-            // 사용자가 실제로 입력해 _isModified 가 되면 SaveRecentMemoAsync 가 그때 INSERT.
+            // 사용자가 실제로 입력해 HasChanges 가 되면 SaveRecentMemoAsync 가 그때 INSERT.
             // → 입력 없이 떠나면 DB 에 빈 메모가 쌓이지 않음.
             _memos.Insert(0, post);
-            Render();
+            await RenderAsync();
             Debug.WriteLine($"[MemoBoard] 새 메모 생성(메모리)");
         }
         catch (Exception ex)
         {
             NewSchool.Logging.Log.Error("MemoBoard", "새 메모를 만들지 못했다 — 눌러도 아무 일이 없어 보인다", ex);
         }
-        return Task.CompletedTask;
     }
 
     #endregion
@@ -196,25 +219,39 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     #region Recent memo handlers
 
     /// <summary>미리보기를 누르면 그때 편집기를 만들어 본문을 싣고, 캐럿을 끝에 두어 바로 이어 쓰게 한다.</summary>
-    private void EditorPreview_Click(object sender, RoutedEventArgs e)
+    private async void EditorPreview_Click(object sender, RoutedEventArgs e)
     {
-        if (Editor == null)
+        if (!EditorInUse)
         {
-            FindName(nameof(Editor));   // x:Load="False" 를 실체화 — 이후 Editor 필드가 채워진다
-            Editor!.PropertyChanged += Editor_PropertyChanged;
-            _isUpdating = true;
-            Editor.LoadFlow(_recentPost?.Content);
-            _isUpdating = false;
+            if (Editor == null)
+                FindName(nameof(Editor));   // x:Load="False" 를 실체화 — 이후 Editor 필드가 채워진다
+            try
+            {
+                if (_recentPost?.Content is { Length: > 0 } flow)
+                {
+                    using var ms = new MemoryStream(flow);
+                    await Editor!.LoadPackageAsync(ms);
+                }
+                else Editor!.Clear();
+            }
+            catch (Exception ex)
+            {
+                // 편집기를 드러내지 않는다 — 빈 편집기에 쓰고 저장하면 원래 본문을 덮어쓴다.
+                NewSchool.Logging.Log.Error("MemoBoard", "메모 본문을 편집기에 싣지 못했다", ex);
+                return;
+            }
             EditorPreview.Visibility = Visibility.Collapsed;
         }
-        Editor.FocusDocumentEnd();
-    }
 
-    private void Editor_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (_isUpdating) return;
-        if (e.PropertyName == nameof(RichTextEditor.Text))
-            _isModified = true;
+        // 방금 만든 편집기는 아직 트리에 붙기 전일 수 있다 — 그때 부르면 포커스가 가지 않는다.
+        var editor = Editor!;
+        if (editor.IsLoaded) { editor.FocusDocumentEnd(); return; }
+        void OnEditorLoaded(object s, RoutedEventArgs a)
+        {
+            editor.Loaded -= OnEditorLoaded;
+            editor.FocusDocumentEnd();
+        }
+        editor.Loaded += OnEditorLoaded;
     }
 
     private void CBoxRecentCategory_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -256,7 +293,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             using var service = Board.CreateCachedService();
             await service.DeletePostAsync(memo.No, memo.Category);
             _memos.Remove(memo);
-            Render();
+            await RenderAsync();
             Debug.WriteLine($"[MemoBoard] 메모 삭제: No={memo.No}");
         }
         catch (Exception ex)
@@ -268,14 +305,14 @@ public sealed partial class MemoBoard : UserControl, IDisposable
 
     private async void BtnAddMemo_Click(object sender, RoutedEventArgs e)
     {
-        if (_isModified) await SaveRecentMemoAsync();
+        if (HasChanges) await SaveRecentMemoAsync();
         await CreateNewMemoAsync();
     }
 
     private async void CBoxCategoryFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_isInitialized || _isLoading) return;
-        if (_isModified) await SaveRecentMemoAsync();
+        if (HasChanges) await SaveRecentMemoAsync();
         await LoadMemosAsync();
     }
 
@@ -286,7 +323,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     /// <summary>인라인 에디터의 최신 메모를 저장 (변경분이 있을 때만).</summary>
     private async Task SaveRecentMemoAsync()
     {
-        if (_recentPost == null || !_isModified) return;
+        if (_recentPost == null || !HasChanges) return;
         try
         {
             // 첨부는 이 화면에 없지만, 메모 편집 창에서 붙여 둔 것이 있을 수 있다.
@@ -298,10 +335,14 @@ public sealed partial class MemoBoard : UserControl, IDisposable
 
             // ⚠ 편집기를 아직 만들지 않았으면(미리보기 상태) 본문은 손대지 않은 것이다 —
             //   분류만 바꿔 [저장] 하는 경로. 여기서 빈 편집기의 값을 읽으면 본문이 지워진다.
-            if (Editor != null)
+            if (EditorInUse)
             {
-                _recentPost.Content = Editor.GetFlowBytes();
-                _recentPost.PlainText = Editor.PlainText;
+                using (var ms = new MemoryStream())
+                {
+                    await Editor!.SavePackageAsync(ms);
+                    _recentPost.Content = ms.ToArray();
+                }
+                _recentPost.PlainText = Editor.GetPlainText();
             }
 
             // 제목이 비어있을 때만 본문 첫 줄로 자동 생성 (기존 제목 보존)
@@ -318,6 +359,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
                 service, postNo, oldCategory, _recentPost.Category);
 
             _isModified = false;
+            if (EditorInUse) Editor!.MarkSaved();
             Debug.WriteLine($"[MemoBoard] 저장: No={_recentPost.No}");
         }
         catch (Exception ex)
@@ -333,7 +375,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         try
         {
             // 최신 메모를 닫는 경우, 편집 중이던 내용 먼저 저장
-            if (memo == _recentPost && _isModified) await SaveRecentMemoAsync();
+            if (memo == _recentPost && HasChanges) await SaveRecentMemoAsync();
 
             // 아직 저장 안 된 빈 메모(No<=0)는 DB 갱신 없이 목록에서만 제거.
             // DB 갱신을 먼저 확정한 뒤에 IsCompleted/목록을 바꿔야, 저장 실패 시
@@ -347,7 +389,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
 
             memo.IsCompleted = true;
             _memos.Remove(memo);
-            Render();
+            await RenderAsync();
             Debug.WriteLine($"[MemoBoard] 완료(숨김): No={memo.No}");
         }
         catch (Exception ex)
@@ -355,7 +397,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             Debug.WriteLine($"[MemoBoard] 완료 처리 실패: {ex.Message}");
             // 사용자가 클릭한 체크박스가 켜진 채로 남지 않도록 상태·목록 원복 후 알린다.
             memo.IsCompleted = false;
-            Render();
+            await RenderAsync();
             await UserErrorReporter.ReportAsync("메모 완료 처리", ex);
         }
     }
@@ -363,7 +405,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     /// <summary>메모를 다이얼로그로 편집 (제목·카테고리·첨부). 저장 시 목록 갱신.</summary>
     private async Task OpenDialogForAsync(Post memo)
     {
-        if (_isModified) await SaveRecentMemoAsync();
+        if (HasChanges) await SaveRecentMemoAsync();
 
         var dialog = new Dialogs.MemoEditDialog(memo);
         bool saved = await dialog.ShowDialogAsync(App.MainWindow);

@@ -27,7 +27,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
         if (_disposed) return;
         _disposed = true;
         _data?.Dispose();
-        PreviewEditor?.Dispose();   // 에디터 네이티브 메모리 해제
+        PreviewEditor.Clear();   // 에디터 네이티브 메모리 해제
         GC.SuppressFinalize(this);
     }
 
@@ -44,6 +44,8 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
         InitializeComponent();
         Unloaded += (_, _) => Dispose();
     }
+
+    private WinUIRichEditor.Controls.RichEditor PreviewEditor => PreviewEditorView.Editor;
 
     #endregion
 
@@ -386,7 +388,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
         if (_data == null) return;
 
         string html = GenerateHtml();
-        PreviewEditor.Text = html;
+        PreviewEditor.LoadHtml(html);
     }
 
     /// <summary>
@@ -512,13 +514,9 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
     {
         try
         {
-            if (!PreviewEditor.IsInitialized)
-            {
-                await MessageBox.ShowAsync("미리보기를 먼저 생성해주세요.");
-                return;
-            }
-
-            await PreviewEditor.PrintAsync("학생 정보");
+            nint hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+            if (!await WinUIRichEditor.Controls.RichEditorPrintHelper.ShowPrintUIAsync(PreviewEditor, hwnd, "학생 정보"))
+                await MessageBox.ShowAsync("이 PC 에서는 인쇄 창을 열 수 없습니다.");
         }
         catch (InvalidOperationException ex)
         {

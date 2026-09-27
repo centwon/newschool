@@ -6,26 +6,22 @@ using Windows.Graphics;
 namespace NewSchool.Controls;
 
 /// <summary>
-/// RichTextEditor 를 다이얼로그 창으로 감싼 래퍼 (구 JoditEditorWin 대체).
+/// HTML 한 덩이를 서식 편집기로 고치는 창 (구 JoditEditorWin 대체). 학급일지 알림장이 쓴다.
 /// WinUI3 에는 DialogResult 가 없으므로 Result 프로퍼티 + ShowDialogAsync 사용.
 /// </summary>
 public sealed partial class RichTextEditorWin : Window
 {
     private readonly TaskCompletionSource<bool> _dialogResult = new();
 
-    /// <summary>에디터 모드 (ReadOnly, Simple, Full).</summary>
-    public RichTextEditor.EditorMode EditorMode
-    {
-        get => richEditor.Mode;
-        set => richEditor.Mode = value;
-    }
+    private WinUIRichEditor.Controls.RichEditor richEditor => richEditorView.Editor;
 
-    /// <summary>에디터 텍스트 내용 (HTML).</summary>
-    public string Text
-    {
-        get => richEditor.Text;
-        set => richEditor.Text = value;
-    }
+    /// <summary>
+    /// 본문(HTML). 창을 열 때 넣은 값이고, [확인] 으로 닫으면 고친 결과다.
+    ///
+    /// <para>⚠ [확인] 을 누를 때 뽑아 둔다 — 닫힐 때 편집기를 비우므로(<see cref="OnWindowClosed"/>)
+    /// 부르는 쪽이 닫힌 뒤에 편집기에서 읽으면 빈 글이 온다.</para>
+    /// </summary>
+    public string Text { get; private set; } = string.Empty;
 
     /// <summary>다이얼로그 결과 (확인: true, 취소: false).</summary>
     public bool Result { get; private set; }
@@ -48,21 +44,9 @@ public sealed partial class RichTextEditorWin : Window
 
         // [확인] 을 눌러야 고친 글이 부르는 쪽으로 간다 — X 로 닫으면 사라지므로 묻는다(52차).
         UnsavedWorkGuard.AskBeforeClosing(
-            this, () => !Result && richEditor.PlainText != _openedText, "고친 내용이 반영되지 않습니다.");
+            this, () => !Result && richEditor.IsModified, "고친 내용이 반영되지 않습니다.");
 
         Closed += OnWindowClosed;
-
-        // 여는 쪽이 생성자 뒤에 Text 를 넣으므로, 기준값은 창이 떠서 자리를 잡을 때 뜬다.
-        Activated += OnFirstActivated;
-    }
-
-    /// <summary>연 그대로의 본문. 이후 달라지면 아직 반영되지 않은 편집이 있는 것이다.</summary>
-    private string _openedText = string.Empty;
-
-    private void OnFirstActivated(object sender, WindowActivatedEventArgs args)
-    {
-        Activated -= OnFirstActivated;
-        _openedText = richEditor.PlainText;
     }
 
     public RichTextEditorWin(string title) : this()
@@ -70,14 +54,12 @@ public sealed partial class RichTextEditorWin : Window
         Title = title;
     }
 
-    public RichTextEditorWin(string title, string initialText) : this(title)
+    /// <summary>본문을 싣고 연다. <c>LoadHtml</c> 은 불러온 직후를 "고치지 않음" 으로 둔다.</summary>
+    public RichTextEditorWin(string title, string initialHtml) : this(title)
     {
-        Text = initialText;
-    }
-
-    public RichTextEditorWin(string title, string initialText, RichTextEditor.EditorMode mode) : this(title, initialText)
-    {
-        EditorMode = mode;
+        Text = initialHtml ?? string.Empty;
+        if (Text.Length == 0) richEditor.Clear();
+        else richEditor.LoadHtml(Text);
     }
 
     #region Window Size / Position
@@ -136,6 +118,8 @@ public sealed partial class RichTextEditorWin : Window
 
     private void BtnOk_Click(object sender, RoutedEventArgs e)
     {
+        // 손대지 않았으면 넣은 HTML 을 그대로 돌려준다 — 다시 뽑으면 모양이 바뀔 수 있다.
+        if (richEditor.IsModified) Text = richEditor.ToHtml();
         Result = true;
         _dialogResult.TrySetResult(true);
         Close();
@@ -153,14 +137,8 @@ public sealed partial class RichTextEditorWin : Window
     {
         // X 버튼으로 닫은 경우도 취소로 처리
         _dialogResult.TrySetResult(false);
-        richEditor?.Dispose();
+        richEditor.Clear();
     }
-
-    #endregion
-
-    #region Public Methods
-
-    public Task PrintAsync() => richEditor.PrintAsync(Title ?? "NewSchool");
 
     #endregion
 }

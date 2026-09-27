@@ -47,8 +47,7 @@ public class SilentFailureGuardTests
         // 네트워크·타임아웃은 화면에 그대로 안내하고 스스로 낫는다. 알 수 없는 오류만 남긴다.
         ["Dialogs/SchoolSearchDialog.xaml.cs"] = (3, "흔하고 스스로 낫는 네트워크 실패"),
 
-        // 임시 파일 정리·창 크기·끌기 표식 — 실패해도 하려던 일이 그대로 되고, 다음에 다시 한다.
-        ["Controls/RichTextEditor.xaml.cs"] = (1, "임시 인쇄 파일 정리(다음 인쇄 때 재시도)"),
+        // 창 크기·끌기 표식 — 실패해도 하려던 일이 그대로 되고, 다음에 다시 한다.
         ["Controls/CourseTimetableBoard.xaml.cs"] = (1, "끌기 표식 생략 — 끌기 자체는 된다"),
         ["Dialogs/StudentLogDialog.xaml.cs"] = (1, "창 크기 지정 실패 — 기본 크기로 뜬다"),
 

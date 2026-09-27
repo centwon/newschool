@@ -27,8 +27,10 @@ public sealed partial class PostDetailPage : Page
         this.InitializeComponent();
         ViewModel = new PostDetailViewModel();
         this.DataContext = ViewModel;
-        Unloaded += (_, _) => ContentViewer?.Dispose();   // 페이지 이탈 시 에디터 해제
+        Unloaded += (_, _) => ContentViewer.Clear();   // 페이지 이탈 시 에디터 해제
     }
+
+    private WinUIRichEditor.Controls.RichEditor ContentViewer => ContentViewerView.Editor;
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
@@ -51,7 +53,12 @@ public sealed partial class PostDetailPage : Page
             if (ViewModel.Post != null)
             {
                 // 내용(.flow)을 에디터에 로드
-                ContentViewer.LoadFlow(ViewModel.Post.Content);
+                if (ViewModel.Post.Content is { Length: > 0 } flow)
+                {
+                    using var ms = new MemoryStream(flow);
+                    await ContentViewer.LoadPackageAsync(ms);
+                }
+                else ContentViewer.Clear();
 
                 using var service = Board.CreateService();
                 var files = await service.GetPostFilesByPostAsync(_postNo);
@@ -82,7 +89,10 @@ public sealed partial class PostDetailPage : Page
         try
         {
             // 인쇄 작업 이름 = 글 제목 (프린터 대기열에서 식별)
-            await ContentViewer.PrintAsync(ViewModel.Post.Title ?? "게시글");
+            nint hwnd = WindowNative.GetWindowHandle(App.MainWindow);
+            if (!await WinUIRichEditor.Controls.RichEditorPrintHelper.ShowPrintUIAsync(
+                    ContentViewer, hwnd, ViewModel.Post.Title ?? "게시글"))
+                await ShowErrorAsync("이 PC 에서는 인쇄 창을 열 수 없습니다.");
         }
         catch (Exception ex)
         {
