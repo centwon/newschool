@@ -295,6 +295,17 @@ public sealed partial class WeeklyTimetableView : UserControl
         var lesson = _lessons.FirstOrDefault(l => l.DayOfWeek == day && l.Period == period);
         var baseCourse = lesson != null ? FindCourse(lesson.Course) : null;
 
+        // 그 학년이 수업하지 않는 날(학교 휴업일, "3학년만 수련회" 같은 그 학년 행사)에는
+        // 평소 수업이 없다. 시수 계산·진도 예정일과 같은 판정(IsTeachingDayFor)이라야
+        // 시간표에 보이는 수업과 세는 수업이 어긋나지 않는다. 그 날 따로 넣은 변경(보강 등)은
+        // 아래에서 그대로 얹힌다.
+        if (lesson != null
+            && !SchoolCalendar.IsTeachingDayFor(date, _schedules, baseCourse?.Grade ?? lesson.Grade, _gradeCount))
+        {
+            lesson = null;
+            baseCourse = null;
+        }
+
         if (!_changes.TryGetValue((date.Date, period), out var change))
         {
             return new SlotView(
@@ -581,10 +592,13 @@ public sealed partial class WeeklyTimetableView : UserControl
 
         if (slot.IsBlank)
         {
-            border.Style = CellStyle("WeekEmptySlotStyle");
+            // 학교 휴업일이면 그 열의 빈 칸을 옅게 칠해 휴일임을 드러낸다(날짜 머리와 같은 색).
+            // 그 학년만 빠지는 행사 날은 다른 학년 수업이 있으므로 칠하지 않는다.
+            var off = OffDayReason(date);
+            border.Style = CellStyle(off != null ? "WeekOffSlotStyle" : "WeekEmptySlotStyle");
             border.Child = null;
             border.CanDrag = false;
-            ToolTipService.SetToolTip(border, null);
+            ToolTipService.SetToolTip(border, off);
             return;
         }
 

@@ -114,18 +114,21 @@ public class LessonAxisAuditTests
     }
 
     /// <summary>
-    /// <b>수업 홈의 [오늘의 수업]도 그날 변경을 얹는다.</b>
+    /// <b>수업 홈의 내 시간표는 그날 변경을 얹는 주별 시간표를 쓴다.</b>
     ///
-    /// <para>예전에는 이 카드만 평소 시간표를 그대로 세워서, 휴강한 수업이 '예정' 으로 남고
-    /// "N시간 중 M건" 의 N 까지 부풀었으며 보강은 아예 나오지 않았다. 바로 옆 [내 시간표]
-    /// 카드는 얹고 있었으므로 <b>한 화면이 같은 질문에 두 답</b>을 내놓았다.</para>
+    /// <para>예전에는 [오늘의 수업] 카드만 평소 시간표를 그대로 세워서, 휴강한 수업이 '예정' 으로
+    /// 남고 보강은 아예 나오지 않았다 — <b>한 화면이 같은 질문에 두 답</b>을 내놓았다.
+    /// 그 카드는 걷어냈고(2026-09-28), 수업 홈의 시간표는 수업 관리의 주별 시간표와 같은
+    /// 컨트롤(변경·휴업일을 얹는 <c>WeeklyTimetableView</c>)이다. 따로 짠 시간표로 돌아가면
+    /// 다시 두 답이 생긴다.</para>
     /// </summary>
     [Fact]
-    public void 오늘의_수업은_그날_변경을_얹는다()
+    public void 수업_홈_시간표는_주별_시간표를_쓴다()
     {
-        string code = CodeOnly(FindRepoRoot(), "Pages/LessonHomePage.xaml.cs");
+        string xaml = File.ReadAllText(Path.Combine(FindRepoRoot(), "Pages/LessonHomePage.xaml"));
 
-        Assert.Contains("ApplyDayChangesAsync", code);
+        Assert.Contains("<controls:WeeklyTimetableView", xaml);
+        Assert.Contains("Compact=\"True\"", xaml);
     }
 
     /// <summary>

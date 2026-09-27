@@ -48,9 +48,10 @@
             <Setter Property="Padding" Value="3,4"/>
         </Style>
 
-        <!-- 수업이 없는 날 -->
+        <!-- 수업이 없는 날(학교 휴업일) — 그 열의 빈 칸(WeekOffSlotStyle)과 같은 옅은 붉은 바탕.
+             달력처럼 휴일을 붉게 읽히게 한다. 테마 브러시라 어두운 테마에서도 글자를 가리지 않는다. -->
         <Style x:Key="WeekOffDateCellStyle" TargetType="Border">
-            <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+            <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <!-- 열이 좁으므로 좌우 여백을 줄여 글자가 쓸 폭을 남긴다 -->
@@ -60,6 +61,16 @@
 
         <Style x:Key="WeekEmptySlotStyle" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource ControlAltFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="4,2"/>
+        </Style>
+
+        <!-- 학교 휴업일의 칸 — 평소 수업은 나오지 않고 바탕만 옅게 칠한다 -->
+        <Style x:Key="WeekOffSlotStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
