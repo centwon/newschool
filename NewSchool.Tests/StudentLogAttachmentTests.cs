@@ -83,28 +83,7 @@ public class StudentLogAttachmentTests : IClassFixture<SqliteTestFixture>
         Assert.Empty(await repo.GetByLogAsync(logNo));
     }
 
-    [Fact]
-    public async Task 일괄_조회는_요청한_기록마다_키를_준다()
-    {
-        var studentId = await _db.NewStudentInDbAsync("첨부일괄");
-        int withFile = await NewLogAsync(studentId);
-        int without = await NewLogAsync(studentId);
-
-        using var repo = new StudentLogFileRepository(_db.DbPath);
-        await repo.CreateAsync(new StudentLogFile
-        {
-            LogNo = withFile,
-            Year = TestData.Year,
-            StudentID = studentId,
-            FileName = "자료.hwp",
-        });
-
-        var map = await repo.GetByLogsAsync([withFile, without]);
-
-        // 첨부가 없는 기록도 키가 있어야 부르는 쪽이 "없으면" 을 따로 다루지 않는다.
-        Assert.Single(map[withFile]);
-        Assert.Empty(map[without]);
-    }
+    // 일괄 조회(GetByLogsAsync) 테스트는 그 메서드와 함께 뺐다(2026-09-28).
 
     /// <summary>
     /// <b>규칙: 폴더는 바뀌지 않는 것(학년도·학생)으로만 나눈다.</b>

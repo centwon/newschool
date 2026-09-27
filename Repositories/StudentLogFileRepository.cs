@@ -74,50 +74,9 @@ public class StudentLogFileRepository : BaseRepository
         }
     }
 
-    /// <summary>
-    /// 여러 기록의 첨부를 단일 쿼리로 일괄 조회 (N+1 해소).
-    /// 목록 화면이 행마다 📎 를 그릴 때 쓴다.
-    /// </summary>
-    public async Task<Dictionary<int, List<StudentLogFile>>> GetByLogsAsync(IEnumerable<int> logNos)
-    {
-        var idList = logNos?.Where(n => n > 0).Distinct().ToList() ?? new List<int>();
-        var result = new Dictionary<int, List<StudentLogFile>>();
-        if (idList.Count == 0) return result;
-
-        var placeholders = string.Join(",", idList.Select((_, i) => $"@id{i}"));
-        string query = $@"
-                SELECT * FROM StudentLogFile
-                WHERE LogNo IN ({placeholders})
-                ORDER BY LogNo, No";
-
-        try
-        {
-            using var cmd = CreateCommand(query);
-            for (int i = 0; i < idList.Count; i++)
-                cmd.Parameters.Add($"@id{i}", SqliteType.Integer).Value = idList[i];
-
-            // 요청한 모든 기록에 대해 키가 있도록 먼저 채운다 — 부르는 쪽이
-            // "없으면 빈 목록"을 따로 다루지 않아도 되게.
-            foreach (var id in idList) result[id] = new List<StudentLogFile>();
-
-            foreach (var file in await ExecuteListAsync(cmd, Map).ConfigureAwait(false))
-            {
-                if (!result.TryGetValue(file.LogNo, out var list))
-                {
-                    list = new List<StudentLogFile>();
-                    result[file.LogNo] = list;
-                }
-                list.Add(file);
-            }
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            LogError($"누가기록 첨부 일괄 조회 실패: Count={idList.Count}", ex);
-            throw;
-        }
-    }
+    // 여러 기록의 첨부를 한 번에 읽는 GetByLogsAsync 는 테스트만 불러 지웠다(2026-09-28).
+    // "목록 화면이 행마다 📎 를 그릴 때 쓴다" 고 적혀 있었지만 누가기록 목록에 📎 표시는
+    // 없다. 그 표시를 만든다면 행마다 GetByLogAsync 를 부르지 말고 이런 일괄 조회를 되살릴 것.
 
     /// <summary>
     /// 저장된 첨부 전부. 폴더에 남은 고아 파일을 가려내려면 "DB 가 아는 이름"의
