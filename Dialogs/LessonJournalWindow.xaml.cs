@@ -207,6 +207,11 @@ public sealed partial class LessonJournalWindow : Window
 
     private async Task LoadNewAsync()
     {
+        // 새로 만든 편집기에는 문서·캐럿이 아직 서 있지 않아, 단원을 고를 때 넣는 첫 줄
+        // (InsertHtml)이 조용히 버려진다(실측). 빈 문서로 한 번 비워 캐럿을 세운다 —
+        // 예전 RichTextEditor 껍데기가 편집기를 만들 때 늘 하던 일이다.
+        Editor.Clear();
+
         DpDate.Date = new DateTimeOffset(_seed?.Date ?? DateTime.Today);
         SelectPeriod(_seed?.Period ?? 0);
 

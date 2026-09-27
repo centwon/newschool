@@ -29,6 +29,7 @@ public sealed partial class RichTextEditorWin : Window
     public RichTextEditorWin()
     {
         InitializeComponent();
+        richEditor.Clear();   // 새 편집기는 문서·캐럿이 아직 없다 — 비워서 세운다
         SetWindowSize(900, 700);
         Title = "편집기";
 

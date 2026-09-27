@@ -129,6 +129,10 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
         {
             // 새 글 작성 모드
             _isEditMode = false;
+
+            // 새로 만든 편집기에는 문서·캐럿이 아직 서 있지 않아 [명렬표 삽입] 의 InsertHtml 이
+            // 조용히 버려진다. 빈 문서로 한 번 비워 캐럿을 세운다.
+            ContentEditor.Clear();
             _post = new Post
             {
                 DateTime = DateTime.Now,
