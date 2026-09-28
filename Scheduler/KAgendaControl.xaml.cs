@@ -506,7 +506,8 @@ public sealed partial class KAgendaControl : UserControl
     {
         try
         {
-            var dialog = new UnifiedItemDialog(DateTime.Today) { XamlRoot = XamlRoot };
+            // 목록이 한 캘린더로 걸러져 있으면(고정·필터) 그 캘린더로 연다
+            var dialog = new UnifiedItemDialog(DateTime.Today, DefaultCalendarId) { XamlRoot = XamlRoot };
             var result = await MessageBox.ShowDialogAsync(dialog);
 
             // 반복 할 일은 대화상자가 여러 건을 저장하고 대표 1건만 돌려준다 — 다시 읽는다

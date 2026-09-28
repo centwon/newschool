@@ -46,10 +46,16 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     #region Constructors
 
     /// <summary>새 항목 (날짜만 지정)</summary>
-    public UnifiedItemDialog(DateTime date)
+    /// <param name="calendarId">
+    /// 처음 고를 캘린더. 0 이면 목록의 첫 캘린더. 캘린더를 고정한 목록(수업 홈·업무)은
+    /// 자기 캘린더를 넘겨야 한다 — 아니면 거기서 만든 항목이 다른 캘린더로 가 그 목록에 안 보인다.
+    /// </param>
+    public UnifiedItemDialog(DateTime date, int calendarId = 0)
     {
         _taskEvent = NewTaskEvent(date);
         _event = NewEvent(date);
+        _taskEvent.CalendarId = calendarId;
+        _event.CalendarId = calendarId;
         _isNew = true;
         InitializeComponent();
         Loaded += OnLoaded;
@@ -162,6 +168,19 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             CBoxCalendar.ItemsSource = _titles;
             var calIdx = _calendars.FindIndex(c => c.No == _event.CalendarId);
             CBoxCalendar.SelectedIndex = calIdx >= 0 ? calIdx : 0;
+
+            // ⚠ 콤보가 보여 주는 캘린더를 모델에도 넣는다.
+            //
+            // 여기는 _isInitialized 전이라 위 SelectedIndex 가 부른 SelectionChanged 가
+            // 그냥 돌아간다. 예전에는 그래서 새 항목이 화면엔 첫 캘린더("수업")를 보이면서
+            // CalendarId=0 으로 저장됐다 — 콤보를 직접 바꾸지 않으면 어느 캘린더에도 속하지
+            // 않아 구글에 올라가지 않았고, 캘린더를 고정한 목록(수업 홈·업무)에서는 저장하자마자
+            // 사라졌다. 실사용 DB 에 18건이 쌓여 있었다(2026-09-29).
+            if (_calendars.Count > 0)
+            {
+                _taskEvent.CalendarId = _calendars[CBoxTaskList.SelectedIndex].No;
+                _event.CalendarId     = _calendars[CBoxCalendar.SelectedIndex].No;
+            }
         }
         catch (Exception ex)
         {
