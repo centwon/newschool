@@ -182,20 +182,11 @@ public sealed partial class Kcalendar : Page
                     // 실행 파일 옆에 school.db 가 생기던 원인이다. 다른 호출처 6곳은 모두 DbPath 를 썼다.
                     using var scheduleService = new SchoolScheduleService(SchoolDatabase.DbPath);
 
-                    // 아직 한 번도 받은 적이 없으면 그 학년도를 통째로 받아 DB 에 넣는다.
+                    // 보는 달의 학년도가 DB 에 없으면 통째로 받아 넣는다(실행마다 학년도당 한 번 확인).
                     // 예전에는 이 화면이 42일치를 받아 그리기만 하고 저장하지 않아서, 달을 넘길
                     // 때마다 NEIS 를 다시 부르면서도 DB 에는 아무것도 남기지 않았다.
-                    if (!Settings.IsNeisEventDownloaded.Value)
-                    {
-                        Debug.WriteLine($"[Kcalendar] NEIS API에서 로드");
-                        var sync = await scheduleService.SyncSchoolYearFromNeisAsync(
-                            Settings.SchoolCode, Settings.ProvinceCode, DateTimeHelper.SchoolYearOf(_basedate));
-
-                        if (!sync.Success)
-                        {
-                            Debug.WriteLine($"[Kcalendar] 학사일정 다운로드 실패: {sync.Message}");
-                        }
-                    }
+                    await scheduleService.EnsureSchoolYearDownloadedAsync(
+                        Settings.SchoolCode, Settings.ProvinceCode, DateTimeHelper.SchoolYearOf(_basedate));
 
                     // ✅ DB에서 비동기로 로드
                     Debug.WriteLine($"[Kcalendar] DB에서 로드: {calendarStart:yyyy-MM-dd} + 42일");

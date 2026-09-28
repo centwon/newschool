@@ -323,7 +323,9 @@ public static class Settings
         }
     }
 
-    public static SettingProperty<bool> IsNeisEventDownloaded { get; private set; } = null!;
+    // IsNeisEventDownloaded 는 지웠다(2026-09-29) — 학교·학년도 구분 없는 켬/끔 하나라 한 번 켜지면
+    // 새 학년도·새 학교의 학사일정을 다시 받지 않았다. 이제 DB 에 그 학교·학년도의 NEIS 행이 있는지로
+    // 본다(SchoolScheduleService.EnsureSchoolYearDownloadedAsync). 쓰던 설정 DB 의 그 행은 읽는 곳 없이 남는다.
 
     // school period 설정
     /// <summary>요일별 교시 수 (월~금, "6,7,6,7,7" 형식). 파싱은 <see cref="Models.PeriodCounts.Parse"/>.</summary>
@@ -429,7 +431,6 @@ public static class Settings
         WorkTermNoticeDismissed = new SettingProperty<string>("WorkTermNoticeDismissed", "", s => s, s => s);
         TopMost = new SettingProperty<bool>("TopMost", false, bool.Parse, b => b.ToString().ToLower());
         UserName = new SettingProperty<string>("UserName", "", s => s, s => s);
-        IsNeisEventDownloaded = new SettingProperty<bool>("IsNeisEventDownloaded", false, bool.Parse, b => b.ToString().ToLower());
 
         PeriodsPerDay = new SettingProperty<string>("PeriodsPerDay", Models.PeriodCounts.Default.Serialize(), s => s, s => s);
         AssemblyTime = new SettingProperty<TimeSpan>("AssemblyTime", TimeSpan.FromMinutes(10), TimeSpan.Parse, ts => ts.ToString());
@@ -529,7 +530,6 @@ public static class Settings
         AutoBackup.Reload();
         LastBackupTime.Reload();
         UserName.Reload();
-        IsNeisEventDownloaded.Reload();
 
         PeriodsPerDay.Reload();
         AssemblyTime.Reload();

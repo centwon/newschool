@@ -327,8 +327,8 @@ public sealed class SchoolScheduleService : IDisposable
     /// <para>예전에는 화면마다 <see cref="DownloadFromNeisAsync"/> 를 직접 부른 뒤 받은 것을
     /// 그리기만 하고 저장하지 않은 채 <c>Settings.IsNeisEventDownloaded</c> 만 켰다. 그러면
     /// 그 다음부터는 "이미 받았다"는 판단으로 DB 를 읽는데 DB 는 비어 있어서, 학사일정이
-    /// 딱 한 번 보이고 영영 사라졌다. 받는 것과 저장하는 것과 깃발 세우는 것을 이 한 곳에
-    /// 묶어 그 어긋남을 없앤다.</para>
+    /// 딱 한 번 보이고 영영 사라졌다. 받는 것과 저장하는 것을 이 한 곳에 묶었고, 그 깃발도
+    /// 지금은 없다 — "받았는가" 는 DB 에 남은 행이 말한다(<see cref="EnsureSchoolYearDownloadedAsync"/>).</para>
     ///
     /// <para>중복은 <see cref="Repositories.SchoolScheduleRepository.CreateBulkAsync"/> 가
     /// (학교코드+날짜+행사명)으로 걸러내므로 여러 번 불러도 쌓이지 않는다.</para>
@@ -363,10 +363,38 @@ public sealed class SchoolScheduleService : IDisposable
         if (!saved.Success)
             return (false, saved.Message, schedules.Count, 0);
 
-        // 저장에 성공한 뒤에만 깃발을 세운다 — 깃발이 켜지면 이후 조회는 DB 만 본다.
-        Settings.IsNeisEventDownloaded.Set(true);
-
         return (true, $"{schedules.Count}개 중 {saved.Count}개 신규 저장", schedules.Count, saved.Count);
+    }
+
+    /// <summary>이번 실행에서 이미 확인한 (학교코드:학년도). 화면을 그릴 때마다 NEIS 를 부르지 않게 한다.</summary>
+    private static readonly HashSet<string> _checkedThisRun = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 그 학교·학년도의 학사일정이 DB 에 없으면 NEIS 에서 받아 넣는다. 화면(달력·오늘·학사일정 목록)이 부른다.
+    ///
+    /// <para>예전에는 "받은 적이 있는가" 를 학교·학년도 구분 없는 설정 하나(IsNeisEventDownloaded)로
+    /// 보았다. 한 번 켜지면 다시는 받지 않아서, <b>새 학년도(3월)가 되어도 학교를 바꿔도</b>
+    /// 달력·오늘 화면의 학사일정이 비었다 — 학사일정 관리의 [NEIS 동기화] 를 눌러야만 채워졌다
+    /// (실사용 설정은 2026-03-08 에 켜진 채였다). 이제 DB 에 그 학교·학년도의 NEIS 행이 있는지로 본다.</para>
+    ///
+    /// <para>확인은 실행마다 (학교·학년도)당 한 번이다. NEIS 에 아직 안 올라온 학년도(2월 등)는
+    /// 다음 실행에서 다시 물어 올라오는 대로 받는다. 실패해도 이번 실행에서는 다시 묻지 않는다
+    /// — 오프라인일 때 달력을 넘길 때마다 기다리게 하지 않도록.</para>
+    /// </summary>
+    public async Task EnsureSchoolYearDownloadedAsync(string schoolCode, string provinceCode, int year)
+    {
+        if (string.IsNullOrEmpty(schoolCode) || string.IsNullOrEmpty(provinceCode) || year <= 0) return;
+
+        lock (_checkedThisRun)
+        {
+            if (!_checkedThisRun.Add($"{schoolCode}:{year}")) return;
+        }
+
+        if (await Repository.HasNeisScheduleAsync(schoolCode, year)) return;
+
+        var sync = await SyncSchoolYearFromNeisAsync(schoolCode, provinceCode, year);
+        if (!sync.Success)
+            Log.Warning("SchoolScheduleService", $"{year}학년도 학사일정을 NEIS 에서 받지 못했다: {sync.Message}");
     }
 
     #endregion

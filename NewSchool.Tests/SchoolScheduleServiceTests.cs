@@ -109,4 +109,39 @@ public class SchoolScheduleServiceTests : IClassFixture<SqliteTestFixture>
         Assert.Single(list);
         Assert.Equal("30년행사", list[0].EVENT_NM);
     }
+
+    /// <summary>
+    /// 자동 받기는 "그 학교·학년도의 NEIS 행이 있는가" 로 판단한다(예전 켬/끔 설정은 한 번 켜지면
+    /// 새 학년도를 영영 안 받았다). 손으로 넣은 행은 받은 흔적이 아니고, 지운 NEIS 행(묘비)은 흔적이다.
+    /// </summary>
+    [Fact]
+    public async Task NEIS_받음_판정은_수동행을_세지_않고_지운_NEIS행은_센다()
+    {
+        using var svc = new SchoolScheduleService(_db.DbPath);
+        using var repo = new NewSchool.Repositories.SchoolScheduleRepository(_db.DbPath);
+
+        // 2031: 수동 행만 있으면 아직 안 받은 것
+        await svc.CreateBulkScheduleAsync(new()
+        {
+            TestData.NewSchedule(new DateTime(2031, 4, 1), "수동만", year: 2031, isManual: true),
+        });
+        Assert.False(await repo.HasNeisScheduleAsync(TestData.SchoolCode, 2031));
+
+        await svc.CreateBulkScheduleAsync(new()
+        {
+            TestData.NewSchedule(new DateTime(2031, 4, 2), "NEIS행", year: 2031, isManual: false),
+        });
+        Assert.True(await repo.HasNeisScheduleAsync(TestData.SchoolCode, 2031));
+
+        // 2032: NEIS 행을 지워도 받은 것으로 본다 — 다시 받으면 지운 게 되살아난다
+        await svc.CreateBulkScheduleAsync(new()
+        {
+            TestData.NewSchedule(new DateTime(2032, 5, 1), "지울NEIS", year: 2032, isManual: false),
+        });
+        var (_, _, rows) = await svc.GetSchedulesBySchoolYearAsync(TestData.SchoolCode, 2032);
+        await svc.DeleteBulkScheduleAsync(new List<int> { rows[0].No });
+
+        Assert.True(await repo.HasNeisScheduleAsync(TestData.SchoolCode, 2032));
+        Assert.False(await repo.HasNeisScheduleAsync(TestData.SchoolCode, 2033));
+    }
 }

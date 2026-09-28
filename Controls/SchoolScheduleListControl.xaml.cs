@@ -38,18 +38,11 @@ public sealed partial class SchoolScheduleListControl : UserControl
             using var service = new SchoolScheduleService(SchoolDatabase.DbPath);
             List<SchoolSchedule>? schedules = null;
 
-            // 받아 오라는 부탁을 받았고 아직 한 번도 받은 적이 없으면, 학년도 전체를 받아
-            // DB 에 넣는다. 예전에는 받은 것을 그리기만 하고 저장하지 않은 채 깃발만 켜서,
-            // 그 다음부터는 빈 DB 를 읽어 학사일정이 사라졌다.
-            if (includeDownload && !Settings.IsNeisEventDownloaded.Value)
+            // 받아 오라는 부탁을 받았고 그 학년도가 DB 에 없으면, 학년도 전체를 받아 넣는다.
+            if (includeDownload)
             {
-                var sync = await service.SyncSchoolYearFromNeisAsync(
+                await service.EnsureSchoolYearDownloadedAsync(
                     Settings.SchoolCode, Settings.ProvinceCode, DateTimeHelper.SchoolYearOf(startDate));
-
-                if (!sync.Success)
-                {
-                    Debug.WriteLine($"[SchoolScheduleListControl] 학사일정 다운로드 실패: {sync.Message}");
-                }
             }
 
             // DB에서 조회

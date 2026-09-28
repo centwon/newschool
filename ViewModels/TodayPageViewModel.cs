@@ -126,19 +126,11 @@ public class TodayPageViewModel : NotifyPropertyChangedBase
             
             List<SchoolSchedule>? schedules = null;
 
-            // 아직 한 번도 받은 적이 없으면 학년도 전체를 받아 DB 에 넣는다.
+            // 올해 학년도가 DB 에 없으면 학년도 전체를 받아 넣는다(실행마다 한 번 확인).
             // 예전에는 여기서 30일치만 받아 화면에 그리고 저장은 하지 않은 채 깃발만 켰다 —
             // 그러면 다음 실행부터는 "이미 받았다"며 빈 DB 를 읽어 학사일정이 사라졌다.
-            if (!Settings.IsNeisEventDownloaded.Value)
-            {
-                var sync = await schoolScheduleService.SyncSchoolYearFromNeisAsync(
-                    Settings.SchoolCode, Settings.ProvinceCode, DateTimeHelper.SchoolYearOf(DateTime.Today));
-
-                if (!sync.Success)
-                {
-                    Debug.WriteLine($"[TodayPageViewModel] 학사일정 다운로드 실패: {sync.Message}");
-                }
-            }
+            await schoolScheduleService.EnsureSchoolYearDownloadedAsync(
+                Settings.SchoolCode, Settings.ProvinceCode, DateTimeHelper.SchoolYearOf(DateTime.Today));
 
             var (Success, Message, Schedules) = await schoolScheduleService.GetSchedulesByDataRangeAsync(
                 Settings.SchoolCode, DateTime.Today, DateTime.Today.AddDays(29)); // +1일로 수정

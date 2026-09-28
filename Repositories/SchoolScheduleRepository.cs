@@ -209,6 +209,29 @@ public class SchoolScheduleRepository : BaseRepository
     }
 
     /// <summary>
+    /// 그 학교·학년도의 학사일정을 NEIS 에서 받은 적이 있는가 — NEIS 행(IsManual=0)이 하나라도 있으면.
+    /// 지운 행(IsDeleted=1)도 센다: 묘비도 "받았다" 는 흔적이고, 다 지웠다고 다시 받으면 안 된다.
+    /// </summary>
+    public async Task<bool> HasNeisScheduleAsync(string schoolCode, int schoolyear)
+    {
+        const string query = @"
+                SELECT EXISTS(SELECT 1 FROM SchoolSchedule
+                              WHERE SD_SCHUL_CODE = @SchoolCode AND AY = @Year AND IsManual = 0)";
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@SchoolCode", schoolCode);
+            cmd.Parameters.AddWithValue("@Year", schoolyear);
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync()) == 1;
+        }
+        catch (Exception ex)
+        {
+            LogError($"NEIS 학사일정 유무 조회 실패: 학교 {schoolCode}, 학년도 {schoolyear}", ex);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// 학교코드로 학사일정 조회
     /// </summary>
     public async Task<List<SchoolSchedule>> GetBySchoolYearAsync(string schoolCode, int schoolyear)
