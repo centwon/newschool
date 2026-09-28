@@ -141,6 +141,48 @@ public sealed class SchedulerService : IDisposable
         => await KEventRepo.UpdateAsync(ev);
 
     /// <summary>
+    /// 구글에 올라간 항목을 다른 캘린더로 옮겨 저장한다.
+    ///
+    /// <para>구글 이벤트 ID 는 캘린더 안에서만 통한다. 캘린더만 바꿔 그대로 쓰면 옛 캘린더의
+    /// ID 로 새 캘린더에 수정(PATCH)을 보내 404 가 나고, 동기화가 실패로 끝나 마지막 동기화
+    /// 시각이 멈춘 채 15분마다 되풀이됐다. 옛 구글 일정은 옛 캘린더에 그대로 남았다.</para>
+    ///
+    /// <para>그래서 기존 동기화 흐름에 맡긴다: 옛 캘린더에 옛 ID 를 든 cancelled 행을 남기면
+    /// 다음 동기화의 삭제 단계가 구글에서 지우고 행을 정리한다. 옮긴 항목은 GoogleId 를 비워
+    /// 새 캘린더의 미동기화 항목으로 올라간다. 두 쓰기는 한 트랜잭션이다.</para>
+    /// </summary>
+    /// <returns>항목이 갱신됐으면 true(없는 항목이면 false, 아무것도 안 남김).</returns>
+    public async Task<bool> UpdateMovingCalendarAsync(KEvent ev, int oldCalendarId)
+    {
+        var tombstone = ev.Copy();
+        tombstone.No = -1;
+        tombstone.CalendarId = oldCalendarId;
+        tombstone.Status = "cancelled";
+
+        using var uow = new UnitOfWork(_dbPath);
+        try
+        {
+            await uow.ExecuteInTransactionAsync(async () =>
+            {
+                await uow.KEvents.CreateAsync(tombstone);
+                ev.GoogleId = string.Empty;
+                if (!await uow.KEvents.UpdateAsync(ev))
+                    throw new ItemGoneException();   // 되돌린다 — 지울 것만 남기지 않도록
+            });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // DB 는 되돌려졌다 — 메모리의 항목도 되돌려 다시 저장할 때 같은 길을 타게 한다
+            ev.GoogleId = tombstone.GoogleId;
+            if (ex is ItemGoneException) return false;
+            throw;
+        }
+    }
+
+    private sealed class ItemGoneException : Exception;
+
+    /// <summary>
     /// 구글 업로드 직후 식별자만 되써 넣는다 — 배경 업로드 도중 사용자가 같은 항목을
     /// 수정했을 때 전체 행을 덮어써 그 편집을 지우는 일이 없도록 두 열만 갱신한다.
     /// </summary>

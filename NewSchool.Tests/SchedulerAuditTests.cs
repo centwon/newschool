@@ -276,6 +276,75 @@ public class SchedulerAuditTests : IClassFixture<SchedulerTestFixture>
         Assert.DoesNotContain("AddHours(9)", newEvent.Value);
     }
 
+    // ── 2026-09-29 scheduler 감사 ─────────────────────────────────────
+
+    /// <summary>
+    /// 구글에 올라간 항목의 캘린더를 바꾸면: 옛 캘린더에 옛 구글 ID 를 든 cancelled 행이 남아
+    /// 다음 동기화가 구글에서 지우고, 옮긴 항목은 GoogleId 가 비어 새 캘린더에 새로 올라간다.
+    /// 예전에는 옛 ID 로 새 캘린더에 수정을 보내 404 가 15분마다 되풀이됐다.
+    /// </summary>
+    [Fact]
+    public async Task 동기화된_항목의_캘린더를_바꾸면_옛_캘린더에서_지울_표시가_남는다()
+    {
+        using var svc = new SchedulerService(_db.DbPath);
+        var ev = NewTask("옮길 할 일", DateTime.Today.AddHours(9), calendarId: 1);
+        ev.GoogleId = "g_move_" + Guid.NewGuid().ToString("N");
+        ev.No = await svc.CreateTaskAsync(ev);
+        string oldGoogleId = ev.GoogleId;
+
+        ev.CalendarId = 3;
+        Assert.True(await svc.UpdateMovingCalendarAsync(ev, oldCalendarId: 1));
+
+        var deletedInOld = await svc.GetDeletedEventsWithGoogleIdAsync(1);
+        Assert.Contains(deletedInOld, e => e.GoogleId == oldGoogleId && e.No != ev.No);
+
+        var unsyncedInNew = await svc.GetUnsyncedEventsAsync(3);
+        Assert.Contains(unsyncedInNew, e => e.No == ev.No);
+        Assert.Equal(string.Empty, ev.GoogleId);
+    }
+
+    [Fact]
+    public async Task 없는_항목을_옮기면_false_이고_지울_표시도_남기지_않는다()
+    {
+        using var svc = new SchedulerService(_db.DbPath);
+        var ghost = NewTask("이미 지워진 항목", DateTime.Today.AddHours(9), calendarId: 3);
+        ghost.No = 999998;
+        ghost.GoogleId = "g_ghost_" + Guid.NewGuid().ToString("N");
+
+        Assert.False(await svc.UpdateMovingCalendarAsync(ghost, oldCalendarId: 1));
+
+        Assert.DoesNotContain(await svc.GetDeletedEventsWithGoogleIdAsync(1), e => e.GoogleId == ghost.GoogleId);
+        Assert.StartsWith("g_ghost_", ghost.GoogleId);   // 메모리 값도 되돌린다
+    }
+
+    /// <summary>지운(cancelled) 항목은 수정 올리기 대상이 아니다 — 삭제 단계가 따로 보낸다.</summary>
+    [Fact]
+    public async Task 지운_항목은_수정_올리기_목록에_없다()
+    {
+        using var svc = new SchedulerService(_db.DbPath);
+        var ev = NewTask("구글에서 지운 일정", DateTime.Today.AddHours(9), calendarId: 4);
+        ev.GoogleId = "g_cancel_" + Guid.NewGuid().ToString("N");
+        ev.No = await svc.CreateTaskAsync(ev);
+        ev.Status = "cancelled";
+        Assert.True(await svc.UpdateEventAsync(ev));
+
+        var modified = await svc.GetModifiedEventsSinceAsync(4, "0001-01-01T00:00:00.000Z");
+        Assert.DoesNotContain(modified, e => e.No == ev.No);
+        Assert.Contains(await svc.GetDeletedEventsWithGoogleIdAsync(4), e => e.No == ev.No);
+    }
+
+    /// <summary>
+    /// orderBy 가 붙으면 구글이 nextSyncToken 을 주지 않는다 — 실사용 DB 의 캘린더 다섯 개 모두
+    /// SyncToken 이 비어 있었고, 토큰 없는 목록은 지운 일정도 주지 않아 폰에서 지운 일정이 앱에 남았다.
+    /// </summary>
+    [Fact]
+    public void 일정_목록_요청은_orderBy_없이_지운_것까지_받는다()
+    {
+        var source = StripComments(ReadSource("Google/GoogleCalendarApiClient.cs"));
+        Assert.DoesNotContain("orderBy=", source);
+        Assert.Contains("showDeleted=true", source);
+    }
+
     /// <summary>
     /// 주석을 걷어낸다. 위 검사들은 "이 코드가 되살아났는가" 를 보는 것이라,
     /// 지운 이유를 적어 둔 주석이 스스로 걸리면 안 된다.

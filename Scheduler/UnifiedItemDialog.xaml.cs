@@ -47,6 +47,9 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     /// </summary>
     private readonly DateTime _savedStart;
 
+    /// <summary>연 항목의 DB 에 있는 캘린더. 저장할 때 바뀌었으면 구글 쪽도 옮겨야 한다(<see cref="UpdateAsync"/>).</summary>
+    private readonly int _savedCalendarId;
+
     #endregion
 
     #region Constructors
@@ -77,8 +80,9 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         // 바꾸고 [취소] 한 뒤 칸의 완료 체크박스를 누르면 취소한 날짜까지 저장됐다(체크박스가
         // 그 객체 통째로 UpdateTaskAsync 를 부른다). 다시 열어도 취소한 값이 보였다.
         // 부르는 쪽은 저장·삭제 뒤 DB 에서 다시 읽으므로 원본에 되써 줄 필요는 없다.
-        ev = CopyOf(ev);
+        ev = ev.Copy();
         _savedStart = ev.Start;
+        _savedCalendarId = ev.CalendarId;
 
         if (ev.ItemType == "task")
         {
@@ -671,7 +675,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
             }
             // 반영 여부를 확인한다. 예전에는 결과를 버려서, 이미 지워진 할 일을 편집하면
             // 0행이 갱신됐는데도 저장된 척 창이 닫혔다(고친 내용이 그대로 사라졌다).
-            else if (!await service.UpdateTaskAsync(_taskEvent))
+            else if (!await UpdateAsync(service, _taskEvent))
             {
                 ShowError("저장되지 않았습니다. 이미 지워진 할 일일 수 있습니다.");
                 throw new ValidationAbort();
@@ -725,13 +729,24 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         {
             _event.No = await service.CreateEventAsync(_event);
         }
-        else if (!await service.UpdateEventAsync(_event))   // 0행 갱신을 저장 성공으로 보지 않는다
+        else if (!await UpdateAsync(service, _event))   // 0행 갱신을 저장 성공으로 보지 않는다
         {
             ShowError("저장되지 않았습니다. 이미 지워진 일정일 수 있습니다.");
             throw new ValidationAbort();
         }
 
         ResultEvent = _event;
+    }
+
+    /// <summary>
+    /// 기존 항목 갱신. 구글에 올라간 항목의 캘린더를 바꿨으면 옮김으로 처리한다 —
+    /// 그대로 쓰면 옛 캘린더의 구글 ID 로 새 캘린더에 수정을 보내 404 가 15분마다 되풀이됐다.
+    /// </summary>
+    private async Task<bool> UpdateAsync(SchedulerService service, KEvent ev)
+    {
+        if (!string.IsNullOrEmpty(ev.GoogleId) && ev.CalendarId != _savedCalendarId)
+            return await service.UpdateMovingCalendarAsync(ev, _savedCalendarId);
+        return await service.UpdateEventAsync(ev);
     }
 
     #endregion
@@ -790,21 +805,6 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         Updated = src.Updated, Completed = src.Completed,
         SeriesId = src.SeriesId,
         Status = "confirmed"
-    };
-
-    /// <summary>
-    /// 편집용 사본 — DB 열 전부를 옮긴다. <c>MemberwiseClone</c> 은 쓰지 않는다:
-    /// <c>PropertyChanged</c> 구독까지 따라와 사본을 고치면 원본에 묶인 화면이 바뀐다.
-    /// </summary>
-    private static KEvent CopyOf(KEvent src) => new()
-    {
-        No = src.No, GoogleId = src.GoogleId, CalendarId = src.CalendarId,
-        Title = src.Title, Notes = src.Notes,
-        Start = src.Start, End = src.End, IsAllday = src.IsAllday,
-        Location = src.Location, Status = src.Status, ColorId = src.ColorId,
-        Recurrence = src.Recurrence, Updated = src.Updated, User = src.User,
-        ItemType = src.ItemType, IsDone = src.IsDone, Completed = src.Completed,
-        SeriesId = src.SeriesId, CalendarColor = src.CalendarColor
     };
 
     #endregion

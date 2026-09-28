@@ -184,6 +184,21 @@ public partial class KEvent : INotifyPropertyChanged
 
     #endregion
 
+    /// <summary>
+    /// DB 열 전부를 옮긴 새 객체. <c>MemberwiseClone</c> 은 쓰지 않는다 —
+    /// <c>PropertyChanged</c> 구독까지 따라와 사본을 고치면 원본에 묶인 화면이 바뀐다.
+    /// </summary>
+    public KEvent Copy() => new()
+    {
+        No = No, GoogleId = GoogleId, CalendarId = CalendarId,
+        Title = Title, Notes = Notes,
+        Start = Start, End = End, IsAllday = IsAllday,
+        Location = Location, Status = Status, ColorId = ColorId,
+        Recurrence = Recurrence, Updated = Updated, User = User,
+        ItemType = ItemType, IsDone = IsDone, Completed = Completed,
+        SeriesId = SeriesId, CalendarColor = CalendarColor
+    };
+
     #region Static Helpers
 
     /// <summary>

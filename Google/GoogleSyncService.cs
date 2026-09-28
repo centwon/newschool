@@ -389,9 +389,11 @@ public sealed class GoogleSyncService : IDisposable
                 var created = await _apiClient.InsertEventAsync(calendar.GoogleId, gEvent);
                 if (created?.Id != null)
                 {
+                    // 두 열만 되써 넣는다 — 행 전체를 쓰면 올리는 사이 사용자가 고친 내용이
+                    // 읽어 둔 옛 값으로 덮여 사라진다(대화상자의 즉시 올리기는 이미 이렇게 한다).
                     localEvent.GoogleId = created.Id;
                     localEvent.Updated = created.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-                    await service.UpdateEventAsync(localEvent);
+                    await service.UpdateGoogleSyncFieldsAsync(localEvent.No, localEvent.GoogleId, localEvent.Updated);
                     result.Created++;
                 }
             }
@@ -424,8 +426,9 @@ public sealed class GoogleSyncService : IDisposable
                     var updated = await _apiClient.UpdateEventAsync(calendar.GoogleId, localEvent.GoogleId, gEvent);
                     if (updated != null)
                     {
+                        // Insert 와 같은 이유로 두 열만
                         localEvent.Updated = updated.Updated ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-                        await service.UpdateEventAsync(localEvent);
+                        await service.UpdateGoogleSyncFieldsAsync(localEvent.No, localEvent.GoogleId, localEvent.Updated);
                         result.Updated++;
                     }
                 }
@@ -584,8 +587,19 @@ public sealed class GoogleSyncService : IDisposable
         {
             local.Start = DateTime.Parse(google.Start!.Date!, null, System.Globalization.DateTimeStyles.RoundtripKind);
             // Google Calendar의 종일 이벤트 End는 exclusive(배타적)이므로
-            // inclusive(포함)로 변환: 1일 빼기
-            local.End = DateTime.Parse(google.End!.Date!, null, System.Globalization.DateTimeStyles.RoundtripKind).AddDays(-1);
+            // inclusive(포함)로 변환: 1일 빼기.
+            // 새 일정 쪽(GoogleEventToLocal)과 같은 가드 — 예전에는 여기만 End 를 null 허용 무시(!)로
+            // 받아, 값이 비면 NullReference 로 그 일정의 갱신이 실패했다. 없으면 하루짜리로 본다.
+            if (DateTime.TryParse(google.End?.Date, null,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var exclusiveEnd))
+            {
+                local.End = exclusiveEnd.AddDays(-1);
+                if (local.End < local.Start) local.End = local.Start;
+            }
+            else
+            {
+                local.End = local.Start;
+            }
         }
         else
         {
