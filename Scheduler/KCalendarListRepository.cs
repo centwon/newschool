@@ -271,22 +271,8 @@ public class KCalendarListRepository : BaseRepository
         return string.Empty;
     }
 
-    public async Task<KCalendarList?> GetByGoogleIdAsync(string googleId)
-    {
-        const string query = "SELECT * FROM KCalendarList WHERE GoogleId = @GoogleId LIMIT 1";
-        try
-        {
-            using var cmd = CreateCommand(query);
-            cmd.Parameters.AddWithValue("@GoogleId", googleId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await reader.ReadAsync() ? Map(reader) : null;
-        }
-        catch (Exception ex)
-        {
-            LogError($"KCalendarList GoogleId 조회 실패: '{googleId}'", ex);
-            throw;
-        }
-    }
+    // GoogleId 로 한 행을 찾던 GetByGoogleIdAsync 는 지웠다(2026-09-29) — 같은 구글 캘린더를
+    // 여러 행이 나눠 쓰므로 LIMIT 1 이 엉뚱한 행을 골랐다(SchedulerService 주석 참고).
 
     public async Task<List<KCalendarList>> GetSyncableAsync()
     {

@@ -217,8 +217,9 @@ public sealed class SchedulerService : IDisposable
     public async Task<bool> UpdateCalendarAsync(KCalendarList cal)
         => await KCalendarListRepo.UpdateAsync(cal);
 
-    public async Task<KCalendarList?> GetCalendarByGoogleIdAsync(string googleId)
-        => await KCalendarListRepo.GetByGoogleIdAsync(googleId);
+    // 구글 ID 로 캘린더 한 개를 찾던 GetCalendarByGoogleIdAsync 는 지웠다(2026-09-29).
+    // 수업·학급·업무가 같은 구글 캘린더를 나눠 써서 ID 로는 한 행을 가릴 수 없다 —
+    // 유일한 호출처(캘린더 설정 저장)가 그 때문에 엉뚱한 행을 바꿨다. 앱 번호(No)로 찾을 것.
 
     public async Task<List<KCalendarList>> GetSyncableCalendarsAsync()
         => await KCalendarListRepo.GetSyncableAsync();

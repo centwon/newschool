@@ -290,10 +290,15 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
             int attempted = 0;
             int saved = 0;
 
+            // ⚠ 줄마다 앱 캘린더 번호(CalendarNo)로 찾는다 — 구글 ID 로 찾으면 안 된다.
+            // 수업·학급·업무는 연동할 때 같은 학교 구글 캘린더에 묶이므로(FetchAndSaveGoogleCalendarsAsync)
+            // 구글 ID 가 겹친다. 예전에는 GetCalendarByGoogleIdAsync(LIMIT 1)로 찾아서, 어느 줄을
+            // 켜고 꺼도 첫 번째(수업) 행만 바뀌었다 — 업무를 끄면 수업이 꺼지고 업무는 그대로였다.
+            var byNo = (await service.GetAllCalendarsAsync()).ToDictionary(c => c.No);
+
             foreach (var item in items)
             {
-                var cal = await service.GetCalendarByGoogleIdAsync(item.GoogleId);
-                if (cal != null)
+                if (byNo.TryGetValue(item.CalendarNo, out var cal))
                 {
                     string newMode = item.IsChecked ? "TwoWay" : "None";
                     if (cal.SyncMode != newMode)
