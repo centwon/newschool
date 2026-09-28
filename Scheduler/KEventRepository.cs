@@ -374,12 +374,17 @@ public class KEventRepository : BaseRepository
         }
     }
 
-    /// <summary>특정 시각 이후 수정된 이벤트 조회 (push 용)</summary>
+    /// <summary>
+    /// 특정 시각 이후 수정된 이벤트 조회 (push 용).
+    /// 지운 것(cancelled)은 뺀다 — 그건 <see cref="GetDeletedWithGoogleIdAsync"/> 가 삭제로 보낸다.
+    /// 여기 섞이면 구글에서 지워져 Pull 이 cancelled 로 적은 항목에 수정(PATCH)부터 보냈다.
+    /// </summary>
     public async Task<List<KEvent>> GetModifiedSinceAsync(int calendarId, string sinceUtc)
     {
         const string query = @"
             SELECT * FROM KEvent
             WHERE CalendarId = @CalendarId AND GoogleId <> '' AND Updated > @Since
+              AND Status <> 'cancelled'
             ORDER BY Updated ASC";
         var list = new List<KEvent>();
         try

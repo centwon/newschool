@@ -104,8 +104,15 @@ public class GoogleCalendarApiClient
         }
         else
         {
-            // 전체 동기화일 때만 정렬 지정 가능
-            sb.Append("&orderBy=startTime");
+            // ⚠ orderBy 를 붙이지 않는다. 붙이면 구글이 nextSyncToken 을 주지 않는다 — 예전에는
+            // orderBy=startTime 을 붙여서 실사용 DB 의 캘린더 다섯 개 모두 SyncToken 이 한 번도
+            // 저장되지 않았고(2026-09-29 확인), 15분마다 1년치를 통째로 다시 읽었다. 순서는 쓰지
+            // 않는다(항목마다 GoogleId 로 맞춰 넣는다).
+            //
+            // showDeleted=true: 토큰 없는 전체 동기화는 이것이 없으면 지운 일정을 돌려주지 않는다.
+            // 그래서 폰·웹에서 지운 일정이 앱에는 영영 남았다. 받은 cancelled 는 Pull 이 로컬에서
+            // 지운다(로컬에 없으면 건너뛴다). 증분(syncToken) 요청은 원래 지운 것도 준다.
+            sb.Append("&showDeleted=true");
             if (timeMin.HasValue)
                 sb.Append($"&timeMin={Uri.EscapeDataString(timeMin.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"))}");
             if (timeMax.HasValue)
@@ -117,6 +124,18 @@ public class GoogleCalendarApiClient
 
         var request = await CreateAuthRequestAsync(HttpMethod.Get, sb.ToString());
         var response = await SendWithRetryAsync(request);
+
+        // SendWithRetryAsync 는 410 을 던지지 않고 돌려준다(삭제에서는 410 = 이미 지워짐 = 성공).
+        // 목록에서는 syncToken 만료라 던져야 한다 — 예전에는 오류 본문을 빈 목록으로 읽어서
+        // 부르는 쪽의 "만료 → 전체 동기화" catch 에 닿지 않았고, 만료된 토큰을 그대로 들고
+        // 매번 빈 결과를 받아 구글→앱 가져오기가 조용히 영영 멈출 자리였다.
+        if (response.StatusCode == HttpStatusCode.Gone)
+        {
+            response.Dispose();
+            throw new HttpRequestException(
+                "동기화 토큰이 만료되었습니다(410).", null, HttpStatusCode.Gone);
+        }
+
         var json = await response.Content.ReadAsStringAsync();
 
         var result = JsonSerializer.Deserialize(json, GoogleCalendarJsonContext.Default.GoogleEventsListResponse);
