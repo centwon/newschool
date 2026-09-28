@@ -41,6 +41,12 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     /// </summary>
     private readonly List<KEvent> _savedTasks = [];
 
+    /// <summary>
+    /// 연 항목의 DB 에 있는 시작일. "이후 반복 항목 모두 삭제" 의 기준은 이것이다 —
+    /// 날짜 칸을 고친 채 [삭제] 를 누르면 <c>_taskEvent.Start</c> 는 고친 날짜라 범위가 어긋난다.
+    /// </summary>
+    private readonly DateTime _savedStart;
+
     #endregion
 
     #region Constructors
@@ -64,6 +70,16 @@ public sealed partial class UnifiedItemDialog : ContentDialog
     /// <summary>기존 KEvent 수정 (task 또는 event 자동 판별)</summary>
     public UnifiedItemDialog(KEvent ev)
     {
+        // ⚠ 받은 객체를 고치지 않고 사본으로 편집한다.
+        //
+        // 받은 것은 달력 칸·목록이 들고 있는 바로 그 항목이고, 날짜·시각·종일·캘린더·색은
+        // 저장 전에도 입력하는 즉시 모델에 들어간다. 예전에는 원본을 그대로 고쳐서, 날짜를
+        // 바꾸고 [취소] 한 뒤 칸의 완료 체크박스를 누르면 취소한 날짜까지 저장됐다(체크박스가
+        // 그 객체 통째로 UpdateTaskAsync 를 부른다). 다시 열어도 취소한 값이 보였다.
+        // 부르는 쪽은 저장·삭제 뒤 DB 에서 다시 읽으므로 원본에 되써 줄 필요는 없다.
+        ev = CopyOf(ev);
+        _savedStart = ev.Start;
+
         if (ev.ItemType == "task")
         {
             _taskEvent = ev;
@@ -577,7 +593,7 @@ public sealed partial class UnifiedItemDialog : ContentDialog
                 // 창을 그대로 닫아서, 지워지지 않았는데 지운 것처럼 보였다
                 // (호출부가 목록을 다시 읽으면 항목이 되살아났다).
                 bool deleted = deleteSeries
-                    ? await service.DeleteSeriesFromAsync(_taskEvent.SeriesId, _taskEvent.Start.Date) > 0
+                    ? await service.DeleteSeriesFromAsync(_taskEvent.SeriesId, _savedStart.Date) > 0
                     : await service.DeleteEventAsync(_isTaskMode ? _taskEvent.No : _event.No);
 
                 if (!deleted)
@@ -774,6 +790,21 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         Updated = src.Updated, Completed = src.Completed,
         SeriesId = src.SeriesId,
         Status = "confirmed"
+    };
+
+    /// <summary>
+    /// 편집용 사본 — DB 열 전부를 옮긴다. <c>MemberwiseClone</c> 은 쓰지 않는다:
+    /// <c>PropertyChanged</c> 구독까지 따라와 사본을 고치면 원본에 묶인 화면이 바뀐다.
+    /// </summary>
+    private static KEvent CopyOf(KEvent src) => new()
+    {
+        No = src.No, GoogleId = src.GoogleId, CalendarId = src.CalendarId,
+        Title = src.Title, Notes = src.Notes,
+        Start = src.Start, End = src.End, IsAllday = src.IsAllday,
+        Location = src.Location, Status = src.Status, ColorId = src.ColorId,
+        Recurrence = src.Recurrence, Updated = src.Updated, User = src.User,
+        ItemType = src.ItemType, IsDone = src.IsDone, Completed = src.Completed,
+        SeriesId = src.SeriesId, CalendarColor = src.CalendarColor
     };
 
     #endregion
