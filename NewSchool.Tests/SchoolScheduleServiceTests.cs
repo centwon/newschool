@@ -144,4 +144,36 @@ public class SchoolScheduleServiceTests : IClassFixture<SqliteTestFixture>
         Assert.True(await repo.HasNeisScheduleAsync(TestData.SchoolCode, 2032));
         Assert.False(await repo.HasNeisScheduleAsync(TestData.SchoolCode, 2033));
     }
+
+    /// <summary>
+    /// NEIS 행의 이름을 고쳐 저장하면 원래 이름의 묘비가 남아, 다음 NEIS 받기가 원래 이름으로
+    /// 한 줄 더 만들지 않는다. 묘비는 목록에 보이지 않는다.
+    /// </summary>
+    [Fact]
+    public async Task 이름을_고친_NEIS_일정은_다시_받아도_원래_이름으로_늘지_않는다()
+    {
+        using var svc = new SchoolScheduleService(_db.DbPath);
+        var date = new DateTime(2034, 6, 1);
+        await svc.CreateBulkScheduleAsync(new()
+        {
+            TestData.NewSchedule(date, "원래이름", year: 2034, isManual: false),
+        });
+
+        var (_, _, rows) = await svc.GetSchedulesBySchoolYearAsync(TestData.SchoolCode, 2034);
+        var row = rows[0];
+        row.EVENT_NM = "고친이름";
+        Assert.True((await svc.UpdateScheduleAsync(row)).Success);
+        Assert.True((await svc.KeepNeisOriginalNameAsync(row, "원래이름")).Success);
+
+        // 다시 받기: 원래 이름은 건너뛴다
+        var (_, _, added) = await svc.CreateBulkScheduleAsync(new()
+        {
+            TestData.NewSchedule(date, "원래이름", year: 2034, isManual: false),
+        });
+        Assert.Equal(0, added);
+
+        var (_, _, after) = await svc.GetSchedulesBySchoolYearAsync(TestData.SchoolCode, 2034);
+        Assert.Single(after);
+        Assert.Equal("고친이름", after[0].EVENT_NM);
+    }
 }

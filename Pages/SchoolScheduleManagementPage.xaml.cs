@@ -433,6 +433,14 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable, IU
                 {
                     // 업데이트
                     ok = (await _scheduleservice.UpdateScheduleAsync(schedule)).Success;
+
+                    // NEIS 행의 이름을 바꿨으면 원래 이름을 묘비로 남긴다 — 안 그러면 다음 NEIS
+                    // 받기 때 원래 이름의 일정이 한 줄 더 생긴다(중복 판정이 학교+날짜+행사명).
+                    if (ok && !schedule.IsManual
+                        && !string.Equals(schedule.EVENT_NM, viewModel.OriginalEventName, StringComparison.Ordinal))
+                    {
+                        await _scheduleservice.KeepNeisOriginalNameAsync(schedule, viewModel.OriginalEventName);
+                    }
                 }
 
                 viewModel.IsSelected = false; // 체크 해제

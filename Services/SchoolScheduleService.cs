@@ -86,6 +86,44 @@ public sealed class SchoolScheduleService : IDisposable
         }
     }
     /// <summary>
+    /// NEIS 에서 받은 행의 행사명을 바꿔 저장한 뒤 부른다 — <b>원래 이름의 묘비</b>(IsDeleted=1)를 남긴다.
+    ///
+    /// <para>NEIS 받기의 중복 판정은 (학교+날짜+행사명)이라, 이름을 고친 행은 "없는 것" 으로 보여
+    /// 다음 받기 때 원래 이름의 일정이 한 줄 더 생겼다. 지운 행을 되살리지 않는 묘비와 같은 방식이다.
+    /// 이미 그 키가 있으면(되돌렸다 다시 고친 경우 등) 아무것도 안 한다.</para>
+    /// </summary>
+    public async Task<(bool Success, string Message)> KeepNeisOriginalNameAsync(SchoolSchedule renamed, string originalName)
+    {
+        try
+        {
+            var tombstone = new SchoolSchedule
+            {
+                SCHUL_NM = renamed.SCHUL_NM,
+                ATPT_OFCDC_SC_CODE = renamed.ATPT_OFCDC_SC_CODE,
+                ATPT_OFCDC_SC_NM = renamed.ATPT_OFCDC_SC_NM,
+                SD_SCHUL_CODE = renamed.SD_SCHUL_CODE,
+                AY = renamed.AY,
+                AA_YMD = renamed.AA_YMD,
+                EVENT_NM = originalName,
+                EVENT_CNTNT = string.Empty,
+                SBTR_DD_SC_NM = renamed.SBTR_DD_SC_NM,
+                IsManual = false,
+                IsDeleted = true,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
+            };
+            // 서비스의 CreateBulkScheduleAsync 는 IsDeleted 를 false 로 되돌리므로 리포지토리를 직접 부른다.
+            await Repository.CreateBulkAsync(new List<SchoolSchedule> { tombstone });
+            return (true, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("SchoolScheduleService", "고친 NEIS 일정의 원래 이름을 남기지 못했다 — 다음 NEIS 받기 때 한 줄 더 생길 수 있다", ex);
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
     /// 학사일정 수정
     /// </summary>
     public async Task<(bool Success, string Message)> UpdateScheduleAsync(SchoolSchedule schedule)

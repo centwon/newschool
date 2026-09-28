@@ -197,6 +197,9 @@ public class SchoolScheduleViewModel : NotifyPropertyChangedBase
     public int AY => Schedule.AY;
     public DateTime AA_YMD => Schedule.AA_YMD;
 
+    /// <summary>불러올 때의 행사명. NEIS 행의 이름을 고쳐 저장하면 이 이름의 묘비를 남긴다.</summary>
+    public string OriginalEventName => _originalEventNm;
+
     /// <summary>NEIS 에서 받은 행 — 날짜를 글자로만 보인다(날짜는 NEIS 가 정한다).</summary>
     public bool IsFromNeis => !Schedule.IsManual;
 
