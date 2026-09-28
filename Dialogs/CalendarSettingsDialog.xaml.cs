@@ -340,7 +340,9 @@ public sealed partial class CalendarSettingsDialog : ContentDialog
         try
         {
             string schoolCode = Settings.SchoolCode.Value;
-            int year = Settings.WorkYear.Value;
+            // 작업 학년도가 비어 있으면(0) 올해 학년도 — 다른 화면과 같은 규칙이다.
+            // 예전에는 값을 그대로 읽어 0학년도를 찾다가 "학사일정이 없습니다" 로 끝났다.
+            int year = Settings.WorkYearOrCurrent();
 
             if (string.IsNullOrEmpty(schoolCode))
             {
