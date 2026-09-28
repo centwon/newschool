@@ -29,9 +29,17 @@ namespace NewSchool.Pages;
 /// 4. 체크박스로 선택 후 일괄 저장/삭제
 /// 5. Excel 내보내기
 /// </summary>
-public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
+public sealed partial class SchoolScheduleManagementPage : Page, IDisposable, IUnsavedWork
 {
     private bool _disposed;
+
+    // 고친 행(✏️)과 [수동 추가] 한 뒤 저장하지 않은 행은 [선택 저장] 을 눌러야 DB 에 들어간다.
+    // 예전에는 그대로 다른 메뉴로 가면 묻지 않고 버렸다(자리 배치·학생 추가 화면은 묻는다).
+    private int UnsavedCount => _schedules.Count(s => s.IsModified || s.No == 0);
+
+    public bool HasUnsavedWork => UnsavedCount > 0;
+
+    public string UnsavedWorkMessage => $"저장하지 않은 학사일정 {UnsavedCount}건이 사라집니다.";
 
     public void Dispose()
     {
