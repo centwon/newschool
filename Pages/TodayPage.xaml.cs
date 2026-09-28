@@ -396,6 +396,11 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged, ILessonSlo
             int day = SchoolCalendar.ToLessonDayOfWeek(date);
             int last = PeriodCounts.Parse(Settings.PeriodsPerDay.Value).ForDay(day);
 
+            // 평소 수업도 본다 — 교시 수를 줄이기 전에 넣은 수업이 빠지면 보이지 않는데도
+            // 시수·진도는 그 시간을 센다(CourseTimetableBoard.IsShown 주석).
+            var placed = _book.Lessons.Where(l => l.DayOfWeek == day).Select(l => l.Period);
+            last = Math.Max(last, placed.DefaultIfEmpty(0).Max());
+
             var changed = _book.Changes.Keys.Where(k => k.Date == date).Select(k => k.Period);
             last = Math.Max(last, changed.DefaultIfEmpty(0).Max());
             last = Math.Max(last, _classSlots.Keys.DefaultIfEmpty(0).Max());

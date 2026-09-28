@@ -117,7 +117,6 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
     public async Task LoadAsync(int year, int semester, IReadOnlyList<Course> courses, DateTime? firstDate = null)
     {
         _periods = PeriodCounts.Parse(Settings.PeriodsPerDay.Value);
-        _maxPeriod = Math.Max(1, Enumerable.Range(1, DayCount).Max(_periods.ForDay));
 
         bool scopeChanged = await _book.SetScopeAsync(year, semester, courses);
 
@@ -231,6 +230,14 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
         _dates.Clear();
 
         ApplyMode();
+
+        // 교시 수 밖에 남은 배치·변경이 있으면 그 교시까지 줄을 낸다(IsShown 주석).
+        _maxPeriod = Math.Max(1, new[]
+        {
+            Enumerable.Range(1, DayCount).Max(_periods.ForDay),
+            _book.Lessons.Where(l => l.DayOfWeek is >= 1 and <= DayCount).Select(l => l.Period).DefaultIfEmpty(0).Max(),
+            _book.Changes.Keys.Select(k => k.Period).DefaultIfEmpty(0).Max()
+        }.Max());
 
         // ── 행: [주 띠] [날짜] [1교시] … [n교시] ─ 두 표가 같은 높이를 쓴다.
         //    간단 모드는 1주뿐이라 주 띠를 두지 않는다(높이 0) — 범위는 홈 카드 머리에 있다.
@@ -365,12 +372,13 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
     private void AddSlotCell(DateTime date, int period, int column)
     {
         int day = SchoolCalendar.ToLessonDayOfWeek(date);
-        bool available = period <= _periods.ForDay(day);
+        bool available = IsShown(date, period);
 
         var border = new Border
         {
-            // 간단 모드는 끌어 맞바꾸기를 끈다 — 교체는 메뉴로만
-            AllowDrop = available && !Compact,
+            // 간단 모드는 끌어 맞바꾸기를 끈다 — 교체는 메뉴로만.
+            // 교시 수 밖의 칸(남은 배치)으로는 옮겨 넣지 않는다 — 옮겨 가거나 메뉴로 휴강·되돌리기만.
+            AllowDrop = available && !Compact && period <= _periods.ForDay(day),
             Tag = (date, period)
         };
 
@@ -472,6 +480,9 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
         if (slot.Kind != LessonChangeKind.None) tip += $"\n[{LessonChangeLabels.Name(slot.Kind)}]";
         if (!string.IsNullOrWhiteSpace(memo)) tip += $" {memo}";
         if (journal) tip += "\n수업 일지 씀";
+        int periods = _periods.ForDay(SchoolCalendar.ToLessonDayOfWeek(date));
+        if (period > periods)
+            tip += $"\n⚠ 이 요일은 {periods}교시까지입니다 — 교시 수를 줄이기 전에 넣은 수업입니다. [수업 관리] 의 기초 시간표에서 옮기거나 지우세요.";
 
         ToolTipService.SetToolTip(border, tip);
     }
@@ -494,8 +505,7 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
     {
         foreach (var (key, border) in _cells)
         {
-            int day = SchoolCalendar.ToLessonDayOfWeek(key.Date);
-            if (key.Period > _periods.ForDay(day)) continue;
+            if (!IsShown(key.Date, key.Period)) continue;
 
             if (_focused && _cursor.HasValue && _cursor.Value.Date == key.Date && _cursor.Value.Period == key.Period)
             {
@@ -686,7 +696,8 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
         index = Math.Clamp(index + dateDelta, 0, _dates.Count - 1);
         var date = _dates[index];
 
-        int max = _periods.ForDay(SchoolCalendar.ToLessonDayOfWeek(date));
+        // 그 날 그린 칸 가운데 가장 뒤 교시까지(교시 수 밖의 남은 배치 칸 포함)
+        int max = Enumerable.Range(1, _maxPeriod).LastOrDefault(p => IsShown(date, p));
         int period = Math.Clamp(_cursor.Value.Period + periodDelta, 1, Math.Max(1, max));
 
         _cursor = (date, period);
@@ -718,9 +729,7 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
     private async Task ShowSlotMenuAsync(DateTime date, int period, Windows.Foundation.Point? at)
     {
         if (!_cells.TryGetValue((date.Date, period), out var border)) return;
-
-        int day = SchoolCalendar.ToLessonDayOfWeek(date);
-        if (period > _periods.ForDay(day)) return;
+        if (!IsShown(date, period)) return;
 
         var menu = await _menu.BuildAsync(date, period);
         if (menu.Items.Count == 0) return;
@@ -787,6 +796,19 @@ public sealed partial class WeeklyTimetableView : UserControl, ILessonSlotMenuHo
     #endregion
 
     #region Helper
+
+    /// <summary>
+    /// 칸을 그리는가 — 그 요일 교시 수 안이거나, 교시 수 밖에 <b>평소 수업·그 날 변경이 남은</b> 칸.
+    /// 교시 수를 줄이기 전에 넣은 수업을 빈칸으로 그리면 보이지 않는데도 시수·진도는 그 시간을 센다
+    /// (<c>CourseTimetableBoard.IsShown</c> 과 같은 규칙).
+    /// </summary>
+    private bool IsShown(DateTime date, int period)
+    {
+        int day = SchoolCalendar.ToLessonDayOfWeek(date);
+        return period <= _periods.ForDay(day)
+            || _book.Lessons.Any(l => l.DayOfWeek == day && l.Period == period)
+            || _book.Changes.ContainsKey((date.Date, period));
+    }
 
     private void UpdateStatus()
     {

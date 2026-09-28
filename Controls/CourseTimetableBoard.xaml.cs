@@ -86,7 +86,6 @@ public sealed partial class CourseTimetableBoard : UserControl
         _semester = semester;
         _teacherId = Settings.User.Value;
         _periods = PeriodCounts.Parse(Settings.PeriodsPerDay.Value);
-        _maxPeriod = Math.Max(1, Enumerable.Range(1, DayCount).Max(_periods.ForDay));
 
         _courses.Clear();
         foreach (var course in courses)
@@ -169,6 +168,11 @@ public sealed partial class CourseTimetableBoard : UserControl
         BoardGrid.ColumnDefinitions.Clear();
         _cells.Clear();
 
+        // 교시 수를 줄이기 전에 넣은 배치가 있으면 그 교시까지 줄을 낸다(IsShown 주석).
+        _maxPeriod = Math.Max(1, Math.Max(
+            Enumerable.Range(1, DayCount).Max(_periods.ForDay),
+            _lessons.Where(l => l.DayOfWeek is >= 1 and <= DayCount).Select(l => l.Period).DefaultIfEmpty(0).Max()));
+
         BoardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
         for (int day = 0; day < DayCount; day++)
             BoardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 108 });
@@ -211,11 +215,12 @@ public sealed partial class CourseTimetableBoard : UserControl
 
     private void AddCell(int day, int period)
     {
-        bool available = period <= _periods.ForDay(day);
+        bool available = IsShown(day, period);
 
         var border = new Border
         {
-            AllowDrop = available,
+            // 교시 수 밖의 칸(남은 배치)은 옮겨 가거나 지울 수만 있다 — 새로 놓지는 않는다.
+            AllowDrop = period <= _periods.ForDay(day),
             Tag = (day, period)
         };
 
@@ -282,8 +287,10 @@ public sealed partial class CourseTimetableBoard : UserControl
         border.CanDrag = true;
         border.ContextFlyout = BuildCellMenu(day, period, lesson, course);
 
-        ToolTipService.SetToolTip(border,
-            $"{course?.DisplayName ?? "삭제된 수업"}\n{lesson.ScheduleDisplay}\n{(string.IsNullOrWhiteSpace(lesson.Room) ? "강의실 미지정" : lesson.Room)}");
+        var tip = $"{course?.DisplayName ?? "삭제된 수업"}\n{lesson.ScheduleDisplay}\n{(string.IsNullOrWhiteSpace(lesson.Room) ? "강의실 미지정" : lesson.Room)}";
+        if (period > _periods.ForDay(day))
+            tip += $"\n⚠ {DayNames[day - 1]}요일은 {_periods.ForDay(day)}교시까지입니다 — 교시 수를 줄이기 전에 넣은 배치입니다. 옮기거나 지우세요.";
+        ToolTipService.SetToolTip(border, tip);
     }
 
     private MenuFlyout BuildCellMenu(int day, int period, Lesson lesson, Course? course)
@@ -320,7 +327,7 @@ public sealed partial class CourseTimetableBoard : UserControl
     {
         if (!_cells.TryGetValue((day, period), out var border)) return;
 
-        ApplyCellVisual(border, day, period, period <= _periods.ForDay(day));
+        ApplyCellVisual(border, day, period, IsShown(day, period));
         UpdateCursorVisual();
     }
 
@@ -328,7 +335,7 @@ public sealed partial class CourseTimetableBoard : UserControl
     {
         foreach (var ((day, period), border) in _cells)
         {
-            if (period > _periods.ForDay(day)) continue;
+            if (!IsShown(day, period)) continue;
 
             if (_boardFocused && _cursor == (day, period))
             {
@@ -861,8 +868,8 @@ public sealed partial class CourseTimetableBoard : UserControl
         int day = Math.Clamp(_cursor.Day + dayDelta, 1, DayCount);
         int period = Math.Clamp(_cursor.Period + periodDelta, 1, _maxPeriod);
 
-        // 그 요일에 없는 교시로는 넘어가지 않는다 (월요일 7교시 같은 빈칸)
-        if (period > _periods.ForDay(day))
+        // 그 요일에 없는 교시로는 넘어가지 않는다 (월요일 7교시 같은 빈칸) — 남은 배치 칸으로는 간다
+        if (!IsShown(day, period))
         {
             if (periodDelta != 0) return;
             period = Math.Min(period, _periods.ForDay(day));
@@ -901,6 +908,17 @@ public sealed partial class CourseTimetableBoard : UserControl
 
     private Lesson? FindLesson(int day, int period)
         => _lessons.FirstOrDefault(l => l.DayOfWeek == day && l.Period == period);
+
+    /// <summary>
+    /// 칸을 그리는가 — 그 요일 교시 수 안이거나, <b>교시 수를 줄이기 전에 넣은 배치</b>가 남은 칸.
+    ///
+    /// <para>예전에는 교시 수 밖을 모두 빈칸으로 그렸다. 수요일 7교시에 수업을 넣은 뒤 설정에서
+    /// 수요일을 6교시로 줄이면 그 배치는 어느 시간표에도 보이지 않아 지울 수도 없었는데, 시수표와
+    /// 진도 예정일은 여전히 그 시간을 셌다. 남은 배치는 보이게 두고 경고를 달아 옮기거나 지우게 한다.
+    /// 주별 시간표·오늘 화면도 같은 규칙이다.</para>
+    /// </summary>
+    private bool IsShown(int day, int period)
+        => period <= _periods.ForDay(day) || FindLesson(day, period) != null;
 
     private Course? FindCourse(int courseNo)
         => _courses.FirstOrDefault(c => c.No == courseNo);
