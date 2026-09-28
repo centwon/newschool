@@ -29,12 +29,14 @@ public class SchoolScheduleViewModel : NotifyPropertyChangedBase
     private readonly bool _originalFrGrade;
     private readonly bool _originalFivGrade;
     private readonly bool _originalSixGrade;
+    private readonly DateTime _originalDate;
 
     public SchoolScheduleViewModel(SchoolSchedule schedule)
     {
         Schedule = schedule;
-        
+
         // 초기 값 저장
+        _originalDate = schedule.AA_YMD.Date;
         _originalEventNm = schedule.EVENT_NM;
         _originalEventCntnt = schedule.EVENT_CNTNT;
         _originalSbtrDdScNm = schedule.SBTR_DD_SC_NM;
@@ -124,7 +126,8 @@ public class SchoolScheduleViewModel : NotifyPropertyChangedBase
         bool eventCntntChanged = !string.Equals(Schedule.EVENT_CNTNT ?? "", _originalEventCntnt ?? "", StringComparison.Ordinal);
         bool sbtrDdScNmChanged = !string.Equals(Schedule.SBTR_DD_SC_NM ?? "", _originalSbtrDdScNm ?? "", StringComparison.Ordinal);
         
-        bool hasChanges = 
+        bool hasChanges =
+            Schedule.AA_YMD.Date != _originalDate ||
             eventNmChanged ||
             eventCntntChanged ||
             sbtrDdScNmChanged ||
@@ -193,7 +196,36 @@ public class SchoolScheduleViewModel : NotifyPropertyChangedBase
     public int No => Schedule.No;
     public int AY => Schedule.AY;
     public DateTime AA_YMD => Schedule.AA_YMD;
-    
+
+    /// <summary>NEIS 에서 받은 행 — 날짜를 글자로만 보인다(날짜는 NEIS 가 정한다).</summary>
+    public bool IsFromNeis => !Schedule.IsManual;
+
+    /// <summary>
+    /// 손으로 넣은 행의 날짜 칸(CalendarDatePicker). 예전에는 날짜가 글자로만 보여서
+    /// [수동 추가] 로는 <b>오늘</b> 일정밖에 만들 수 없었다(실사용 DB 의 수동 일정도 만든 날짜였다).
+    /// 학년도(AY)는 날짜를 따라간다 — 1·2월은 앞 학년도다.
+    /// </summary>
+    public DateTimeOffset? EditableDate
+    {
+        get => new DateTimeOffset(Schedule.AA_YMD.Date);
+        set
+        {
+            if (value is not { } v) return;   // 비우기는 받지 않는다 — 날짜 없는 일정은 없다
+            var date = v.Date;
+            if (Schedule.AA_YMD.Date == date) return;
+
+            Schedule.AA_YMD = date;
+            Schedule.AY = DateTimeHelper.SchoolYearOf(date);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AA_YMD));
+            OnPropertyChanged(nameof(AY));
+            OnPropertyChanged(nameof(DisplayDate));
+            OnPropertyChanged(nameof(DisplayDayOfWeek));
+            OnPropertyChanged(nameof(DisplayDateWithDay));
+            CheckIfModified(nameof(EditableDate));
+        }
+    }
+
     public string EVENT_NM
     {
         get => Schedule.EVENT_NM;
@@ -359,30 +391,8 @@ public class SchoolScheduleViewModel : NotifyPropertyChangedBase
         IsModified = false;
     }
 
-    /// <summary>
-    /// 학사일정 복사 (새 행 추가시 템플릿으로 사용)
-    /// </summary>
-    public SchoolScheduleViewModel Clone()
-    {
-        var newSchedule = new SchoolSchedule
-        {
-            No = 0, // 새 항목
-            SCHUL_NM = Schedule.SCHUL_NM,
-            ATPT_OFCDC_SC_CODE = Schedule.ATPT_OFCDC_SC_CODE,
-            ATPT_OFCDC_SC_NM = Schedule.ATPT_OFCDC_SC_NM,
-            SD_SCHUL_CODE = Schedule.SD_SCHUL_CODE,
-            AY = Schedule.AY,
-            AA_YMD = DateTime.Today,
-            EVENT_NM = "새 일정",
-            EVENT_CNTNT = "",
-            SBTR_DD_SC_NM = "해당없음",
-            IsManual = true,
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now
-        };
-
-        return new SchoolScheduleViewModel(newSchedule);
-    }
+    // 새 행 템플릿이던 Clone() 은 부르는 곳이 없어 지웠다(2026-09-29). 날짜를 오늘로 박는
+    // 옛 규칙까지 담고 있었다 — 새 행은 페이지의 OnAddManualClick 한 곳에서 만든다.
 
     public override string ToString()
     {

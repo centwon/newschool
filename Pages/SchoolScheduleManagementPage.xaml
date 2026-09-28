@@ -247,13 +247,27 @@
                                                       HorizontalAlignment="Left"
                                                       VerticalAlignment="Center"/>
 
-                                            <!-- 날짜 + 요일 (2026.03.03. 월) -->
+                                            <!-- 날짜 + 요일 (2026.03.03. 월) — NEIS 행은 글자로만 -->
                                             <TextBlock Grid.Column="1"
+                                                       Visibility="{x:Bind IsFromNeis}"
                                                        Text="{x:Bind DisplayDateWithDay}"
                                                        FontWeight="SemiBold"
                                                        FontSize="13"
                                                        VerticalAlignment="Center"
                                                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+
+                                            <!-- 손으로 넣은 행은 날짜를 고를 수 있다.
+                                                 예전에는 글자뿐이라 [수동 추가] 로 오늘 일정밖에 못 만들었다. -->
+                                            <CalendarDatePicker Grid.Column="1"
+                                                                Visibility="{x:Bind IsManual}"
+                                                                AutomationProperties.Name="행사 날짜"
+                                                                Date="{x:Bind EditableDate, Mode=TwoWay}"
+                                                                DateFormat="{}{year.full}.{month.integer(2)}.{day.integer(2)}. {dayofweek.abbreviated}"
+                                                                FontSize="13"
+                                                                MinHeight="0"
+                                                                Padding="4,1"
+                                                                HorizontalAlignment="Stretch"
+                                                                VerticalAlignment="Center"/>
 
                                             <!-- 행사명 -->
                                             <TextBox Grid.Column="2"

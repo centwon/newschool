@@ -337,6 +337,12 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
 
         var year = (int)CBoxYear.SelectedItem;
 
+        // 날짜는 행에서 고친다. 처음 값은 오늘 — 고른 학년도 밖이면 그 학년도 첫날(3/1)이다.
+        // 예전에는 학년도와 상관없이 오늘로 박고 AY 만 고른 학년도로 적어, 둘이 어긋났다.
+        var date = DateTimeHelper.SchoolYearOf(DateTime.Today) == year
+            ? DateTime.Today
+            : new DateTime(year, 3, 1);
+
         // 새 일정 생성
         var newSchedule = new SchoolSchedule
         {
@@ -346,7 +352,7 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable
             ATPT_OFCDC_SC_NM = Settings.ProvinceName.Value,
             SD_SCHUL_CODE = Settings.SchoolCode.Value,
             AY = year,
-            AA_YMD = DateTime.Today,
+            AA_YMD = date,
             EVENT_NM = "새 일정",
             EVENT_CNTNT = "",
             SBTR_DD_SC_NM = "해당없음",
