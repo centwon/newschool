@@ -33,7 +33,7 @@ public sealed record LessonSlotSeed(
 ///   └날짜 └교시  └과목 └강의실
 /// </code>
 ///
-/// 만드는 쪽(작성 창)과 되읽는 쪽(오늘의 수업 완료 표시, 편집 시 머리 정보 복원)이
+/// 만드는 쪽(작성 창)과 되읽는 쪽(시간표 칸의 공책 표시, 편집 시 머리 정보 복원)이
 /// <b>같은 규칙</b>을 봐야 하므로 한자리에 둔다. 게시글에는 날짜·교시를 담을 칸이 없어서
 /// (<c>Post</c> 는 Category·Subject·Title·Content 뿐) 제목이 유일한 단서다.
 /// </summary>
@@ -72,15 +72,30 @@ public static class LessonJournalTitle
             title[m.Length..].Trim());
     }
 
-    /// <summary>
-    /// 제목에서 교시를 되읽는다. <paramref name="date"/> 의 날짜로 시작하는 제목만 인정하고,
-    /// 그 밖에는 0 을 낸다(사용자가 제목을 고쳤거나 다른 날 글이다).
-    /// </summary>
-    public static int PeriodOf(string? title, DateTime date)
-    {
-        if (Head(title) is not { } head) return 0;
+    // 제목에서 그 날의 교시만 되읽던 PeriodOf 는 해를 가리지 못해(DateOf 주석) 지웠다(2026-09-29) —
+    // 그 날 찾기는 Head + DateOf 로 한다.
 
-        return head.Month == date.Month && head.Day == date.Day ? head.Period : 0;
+    /// <summary>
+    /// 제목의 월·일을 실제 날짜로 — 제목에는 해가 없으므로 <b>글을 쓴 때에 가장 가까운 해</b>로 잡는다.
+    ///
+    /// <para>예전에는 쓴 해를 그대로 붙였다. 12/31 수업의 일지를 1/2 에 쓰면 이듬해 12/31 로 읽혀
+    /// 그 칸에 공책 표시가 뜨지 않았고, [수업 일지 쓰기] 가 같은 수업의 일지를 한 벌 더 만들었다.</para>
+    /// </summary>
+    /// <returns>그런 날이 없으면(2/30 등) null</returns>
+    public static DateTime? DateOf(int month, int day, DateTime writtenAt)
+    {
+        if (month is < 1 or > 12 || day < 1) return null;
+
+        DateTime? best = null;
+        for (int year = writtenAt.Year - 1; year <= writtenAt.Year + 1; year++)
+        {
+            if (day > DateTime.DaysInMonth(year, month)) continue;
+
+            var candidate = new DateTime(year, month, day);
+            if (best == null || Math.Abs((candidate - writtenAt.Date).Days) < Math.Abs((best.Value - writtenAt.Date).Days))
+                best = candidate;
+        }
+        return best;
     }
 
     private static readonly Regex TitleHead =
@@ -158,11 +173,12 @@ public static class LessonJournalComposer
 
             foreach (var post in page.Items)
             {
-                // 해가 바뀌면 "8/21" 이 겹치므로 쓴 해까지 본다.
-                if (post.DateTime.Year != date.Year) continue;
+                if (LessonJournalTitle.Head(post.Title) is not { } head || head.Period <= 0) continue;
 
-                int period = LessonJournalTitle.PeriodOf(post.Title, date);
-                if (period > 0) byPeriod.TryAdd(period, post);
+                // 해가 바뀌면 "8/21" 이 겹치므로 쓴 때로 해를 가린다(DateOf 주석 — 연말 수업을 새해에 쓰는 경우).
+                if (LessonJournalTitle.DateOf(head.Month, head.Day, post.DateTime) != date.Date) continue;
+
+                byPeriod.TryAdd(head.Period, post);
             }
         }
         catch (Exception ex)
@@ -199,18 +215,10 @@ public static class LessonJournalComposer
                 if (LessonJournalTitle.Head(post.Title) is not { } head) continue;
                 if (!string.Equals(head.Tail, tail, StringComparison.Ordinal)) continue;
 
-                // 제목에는 해가 없다 — 기간에 걸리는 해(2학기는 해를 넘긴다)로 맞춰 본다.
-                foreach (var year in new[] { from.Year, to.Year }.Distinct())
-                {
-                    if (head.Day > DateTime.DaysInMonth(year, head.Month)) continue;
-
-                    var date = new DateTime(year, head.Month, head.Day);
-                    if (date >= from.Date && date <= to.Date)
-                    {
-                        result.Add((date, head.Period, post));
-                        break;
-                    }
-                }
+                // 제목에는 해가 없다 — 그 날 찾기(FindByDateAsync)와 같은 규칙으로 쓴 때에서 해를 잡는다.
+                if (LessonJournalTitle.DateOf(head.Month, head.Day, post.DateTime) is { } date
+                    && date >= from.Date && date <= to.Date)
+                    result.Add((date, head.Period, post));
             }
         }
         catch (Exception ex)
