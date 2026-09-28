@@ -481,7 +481,8 @@ public sealed partial class LessonJournalWindow : Window
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(Editor.GetPlainText()))
+        // 게시판 글과 같은 판정 — 사진만 붙인 일지도 일지다(EditorContent 주석).
+        if (Helpers.EditorContent.IsBlank(Editor.Document))
         {
             await MessageBox.ShowErrorAsync("본문을 적어 주세요.");
             return;

@@ -481,7 +481,7 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(ContentEditor.ToHtml()))
+        if (Helpers.EditorContent.IsBlank(ContentEditor.Document))
         {
             _ = ShowErrorAsync("내용을 입력하세요.").ContinueWith(t =>
             {

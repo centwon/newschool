@@ -77,7 +77,7 @@ public sealed partial class PostListPage : Page
     /// <para>버튼을 XAML 템플릿이 아니라 <b>코드로 짓는 이유</b>: <c>ItemsRepeater</c> 의
     /// <c>DataTemplate</c> 안에서 <c>x:Bind</c> 는 Mode 를 빼면 OneTime 이라, 페이지를 옮겨도
     /// "지금 페이지" 강조가 제자리에서 갱신되지 않는다. 칸이 많아야 아홉이라 통째로 다시 짓는
-    /// 편이 싸고 확실하다(<c>MemoBoard.BuildCompactItem</c> 과 같은 방식).</para>
+    /// 편이 싸고 확실하다.</para>
     /// </summary>
     private void RenderPager()
     {
