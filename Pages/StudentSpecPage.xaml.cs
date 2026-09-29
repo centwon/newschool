@@ -15,9 +15,17 @@ namespace NewSchool.Pages;
 /// <summary>
 /// StudentSpecPage - 학생부 특기사항 관리 페이지
 /// </summary>
-public sealed partial class StudentSpecPage : Page, IDisposable
+public sealed partial class StudentSpecPage : Page, IDisposable, IUnsavedWork
 {
     private bool _disposed;
+
+    // 특기사항은 [저장] 을 눌러야 들어간다. 예전에는 고친 채 다른 메뉴로 가거나 앱을 닫으면
+    // 묻지 않고 버렸다 — 학생부 문장이라 잃는 것이 크다. (저장 처리기 이름이 OnSaveClick 이라
+    // UnsavedWorkGuardTests 의 정규식에도 걸리지 않았다.)
+    public bool HasUnsavedWork => SpecListViewer.ModifiedSpecs.Count > 0;
+
+    public string UnsavedWorkMessage =>
+        $"저장하지 않은 특기사항 {SpecListViewer.ModifiedSpecs.Count}건이 사라집니다.";
 
     public void Dispose()
     {

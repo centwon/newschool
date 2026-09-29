@@ -31,6 +31,11 @@ public class UnsavedWorkGuardTests
         // 학생 정보 화면의 편집은 StudentCard 가 스스로 저장한다(3초 디바운스 + Unloaded 마무리).
         // 이 페이지의 [저장] 은 "지금 바로" 를 위한 버튼이라 나갈 때 잃을 것이 없다.
         ["Pages/PageStudentInfo.xaml.cs"] = "학생카드가 스스로 저장한다",
+
+        // 컨트롤은 놓인 곳이 지킨다. 누가기록 상자는 누가기록 창(StudentLogDialog)이
+        // AskBeforeClosing 으로, 학생부 상자는 놓인 화면이 LeaveAsync 로 묻는다(아래 시험이 본다).
+        ["Controls/StudentLogBox.xaml.cs"] = "누가기록 창이 X·[닫기] 를 지킨다",
+        ["Controls/StudentSpecBox.xaml.cs"] = "놓인 화면이 떠날 때 LeaveAsync 로 묻는다",
     };
 
     private static string RepoRoot()
@@ -57,8 +62,11 @@ public class UnsavedWorkGuardTests
     private static bool IsPage(string markup) =>
         Regex.IsMatch(markup, @"^\s*(<\?xml[^>]*\?>\s*)?(<!--.*?-->\s*)*<Page\s", RegexOptions.Singleline);
 
-    /// <summary>저장 버튼을 가진 화면.</summary>
-    private static readonly Regex SaveButton = new(@"\b(BtnSave|SaveButton|BtnSaveAll)_Click\b");
+    /// <summary>
+    /// 저장 버튼을 가진 화면. <c>OnSave…Click</c> 도 센다 — 이 이름을 쓴 학사일정 관리·학생부 기록·
+    /// 교과 세특 화면이 빠져서, 고친 채 떠나면 묻지 않고 버리는 것을 이 시험이 못 잡았다(2026-09-29·30).
+    /// </summary>
+    private static readonly Regex SaveButton = new(@"\b(BtnSave|SaveButton|BtnSaveAll)_Click\b|\bOnSave\w*Click\b");
 
     /// <summary>나가는 길을 지키고 있다는 표시.</summary>
     private static readonly Regex Guarded = new(@"IUnsavedWork|AskBeforeClosing|_autoSaveTimer|AutoSaveDelayMs");
@@ -251,6 +259,49 @@ public class UnsavedWorkGuardTests
         Assert.True(offenders.Count == 0,
             "앱을 닫으면 고친 누가기록이 묻지 않고 사라지는 페이지가 있다. " +
             "NewSchool.Controls.IAsksBeforeLeaving 을 구현할 것:\n  " + string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
+    /// <b>학생부 상자를 놓은 페이지는 떠날 때·앱을 닫기 전에 그 상자도 묻는다.</b>
+    ///
+    /// <para>학생부 상자(<c>StudentSpecBox</c>)는 [저장] 을 눌러야 들어가는데, 놓인 화면들이 학생을
+    /// 바꿀 때만 물었다. 고친 채 다른 메뉴로 가거나 앱을 닫으면 말없이 버렸다(2026-09-30).
+    /// 떠날 때(Unloaded)와 닫기 전(AskBeforeLeavingAsync) 모두 <c>AskUnsavedOnLeaveAsync</c> 를
+    /// 지나고, 그 안에서 <c>SpecBox.LeaveAsync</c> 를 불러야 한다.</para>
+    /// </summary>
+    [Fact]
+    public void 학생부_상자를_놓은_페이지는_떠날_때_묻는다()
+    {
+        string root = RepoRoot();
+        var offenders = new List<string>();
+        int pages = 0;
+
+        foreach (var xaml in Directory.EnumerateFiles(root, "*.xaml", SearchOption.AllDirectories))
+        {
+            string rel = Path.GetRelativePath(root, xaml).Replace(Path.DirectorySeparatorChar, '/');
+            if (IsBuildOutput(rel)) continue;
+
+            string markup = File.ReadAllText(xaml);
+            if (!IsPage(markup) || !markup.Contains("<controls:StudentSpecBox")) continue;
+
+            pages++;
+            string code = File.Exists(xaml + ".cs") ? File.ReadAllText(xaml + ".cs") : "";
+
+            var leave = Regex.Match(code, @"Task AskUnsavedOnLeaveAsync\(\)\s*\{(?<body>[^}]*)\}");
+            bool leaveAsksSpec = leave.Success && leave.Groups["body"].Value.Contains("SpecBox.LeaveAsync()");
+            var close = Regex.Match(code, @"Task AskBeforeLeavingAsync\(\)\s*\{(?<body>[^}]*)\}");
+            bool closeUsesLeave = close.Success && close.Groups["body"].Value.Contains("AskUnsavedOnLeaveAsync()");
+            // 떠날 때(Unloaded) 경로: 불러 놓기만 하는 `_ = AskUnsavedOnLeaveAsync()` 가 있어야 한다
+            bool unloadUsesLeave = code.Contains("_ = AskUnsavedOnLeaveAsync()");
+
+            if (!leaveAsksSpec || !closeUsesLeave || !unloadUsesLeave)
+                offenders.Add(rel + ".cs");
+        }
+
+        Assert.True(pages >= 3, $"학생부 상자를 놓은 페이지가 {pages}개뿐이다 — 검색이 빗나갔다");
+        Assert.True(offenders.Count == 0,
+            "고친 학생부를 두고 떠나거나 앱을 닫으면 묻지 않고 버리는 페이지가 있다:\n  " +
+            string.Join("\n  ", offenders));
     }
 
     /// <summary>

@@ -16,8 +16,14 @@ namespace NewSchool.Pages;
 /// CourseSpecPage - 교과 관련 학생부(세특) 특기사항 관리 페이지
 /// 과목·강의실 단위로 수강생 전체의 교과세특을 한 화면에서 조회/작성한다.
 /// </summary>
-public sealed partial class CourseSpecPage : Page, IDisposable
+public sealed partial class CourseSpecPage : Page, IDisposable, IUnsavedWork
 {
+    // 학생부 기록 화면(StudentSpecPage)과 같은 이유 — 고친 세특을 두고 떠나면 묻지 않고 버렸다.
+    public bool HasUnsavedWork => SpecListViewer.ModifiedSpecs.Count > 0;
+
+    public string UnsavedWorkMessage =>
+        $"저장하지 않은 교과 세특 {SpecListViewer.ModifiedSpecs.Count}건이 사라집니다.";
+
     private const string SpecType = "교과활동";
 
     private bool _disposed;

@@ -635,14 +635,25 @@ public sealed partial class ClubActivityPage : Page, NewSchool.Controls.IAsksBef
     /// <summary>앱을 닫기 전에 부른다 — 닫을 때는 아래 Unloaded 가 창이 닫힌 뒤라 물을 수 없다.</summary>
     public async Task AskBeforeLeavingAsync()
     {
-        await CheckUnSavedAsync();
+        await AskUnsavedOnLeaveAsync();
         LogList.ClearSelection();   // 저장하지 않은 것은 버린 것 — 닫히는 창에서 또 묻지 않게
+    }
+
+    /// <summary>
+    /// 떠날 때 고친 누가기록과 <b>학생부 상자</b>를 묻는다. 학생부 상자는 학생을 바꿀 때만 물어서,
+    /// 고친 채 다른 메뉴로 가거나 앱을 닫으면 말없이 버렸다(2026-09-30). 묻고 나면 저장했거나
+    /// 버린 것이라 닫히는 창의 Unloaded 가 또 묻지 않는다.
+    /// </summary>
+    private async Task AskUnsavedOnLeaveAsync()
+    {
+        await CheckUnSavedAsync();
+        if (SpecBox != null) await SpecBox.LeaveAsync();
     }
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
         // 화면을 떠날 때도 누가기록 화면(LogList_Unloaded)처럼 고친 기록을 묻는다.
-        _ = CheckUnSavedAsync().ContinueWith(t =>
+        _ = AskUnsavedOnLeaveAsync().ContinueWith(t =>
         {
             if (t.IsFaulted)
                 Debug.WriteLine($"[ClubActivityPage] {t.Exception?.InnerException?.Message}");
