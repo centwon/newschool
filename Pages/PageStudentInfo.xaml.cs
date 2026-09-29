@@ -1353,6 +1353,10 @@ public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Contr
             return;
         }
 
+        // 창을 닫으면 누가기록을 다시 읽는다 — 목록에서 고치던 기록을 그 전에 묻는다
+        // (열 때 묻는 이유는 ClubActivityPage.BtnAddLog_Click 주석).
+        await CheckUnSavedLogsAsync();
+
         var logDialog = new StudentLogDialog(
             student,
             _currentYear,

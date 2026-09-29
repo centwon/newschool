@@ -340,7 +340,7 @@ public sealed partial class ClubActivityPage : Page, NewSchool.Controls.IAsksBef
     /// <summary>
     /// 활동 기록 추가
     /// </summary>
-    private void BtnAddLog_Click(object sender, RoutedEventArgs e)
+    private async void BtnAddLog_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedStudent == null)
         {
@@ -366,6 +366,11 @@ public sealed partial class ClubActivityPage : Page, NewSchool.Controls.IAsksBef
             ClubNo = _selectedClub.No,
             ClubName = _selectedClub.ClubName
         };
+
+        // 창을 닫으면 목록을 다시 읽는다 — 목록에서 고치던 기록을 그 전에 묻는다. 닫을 때가 아니라
+        // 열 때 묻는 이유는 학생부 기록 화면의 일괄 입력(StudentSpecPage.OnBatchInputClick)과 같다:
+        // 닫을 때 "저장" 하면 창에서 방금 넣은 것을 옛 행으로 덮을 수 있다.
+        await CheckUnSavedAsync();
 
         var dialog = new StudentLogDialog(newLog);
         dialog.Closed += OnLogDialogClosedReload;
@@ -598,6 +603,8 @@ public sealed partial class ClubActivityPage : Page, NewSchool.Controls.IAsksBef
     {
         var student = StudentList.SelectedStudent;
         if (student == null || _selectedClub == null) return;
+
+        await CheckUnSavedAsync();   // 창을 닫으면 목록을 다시 읽는다(BtnAddLog_Click 주석)
 
         var logDialog = new StudentLogDialog(
             student,

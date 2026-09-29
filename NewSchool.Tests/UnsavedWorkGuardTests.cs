@@ -262,6 +262,50 @@ public class UnsavedWorkGuardTests
     }
 
     /// <summary>
+    /// <b>누가기록 창을 여는 자리는 열기 전에 목록에서 고치던 기록을 묻는다.</b>
+    ///
+    /// <para>그 창이 닫히면 화면이 목록을 다시 읽는데, 예전에는 묻지 않아 목록에서 고치던 줄이
+    /// 사라졌다(학생 정보·누가 기록·동아리·수업 활동·학급 일지, 2026-09-30). 닫을 때가 아니라 열 때
+    /// 묻는다 — 닫을 때 "저장" 하면 창에서 방금 넣은 것을 옛 줄로 덮을 수 있다.</para>
+    /// </summary>
+    [Fact]
+    public void 누가기록_창을_열기_전에_고친_기록을_묻는다()
+    {
+        string root = RepoRoot();
+        var offenders = new List<string>();
+        int sites = 0;
+
+        foreach (var xaml in Directory.EnumerateFiles(root, "*.xaml", SearchOption.AllDirectories))
+        {
+            string rel = Path.GetRelativePath(root, xaml).Replace(Path.DirectorySeparatorChar, '/');
+            if (IsBuildOutput(rel)) continue;
+
+            string markup = File.ReadAllText(xaml);
+            if (!IsPage(markup) || !markup.Contains("<controls:LogListViewer")) continue;
+            if (!File.Exists(xaml + ".cs")) continue;
+
+            string code = File.ReadAllText(xaml + ".cs");
+            foreach (Match m in Regex.Matches(code, @"new (Dialogs\.)?StudentLogDialog\("))
+            {
+                sites++;
+                // 여는 자리가 든 메서드 — 앞쪽 가장 가까운 메서드 선언부터 여기까지
+                int start = code.LastIndexOf("private ", m.Index, StringComparison.Ordinal);
+                string before = start >= 0 ? code[start..m.Index] : string.Empty;
+                if (!before.Contains("CheckUnSaved"))
+                {
+                    int line = code[..m.Index].Count(c => c == '\n') + 1;
+                    offenders.Add($"{rel}.cs:{line}");
+                }
+            }
+        }
+
+        Assert.True(sites >= 9, $"누가기록 창을 여는 자리가 {sites}곳뿐이다 — 검색이 빗나갔다");
+        Assert.True(offenders.Count == 0,
+            "누가기록 창을 열기 전에 목록에서 고치던 기록을 묻지 않는 자리가 있다(창을 닫으면 목록을 " +
+            "다시 읽어 사라진다):\n  " + string.Join("\n  ", offenders));
+    }
+
+    /// <summary>
     /// <b>학생부 상자를 놓은 페이지는 떠날 때·앱을 닫기 전에 그 상자도 묻는다.</b>
     ///
     /// <para>학생부 상자(<c>StudentSpecBox</c>)는 [저장] 을 눌러야 들어가는데, 놓인 화면들이 학생을

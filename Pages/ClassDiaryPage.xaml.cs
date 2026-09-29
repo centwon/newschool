@@ -261,6 +261,10 @@ public sealed partial class ClassDiaryPage : Page, NewSchool.Controls.IAsksBefor
             return;
         }
 
+        // 창을 닫으면 목록을 다시 읽는다 — 목록에서 고치던 기록을 그 전에 묻는다
+        // (열 때 묻는 이유는 ClubActivityPage.BtnAddLog_Click 주석).
+        await CheckUnSavedLogsAsync();
+
         var logDialog = new Dialogs.StudentLogDialog(
             LogCategory.기타,
             _currentYear,
@@ -399,6 +403,8 @@ public sealed partial class ClassDiaryPage : Page, NewSchool.Controls.IAsksBefor
             await MessageBox.ShowAsync("학년도를 먼저 선택해주세요.", "알림");
             return;
         }
+
+        await CheckUnSavedLogsAsync();   // 창을 닫으면 목록을 다시 읽는다(BtnAddDailyLog_Click 주석)
 
         var logDialog = new Dialogs.StudentLogDialog(
             student,

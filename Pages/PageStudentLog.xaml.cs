@@ -228,6 +228,10 @@ public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Contro
             SubjectName = string.Empty,
             CourseNo = 0
         };
+        // 창을 닫으면 목록을 다시 읽는다 — 목록에서 고치던 기록을 그 전에 묻는다
+        // (열 때 묻는 이유는 ClubActivityPage.BtnAddLog_Click 주석).
+        await CheckUnSavedAsync();
+
         var logDialog = new StudentLogDialog(newLog);
         logDialog.Closed += OnLogDialogClosedReload;
         logDialog.Activate();
@@ -551,6 +555,8 @@ public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Contro
             batchCategory = LogCategory.자율활동; // 기본값
         }
 
+        await CheckUnSavedAsync();   // 창을 닫으면 목록을 다시 읽는다(BtnNewActLog_Click 주석)
+
         try
         {
             var dialog = new StudentLogDialog(
@@ -841,6 +847,8 @@ public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Contro
             await ShowInfoDialogAsync("학년도를 먼저 선택해주세요.", "알림");
             return;
         }
+
+        await CheckUnSavedAsync();   // 창을 닫으면 목록을 다시 읽는다(BtnNewActLog_Click 주석)
 
         var logDialog = new StudentLogDialog(
             student,

@@ -192,13 +192,17 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
     /// <summary>
     /// 일괄 입력 — 현재 선택된 수업의 수강생 전체 대상
     /// </summary>
-    private void BtnBatchInput_Click(object sender, RoutedEventArgs e)
+    private async void BtnBatchInput_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedCourse == null)
         {
             ShowInfoBar("수업을 먼저 선택해주세요.", InfoBarSeverity.Warning);
             return;
         }
+
+        // 창을 닫으면 목록을 다시 읽는다 — 목록에서 고치던 기록을 그 전에 묻는다
+        // (열 때 묻는 이유는 ClubActivityPage.BtnAddLog_Click 주석).
+        await CheckUnSavedAsync();
 
         var dialog = new StudentLogDialog(
             LogCategory.교과활동,
@@ -234,7 +238,7 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
     /// <summary>
     /// 활동 기록 추가
     /// </summary>
-    private void BtnAddLog_Click(object sender, RoutedEventArgs e)
+    private async void BtnAddLog_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedStudent == null)
         {
@@ -260,6 +264,8 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
             SubjectName = _selectedCourse.Subject,
             CourseNo = _selectedCourse.No
         };
+
+        await CheckUnSavedAsync();   // 창을 닫으면 목록을 다시 읽는다(BtnBatchInput_Click 주석)
 
         var dialog = new StudentLogDialog(newLog);
         dialog.Closed += OnLogDialogClosedReload;
@@ -495,6 +501,8 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
     {
         var student = StudentList.SelectedStudent;
         if (student == null || _selectedCourse == null) return;
+
+        await CheckUnSavedAsync();   // 창을 닫으면 목록을 다시 읽는다(BtnBatchInput_Click 주석)
 
         var logDialog = new StudentLogDialog(
             student,
