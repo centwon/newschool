@@ -35,6 +35,13 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
 
     private DataTable? _data;
 
+    /// <summary>
+    /// <see cref="_data"/> 를 만든 학년도·학년·반. 출력의 제목은 이것을 쓴다 — 지금 고른 값을 쓰면
+    /// 미리보기 뒤에 학급을 바꾸고 [출력] 할 때 1반 자료에 "2반" 제목이 붙었다(2026-09-30).
+    /// 출력 때 자료를 새로 만들지 않는 것은 미리보기 칸이 편집기라 손으로 고친 것을 지우지 않으려는 것이다.
+    /// </summary>
+    private (int Year, int Grade, int ClassNo) _dataScope;
+
     #endregion
 
     #region Constructor
@@ -234,6 +241,7 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
         int year = YearSemPicker.Year;
         int grade = ClassFilter.Grade;
         int classNo = ClassFilter.ClassNum; // 0이면 전체
+        _dataScope = (year, grade, classNo);
 
         // Enrollment 조회 (grade 파라미터 사용)
         using var enrollmentService = new EnrollmentService();
@@ -411,10 +419,8 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
             : TboxTitle.Text;
         sb.Append($"<h1 style='text-align:center; font-size:16pt; margin-bottom:10px;'>{HtmlEncode(title)}</h1>");
 
-        // 학급 정보
-        int year = YearSemPicker.Year;
-        int grade = ClassFilter.Grade;
-        int classNo = ClassFilter.ClassNum;
+        // 학급 정보 — 자료를 만든 학급(_dataScope 주석)
+        var (year, grade, classNo) = _dataScope;
 
         string classInfo = classNo == 0
             ? $"{year}학년도 {grade}학년"
@@ -541,9 +547,8 @@ public sealed partial class StudentInfoExportPage : Page, IDisposable
                 ? "학생정보"
                 : TboxTitle.Text;
 
-            int year = YearSemPicker.Year;
-            int grade = ClassFilter.Grade;
-            int classNo = ClassFilter.ClassNum;
+            // 지금 고른 학급이 아니라 자료를 만든 학급(_dataScope 주석)
+            var (year, grade, classNo) = _dataScope;
 
             string subtitle = classNo == 0
                 ? $"{year}학년도 {grade}학년 전체"
