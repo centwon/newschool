@@ -517,12 +517,10 @@ public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Contr
                 SCard.ViewModel, 
                 LogList.Logs.ToList());
 
+            // 열리면 그걸로 끝이다 — 위 인쇄(BtnPrintLog_Click)처럼 못 열었을 때만 자리를 알린다.
+            // 예전에는 열린 엑셀 위에 "내보내기 완료" 창을 또 띄웠다.
             if (!Helpers.ExportPaths.TryOpen(excelPath))
                 await MessageBox.ShowAsync($"엑셀 파일을 저장했습니다.\n{excelPath}", "저장 완료");
-            else
-            {
-                await MessageBox.ShowAsync($"엑셀로 내보내기 완료\n경로: {excelPath}", "성공");
-            }
         }
         catch (Exception ex)
         {
