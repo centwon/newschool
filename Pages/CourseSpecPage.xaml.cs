@@ -139,13 +139,17 @@ public sealed partial class CourseSpecPage : Page, IDisposable
     /// </summary>
     private async void OnDeleteClick(object sender, RoutedEventArgs e)
     {
-        var selectedSpecs = SpecListViewer.SelectedSpecs.ToList();
+        // 체크한 행만 지운다 — 학생부 기록 화면과 같은 이유(SpecListViewer.CheckedSpecs 주석).
+        var selectedSpecs = SpecListViewer.CheckedSpecs.ToList();
 
         if (!selectedSpecs.Any())
         {
             await MessageBox.ShowAsync("삭제할 항목이 없습니다", "알림");
             return;
         }
+
+        // 지운 뒤 목록을 다시 읽는다 — 체크하지 않은 채 고쳐 둔 행은 거기서 사라지므로 먼저 묻는다.
+        if (!await SpecListViewer.ConfirmDiscardModifiedAsync(except: selectedSpecs)) return;
 
         var savedSpecs = selectedSpecs.Where(s => s.Special.No > 0).ToList();
         var unsavedSpecs = selectedSpecs.Where(s => s.Special.No == 0).ToList();

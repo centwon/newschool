@@ -111,15 +111,28 @@ public sealed partial class SpecListViewer : UserControl
         Specs.Where(s => s.IsSelected || s.IsModified);
 
     /// <summary>
+    /// <b>체크한</b> 항목만 — 삭제 대상. 저장 대상(<see cref="SelectedSpecs"/>)과 다르다.
+    /// 저장은 고친 것을 빠뜨리지 않는 쪽이 안전하지만, 삭제에 같은 기준을 쓰면 체크를 풀어 둔
+    /// 고친 행까지 DB 에서 지워진다 — [전체 해제] 뒤 한 줄만 체크해 지우면 고쳐 둔 다른
+    /// 학생들의 특기사항이 함께 사라졌다(2026-09-29).
+    /// </summary>
+    public IEnumerable<StudentSpecialViewModel> CheckedSpecs =>
+        Specs.Where(s => s.IsSelected);
+
+    /// <summary>
     /// 목록을 새로 채우기 전에 — 고친 채 저장하지 않은 행이 있으면 버려도 되는지 묻는다.
     /// true 면 진행해도 된다(고친 것이 없거나 버리기로 함), false 면 멈춘다(먼저 [저장] 하려는 것).
     ///
     /// <para>예전에는 학생부·교과 세특 화면이 [조회]·수업 변경으로 목록을 다시 읽으면서 고친 행을
     /// 말없이 버렸다. 누가기록 화면(<c>CheckUnSavedAsync</c>)과 학생 정보 화면은 그 전에 묻는다.</para>
     /// </summary>
-    public async Task<bool> ConfirmDiscardModifiedAsync()
+    /// <param name="except">
+    /// 셈에서 뺄 행 — [삭제] 가 지울 행. 그 행은 어차피 사라지므로 "버려진다" 에 넣지 않는다.
+    /// </param>
+    public async Task<bool> ConfirmDiscardModifiedAsync(IEnumerable<StudentSpecialViewModel>? except = null)
     {
-        int modified = Specs.Count(s => s.IsModified);
+        var skip = except?.ToHashSet();
+        int modified = Specs.Count(s => s.IsModified && (skip == null || !skip.Contains(s)));
         if (modified == 0) return true;
 
         return await MessageBox.ShowConfirmAsync(
