@@ -17,8 +17,9 @@ using Windows.UI;
 namespace NewSchool.Board.Controls;
 
 /// <summary>
-/// 메모 보드: 가장 최근 활성 메모 1개를 고정 인라인 에디터로 편집(첨부 없음),
-/// 나머지 활성 메모는 compact 목록으로 표시(클릭 시 다이얼로그 편집).
+/// 메모 보드: 활성 메모 1개를 펼쳐 인라인 에디터로 편집(첨부 없음), 나머지는 compact 목록(제목 줄).
+/// 처음에는 가장 최근 메모를 펼친다. 목록의 줄을 누르면 그 메모를 펼치고 펼쳐 있던 메모는 목록으로
+/// 접힌다(예전에는 줄을 누르면 편집 창이 떴다 — 창은 펼친 메모의 [새 창으로 열기] 로 연다).
 /// 완료 체크 = 숨김(아카이브에서 조회). 정식 게시물 승격은 게시판에서 별도.
 ///
 /// 구 설계의 단일 에디터 reparent 트릭은 WebView2/Jodit 이 무거워서 쓰던 우회책이었으나,
@@ -29,7 +30,8 @@ namespace NewSchool.Board.Controls;
 public sealed partial class MemoBoard : UserControl, IDisposable
 {
     private readonly List<Post> _memos = [];   // 활성(미완료) 메모, 최신순
-    private Post? _recentPost;                  // 인라인 에디터에 표시 중인 최신 메모
+    private Post? _recentPost;                  // 인라인 에디터에 펼쳐 둔 메모
+    private Post? _expanded;                    // 사용자가 펼치라고 고른 메모(없으면 최신)
     private bool _isLoading;
     private bool _isModified;                   // 본문 밖(분류)을 고쳤거나 [저장] 을 눌렀다
 
@@ -121,10 +123,10 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         }
     }
 
-    /// <summary>최신 메모를 인라인 에디터에, 나머지를 compact 목록에 반영.</summary>
+    /// <summary>펼칠 메모를 인라인 에디터에, 나머지를 compact 목록(최신순)에 반영.</summary>
     private async Task RenderAsync()
     {
-        _recentPost = _memos.FirstOrDefault();
+        _recentPost = ResolveExpanded();
         bool hasAny = _recentPost != null;
 
         RecentPanel.Visibility = hasAny ? Visibility.Visible : Visibility.Collapsed;
@@ -164,7 +166,23 @@ public sealed partial class MemoBoard : UserControl, IDisposable
         }
 
         // 나머지 = compact 목록. 컬렉션째 갈아 끼운다 — 비우고 하나씩 넣으면 줄마다 변경 알림이 간다.
-        CompactRepeater.ItemsSource = new ObservableCollection<MemoRow>(_memos.Skip(1).Select(m => new MemoRow(m)));
+        CompactRepeater.ItemsSource = new ObservableCollection<MemoRow>(
+            _memos.Where(m => m != _recentPost).Select(m => new MemoRow(m)));
+    }
+
+    /// <summary>
+    /// 펼칠 메모. 고른 메모가 아직 목록에 있으면 그것 — 다시 읽어 객체가 바뀌었으면 번호로 찾는다
+    /// (저장·필터 전환 뒤에도 펼친 자리가 유지되게). 지웠거나 완료했으면 가장 최근 메모.
+    /// </summary>
+    private Post? ResolveExpanded()
+    {
+        if (_expanded != null)
+        {
+            if (_memos.Contains(_expanded)) return _expanded;
+            if (_expanded.No > 0 && _memos.FirstOrDefault(m => m.No == _expanded.No) is { } same)
+                return _expanded = same;
+        }
+        return _expanded = _memos.FirstOrDefault();
     }
 
     public async Task CreateNewMemoAsync()
@@ -189,6 +207,7 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             // 사용자가 실제로 입력해 HasChanges 가 되면 SaveRecentMemoAsync 가 그때 INSERT.
             // → 입력 없이 떠나면 DB 에 빈 메모가 쌓이지 않음.
             _memos.Insert(0, post);
+            _expanded = post;   // 새 메모는 펼쳐서 바로 적게
             await RenderAsync();
             Debug.WriteLine($"[MemoBoard] 새 메모 생성(메모리)");
         }
@@ -202,10 +221,26 @@ public sealed partial class MemoBoard : UserControl, IDisposable
 
     #region Compact list
 
+    /// <summary>줄을 누르면 그 메모를 펼치고, 펼쳐 있던 메모는 목록으로 접는다.</summary>
     private async void CompactItem_Tapped(object sender, TappedRoutedEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is Post memo)
-            await OpenDialogForAsync(memo);
+            await ExpandAsync(memo);
+    }
+
+    private async Task ExpandAsync(Post memo)
+    {
+        if (memo == _recentPost) return;
+
+        // 접기 전에 펼쳐 있던 메모의 고친 내용을 저장한다 — 편집기는 다음 메모 본문으로 바뀐다.
+        if (HasChanges) await SaveRecentMemoAsync();
+        if (HasChanges) return;   // 저장에 실패했다(이미 알렸다) — 바꾸면 고친 내용이 사라진다
+
+        // 아무것도 안 적은 새 메모(아직 DB 에 없음)는 접을 때 버린다 — 목록에 "(제목 없음)" 으로 남지 않게.
+        if (_recentPost is { No: <= 0 } blank) _memos.Remove(blank);
+
+        _expanded = memo;
+        await RenderAsync();
     }
 
     private async void CompactCheck_Click(object sender, RoutedEventArgs e)
