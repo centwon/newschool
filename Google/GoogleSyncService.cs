@@ -102,11 +102,17 @@ public sealed class GoogleSyncService : IDisposable
                 return totalResult;
             }
 
-            foreach (var calendar in calendars)
+            // 같은 구글 캘린더를 쓰는 앱 캘린더끼리 묶는다. 연동할 때 수업·학급·업무가 학교 구글
+            // 캘린더 하나에 묶이므로(CalendarSettingsDialog.FetchAndSaveGoogleCalendarsAsync),
+            // 예전에는 동기화마다 같은 캘린더를 앱 캘린더 수만큼(실사용 4번) 통째로 받았다.
+            // GroupBy 는 처음 나온 순서를 지키므로 묶음 안에서도 SortOrder 순이다.
+            foreach (var group in calendars.GroupBy(c => c.GoogleId, StringComparer.Ordinal))
             {
+                var members = group.ToList();
+                var calendar = members[0];
                 try
                 {
-                    var result = await SyncCalendarAsync(calendar);
+                    var result = await SyncGoogleCalendarAsync(members);
                     totalResult.Created += result.Created;
                     totalResult.Updated += result.Updated;
                     totalResult.Deleted += result.Deleted;
@@ -159,58 +165,76 @@ public sealed class GoogleSyncService : IDisposable
     }
 
     /// <summary>
-    /// 단일 캘린더 동기화. 겹침 방지는 부르는 쪽(<see cref="SyncAllAsync"/>)이 이미 해 두었다.
+    /// 구글 캘린더 하나를 동기화한다 — 그것을 쓰는 앱 캘린더(<paramref name="members"/>, SortOrder 순)가
+    /// 여럿일 수 있다. 겹침 방지는 부르는 쪽(<see cref="SyncAllAsync"/>)이 이미 해 두었다.
+    ///
+    /// <para><b>받기(Pull)는 한 번</b>, 첫째 앱 캘린더로 한다. 구글에서 새로 생긴 일정은 분류를 알 수
+    /// 없어 첫째(실사용에서는 수업)로 들어온다 — 예전에도 첫째의 Pull 이 먼저 돌아 같은 결과였다.
+    /// 이미 있는 일정은 구글 ID 로 찾으므로 어느 앱 캘린더에 있든 제자리에서 갱신된다.
+    /// <b>올리기(Push)는 앱 캘린더마다</b> 한다(미동기화·수정·삭제 조회가 CalendarId 별이다).</para>
     /// </summary>
-    private async Task<SyncResult> SyncCalendarAsync(KCalendarList calendar)
+    private async Task<SyncResult> SyncGoogleCalendarAsync(List<KCalendarList> members)
     {
         var result = new SyncResult();
+        var owner = members[0];
+        string titles = string.Join("·", members.Select(c => c.Title));
 
-        // 이 동기화 회차에만 유효한 기억들 — 회차마다 새로 시작한다.
+        // 이 동기화 회차에만 유효한 기억들 — 구글 캘린더마다 새로 시작한다.
+        // (_pulledGoogleIds 는 묶음 전체의 Push 가 함께 본다 — 방금 받은 것을 되돌려 보내지 않도록.)
         _scheduleTitlesByDate.Clear();
         _pulledGoogleIds.Clear();
 
         try
         {
-            if (string.IsNullOrEmpty(calendar.GoogleId))
+            if (string.IsNullOrEmpty(owner.GoogleId))
             {
-                result.ErrorMessages.Add($"캘린더 '{calendar.Title}'에 Google ID가 없습니다.");
+                result.ErrorMessages.Add($"캘린더 '{titles}'에 Google ID가 없습니다.");
                 return result;
             }
 
-            Debug.WriteLine($"[GoogleSync] '{calendar.Title}' 동기화 시작 (SyncMode={calendar.SyncMode})");
+            Debug.WriteLine($"[GoogleSync] '{titles}' 동기화 시작");
 
             try
             {
-                // Pull: Google → 로컬
-                await PullFromGoogleAsync(calendar, result);
+                // Pull: Google → 로컬 (한 번)
+                await PullFromGoogleAsync(owner, result);
 
-                // Push: 로컬 → Google (TwoWay일 때만)
-                if (calendar.SyncMode == "TwoWay")
+                // Push: 로컬 → Google (앱 캘린더마다, TwoWay 일 때만)
+                foreach (var calendar in members)
                 {
-                    await PushToGoogleAsync(calendar, result);
+                    if (calendar.SyncMode == "TwoWay")
+                        await PushToGoogleAsync(calendar, result);
                 }
             }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
-                // Google Calendar가 서버에서 삭제됨 → GoogleId와 SyncToken 초기화
-                Debug.WriteLine($"[GoogleSync] 캘린더 '{calendar.Title}' 404 — Google에서 삭제됨, GoogleId 초기화");
-                calendar.GoogleId = string.Empty;
-                calendar.SyncToken = string.Empty;
-                result.ErrorMessages.Add($"'{calendar.Title}' Google 캘린더가 삭제되어 연동이 해제되었습니다. 설정에서 다시 연동해 주세요.");
+                // Google Calendar가 서버에서 삭제됨 → 묶음 전체의 GoogleId와 SyncToken 초기화
+                Debug.WriteLine($"[GoogleSync] 캘린더 '{titles}' 404 — Google에서 삭제됨, GoogleId 초기화");
+                foreach (var calendar in members)
+                {
+                    calendar.GoogleId = string.Empty;
+                    calendar.SyncToken = string.Empty;
+                }
+                result.ErrorMessages.Add($"'{titles}' Google 캘린더가 삭제되어 연동이 해제되었습니다. 설정에서 다시 연동해 주세요.");
             }
 
-            // SyncToken 저장
+            // SyncToken 저장 — 묶음 모두에 같은 값을 적는다. 정렬이 바뀌어 받는 쪽이 달라져도
+            // 토큰을 이어 쓰게(아니면 그 회차에 1년치를 다시 받는다).
             using var service = Scheduler.Scheduler.CreateService();
-            await service.UpdateCalendarAsync(calendar);
+            foreach (var calendar in members)
+            {
+                calendar.SyncToken = owner.SyncToken;
+                await service.UpdateCalendarAsync(calendar);
+            }
 
             result.Success = result.Errors == 0;
-            Debug.WriteLine($"[GoogleSync] '{calendar.Title}' 동기화 완료: {result.Summary}");
+            Debug.WriteLine($"[GoogleSync] '{titles}' 동기화 완료: {result.Summary}");
         }
         catch (Exception ex)
         {
             result.Errors++;
             result.ErrorMessages.Add(ex.Message);
-            Debug.WriteLine($"[GoogleSync] '{calendar.Title}' 동기화 실패: {ex.Message}");
+            Debug.WriteLine($"[GoogleSync] '{titles}' 동기화 실패: {ex.Message}");
         }
 
         return result;
