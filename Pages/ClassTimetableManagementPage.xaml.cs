@@ -49,6 +49,12 @@ public sealed partial class ClassTimetableManagementPage : Page
     public ClassTimetableManagementPage()
     {
         this.InitializeComponent();
+
+        // 교시 행 — 개수는 PeriodCounts.MaxSupported 하나가 정한다. 예전에는 XAML 에 일곱 줄을 손으로
+        // 적고 그리기도 1~7 로 돌아서, 바로 이 화면의 편집 창(ClassTimetableEditDialog)과 학급 시간표
+        // 컨트롤(TimetableControl)이 받는 8교시가 저장은 돼도 여기서는 보이지 않았다.
+        for (int period = 1; period <= PeriodCounts.MaxSupported; period++)
+            TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
     }
 
     private async void YearSemPicker_YearSemesterChanged(object sender, YearSemesterChangedEventArgs e)
@@ -131,8 +137,8 @@ public sealed partial class ClassTimetableManagementPage : Page
             TimetableGrid.Children.Remove(cell);
         }
 
-        // 교시 열 (1-7)
-        for (int period = 1; period <= 7; period++)
+        // 교시 열 (1 ~ PeriodCounts.MaxSupported — 생성자 주석)
+        for (int period = 1; period <= PeriodCounts.MaxSupported; period++)
         {
             var border = new Border
             {
@@ -154,10 +160,10 @@ public sealed partial class ClassTimetableManagementPage : Page
             TimetableGrid.Children.Add(border);
         }
 
-        // 시간표 셀 (요일 1-5, 교시 1-7)
+        // 시간표 셀 (요일 1-5, 교시 1 ~ PeriodCounts.MaxSupported)
         for (int day = 1; day <= 5; day++)
         {
-            for (int period = 1; period <= 7; period++)
+            for (int period = 1; period <= PeriodCounts.MaxSupported; period++)
             {
                 var timetable = _timetables.FirstOrDefault(t => 
                     t.DayOfWeek == day && t.Period == period);

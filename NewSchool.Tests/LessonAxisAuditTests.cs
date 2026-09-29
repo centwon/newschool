@@ -86,6 +86,8 @@ public class LessonAxisAuditTests
     [InlineData("Controls/TimetableControl.xaml.cs", @"Range\(\s*1\s*,\s*7\s*\)")]
     [InlineData("Services/TimetableService.cs", @"Period\s*>\s*7")]
     [InlineData("Dialogs/ClassTimetableEditDialog.xaml", @"ComboBoxItem\s+Content=""7""")]
+    // 그 편집 창을 여는 학급 시간표 관리 화면이 빠져 있어, 8교시를 넣으면 저장은 되는데 이 화면에만 안 보였다(2026-09-30).
+    [InlineData("Pages/ClassTimetableManagementPage.xaml.cs", @"period\s*<=\s*7")]
     [InlineData("Pages/SettingsPage.xaml", @"Maximum=""12""")]
     public void 교시_상한을_파일마다_따로_적지_않는다(string relativePath, string forbidden)
     {
