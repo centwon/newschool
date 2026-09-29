@@ -108,7 +108,12 @@ public sealed partial class CourseSectionView : UserControl
             if (_courseSections.Count > 0)
             {
                 _pendingImportSections = sections;
-                TxtImportConfirm.Text = $"기존 {_courseSections.Count}개의 단원이 삭제되고 새로 {sections.Count}개의 단원이 추가됩니다.\n계속하시겠습니까?";
+                // 가져오기는 전체 교체다 — 기존 단원을 지우면 LessonProgress 가 CASCADE 로 함께 지워진다.
+                // 낱개·전체 삭제와 같은 말을 한다. 예전 문구는 단원만 말해서, 단원 이름 하나 고치려고
+                // CSV 를 다시 넣으면 그동안 표시한 진도가 모두 사라진다는 것을 알 수 없었다.
+                TxtImportConfirm.Text =
+                    $"기존 {_courseSections.Count}개의 단원이 삭제되고 새로 {sections.Count}개의 단원이 추가됩니다.\n" +
+                    "각 단원에 기록해 둔 진도도 함께 지워지며 되돌릴 수 없습니다.\n계속하시겠습니까?";
                 ImportConfirmFlyout.ShowAt(sender as FrameworkElement ?? BtnImportCsv);
                 return;
             }
