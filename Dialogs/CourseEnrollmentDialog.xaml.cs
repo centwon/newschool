@@ -234,8 +234,11 @@ public sealed partial class CourseEnrollmentDialog : ContentDialog
         // 동아리가 아니면 그 수업의 학년만.
         int grade = _course.EffectiveType == CourseTypes.Club ? 0 : _course.Grade;
 
+        // 수업의 학년도 명부다 — 작업 학년도가 아니다. 예전에는 Settings.WorkYear 를 읽어서, 수업 관리에서
+        // 다른 학년도의 수업을 골라 수강생을 열면 올해 명부가 떠 다른 해 학적이 배정될 수 있었다.
+        // 형제인 동아리 부원 창(ClubEnrollmentDialog)은 처음부터 동아리의 학년도를 썼다.
         var students = await enrollmentService.GetEnrollmentsAsync(
-            Settings.SchoolCode.Value, Settings.WorkYear.Value, grade: grade);
+            Settings.SchoolCode.Value, _course.Year, grade: grade);
         _allStudents.AddRange(students);
 
         Debug.WriteLine($"[CourseEnrollmentDialog] 전체 학생 로드: {_allStudents.Count}명");
