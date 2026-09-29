@@ -41,6 +41,10 @@
                       Padding="10,8">
         <StackPanel Spacing="2">
 
+            <!-- 카드 안 알림. 이 카드는 [학생 정보 보기] 처럼 대화상자에 담겨 뜨기도 해서 MessageBox 를
+                 쓰면 그 창이 닫힐 때까지 뜨지 않는다(InlineConfirm 주석) — 알림은 여기, 확인은 단추 옆 팝업. -->
+            <InfoBar x:Name="CardInfoBar" IsOpen="False" Severity="Error" Margin="0,0,0,4"/>
+
             <!-- ===== 기본 정보 + 사진 ===== -->
             <TextBlock Text="기본 정보" Style="{StaticResource SectionHeaderStyle}" Margin="0,0,0,4"/>
             <Grid>

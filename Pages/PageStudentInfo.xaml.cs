@@ -676,7 +676,13 @@ public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Contr
         try
         {
             bool success = await SCard.SaveAsync();
-            
+
+            // 결과는 여기서 알린다 — 카드는 대화상자 안에서도 쓰여 스스로 MessageBox 를 띄우지 않는다
+            // (실패 사유는 카드 안 알림줄에도 남는다).
+            await MessageBox.ShowAsync(
+                success ? "저장되었습니다." : "저장에 실패했습니다.",
+                success ? "저장" : "오류");
+
             if (success)
             {
                 // 학생 목록 새로고침 (이름이 변경되었을 수 있음)

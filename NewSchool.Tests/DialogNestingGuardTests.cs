@@ -53,6 +53,36 @@ public class DialogNestingGuardTests
             "확인은 InlineConfirm, 알림은 창 안 InfoBar 로 할 것:\n  " + string.Join("\n  ", offenders));
     }
 
+    /// <summary>
+    /// <b>대화상자에 담겨 뜨는 컨트롤도 MessageBox 를 부르지 않는다.</b>
+    ///
+    /// <para>위 시험은 ContentDialog 를 물려받은 클래스만 본다. 학생카드는 [학생 정보 보기](학급 일지·
+    /// 누가 기록·동아리·수업 활동)에서 <c>new ContentDialog { Content = card }</c> 로 담겨 떠서 그 그물을
+    /// 빠져나갔다 — 사진 [삭제] 확인이 창을 닫은 뒤에야 떴다(2026-09-30). 대화상자에 담아 띄우는
+    /// 컨트롤이 늘면 여기 이름을 더할 것.</para>
+    /// </summary>
+    [Theory]
+    [InlineData("Controls/StudentCard.xaml.cs")]
+    public void 대화상자에_담겨_뜨는_컨트롤은_MessageBox_를_부르지_않는다(string relativePath)
+    {
+        string path = Path.Combine(RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Assert.True(File.Exists(path), $"소스를 찾지 못했다: {relativePath}");
+
+        string[] lines = File.ReadAllLines(path);
+        var offenders = new List<string>();
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string code = lines[i];
+            int comment = code.IndexOf("//", System.StringComparison.Ordinal);
+            if (comment >= 0) code = code[..comment];
+            if (NestedDialog.IsMatch(code)) offenders.Add($"{relativePath}:{i + 1}");
+        }
+
+        Assert.True(offenders.Count == 0,
+            "대화상자에 담겨 뜨는 컨트롤이 MessageBox 를 부른다 — 그 창이 닫힐 때까지 뜨지 않는다:\n  " +
+            string.Join("\n  ", offenders));
+    }
+
     private static string RepoRoot()
     {
         var dir = new DirectoryInfo(Directory.GetCurrentDirectory());

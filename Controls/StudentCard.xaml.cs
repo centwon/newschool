@@ -181,20 +181,30 @@ public sealed partial class StudentCard : UserControl
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync($"학생 정보 로드 오류: {ex.Message}", "오류");
+            NewSchool.Logging.Log.Error("StudentCard", $"학생 정보를 읽지 못했다: {studentId}", ex);
+            ShowCardError($"학생 정보를 읽지 못했습니다.\n{ex.Message}");
         }
     }
 
-    /// <summary>
-    /// 변경 사항 저장 (확인 메시지 포함) - 이벤트 핵들러
-    /// </summary>
-    private async void SaveAsync(object sender, RoutedEventArgs e)
+    // ⚠ 이 카드는 MessageBox 를 부르지 않는다. [학생 정보 보기](학급 일지·누가 기록·동아리·수업 활동)가
+    //   카드를 대화상자에 담아 띄우는데, 열린 대화상자 안에서 부른 MessageBox 는 그 창이 닫힐 때까지
+    //   뜨지 않았다 — 사진 [삭제] 확인이 창을 닫은 뒤에야 떴다(2026-09-30). 알림은 CardInfoBar,
+    //   확인은 InlineConfirm. 시험 StudentCard_는_MessageBox_를_부르지_않는다 가 지킨다.
+
+    /// <summary>카드 안 알림줄에 알린다(위 주석).</summary>
+    private void ShowCardError(string message)
     {
-        await SaveAsync();
+        CardInfoBar.Message = message;
+        CardInfoBar.IsOpen = true;
     }
 
     /// <summary>
-    /// 변경 사항 저장 (확인 메시지 포함) - Public 메서드
+    /// 변경 사항 저장 — 결과만 돌려준다. 저장됐다·실패했다는 안내는 부르는 쪽이 한다
+    /// (학생 정보 화면의 [저장]). 카드가 직접 MessageBox 를 띄우지 않는 이유는 위 주석.
+    ///
+    /// <para>이 옆에 있던 [저장] 단추용 처리기 <c>SaveAsync(object, RoutedEventArgs)</c> 와 초기화 처리기
+    /// <c>ResetAllInfoAsync(object, RoutedEventArgs)</c> 는 XAML 어디서도 부르지 않아 지웠다(2026-09-30).
+    /// 초기화는 학생 정보 화면의 [초기화](<c>PageStudentInfo.BtnReset_Click</c>) 한 곳이다.</para>
     /// </summary>
     public async Task<bool> SaveAsync()
     {
@@ -203,22 +213,12 @@ public sealed partial class StudentCard : UserControl
 
         try
         {
-            bool success = await ViewModel.SaveAsync();
-
-            if (success)
-            {
-                await MessageBox.ShowAsync("저장되었습니다.", "저장");
-            }
-            else
-            {
-                await MessageBox.ShowAsync("저장에 실패했습니다.", "오류");
-            }
-
-            return success;
+            return await ViewModel.SaveAsync();
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync($"저장 오류: {ex.Message}", "오류");
+            NewSchool.Logging.Log.Error("StudentCard", "학생 정보 저장 실패", ex);
+            ShowCardError($"저장하지 못했습니다.\n{ex.Message}");
             return false;
         }
     }
@@ -266,105 +266,53 @@ public sealed partial class StudentCard : UserControl
         }
     }
 
-    /// <summary>같은 실패로 대화상자를 반복해 띄우지 않도록 한 번만 알린다.</summary>
-    private async Task ReportAutoSaveFailureAsync(string message)
+    /// <summary>같은 실패로 반복해 알리지 않도록 한 번만 알린다(카드 안 알림줄).</summary>
+    private Task ReportAutoSaveFailureAsync(string message)
     {
-        if (_autoSaveFailureReported) return;
+        if (_autoSaveFailureReported) return Task.CompletedTask;
         _autoSaveFailureReported = true;
 
-        await MessageBox.ShowAsync(message, "자동 저장 실패");
+        ShowCardError(message);
+        return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 사진 등록
+    /// 사진 등록. 파일 고르기를 취소하면 아무 말도 하지 않는다 — 사용자가 한 일이다
+    /// (예전에는 "사진 등록이 취소되었습니다" 를 띄웠다).
     /// </summary>
     private async void AddPhotoAsync(object sender, RoutedEventArgs e)
     {
         try
         {
-            bool success = await ViewModel.AddPhotoAsync();
-
-            if (!success)
-            {
-                await MessageBox.ShowAsync("사진 등록이 취소되었습니다.", "알림");
-            }
+            await ViewModel.AddPhotoAsync();
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync($"사진 등록 오류: {ex.Message}", "오류");
+            NewSchool.Logging.Log.Error("StudentCard", "사진을 등록하지 못했다", ex);
+            ShowCardError($"사진을 등록하지 못했습니다.\n{ex.Message}");
         }
     }
 
     /// <summary>
-    /// 사진 삭제
+    /// 사진 삭제 — 단추 옆 팝업으로 묻는다(대화상자 안에서도 뜬다, 파일 위 주석).
+    /// 지워졌으면 사진 칸이 비는 것으로 충분해 따로 알리지 않는다.
     /// </summary>
     private async void DeletePhotoAsync(object sender, RoutedEventArgs e)
     {
+        if (sender is not FrameworkElement anchor) return;
+
         try
         {
-            var result = await MessageBox.ShowYesNoAsync("사진을 삭제하시겠습니까?", "확인");
-
-            if (result != ContentDialogResult.Primary)
+            if (!await InlineConfirm.AskAsync(anchor, "사진을 삭제합니다. 되돌릴 수 없습니다.", "삭제"))
                 return;
 
-            bool success = await ViewModel.DeletePhotoAsync();
-
-            if (success)
-            {
-                await MessageBox.ShowAsync("사진이 삭제되었습니다.", "삭제");
-            }
-            else
-            {
-                await MessageBox.ShowAsync("사진 삭제에 실패했습니다.", "오류");
-            }
+            if (!await ViewModel.DeletePhotoAsync())
+                ShowCardError("사진을 삭제하지 못했습니다.");
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowAsync($"사진 삭제 오류: {ex.Message}", "오류");
-        }
-    }
-
-    /// <summary>
-    /// 모든 정보 초기화
-    /// </summary>
-    private async void ResetAllInfoAsync(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var result = await MessageBox.ShowYesNoAsync(
-                $"{ViewModel.Name} 학생의 정보를 모두 삭제하고 초기화합니다.\n" +
-                "되돌릴 수 없습니다. 계속할까요?",
-                "학생 정보 삭제");
-
-            if (result != ContentDialogResult.Primary)
-                return;
-
-            bool success = await ViewModel.ResetAllInfoAsync();
-
-            if (success)
-            {
-                // ⚠ 화면만 비우는 것이 ResetAllInfoAsync 이고, DB 에 쓰는 것은 SaveAsync 다.
-                //   그 결과를 버리면 저장이 실패해도 "초기화되었습니다" 라고 말하게 되고,
-                //   다른 학생을 골랐다 돌아오면 옛 값이 그대로 보인다(사진은 이미 지워진 뒤다).
-                //   형제인 PageStudentInfo 의 같은 흐름은 처음부터 확인하고 있었다.
-                if (!await ViewModel.SaveAsync())
-                {
-                    await MessageBox.ShowAsync(
-                        "화면은 비웠지만 저장하지 못했습니다. [저장] 으로 다시 시도하세요.",
-                        "저장 실패");
-                    return;
-                }
-
-                await MessageBox.ShowAsync("초기화되었습니다.", "초기화");
-            }
-            else
-            {
-                await MessageBox.ShowAsync("초기화에 실패했습니다.", "오류");
-            }
-        }
-        catch (Exception ex)
-        {
-            await MessageBox.ShowAsync($"초기화 오류: {ex.Message}", "오류");
+            NewSchool.Logging.Log.Error("StudentCard", "사진을 삭제하지 못했다", ex);
+            ShowCardError($"사진을 삭제하지 못했습니다.\n{ex.Message}");
         }
     }
 
