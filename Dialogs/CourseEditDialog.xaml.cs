@@ -250,7 +250,9 @@ public sealed partial class CourseEditDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            await MessageBox.ShowErrorAsync("딸린 기록을 세지 못했습니다.", ex);
+            // 창 안에 알린다 — 열린 대화상자 안에서는 MessageBox 가 뜨지 않는다(InlineConfirm 주석).
+            NewSchool.Logging.Log.Error("CourseEditDialog", "강의실 다시 정하기 — 딸린 기록을 세지 못했다", ex);
+            ShowError($"딸린 기록을 세지 못했습니다.\n{ex.Message}");
             return;
         }
 
@@ -272,7 +274,9 @@ public sealed partial class CourseEditDialog : ContentDialog
 
         message += "계속할까요?";
 
-        if (!await MessageBox.ShowConfirmAsync(message, "강의실 다시 정하기", "계속", "취소"))
+        // ⚠ 단추 옆 팝업으로 묻는다. MessageBox 로 물으면 이 창이 닫힐 때까지 뜨지 않아
+        //   [강의실 다시 정하기] 가 아무 반응이 없었다 — 배치가 있는 수업은 강의실을 고칠 길이 없었다.
+        if (!await InlineConfirm.AskAsync(BtnResetRooms, message, "계속"))
             return;
 
         _roomResetConfirmed = true;

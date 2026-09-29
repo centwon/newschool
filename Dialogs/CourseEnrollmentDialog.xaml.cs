@@ -596,7 +596,12 @@ public sealed partial class CourseEnrollmentDialog : ContentDialog
         {
             Debug.WriteLine($"[CourseEnrollmentDialog] 저장 실패: {ex.Message}");
             args.Cancel = true;
-            await NewSchool.Controls.UserErrorReporter.ReportAsync("수강생 저장", ex);
+
+            // ⚠ 창 안에 알린다. 예전에는 UserErrorReporter(=MessageBox)를 불렀는데, 그 알림은 이 창이
+            //   닫히기를 기다리고 이 창은 deferral 이 끝나기(=알림이 끝나기)를 기다려 둘이 서로 막혔다 —
+            //   [저장] 이 멈춘 채 알림도 뜨지 않았다(InlineConfirm 주석).
+            NewSchool.Logging.Log.Error("CourseEnrollmentDialog", "수강생 저장 실패", ex);
+            ShowInfo($"저장하지 못했습니다. 한 명도 저장되지 않았습니다.\n{ex.Message}", InfoBarSeverity.Error);
         }
         finally
         {

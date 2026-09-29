@@ -48,7 +48,10 @@ public sealed partial class LessonChangeDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            await Controls.UserErrorReporter.ReportAsync("수업 변경 목록 열기", ex);
+            // 창 안에 알린다 — 열린 대화상자 안에서는 MessageBox 가 뜨지 않는다(InlineConfirm 주석).
+            NewSchool.Logging.Log.Error("LessonChangeDialog", "수업 변경 목록을 읽지 못했다", ex);
+            ChangeInfoBar.Message = $"수업 변경 목록을 읽지 못했습니다.\n{ex.Message}";
+            ChangeInfoBar.IsOpen = true;
         }
     }
 
@@ -71,13 +74,15 @@ public sealed partial class LessonChangeDialog : ContentDialog
 
     private async void OnDeleteClick(object sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is not LessonChange change) return;
+        if (sender is not Button button || button.Tag is not LessonChange change) return;
 
         // 되돌릴 수 없는데 확인 없이 지우고 있었다 — 목록에서 누르는 즉시 사라졌다.
         // 다른 삭제는 모두 확인을 받는다.
-        if (!await MessageBox.ShowConfirmAsync(
+        // ⚠ 단추 옆 팝업으로 묻는다. MessageBox 로 물으면 이 창이 닫힐 때까지 뜨지 않아
+        //   [삭제] 가 아무 반응이 없다가 창을 닫은 뒤에야 확인이 떴다(InlineConfirm 주석).
+        if (!await InlineConfirm.AskAsync(button,
                 $"{change.Date:yyyy-MM-dd} {change.Period}교시의 수업 변경을 되돌립니다.\n되돌릴 수 없습니다.",
-                "수업 변경 삭제", "삭제", "취소"))
+                "삭제"))
             return;
 
         try
