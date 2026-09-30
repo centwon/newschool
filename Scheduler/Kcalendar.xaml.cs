@@ -687,7 +687,10 @@ public sealed partial class Kcalendar : Page
     private void BtnToday_Click(object sender, RoutedEventArgs e)
     {
         if (!_isInitialized) return;
-        if (_basedate.Year == DateTime.Today.Year && _basedate.Month == DateTime.Today.Month) return;
+
+        // 같은 달이면 그대로 — 달의 1일끼리 비교한다(학년도가 아니라 달력의 달이다).
+        static DateTime MonthStart(DateTime d) => d.Date.AddDays(1 - d.Day);
+        if (MonthStart(_basedate) == MonthStart(DateTime.Today)) return;
 
         BaseDate = DateTime.Today;
         PickerMonth.SelectedMonth = BaseDate;
