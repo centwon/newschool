@@ -198,10 +198,14 @@ public sealed partial class LessonJournalWindow : Window
         NewSchool.Controls.UnsavedWorkGuard.AskBeforeClosing(
             this, () => HasUnsavedWork, "적은 수업 일지가 저장되지 않습니다.");
 
-    /// <summary>연 뒤로 제목이나 본문이 달라졌는가(읽는 중에는 늘 false).</summary>
+    /// <summary>
+    /// 연 뒤로 제목·본문·첨부가 달라졌는가(읽는 중에는 늘 false). 머리 정보는 제목을 따라 바뀌므로
+    /// 제목이 대신 본다. 첨부는 [저장] 때 반영되는데 예전에는 세지 않아, 파일만 붙이고 닫으면
+    /// 묻지 않고 사라졌다.
+    /// </summary>
     private bool HasUnsavedWork =>
         !_isLoading && !Result &&
-        (TxtTitle.Text != _openedTitle || Editor.IsModified);
+        (TxtTitle.Text != _openedTitle || Editor.IsModified || FileList.HasChanges);
 
     private string _openedTitle = string.Empty;
 

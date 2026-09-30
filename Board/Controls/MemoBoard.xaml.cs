@@ -384,7 +384,9 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             if (string.IsNullOrWhiteSpace(_recentPost.Title))
                 _recentPost.Title = ExtractTitle(_recentPost.PlainText);
 
-            _recentPost.DateTime = DateTime.Now;
+            // 작성일시는 처음 저장할 때만 찍는다 — 고칠 때마다 밀면 '언제 쓴 메모'인지가 사라진다
+            // (게시글 편집·메모 창·수업 일지 창과 같은 규칙).
+            if (_recentPost.No <= 0) _recentPost.DateTime = DateTime.Now;
             TxtRecentTitle.Text = _recentPost.Title;
 
             using var service = Board.CreateCachedService();   // 쓰기 → 캐시 무효화가 함께 돌아야 한다
@@ -442,10 +444,17 @@ public sealed partial class MemoBoard : UserControl, IDisposable
     {
         if (HasChanges) await SaveRecentMemoAsync();
 
-        var dialog = new Dialogs.MemoEditDialog(memo);
+        // 사본을 넘긴다 — 창은 저장을 누르면 값을 먼저 고치고 저장을 시도하므로, 목록의 메모를
+        // 그대로 주면 저장에 실패한 뒤 취소해도 고친 제목·분류가 이 판에 남아 다음 저장 때 섞여 들어갔다.
+        var copy = memo.Clone();
+        var dialog = new Dialogs.MemoEditDialog(copy);
         bool saved = await dialog.ShowDialogAsync(App.MainWindow);
         if (saved)
+        {
+            // 아직 DB 에 없던 메모는 창이 저장하며 번호를 받았다 — 다시 읽은 뒤에도 그 메모를 펼쳐 둔다.
+            if (memo == _expanded) _expanded = copy;
             await LoadMemosAsync();
+        }
     }
 
     #endregion

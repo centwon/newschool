@@ -178,14 +178,14 @@ public class PostDetailViewModel : NotifyPropertyChangedBase
 
     #region Methods
 
-    public async Task LoadPostAsync(int postNo)
+    /// <param name="countView">조회수를 올리는가 — 글을 열 때만. 제자리에서 고친 뒤 다시 읽을 때는 아니다.</param>
+    public async Task LoadPostAsync(int postNo, bool countView = true)
     {
         try
         {
             IsLoading = true;
 
-            // Post 조회 (조회수 증가)
-            Post = await _service.GetPostAsync(postNo, incrementReadCount: true);
+            Post = await _service.GetPostAsync(postNo, incrementReadCount: countView);
 
             if (Post != null)
             {

@@ -23,9 +23,16 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
     /// <para>⚠ 예전에는 이 판정을 <c>[취소]</c> 버튼만 했다. 왼쪽 메뉴로 다른 화면에 가면
     /// 아무것도 묻지 않고 작성 중인 글이 사라졌다 — 같은 "나가기" 인데 길에 따라 다르게
     /// 굴었다(52차). 판정을 이리로 올려 두 길이 같은 것을 본다.</para>
+    ///
+    /// <para>제목·본문 밖의 것(분류·주제·중요 글·첨부)도 [저장] 을 눌러야 반영된다 —
+    /// 예전에는 파일만 붙이고 나가면 묻지 않고 사라졌다.</para>
     /// </summary>
     public bool HasUnsavedWork =>
-        TitleTextBox.Text != _originalTitle || ContentEditor.IsModified;
+        TitleTextBox.Text != _originalTitle || ContentEditor.IsModified
+        || CurrentCategory() != _openedCategory
+        || SubjectComboBox.Text.Trim() != _openedSubject
+        || (PinnedCheckBox.IsChecked == true) != _openedPinned
+        || FileListBox.HasChanges;
 
     public string UnsavedWorkMessage => "작성 중인 글이 저장되지 않습니다.";
 
@@ -36,6 +43,9 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
     private List<string> _allCategories = new();
     private string _originalCategory = string.Empty; // 수정 모드에서 카테고리 변경 감지용
     private string _originalTitle = string.Empty;    // 취소 시 미저장 변경 감지용
+    private string _openedCategory = string.Empty;   // 이하 셋도 미저장 변경 감지용(연 그대로의 값)
+    private string _openedSubject = string.Empty;
+    private bool _openedPinned;
 
     // 기본 카테고리 목록
     private static readonly List<string> _defaultCategories = new()
@@ -177,8 +187,15 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
 
         // 취소 시 미저장 변경 감지 기준값 저장
         _originalTitle = TitleTextBox.Text;
+        _openedCategory = CurrentCategory();
+        _openedSubject = SubjectComboBox.Text.Trim();
+        _openedPinned = PinnedCheckBox.IsChecked == true;
         ContentEditor.MarkSaved();
     }
+
+    /// <summary>분류 칸에 지금 들어 있는 값 — 저장이 읽는 순서(고른 항목 → 친 글자)와 같다.</summary>
+    private string CurrentCategory() =>
+        CategoryComboBox.SelectedItem as string ?? CategoryComboBox.Text?.Trim() ?? string.Empty;
 
     private async Task LoadCategoriesAsync()
     {
@@ -398,7 +415,9 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
                     _post.Category = _parameter.DefaultCategory;
                 }
 
-                _post.DateTime = DateTime.Now;
+                // 작성일시는 새 글일 때만 찍는다 — 고칠 때마다 밀면 '언제 쓴 글'인지가 사라진다
+                // (수업 일지 창과 같은 규칙. 일지의 해는 이 값으로 가린다 — LessonJournalTitle.DateOf).
+                if (!_isEditMode) _post.DateTime = DateTime.Now;
 
                 using var service = Board.CreateCachedService();
 

@@ -551,7 +551,12 @@ public sealed partial class PostListPage : Page
 
         // 수업 일지는 전용 창에서 머리 정보·본문·첨부를 한 번에 받는다.
         // 여기서 편집기 페이지로 넘어가지 않으므로 목록만 새로 읽으면 된다.
-        if (_parameter.UseLessonJournalTemplate)
+        // 수업 게시판에서 주제를 '수업일지' 로 걸러 놓고 누른 새 글도 같다 — 일반 편집기로 쓰면
+        // 제목 규칙을 안 따라 시간표·진도표에서 못 알아본다.
+        bool isJournalBoard = _parameter.UseLessonJournalTemplate
+            || (_parameter.Category == NewSchool.Dialogs.LessonJournalComposer.Category
+                && _parameter.Subject == NewSchool.Dialogs.LessonJournalComposer.Subject);
+        if (isJournalBoard)
         {
             if (await NewSchool.Dialogs.LessonJournalComposer.ComposeAsync())
                 await ViewModel.RefreshAsync();

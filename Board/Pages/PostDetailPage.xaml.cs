@@ -47,32 +47,53 @@ public sealed partial class PostDetailPage : Page
         }
 
         if (_postNo > 0)
+            await LoadAsync(countView: true);
+    }
+
+    private async Task LoadAsync(bool countView)
+    {
+        await ViewModel.LoadPostAsync(_postNo, countView);
+
+        if (ViewModel.Post != null)
         {
-            await ViewModel.LoadPostAsync(_postNo);
-
-            if (ViewModel.Post != null)
+            // 내용(.flow)을 에디터에 로드
+            if (ViewModel.Post.Content is { Length: > 0 } flow)
             {
-                // 내용(.flow)을 에디터에 로드
-                if (ViewModel.Post.Content is { Length: > 0 } flow)
-                {
-                    using var ms = new MemoryStream(flow);
-                    await ContentViewer.LoadPackageAsync(ms);
-                }
-                else ContentViewer.Clear();
-
-                using var service = Board.CreateService();
-                var files = await service.GetPostFilesByPostAsync(_postNo);
-                if (files != null && files.Count > 0)
-                {
-                    DetailFileListBox.LoadFiles(files, ViewModel.Post.Category, readOnly: true);
-                    DetailFileListBox.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-                }
+                using var ms = new MemoryStream(flow);
+                await ContentViewer.LoadPackageAsync(ms);
             }
+            else ContentViewer.Clear();
+
+            using var service = Board.CreateService();
+            var files = await service.GetPostFilesByPostAsync(_postNo);
+            bool hasFiles = files != null && files.Count > 0;
+            if (hasFiles)
+                DetailFileListBox.LoadFiles(files!, ViewModel.Post.Category, readOnly: true);
+            DetailFileListBox.Visibility = hasFiles ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
-    private void EditButton_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// 수업 일지는 게시판 편집 페이지가 아니라 <b>전용 창</b>에서 고친다.
+    ///
+    /// <para>예전에는 수업 일지 게시판에서 글을 열고 [수정] 을 누르면 일반 편집 페이지로 갔다.
+    /// 거기서는 제목을 마음대로 고칠 수 있어 날짜·교시 제목 규칙이 깨졌고(시간표의 공책 표시·
+    /// 진도표의 일지 목록에서 빠진다), 새 글과 시간표 칸에서 여는 길은 모두 전용 창이었다.</para>
+    /// </summary>
+    private static bool IsLessonJournal(Post post) =>
+        post.Category == NewSchool.Dialogs.LessonJournalComposer.Category
+        && post.Subject == NewSchool.Dialogs.LessonJournalComposer.Subject;
+
+    private async void EditButton_Click(object sender, RoutedEventArgs e)
     {
+        if (ViewModel.Post is { } post && IsLessonJournal(post))
+        {
+            // 창에서 저장하고 돌아오므로 이 화면을 제자리에서 다시 읽는다(조회수는 올리지 않는다).
+            if (await NewSchool.Dialogs.LessonJournalComposer.OpenPostAsync(_postNo))
+                await LoadAsync(countView: false);
+            return;
+        }
+
         // 게시판 컨텍스트를 PostEditPage에 전달
         Frame.Navigate(typeof(PostEditPage), new PostEditPageParameter
         {

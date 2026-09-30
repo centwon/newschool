@@ -50,13 +50,21 @@ public sealed partial class MemoEditDialog : Window
 
     private WinUIRichEditor.Controls.RichEditor Editor => EditorView.Editor;
 
-    /// <summary>연 뒤로 제목이나 본문이 달라졌는가(읽는 중에는 늘 false).</summary>
+    /// <summary>
+    /// 연 뒤로 달라진 것이 있는가(읽는 중에는 늘 false). 제목·본문만 보던 때는 분류·완료·첨부만
+    /// 바꾸고 닫으면 묻지 않고 사라졌다 — 그것들도 [저장] 을 눌러야 반영된다.
+    /// </summary>
     private bool HasUnsavedWork =>
         !_isLoading && !Result &&
-        (TxtTitle.Text != _openedTitle || Editor.IsModified);
+        (TxtTitle.Text != _openedTitle || Editor.IsModified
+         || GetSelectedCategory() != _openedCategory
+         || (ChkCompleted.IsChecked == true) != _openedCompleted
+         || FileList.HasChanges);
 
     private bool _isLoading = true;
     private string _openedTitle = string.Empty;
+    private string _openedCategory = string.Empty;
+    private bool _openedCompleted;
 
     #region Window Size / Position
 
@@ -152,6 +160,8 @@ public sealed partial class MemoEditDialog : Window
         {
             // 여기까지가 "연 그대로" 다. 이후 달라지면 저장하지 않은 편집이 있는 것이다(52차).
             _openedTitle = TxtTitle.Text;
+            _openedCategory = GetSelectedCategory();
+            _openedCompleted = ChkCompleted.IsChecked == true;
             Editor.MarkSaved();
             _isLoading = false;
         }
@@ -187,7 +197,10 @@ public sealed partial class MemoEditDialog : Window
                 _post.Content = ms.ToArray();
             }
             _post.PlainText = Editor.GetPlainText();
-            _post.DateTime = DateTime.Now;
+
+            // 작성일시는 아직 DB 에 없는 메모일 때만 찍는다 — 고칠 때마다 밀면 '언제 쓴 메모'인지가
+            // 사라진다(수업 일지 창·게시글 편집과 같은 규칙).
+            if (_post.No <= 0) _post.DateTime = DateTime.Now;
 
             // 쓰기는 캐시 서비스로 — 게시판 목록·상세가 옛 제목·카테고리를 물고 있지 않도록
             using var service = Board.CreateCachedService();

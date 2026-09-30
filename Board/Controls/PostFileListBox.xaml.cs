@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -49,6 +50,15 @@ public sealed partial class PostFileListBox : UserControl
     }
 
     // FileCount 는 바인딩도 호출도 없어 지웠다(39차).
+
+    /// <summary>
+    /// 연 뒤로 첨부를 붙였거나 뗐는가 — 저장을 눌러야 반영되는 변경이다.
+    ///
+    /// <para>편집 창들의 "저장하지 않은 편집" 판정이 제목·본문만 봐서, 파일만 붙이고 나가면
+    /// 묻지 않고 사라졌다. 새로 붙인 파일은 <see cref="FileItemBox.OrgFilePath"/> 가 채워져 있다.</para>
+    /// </summary>
+    public bool HasChanges =>
+        FilesToDelete.Count > 0 || FileBoxes.Any(b => !string.IsNullOrEmpty(b.OrgFilePath));
 
     /// <summary>
     /// 읽기 전용 모드 (추가/삭제 불가)
