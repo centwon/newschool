@@ -33,7 +33,7 @@
                     <ToggleSwitch
                         x:Name="ShowEventsToggle"
                         Grid.Row="0" Grid.Column="0"
-                        Header="이벤트"
+                        Header="학사일정"
                         OnContent="표시" OffContent="숨김"/>
                     <ToggleSwitch
                         x:Name="ShowTasksToggle"

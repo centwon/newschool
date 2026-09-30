@@ -32,9 +32,15 @@
                     </Button>
                     <Control:MonthPicker x:Name="PickerMonth" Grid.Column="1" SelectedMonthChanged="PickerMonth_SelectedMonthChanged" />
 
-                    <Button x:Name="BtnNext" Grid.Column="2" AutomationProperties.Name="다음 달" ToolTipService.ToolTip="다음 달" FontSize="14" Margin="2,2,2,2" Click="BtnNext_Click" Padding="6,2,6,2" Background="{x:Null}" BorderBrush="{x:Null}" HorizontalAlignment="Left">
-                        <TextBlock FontFamily="{StaticResource SymbolThemeFontFamily}" Text="&#xE76C;" FontSize="18"/>
-                    </Button>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <Button x:Name="BtnNext" AutomationProperties.Name="다음 달" ToolTipService.ToolTip="다음 달" FontSize="14" Margin="2,2,2,2" Click="BtnNext_Click" Padding="6,2,6,2" Background="{x:Null}" BorderBrush="{x:Null}">
+                            <TextBlock FontFamily="{StaticResource SymbolThemeFontFamily}" Text="&#xE76C;" FontSize="18"/>
+                        </Button>
+                        <!-- 다른 달을 보다가 한 번에 돌아온다. 예전에는 달을 넘기거나 월 선택에서 찾아야 했다.
+                             글자 단추라 UIA 이름은 Content 가 된다. -->
+                        <Button x:Name="BtnToday" Content="오늘" Margin="6,2,2,2" Padding="10,2,10,2"
+                                ToolTipService.ToolTip="이번 달로" Click="BtnToday_Click"/>
+                    </StackPanel>
 
                     <!-- 열은 0~3 이다. 예전에 Grid.Column="4" 로 적혀 있었는데, WinUI 가 범위를
                          넘는 값을 마지막 열로 클램프해 준 덕에 우연히 의도대로 보였을 뿐이다

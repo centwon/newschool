@@ -122,7 +122,7 @@ public sealed partial class Kcalendar : Page
                 var column = i % 7;
 
                 var cell = new DayCell();
-                cell.PointerPressed += DayCell_PointerPressed;
+                cell.DoubleTapped += DayCell_DoubleTapped;
                 cell.KeyDown += DayCell_KeyDown;
                 cell.GotFocus += DayCell_GotFocus;
                 cell.CellChanged += DayCell_CellChanged;
@@ -416,12 +416,33 @@ public sealed partial class Kcalendar : Page
     }
 
     /// <summary>
-    /// DayCell 클릭 이벤트 처리 (✅ ResultEvent 통합)
+    /// 날짜 칸을 <b>두 번</b> 눌러 새 항목을 연다(키보드는 Enter — <see cref="DayCell_KeyDown"/>).
+    ///
+    /// <para>예전에는 한 번만 눌러도(PointerPressed) 새 일정 창이 떠서, 칸 안의 일정을 누르려다
+    /// 빈 곳을 스치면 원치 않는 창이 떴다. 도움말은 줄곧 "더블클릭" 이라고 했다(2026-09-30 되돌림).</para>
+    ///
+    /// <para>칸 안의 일정·할 일 줄과 완료 단추 위에서 난 더블클릭은 무시한다 — 줄은 한 번 누름으로
+    /// 제 편집 창을 열고, 완료 단추를 빠르게 두 번 누른 것이 새 항목 창이 되면 안 된다.</para>
     /// </summary>
-    private async void DayCell_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private async void DayCell_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
     {
         if (sender is not DayCell cell) return;
+        if (IsOnItemOrButton(e.OriginalSource as DependencyObject, cell)) return;
+
+        e.Handled = true;
         await OpenNewItemAsync(cell);
+    }
+
+    /// <summary>눌린 곳이 칸 안의 항목 줄(Tag 가 KEvent)이나 단추 위인가.</summary>
+    private static bool IsOnItemOrButton(DependencyObject? node, DayCell cell)
+    {
+        while (node != null && !ReferenceEquals(node, cell))
+        {
+            if (node is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase) return true;
+            if (node is FrameworkElement { Tag: KEvent }) return true;
+            node = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(node);
+        }
+        return false;
     }
 
     #region 날짜 칸 키보드 (roving 포커스)
@@ -573,6 +594,19 @@ public sealed partial class Kcalendar : Page
             BaseDate = _basedate.AddMonths(1);
             PickerMonth.SelectedMonth = BaseDate;
         }
+    }
+
+    /// <summary>
+    /// [오늘] — 이번 달로 돌아온다. 이미 이번 달이면 아무 일도 없다(BaseDate 는 같은 달이면 다시 읽지 않는다).
+    /// 달이 바뀌면 Tab 이 들어올 칸도 오늘로 옮겨진다(<see cref="ResetRovingForMonth"/>).
+    /// </summary>
+    private void BtnToday_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isInitialized) return;
+        if (_basedate.Year == DateTime.Today.Year && _basedate.Month == DateTime.Today.Month) return;
+
+        BaseDate = DateTime.Today;
+        PickerMonth.SelectedMonth = BaseDate;
     }
 
     /// <summary>

@@ -444,7 +444,7 @@ public sealed partial class DayCell : UserControl
     }
 
     // 새 항목 추가(AddNewTaskAsync)는 이를 부르던 OnCellDoubleClick 과 함께 지웠다(39차) —
-    // 날짜 칸에서 항목을 만드는 길은 달력 쪽 DayCell_PointerPressed 하나뿐이다.
+    // 날짜 칸에서 항목을 만드는 길은 달력 쪽 DayCell_DoubleTapped(더블클릭)와 Enter 뿐이다.
 
     private async void TaskItem_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
