@@ -425,6 +425,41 @@ public class KEventRepository : BaseRepository
 
     #endregion
 
+    /// <summary>
+    /// 구글 반복 일정의 먼 회차를 <b>이 앱에서만</b> 지운다(구글에는 아무것도 보내지 않는다 — 행을 통째로
+    /// 지우므로 cancelled 로 남아 삭제가 전파되는 일이 없다).
+    ///
+    /// <para>회차는 구글 ID 에 <c>_날짜</c> 가 붙는다(<c>원본ID_20270126</c>). 앱이 만들어 올린 일정의
+    /// ID 에는 밑줄이 없다. 날짜 비교는 문자열로 한다 — 종일은 <c>yyyy-MM-dd</c>, 시간 일정은 UTC
+    /// <c>yyyy-MM-ddT…</c> 라 둘 다 <paramref name="fromDate"/>(<c>yyyy-MM-dd</c>) 와 앞자리부터 비교된다.</para>
+    /// </summary>
+    /// <returns>지운 행 수.</returns>
+    public async Task<int> DeleteRecurringInstancesFromAsync(IEnumerable<int> calendarIds, DateTime fromDate)
+    {
+        var ids = new List<int>(calendarIds);
+        if (ids.Count == 0) return 0;
+
+        string inList = string.Join(",", ids.ConvertAll(i => i.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        string query = $@"
+            DELETE FROM KEvent
+            WHERE CalendarId IN ({inList})
+              AND GoogleId LIKE '%\_%' ESCAPE '\'
+              AND Start >= @From";
+        try
+        {
+            using var cmd = CreateCommand(query);
+            cmd.Parameters.AddWithValue("@From", fromDate.ToString("yyyy-MM-dd"));
+            int n = await cmd.ExecuteNonQueryAsync();
+            if (n > 0) LogInfo($"먼 반복 회차 {n}건 정리(앱에서만): {fromDate:yyyy-MM-dd} 이후");
+            return n;
+        }
+        catch (Exception ex)
+        {
+            LogError("먼 반복 회차 정리 실패", ex);
+            throw;
+        }
+    }
+
     #region Task Queries (Ktask 통합)
 
     /// <summary>날짜 범위로 할 일(task) 조회</summary>

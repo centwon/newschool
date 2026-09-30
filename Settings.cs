@@ -265,6 +265,13 @@ public static class Settings
     public static SettingProperty<int> GoogleSyncIntervalMinutes { get; private set; } = null!;
     public static SettingProperty<string> GoogleLastSyncTime { get; private set; } = null!;
 
+    /// <summary>
+    /// 구글에서 마지막으로 <b>전체를 다시 받은</b> 때(UTC, "o"). 한 달이 지나면 동기화 토큰을 비워 다시 받는다 —
+    /// 반복 일정은 1년 앞 회차까지만 저장하는데, 토큰으로는 바뀐 것만 오므로 그 창을 앞으로 밀 길이 이것뿐이다
+    /// (<c>GoogleSyncService.RecurringHorizonDays</c>).
+    /// </summary>
+    public static SettingProperty<string> GoogleFullSyncAt { get; private set; } = null!;
+
     // School 관련 설정
     public static SettingProperty<string> SchoolDB { get; private set; } = null!;
     // 학교 DB 초기화 완료 플래그(School_Inited/"SchoolDB_Inited")는 세우고 내리기만 할 뿐
@@ -417,6 +424,7 @@ public static class Settings
         GoogleAutoSync = new SettingProperty<bool>("GoogleAutoSync", false, bool.Parse, b => b.ToString().ToLower());
         GoogleSyncIntervalMinutes = new SettingProperty<int>("GoogleSyncIntervalMinutes", 15, int.Parse, i => i.ToString());
         GoogleLastSyncTime = new SettingProperty<string>("GoogleLastSyncTime", "", s => s, s => s);
+        GoogleFullSyncAt = new SettingProperty<string>("GoogleFullSyncAt", "", s => s, s => s);
 
         User = new SettingProperty<string>("User", "user", s => s, s => s);
         WorkYear = new SettingProperty<int>("WorkYear", 0, int.Parse, i => i.ToString());
@@ -513,6 +521,7 @@ public static class Settings
         GoogleAutoSync.Reload();
         GoogleSyncIntervalMinutes.Reload();
         GoogleLastSyncTime.Reload();
+        GoogleFullSyncAt.Reload();
         SchoolDB.Reload();
         User.Reload();
         WorkYear.Reload();

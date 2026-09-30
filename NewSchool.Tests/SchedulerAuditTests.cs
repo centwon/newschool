@@ -345,6 +345,70 @@ public class SchedulerAuditTests : IClassFixture<SchedulerTestFixture>
         Assert.Contains("showDeleted=true", source);
     }
 
+    // ── 2026-09-30 구글 반복 일정의 먼 회차 ───────────────────────────────
+
+    /// <summary>
+    /// 반복 회차(recurringEventId 있음)만 창 밖이면 저장하지 않는다. 반복이 아닌 먼 일정은 사람이
+    /// 일부러 넣은 것이라 저장한다. 종일(date)·시간(dateTime) 둘 다 읽는다.
+    /// </summary>
+    [Fact]
+    public void 먼_반복_회차만_저장하지_않는다()
+    {
+        var horizon = new DateTime(2027, 9, 30);
+
+        NewSchool.Google.GoogleEvent Allday(string date, string? recurringId) => new()
+        {
+            Id = "x", RecurringEventId = recurringId,
+            Start = new NewSchool.Google.GoogleEventDateTime { Date = date }
+        };
+
+        Assert.True(NewSchool.Google.GoogleSyncService.IsFarRecurringInstance(Allday("2040-01-26", "base"), horizon));
+        Assert.True(NewSchool.Google.GoogleSyncService.IsFarRecurringInstance(Allday("2027-09-30", "base"), horizon));
+        Assert.False(NewSchool.Google.GoogleSyncService.IsFarRecurringInstance(Allday("2027-09-29", "base"), horizon));
+        Assert.False(NewSchool.Google.GoogleSyncService.IsFarRecurringInstance(Allday("2040-01-26", null), horizon));
+
+        var timed = new NewSchool.Google.GoogleEvent
+        {
+            Id = "y", RecurringEventId = "base",
+            Start = new NewSchool.Google.GoogleEventDateTime { DateTime = "2031-03-02T09:00:00+09:00" }
+        };
+        Assert.True(NewSchool.Google.GoogleSyncService.IsFarRecurringInstance(timed, horizon));
+    }
+
+    /// <summary>
+    /// 이미 쌓인 먼 회차 정리: 그 캘린더의, 구글 ID 에 밑줄이 붙은(회차), 기준일 이후 행만 지운다.
+    /// 앱이 만든 일정(밑줄 없음)·가까운 회차·다른 캘린더는 남긴다.
+    /// </summary>
+    [Fact]
+    public async Task 먼_반복_회차_정리는_그_캘린더의_먼_회차만_지운다()
+    {
+        using var svc = new SchedulerService(_db.DbPath);
+        string tag = Guid.NewGuid().ToString("N")[..8];
+
+        async Task<int> Add(string googleId, DateTime start, int calendarId)
+        {
+            var ev = NewTask("회차 " + googleId, start, calendarId);
+            ev.ItemType = "event";
+            ev.IsAllday = true;
+            ev.GoogleId = googleId;
+            return await svc.CreateEventAsync(ev);
+        }
+
+        int farInstance  = await Add($"b{tag}_20400126", new DateTime(2040, 1, 26), 4);
+        int farOwn       = await Add($"own{tag}", new DateTime(2040, 1, 26), 4);
+        int nearInstance = await Add($"b{tag}_20270126", new DateTime(2027, 1, 26), 4);
+        int otherCal     = await Add($"c{tag}_20400126", new DateTime(2040, 1, 26), 3);
+
+        int deleted = await svc.DeleteRecurringInstancesFromAsync(new[] { 4 }, new DateTime(2027, 9, 30));
+
+        Assert.True(deleted >= 1);
+        using var repo = new KEventRepository(_db.DbPath);
+        Assert.Null(await repo.GetByIdAsync(farInstance));
+        Assert.NotNull(await repo.GetByIdAsync(farOwn));
+        Assert.NotNull(await repo.GetByIdAsync(nearInstance));
+        Assert.NotNull(await repo.GetByIdAsync(otherCal));
+    }
+
     /// <summary>
     /// 주석을 걷어낸다. 위 검사들은 "이 코드가 되살아났는가" 를 보는 것이라,
     /// 지운 이유를 적어 둔 주석이 스스로 걸리면 안 된다.

@@ -240,6 +240,10 @@ public sealed class SchedulerService : IDisposable
     public async Task<List<KEvent>> GetDeletedEventsWithGoogleIdAsync(int calendarId)
         => await KEventRepo.GetDeletedWithGoogleIdAsync(calendarId);
 
+    /// <summary>구글 반복 일정의 먼 회차를 앱에서만 지운다(<see cref="KEventRepository.DeleteRecurringInstancesFromAsync"/>).</summary>
+    public async Task<int> DeleteRecurringInstancesFromAsync(IEnumerable<int> calendarIds, DateTime fromDate)
+        => await KEventRepo.DeleteRecurringInstancesFromAsync(calendarIds, fromDate);
+
     #endregion
 
     #region IDisposable

@@ -54,6 +54,48 @@ public sealed class GoogleSyncService : IDisposable
     /// </summary>
     public event EventHandler<SyncResult>? SyncCompleted;
 
+    /// <summary>
+    /// 반복 일정은 오늘부터 이만큼 앞의 회차까지만 저장한다.
+    ///
+    /// <para>회차별로 받으므로(<c>singleEvents=true</c>) 끝없는 반복(생일·기념일)은 구글이 수십 년치를
+    /// 준다 — 실사용 DB 에 해마다 되풀이되는 일정 4개가 2056년까지 117행으로 쌓여 있었다(2026-09-30).
+    /// 받는 요청에 끝(<c>timeMax</c>)을 걸지 않는 것은, 토큰으로는 <b>바뀐 것만</b> 오므로 한 번 자른
+    /// 창 밖 회차가 다시는 들어오지 않기 때문이다. 대신 먼 회차는 저장하지 않고, 창은
+    /// <see cref="FullRefreshDays"/> 마다 전체를 다시 받아 앞으로 민다.</para>
+    /// </summary>
+    internal const int RecurringHorizonDays = 365;
+
+    /// <summary>이 날수가 지나면 토큰을 비워 전체를 다시 받는다(<see cref="RecurringHorizonDays"/> 창 밀기).</summary>
+    internal const int FullRefreshDays = 30;
+
+    private static DateTime RecurringHorizon => DateTime.Today.AddDays(RecurringHorizonDays);
+
+    /// <summary>
+    /// 저장하지 않을 먼 반복 회차인가. 반복이 아닌 일정은 아무리 멀어도 저장한다
+    /// (사람이 일부러 먼 날에 넣은 것이다).
+    /// </summary>
+    internal static bool IsFarRecurringInstance(GoogleEvent ge, DateTime horizon)
+    {
+        if (string.IsNullOrEmpty(ge.RecurringEventId)) return false;
+
+        string? raw = ge.Start?.Date ?? ge.Start?.DateTime;
+        if (string.IsNullOrEmpty(raw)) return false;
+        if (!DateTime.TryParse(raw, null, System.Globalization.DateTimeStyles.RoundtripKind, out var start))
+            return false;
+
+        return start.Date >= horizon.Date;
+    }
+
+    /// <summary>마지막 전체 받기에서 <see cref="FullRefreshDays"/> 가 지났는가(또는 한 번도 안 했는가).</summary>
+    private static bool NeedsFullRefresh()
+    {
+        string last = Settings.GoogleFullSyncAt.Value;
+        if (string.IsNullOrEmpty(last) ||
+            !DateTime.TryParse(last, null, System.Globalization.DateTimeStyles.RoundtripKind, out var at))
+            return true;
+        return DateTime.UtcNow - at.ToUniversalTime() > TimeSpan.FromDays(FullRefreshDays);
+    }
+
     public GoogleSyncService(GoogleAuthService authService, GoogleCalendarApiClient apiClient)
     {
         _authService = authService;
@@ -102,6 +144,16 @@ public sealed class GoogleSyncService : IDisposable
                 return totalResult;
             }
 
+            // 한 달에 한 번은 토큰을 비워 전체를 다시 받는다 — 먼 반복 회차 창을 앞으로 민다
+            // (RecurringHorizonDays 주석). 비운 토큰은 캘린더마다 동기화 끝에 저장되고, 전체 받기가
+            // 새 토큰을 준다.
+            bool fullRefresh = NeedsFullRefresh();
+            if (fullRefresh)
+            {
+                foreach (var calendar in calendars)
+                    calendar.SyncToken = string.Empty;
+            }
+
             // 같은 구글 캘린더를 쓰는 앱 캘린더끼리 묶는다. 연동할 때 수업·학급·업무가 학교 구글
             // 캘린더 하나에 묶이므로(CalendarSettingsDialog.FetchAndSaveGoogleCalendarsAsync),
             // 예전에는 동기화마다 같은 캘린더를 앱 캘린더 수만큼(실사용 4번) 통째로 받았다.
@@ -138,7 +190,10 @@ public sealed class GoogleSyncService : IDisposable
             // 오류가 있었는데 전진시키면 Push 실패분(수정 시각 < lastSync)이 다음 주기에서
             // 비교 대상에서 빠져 영원히 유실된다. 전진하지 않으면 다음 동기화에서 자동 재시도됨(멱등).
             if (totalResult.Errors == 0)
+            {
                 Settings.GoogleLastSyncTime.Set(DateTime.UtcNow.ToString("o"));
+                if (fullRefresh) Settings.GoogleFullSyncAt.Set(DateTime.UtcNow.ToString("o"));
+            }
 
             Debug.WriteLine($"[GoogleSync] 전체 동기화 완료: {totalResult.Summary}");
 
@@ -193,6 +248,18 @@ public sealed class GoogleSyncService : IDisposable
             }
 
             Debug.WriteLine($"[GoogleSync] '{titles}' 동기화 시작");
+
+            // 이미 쌓인 먼 반복 회차를 앱에서만 치운다(구글에는 보내지 않는다) — 창이 앞으로 밀린
+            // 만큼 다음 전체 받기가 다시 채운다. 실패해도 동기화는 계속한다(부피 문제일 뿐이다).
+            try
+            {
+                using var purge = Scheduler.Scheduler.CreateService();
+                await purge.DeleteRecurringInstancesFromAsync(members.Select(m => m.No), RecurringHorizon);
+            }
+            catch (Exception ex)
+            {
+                NewSchool.Logging.Log.Warning("GoogleSync", $"먼 반복 회차를 치우지 못했다: {ex.Message}");
+            }
 
             try
             {
@@ -319,6 +386,11 @@ public sealed class GoogleSyncService : IDisposable
 
         if (localEvent == null)
         {
+            // 먼 반복 회차는 저장하지 않는다(RecurringHorizonDays 주석) — 창 안으로 들어오면 다음 전체
+            // 받기(FullRefreshDays)에서 들어온다.
+            if (IsFarRecurringInstance(gEvent, RecurringHorizon))
+                return;
+
             // 학사일정을 UploadSchoolSchedulesAsync 로 올린 뒤 되돌아오는 종일 이벤트는 school.db 에
             // 이미 있으므로 로컬 KEvent 로 다시 만들면 달력에 날짜 옆(SchoolSchedule)과 목록(KEvent)
             // 양쪽에 중복 표시된다. 제목+날짜가 학사일정과 일치하면 Pull 을 건너뛴다.

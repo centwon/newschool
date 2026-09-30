@@ -143,6 +143,13 @@ public class GoogleEvent
     [JsonPropertyName("recurrence")]
     public List<string>? Recurrence { get; set; }
 
+    /// <summary>
+    /// 반복 일정의 한 회차이면 원본 일정의 ID(<c>singleEvents=true</c> 로 받을 때 채워진다).
+    /// 앱은 이 값으로 먼 회차를 저장하지 않는다(GoogleSyncService.RecurringHorizonDays). 올릴 때는 보내지 않는다(null).
+    /// </summary>
+    [JsonPropertyName("recurringEventId")]
+    public string? RecurringEventId { get; set; }
+
     [JsonPropertyName("updated")]
     public string? Updated { get; set; }
 
