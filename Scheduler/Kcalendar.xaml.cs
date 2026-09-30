@@ -230,9 +230,16 @@ public sealed partial class Kcalendar : Page
                         ev.CalendarColor = color;
                 }
 
-                newEvents = Settings.ShowTasks.Value
+                // 끈 캘린더(분류)의 항목은 뺀다([보일 캘린더 고르기]). 캘린더가 없는 옛 항목(CalendarId 가
+                // 어느 캘린더에도 없음)은 끌 방법이 없으므로 늘 보인다.
+                var hidden = calendars.Where(c => !c.IsVisible).Select(c => c.No).ToHashSet();
+                var visible = hidden.Count == 0
                     ? allEvents
-                    : allEvents.Where(e => e.ItemType != "task").ToList();
+                    : allEvents.Where(e => !hidden.Contains(e.CalendarId)).ToList();
+
+                newEvents = Settings.ShowTasks.Value
+                    ? visible
+                    : visible.Where(e => e.ItemType != "task").ToList();
             }
             catch (Exception ex)
             {
@@ -594,6 +601,83 @@ public sealed partial class Kcalendar : Page
             BaseDate = _basedate.AddMonths(1);
             PickerMonth.SelectedMonth = BaseDate;
         }
+    }
+
+    /// <summary>
+    /// [보일 캘린더 고르기] 를 열 때 — 캘린더마다 체크박스를 새로 만든다(사람이 캘린더를 늘리므로
+    /// 고정해 두지 않는다). 값은 <see cref="KCalendarList.IsVisible"/> 에 저장해 다음 실행에도 남는다.
+    /// </summary>
+    private async void CalendarsFlyout_Opening(object? sender, object e)
+    {
+        PanelCalendars.Children.Clear();
+
+        List<KCalendarList> calendars;
+        try
+        {
+            using var service = Scheduler.CreateService();
+            calendars = await service.GetAllCalendarsAsync();
+        }
+        catch (Exception ex)
+        {
+            NewSchool.Logging.Log.Error("Kcalendar", "캘린더 목록을 읽지 못했다 — 보일 캘린더를 고를 수 없다", ex);
+            PanelCalendars.Children.Add(new TextBlock { Text = "캘린더 목록을 읽지 못했습니다." });
+            return;
+        }
+
+        foreach (var cal in calendars)
+        {
+            var box = new CheckBox
+            {
+                IsChecked = cal.IsVisible,
+                Tag = cal,
+                // 이름은 Content 문자열로 둔다 — UIA 이름이 된다(패널 안 TextBlock 은 안 된다).
+                Content = cal.Title,
+                BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(ParseColor(cal.Color)),
+                BorderThickness = new Thickness(0, 0, 0, 2)
+            };
+            box.Click += CalendarVisibleBox_Click;
+            PanelCalendars.Children.Add(box);
+        }
+    }
+
+    private async void CalendarVisibleBox_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not CheckBox { Tag: KCalendarList cal } box) return;
+
+        bool wanted = box.IsChecked == true;
+        bool before = cal.IsVisible;
+        cal.IsVisible = wanted;
+
+        try
+        {
+            using var service = Scheduler.CreateService();
+            if (!await service.UpdateCalendarAsync(cal))
+                throw new InvalidOperationException("캘린더가 갱신되지 않았습니다.");
+        }
+        catch (Exception ex)
+        {
+            // 저장하지 못했으면 체크를 되돌린다 — 화면과 DB 가 갈리면 다음 실행에 말없이 바뀐다.
+            NewSchool.Logging.Log.Error("Kcalendar", $"캘린더 보이기 설정을 저장하지 못했다: {cal.Title}", ex);
+            cal.IsVisible = before;
+            box.IsChecked = before;
+            return;
+        }
+
+        await RefreshCalendarAsync();
+    }
+
+    /// <summary>"#RRGGBB" → Color. 못 읽으면 회색.</summary>
+    private static Windows.UI.Color ParseColor(string? hex)
+    {
+        try
+        {
+            var h = (hex ?? string.Empty).TrimStart('#');
+            if (h.Length == 6)
+                return Windows.UI.Color.FromArgb(255,
+                    Convert.ToByte(h[0..2], 16), Convert.ToByte(h[2..4], 16), Convert.ToByte(h[4..6], 16));
+        }
+        catch (FormatException) { }
+        return Microsoft.UI.Colors.Gray;
     }
 
     /// <summary>

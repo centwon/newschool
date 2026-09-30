@@ -47,12 +47,23 @@
                          (열을 하나라도 추가하면 이 버튼이 조용히 딸려 간다). -->
                     <!-- 개인정보처리방침이 "Google 연동 해제" 경로로 가리키는 버튼이다.
                          이름이 없으면 방침을 보고 찾아온 사람이 어디를 눌러야 할지 알 수 없다. -->
-                    <Button x:Name="BtnSetup" Grid.Column="3" AutomationProperties.Name="캘린더 설정 (Google 연동)" ToolTipService.ToolTip="캘린더 설정 (Google 연동)" Margin="4,2,4,2" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="4,2,4,2" Click="BtnSetup_Click" Background="{x:Null}" BorderBrush="{x:Null}">
-                        <Button.Content>
-                            <TextBlock FontFamily="{StaticResource SymbolThemeFontFamily}" Text="&#xE713;" FontSize="18"/>
-
-                        </Button.Content>
-                    </Button>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- 보일 캘린더(분류) 고르기. KCalendarList.IsVisible 칸에 저장한다 — 칸은 처음부터
+                             있었는데 쓰는 곳이 없었다. 체크박스는 누를 때 코드가 만든다(캘린더는 사람이 늘린다). -->
+                        <Button x:Name="BtnCalendars" AutomationProperties.Name="보일 캘린더 고르기" ToolTipService.ToolTip="보일 캘린더 고르기" Margin="4,2,0,2" VerticalAlignment="Center" Padding="4,2,4,2" Background="{x:Null}" BorderBrush="{x:Null}">
+                            <TextBlock FontFamily="{StaticResource SymbolThemeFontFamily}" Text="&#xE71C;" FontSize="18"/>
+                            <Button.Flyout>
+                                <Flyout x:Name="CalendarsFlyout" Opening="CalendarsFlyout_Opening">
+                                    <StackPanel x:Name="PanelCalendars" Spacing="2" MinWidth="160"/>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <Button x:Name="BtnSetup" AutomationProperties.Name="캘린더 설정 (Google 연동)" ToolTipService.ToolTip="캘린더 설정 (Google 연동)" Margin="4,2,4,2" VerticalAlignment="Center" Padding="4,2,4,2" Click="BtnSetup_Click" Background="{x:Null}" BorderBrush="{x:Null}">
+                            <Button.Content>
+                                <TextBlock FontFamily="{StaticResource SymbolThemeFontFamily}" Text="&#xE713;" FontSize="18"/>
+                            </Button.Content>
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </Border>
             <!-- 달력 body-->
