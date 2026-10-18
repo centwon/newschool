@@ -108,11 +108,7 @@ public sealed partial class LessonJournalWindow : Window
     #region 창 크기 · 위치
 
     private void SetWindowSize(int width, int height)
-    {
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-        AppWindow.GetFromWindowId(windowId).Resize(new SizeInt32(width, height));
-    }
+        => Helpers.WindowDpi.ResizeDip(this, width, height);
 
     private void CenterOnParent(Window parent)
     {

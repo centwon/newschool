@@ -71,12 +71,7 @@ public sealed partial class MemoEditDialog : Window
     #region Window Size / Position
 
     private void SetWindowSize(int width, int height)
-    {
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-        var appWindow = AppWindow.GetFromWindowId(windowId);
-        appWindow.Resize(new SizeInt32(width, height));
-    }
+        => Helpers.WindowDpi.ResizeDip(this, width, height);
 
     private void CenterOnParent(Window parent)
     {

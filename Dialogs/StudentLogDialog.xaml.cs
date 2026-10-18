@@ -253,10 +253,7 @@ public sealed partial class StudentLogDialog : Window
     {
         try
         {
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-            Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId)
-                .Resize(new Windows.Graphics.SizeInt32(width, height));
+            Helpers.WindowDpi.ResizeDip(this, width, height);
         }
         catch (Exception ex)
         {

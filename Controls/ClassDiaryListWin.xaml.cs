@@ -273,11 +273,8 @@ public sealed partial class ClassDiaryListWin : Window, IDisposable
     /// </summary>
     public void SetSize(int width, int height)
     {
-        var appWindow = this.AppWindow;
-        if (appWindow != null)
-        {
-            appWindow.Resize(new Windows.Graphics.SizeInt32(width, height));
-        }
+        if (this.AppWindow != null)
+            Helpers.WindowDpi.ResizeDip(this, width, height);
     }
 
     #endregion

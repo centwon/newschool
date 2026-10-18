@@ -206,7 +206,9 @@
          메타패키지가 주는 WinUI(2.3.1 → 2.3.0)를 넘지 않을 것. -->
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationManifest></ApplicationManifest>
+    <!-- 비워 두면 app.manifest 가 exe 에 들어가지 않아 앱이 DPI 비인식으로 돈다 — 150% 배율에서
+         Windows 가 창을 늘려 그리고 입력 좌표를 가상화해 휠·드래그가 어긋났다(2026-10-18 실측). -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>newschool.ico</ApplicationIcon>
     <PackageIcon>newschool.png</PackageIcon>
     <!-- Release 게시 시 PDB 제외 (123MB 절약) -->

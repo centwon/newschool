@@ -385,10 +385,8 @@ public sealed partial class MainWindow : Window
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
         _appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
 
-        // 저장된 크기로 복원
-        int width = Settings.WindowWidth.Value;
-        int height = Settings.WindowHeight.Value;
-        _appWindow.Resize(new Windows.Graphics.SizeInt32(width, height));
+        // 저장된 크기로 복원 — 저장값은 DIP 다(Helpers.WindowDpi 참고).
+        Helpers.WindowDpi.ResizeDip(this, Settings.WindowWidth.Value, Settings.WindowHeight.Value);
 
         // 저장된 "항상 위에" 설정 적용
         if (_appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
@@ -437,7 +435,7 @@ public sealed partial class MainWindow : Window
         var size = sender.Size;
         if (size.Width <= 0 || size.Height <= 0) return;
 
-        _pendingWindowSize = size;
+        _pendingWindowSize = Helpers.WindowDpi.ToDip(this, size);
 
         if (_saveWindowSizeTimer == null)
         {
