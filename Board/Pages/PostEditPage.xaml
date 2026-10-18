@@ -82,8 +82,15 @@
                  Margin="0,0,0,6"/>
 
         <!-- Row2: 내용 (서식 편집기) -->
-        <rich:RichEditorView x:Name="ContentEditorView"
-                             Grid.Row="2"/>
+        <Grid Grid.Row="2" RowDefinitions="Auto,*">
+            <Border BorderThickness="0,0,0,1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                <rich:RichEditorToolbar x:Name="EditorToolbar" ToolbarLevel="Maximum"
+                                        Target="{x:Bind ContentEditor}"
+                                        ShowPageControls="False"/>
+            </Border>
+            <rich:RichEditor x:Name="ContentEditor" Grid.Row="1"/>
+        </Grid>
 
         <!-- Row3: 첨부파일 -->
         <controls:PostFileListBox x:Name="FileListBox"

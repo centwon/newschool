@@ -76,8 +76,6 @@ public sealed partial class LessonJournalWindow : Window
         Initialize("수업 일지");
     }
 
-    private WinUIRichEditor.Controls.RichEditor Editor => EditorView.Editor;
-
     private void Initialize(string title)
     {
         InitializeComponent();
@@ -87,6 +85,10 @@ public sealed partial class LessonJournalWindow : Window
 
         // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
         NewSchool.Controls.MessageBox.TrackWindow(this);
+
+        Helpers.EditorToolbarHost.Attach(EditorToolbar, Editor,
+            WinRT.Interop.WindowNative.GetWindowHandle(this),
+            () => string.IsNullOrWhiteSpace(TxtTitle.Text) ? "수업 일지" : TxtTitle.Text);
 
         FileList.Category = LessonJournalComposer.Category;
 

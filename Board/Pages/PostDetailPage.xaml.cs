@@ -30,8 +30,6 @@ public sealed partial class PostDetailPage : Page
         Unloaded += (_, _) => ContentViewer.Clear();   // 페이지 이탈 시 에디터 해제
     }
 
-    private WinUIRichEditor.Controls.RichEditor ContentViewer => ContentViewerView.Editor;
-
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);

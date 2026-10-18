@@ -13,8 +13,6 @@ public sealed partial class RichTextEditorWin : Window
 {
     private readonly TaskCompletionSource<bool> _dialogResult = new();
 
-    private WinUIRichEditor.Controls.RichEditor richEditor => richEditorView.Editor;
-
     /// <summary>
     /// 본문(HTML). 창을 열 때 넣은 값이고, [확인] 으로 닫으면 고친 결과다.
     ///
@@ -35,6 +33,9 @@ public sealed partial class RichTextEditorWin : Window
 
         // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
         MessageBox.TrackWindow(this);
+
+        Helpers.EditorToolbarHost.Attach(EditorToolbar, richEditor,
+            WinRT.Interop.WindowNative.GetWindowHandle(this), () => Title);
 
         // 메인 창이 '항상 위에'면 이 창도 같은 topmost 레벨로 올려 뒤로 숨지 않게 함
         if (Settings.TopMost.Value)

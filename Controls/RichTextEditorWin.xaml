@@ -9,12 +9,18 @@
     mc:Ignorable="d"
     Title="편집기">
 
-    <Grid RowDefinitions="*,Auto" Padding="0">
-        <!-- 서식 툴바를 갖춘 편집기 -->
-        <rich:RichEditorView x:Name="richEditorView" Grid.Row="0"/>
+    <Grid RowDefinitions="Auto,*,Auto" Padding="0">
+        <!-- 서식 툴바 + 편집기. 용지·방향·여백 칸은 쪽 없이 보는 편집 화면에 쓸모가 없어 숨긴다. -->
+        <Border BorderThickness="0,0,0,1"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <rich:RichEditorToolbar x:Name="EditorToolbar" ToolbarLevel="Maximum"
+                                    Target="{x:Bind richEditor}"
+                                    ShowPageControls="False"/>
+        </Border>
+        <rich:RichEditor x:Name="richEditor" Grid.Row="1"/>
 
         <!-- 하단 버튼 영역 -->
-        <StackPanel Grid.Row="1"
+        <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="8"

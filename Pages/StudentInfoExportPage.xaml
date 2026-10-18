@@ -197,7 +197,8 @@
             <!-- 인쇄 미리보기: 읽기 전용이면 툴바는 쪽·확대만 남고, 상태바가 쪽 수를 보여 준다. -->
             <rich:RichEditorView
                 x:Name="PreviewEditorView"
-                IsReadOnly="True"/>
+                IsReadOnly="True"
+                ShowFileActions="False"/>
         </Border>
     </Grid>
 </Page>

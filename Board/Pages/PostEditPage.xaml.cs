@@ -65,9 +65,10 @@ public sealed partial class PostEditPage : Page, NewSchool.Controls.IUnsavedWork
     {
         this.InitializeComponent();
         Unloaded += (_, _) => ContentEditor.Clear();   // 페이지 이탈 시 에디터 해제
+        Helpers.EditorToolbarHost.Attach(EditorToolbar, ContentEditor,
+            WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow),
+            () => string.IsNullOrWhiteSpace(TitleTextBox.Text) ? "게시글" : TitleTextBox.Text);
     }
-
-    private WinUIRichEditor.Controls.RichEditor ContentEditor => ContentEditorView.Editor;
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {

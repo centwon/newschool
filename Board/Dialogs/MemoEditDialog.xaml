@@ -64,8 +64,15 @@
                         BorderThickness="1"
                         CornerRadius="4"
                         MinHeight="300">
-                    <rich:RichEditorView x:Name="EditorView"
-                                         MinHeight="280"/>
+                    <Grid RowDefinitions="Auto,*" MinHeight="280">
+                        <Border BorderThickness="0,0,0,1"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                            <rich:RichEditorToolbar x:Name="EditorToolbar" ToolbarLevel="Maximum"
+                                                    Target="{x:Bind Editor}"
+                                                    ShowPageControls="False"/>
+                        </Border>
+                        <rich:RichEditor x:Name="Editor" Grid.Row="1"/>
+                    </Grid>
                 </Border>
 
                 <!-- 첨부파일 섹션 -->

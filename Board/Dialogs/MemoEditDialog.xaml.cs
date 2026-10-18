@@ -41,14 +41,16 @@ public sealed partial class MemoEditDialog : Window
         // 안내·오류 대화상자가 메인 창이 아니라 이 창 위에 뜨도록 등록한다.
         NewSchool.Controls.MessageBox.TrackWindow(this);
 
+        Helpers.EditorToolbarHost.Attach(EditorToolbar, Editor,
+            WinRT.Interop.WindowNative.GetWindowHandle(this),
+            () => string.IsNullOrWhiteSpace(TxtTitle.Text) ? "메모" : TxtTitle.Text);
+
         // 이 창도 [저장] 을 눌러야 저장된다 — X 로 닫으면 적은 것이 사라지므로 묻는다(52차).
         NewSchool.Controls.UnsavedWorkGuard.AskBeforeClosing(
             this, () => HasUnsavedWork, "고친 메모가 저장되지 않습니다.");
 
         Closed += OnWindowClosed;
     }
-
-    private WinUIRichEditor.Controls.RichEditor Editor => EditorView.Editor;
 
     /// <summary>
     /// 연 뒤로 달라진 것이 있는가(읽는 중에는 늘 false). 제목·본문만 보던 때는 분류·완료·첨부만
