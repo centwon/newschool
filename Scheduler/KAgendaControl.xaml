@@ -50,7 +50,7 @@
                 <!-- 날짜 — 지연은 경고색, 오늘은 강조색으로 굵게 (줄을 찾는 주된 단서) -->
                 <TextBlock Grid.Column="1"
                            Text="{x:Bind DateLabel}"
-                           FontSize="13"
+                           FontSize="12"
                            Foreground="{x:Bind local:KAgendaControl.DateLabelBrush(IsOverdue, IsToday), Mode=OneWay}"
                            FontWeight="{x:Bind local:KAgendaControl.DateLabelWeight(IsOverdue, IsToday), Mode=OneWay}"
                            TextTrimming="CharacterEllipsis"
@@ -60,7 +60,7 @@
                 <!-- 시간 -->
                 <TextBlock Grid.Column="2"
                            Text="{x:Bind TimeLabel}"
-                           FontSize="13"
+                           FontSize="12"
                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                            VerticalAlignment="Center"
                            Margin="0,0,4,0"/>
@@ -68,7 +68,7 @@
                 <!-- 제목 -->
                 <TextBlock Grid.Column="3"
                            Text="{x:Bind Title}"
-                           FontSize="13"
+                           FontSize="12"
                            TextDecorations="{x:Bind Decorations, Mode=OneWay}"
                            TextTrimming="CharacterEllipsis"
                            TextWrapping="NoWrap"

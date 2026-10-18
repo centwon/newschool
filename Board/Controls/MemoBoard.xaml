@@ -176,7 +176,7 @@
 
                                 <!-- 제목 (+ 첨부 아이콘) -->
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind TitleText}" FontSize="13"
+                                    <TextBlock Text="{x:Bind TitleText}" FontSize="12"
                                                TextTrimming="CharacterEllipsis"
                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                                     <FontIcon Glyph="&#xE723;" FontSize="10" Margin="6,0,0,0"

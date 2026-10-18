@@ -54,8 +54,8 @@
 
                             <FontIcon Grid.Column="0"
                                       Glyph="&#xE163;"
-                                      FontSize="14"
-                                      Margin="0,0,8,0"
+                                      FontSize="12"
+                                      Margin="0,1,8,0"
                                       VerticalAlignment="Top"
                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
 
@@ -63,7 +63,7 @@
                                        Text="{x:Bind DateText}"
                                        Foreground="{x:Bind IsVacation, Converter={StaticResource VacationColorConverter}}"
                                        TextWrapping="Wrap"
-                                       FontSize="13"/>
+                                       FontSize="12"/>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
