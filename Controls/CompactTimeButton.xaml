@@ -18,7 +18,7 @@
                      TextAlignment="Center" Padding="4,4"
                      TextChanged="HourBox_TextChanged" LostFocus="Box_LostFocus"/>
             <TextBlock Text=":" VerticalAlignment="Center"
-                       FontSize="14" FontWeight="SemiBold" Opacity="0.6" Margin="1,0"/>
+                       FontWeight="SemiBold" Opacity="0.6" Margin="1,0"/>
             <TextBox x:Name="MinuteBox" AutomationProperties.Name="분"
                      Width="40" MaxLength="2" InputScope="Number"
                      TextAlignment="Center" Padding="4,4"

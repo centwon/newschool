@@ -86,7 +86,7 @@
                                        Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
                         </Button>
                         <TextBlock Text="자리 배정"
-                                   FontSize="14" FontWeight="SemiBold"
+                                   FontWeight="SemiBold"
                                    VerticalAlignment="Center"
                                    Margin="2,0,16,0"/>
                     </StackPanel>

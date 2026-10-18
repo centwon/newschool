@@ -81,7 +81,6 @@
                        Grid.Row="1"
                        Text=""
                        FontWeight="SemiBold"
-                       FontSize="14"
                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                        Margin="0,4,0,0"/>
         </Grid>

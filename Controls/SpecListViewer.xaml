@@ -69,7 +69,6 @@
                           VerticalAlignment="Center"
                           MinWidth="0"
                           Padding="0"
-                          FontSize="14"
                           BorderBrush="Gray"
                           Checked="OnSelectAllChecked"
                           Unchecked="OnSelectAllUnchecked"/>
@@ -124,7 +123,6 @@
                                               VerticalAlignment="Center"
                                               MinWidth="0"
                                               Padding="0"
-                                              FontSize="14"
                                               BorderBrush="Gray"
                                               IsChecked="{x:Bind IsSelected, Mode=TwoWay}"/>
 
@@ -132,15 +130,13 @@
                                     <TextBlock Grid.Column="1" 
                                                Text="{x:Bind Year}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 유형 -->
                                     <TextBlock Grid.Column="2" 
                                                Text="{x:Bind Type}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="14"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"/>
 
@@ -152,7 +148,6 @@
                                                Visibility="{x:Bind SubjectTextVisibility}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="14"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"/>
                                     <TextBox Grid.Column="7"
@@ -160,36 +155,31 @@
                                              Visibility="{x:Bind TitleEditVisibility}"
                                              PlaceholderText="희망분야"
                                              VerticalAlignment="Center"
-                                             Margin="4,0"
-                                             FontSize="14"/>
+                                             Margin="4,0"/>
 
                                     <!-- 학년 -->
                                     <TextBlock Grid.Column="3"
                                                Text="{x:Bind Grade}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 반 -->
                                     <TextBlock Grid.Column="4"
                                                Text="{x:Bind ClassNum}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 번호 -->
                                     <TextBlock Grid.Column="5"
                                                Text="{x:Bind Number}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 이름 -->
                                     <TextBlock Grid.Column="6"
                                                Text="{x:Bind StudentName}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="14"
                                                FontWeight="SemiBold"/>
 
                                     <!-- 기록 내용 — 글자 크기만 툴바 슬라이더를 따른다(다른 칸은 고정) -->

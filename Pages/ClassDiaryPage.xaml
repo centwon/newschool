@@ -131,7 +131,7 @@
                 <FontIcon Glyph="&#xE762;" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <TextBlock Grid.Column="1" x:Name="TxtDailyLogTitle"
                            Text="당일 학생 기록"
-                           FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                           FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" x:Name="TxtDailyLogCount"
                            Text=""
                            FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"

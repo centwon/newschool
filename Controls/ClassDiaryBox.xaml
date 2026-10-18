@@ -200,7 +200,6 @@
                         <FontIcon Glyph="&#xE8F2;" FontSize="16"/>
                         <TextBlock Text="알림장"
                                    FontWeight="SemiBold"
-                                   FontSize="14"
                                    VerticalAlignment="Center"/>
                         <TextBlock x:Name="TxtNoticePreview"
                                    Text=""

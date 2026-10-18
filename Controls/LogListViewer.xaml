@@ -71,7 +71,6 @@
                           Margin="4,0,0,0"
                           MinWidth="0"
                           Padding="0"
-                          FontSize="14"
                           BorderBrush="Gray"
                           Checked="OnSelectAllChecked"
                           Unchecked="OnSelectAllUnchecked"/>
@@ -146,7 +145,6 @@
                                               Margin="4,0,0,0"
                                               Padding="0"
                                               MinWidth="0"
-                                              FontSize="14"
                                               BorderBrush="Gray"
                                               IsChecked="{x:Bind IsSelected, Mode=TwoWay}"/>
 
@@ -155,16 +153,14 @@
                                                Text="{x:Bind Year, Mode=OneWay}"
                                                Visibility="{x:Bind YearColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 학기 -->
                                     <TextBlock Grid.Column="2"
                                                Text="{x:Bind Semester, Mode=OneWay}"
                                                Visibility="{x:Bind SemesterColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 영역 (라벨만 표시) -->
                                     <Border Grid.Column="3"
@@ -187,7 +183,6 @@
                                                Visibility="{x:Bind SubjectColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="14"
                                                TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis"/>
 
@@ -196,24 +191,21 @@
                                                Text="{x:Bind Grade}"
                                                Visibility="{x:Bind GradeColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 반 -->
                                     <TextBlock Grid.Column="6"
                                                Text="{x:Bind Class}"
                                                Visibility="{x:Bind ClassColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 번호 -->
                                     <TextBlock Grid.Column="7"
                                                Text="{x:Bind Number}"
                                                Visibility="{x:Bind NumberColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               FontSize="14"/>
+                                               HorizontalAlignment="Center"/>
 
                                     <!-- 이름 -->
                                     <TextBlock Grid.Column="8"
@@ -221,7 +213,6 @@
                                                Visibility="{x:Bind NameColumnVisibility, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="14"
                                                FontWeight="SemiBold"/>
 
                                     <!-- 일시 -->
@@ -229,7 +220,6 @@
                                                Text="{x:Bind DateString, Mode=OneWay}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
-                                               FontSize="14"
                                                TextWrapping="NoWrap"/>
 
                                     <!-- 주제 -->
@@ -237,7 +227,6 @@
                                              AutomationProperties.Name="주제" Text="{x:Bind Topic, Mode=TwoWay}"
                                              Tag="{x:Bind}"
                                              VerticalAlignment="Top"
-                                             FontSize="14"
                                              PlaceholderText="주제"
                                              Margin="0,0,0,0"
                                              TextChanged="OnTopicChanged"/>

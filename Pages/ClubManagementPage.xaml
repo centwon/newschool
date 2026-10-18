@@ -71,7 +71,7 @@
                 VerticalAlignment="Center"
                 Spacing="12">
                 <ProgressRing IsActive="True" Width="48" Height="48"/>
-                <TextBlock Text="동아리 목록을 불러오는 중..." FontSize="14"/>
+                <TextBlock Text="동아리 목록을 불러오는 중..."/>
             </StackPanel>
 
             <!-- 빈 상태 -->
@@ -91,7 +91,6 @@
                     FontWeight="SemiBold"/>
                 <TextBlock 
                     Text="[동아리 추가] 버튼을 눌러 새 동아리를 등록하세요" 
-                    FontSize="14"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
 
@@ -115,7 +114,6 @@
                         <TextBlock 
                             x:Name="TxtClubCount"
                             Text="총 0개 동아리"
-                            FontSize="14"
                             FontWeight="SemiBold"/>
                     </Grid>
                 </Border>

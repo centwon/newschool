@@ -233,8 +233,7 @@
                                             <TextBlock Text="{x:Bind Title}"
                                                        VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"
-                                                       TextDecorations="{x:Bind IsReadMemo, Converter={StaticResource BoolToStrikethroughConverter}}"
-                                                       FontSize="14"/>
+                                                       TextDecorations="{x:Bind IsReadMemo, Converter={StaticResource BoolToStrikethroughConverter}}"/>
 
                                             <FontIcon Glyph="&#xE8BD;"
                                                       FontSize="12"
@@ -417,7 +416,6 @@
                                                       ToolTipService.ToolTip="중요"
                                                       Visibility="{x:Bind PinIconVisibility}"/>
                                             <TextBlock Text="{x:Bind Title}"
-                                                       FontSize="14"
                                                        FontWeight="SemiBold"
                                                        TextTrimming="CharacterEllipsis"
                                                        MaxLines="2"

@@ -55,7 +55,6 @@
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <TextBlock 
                     Text="학급을 선택하고 [조회] 버튼을 눌러주세요" 
-                    FontSize="14"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
 

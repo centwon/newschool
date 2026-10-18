@@ -105,8 +105,7 @@
                                 <!-- 날짜 -->
                                 <StackPanel Grid.Column="0" VerticalAlignment="Top">
                                     <TextBlock Text="{x:Bind DateDisplay}"
-                                               FontWeight="SemiBold"
-                                               FontSize="14"/>
+                                               FontWeight="SemiBold"/>
                                     <TextBlock Text="{x:Bind DayOfWeekKorean}"
                                                FontSize="12"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"

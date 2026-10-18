@@ -156,7 +156,6 @@
 
                         <TextBlock Text="누가기록"
                                    FontWeight="SemiBold"
-                                   FontSize="14"
                                    VerticalAlignment="Center"/>
 
                         <Button x:Name="BtnNewLog"
