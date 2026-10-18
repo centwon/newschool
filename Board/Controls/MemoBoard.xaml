@@ -119,13 +119,19 @@
                                 AutomationProperties.Name="메모 본문 — 눌러서 편집"
                                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                 HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top"
-                                MinHeight="120" MaxHeight="220" Padding="8,6"
+                                MinHeight="120" MaxHeight="220" Padding="10,10,8,6"
                                 Background="Transparent" BorderThickness="0"
                                 Click="EditorPreview_Click">
+                            <!-- 미리보기는 편집기와 같게 보여야 한다 — 누르는 순간 글자 크기·줄 간격·정렬이 뛰지 않게.
+                                 본문(.flow)의 서식대로 Helpers.FlowPreview 가 채운다. 기본 글꼴은 편집기 본문(10pt=13.33 DIP·
+                                 맑은 고딕)과 같게 둔다(서식을 못 읽어 글자만 보일 때와 안내 문구용). -->
                             <Grid>
-                                <TextBlock x:Name="TxtPreview" TextWrapping="Wrap"
-                                           TextTrimming="CharacterEllipsis"/>
+                                <RichTextBlock x:Name="TxtPreview" TextWrapping="Wrap"
+                                               FontSize="13.333" FontFamily="Malgun Gothic"
+                                               IsTextSelectionEnabled="False"
+                                               TextTrimming="CharacterEllipsis"/>
                                 <TextBlock x:Name="TxtPreviewHint" Text="눌러서 메모를 적습니다"
+                                           FontSize="13.333" FontFamily="Malgun Gothic"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             </Grid>
                         </Button>

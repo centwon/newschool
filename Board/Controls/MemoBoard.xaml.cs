@@ -140,7 +140,13 @@ public sealed partial class MemoBoard : UserControl, IDisposable
             TxtRecentTitle.Text = _recentPost.Title ?? "";
         }
         string preview = _recentPost?.PlainText?.Trim() ?? "";
-        TxtPreview.Text = preview;
+        if (!Helpers.FlowPreview.TryFill(TxtPreview, _recentPost?.Content) && preview.Length > 0)
+        {
+            // 서식을 못 읽었다 — 예전처럼 글자만 보여 준다.
+            var para = new Microsoft.UI.Xaml.Documents.Paragraph();
+            para.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = preview });
+            TxtPreview.Blocks.Add(para);
+        }
         TxtPreviewHint.Visibility = preview.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         _isUpdating = false;
         _isModified = false;
