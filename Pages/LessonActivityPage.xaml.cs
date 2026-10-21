@@ -252,17 +252,26 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
             return;
         }
 
-        // 새 로그 생성
+        await OpenNewLogDialogAsync(_selectedStudent.StudentID, _selectedCourse);
+    }
+
+    /// <summary>
+    /// 이 수업의 교과활동 기록 한 건을 새로 쓰는 창을 연다 — [추가] 와 학생 우클릭 [기록 추가] 가 같이 쓴다.
+    /// 예전에는 우클릭 쪽이 과목 없이 일반 기록 창을 열어, 저장한 기록이
+    /// 과목으로 거르는 이 화면 목록에 나타나지 않았다.
+    /// </summary>
+    private async Task OpenNewLogDialogAsync(string studentId, Course course)
+    {
         var newLog = new StudentLog
         {
             Category = LogCategory.교과활동,
             TeacherID = Settings.User.Value,
             Year = _selectedYear,
             Semester = _selectedSemester,
-            StudentID = _selectedStudent.StudentID,
+            StudentID = studentId,
             Date = DateTime.Now,
-            SubjectName = _selectedCourse.Subject,
-            CourseNo = _selectedCourse.No
+            SubjectName = course.Subject,
+            CourseNo = course.No
         };
 
         await CheckUnSavedAsync();   // 창을 닫으면 목록을 다시 읽는다(BtnBatchInput_Click 주석)
@@ -337,41 +346,22 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
 
         try
         {
-            var selectedLogs = LogList.SelectedLogs.ToList();
-
-            if (selectedLogs.Count == 0)
+            if (LogList.SelectedLogs.Count == 0)
             {
                 ShowInfoBar("삭제할 기록을 선택해주세요.", InfoBarSeverity.Warning);
                 return;
             }
 
-            // 확인 다이얼로그
-            var confirmed = await MessageBox.ShowConfirmAsync(
-                $"{selectedLogs.Count}건의 기록을 삭제하시겠습니까?\n삭제된 기록은 복구할 수 없습니다.",
-                "삭제 확인", "삭제", "취소");
-            if (!confirmed) return;
+            // 확인·DB 삭제·첨부 실물 삭제는 공용 경로가 한다(학생 정보 화면과 같은 길).
+            // 예전에는 여기서 DB 행만 지워, 딸린 첨부파일이 디스크에 남았다.
+            var (attempted, deleted) = await LogList.DeleteSelectedLogsAsync();
+            if (attempted == 0) return;   // 확인에서 취소
 
-            using var logService = new StudentLogService();
-
-            int deleted = 0;
-            foreach (var logVm in selectedLogs)
-            {
-                var log = logVm.StudentLog;
-
-                // DB 에서 지워진 것만 목록에서 뺀다 — 예전에는 결과와 무관하게 화면에서
-                // 지우고 성공을 알려, 새로 고치면 기록이 되살아났다.
-                if (log.No > 0 && !await logService.DeleteAsync(log.No))
-                    continue;
-
-                LogList.Logs?.Remove(logVm);
-                deleted++;
-            }
-
-            if (deleted == selectedLogs.Count)
+            if (deleted == attempted)
                 ShowInfoBar($"{deleted}건이 삭제되었습니다.", InfoBarSeverity.Success);
             else
                 ShowInfoBar(
-                    $"{selectedLogs.Count}건 중 {deleted}건만 삭제됐습니다.",
+                    $"{attempted}건 중 {deleted}건만 삭제됐습니다.",
                     InfoBarSeverity.Warning);
         }
         catch (Exception ex)
@@ -502,14 +492,7 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
         var student = StudentList.SelectedStudent;
         if (student == null || _selectedCourse == null) return;
 
-        await CheckUnSavedAsync();   // 창을 닫으면 목록을 다시 읽는다(BtnBatchInput_Click 주석)
-
-        var logDialog = new StudentLogDialog(
-            student,
-            _selectedYear,
-            _selectedSemester);
-        logDialog.Closed += OnLogDialogClosedReload;
-        logDialog.Activate();
+        await OpenNewLogDialogAsync(student.StudentID, _selectedCourse);
     }
 
     private async void ContextMenu_ViewStudentInfo_Click(object sender, RoutedEventArgs e)

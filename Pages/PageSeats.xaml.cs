@@ -106,6 +106,9 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
     // 복원 중에는 CheckSeat() 경고 팝업을 억제 — 미사용 좌석 복원 루프 도중의 중간 상태 경고 방지
     private bool _suppressSeatCheck = false;
 
+    // 학년·학급 물음에서 [계속 편집] 을 골라 콤보를 되돌리는 중 — 그 SelectionChanged 는 흘려보낸다.
+    private bool _revertingClassPick;
+
     // 클릭 기반 배치를 위한 필드 - Enrollment 사용
     private Enrollment? _selectedStudentFromList = null;
 
@@ -246,9 +249,12 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
 
     private async void CBoxGrade_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (CBoxGrade.SelectedIndex < 0 || enrollmentService == null) return;
+        if (_revertingClassPick || CBoxGrade.SelectedIndex < 0 || enrollmentService == null) return;
 
-        Grade = (int)((ComboBoxItem)CBoxGrade.SelectedItem).Tag;
+        int grade = (int)((ComboBoxItem)CBoxGrade.SelectedItem).Tag;
+        if (!await ConfirmClassPickAsync(CBoxGrade, e, grade != Grade)) return;
+
+        Grade = grade;
 
         // 해당 학년의 학급 목록 가져오기
         CBoxRooms.Items.Clear();
@@ -284,12 +290,44 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
 
     private async void CBoxRooms_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (CBoxRooms.SelectedIndex < 0) return;
+        if (_revertingClassPick || CBoxRooms.SelectedIndex < 0) return;
 
-        ClassRoom = (int)((ComboBoxItem)CBoxRooms.SelectedItem).Tag;
+        int classRoom = (int)((ComboBoxItem)CBoxRooms.SelectedItem).Tag;
+        if (!await ConfirmClassPickAsync(CBoxRooms, e, classRoom != ClassRoom)) return;
+
+        ClassRoom = classRoom;
 
         // 학생 목록 가져오기
         await LoadStudentsAsync();
+    }
+
+    /// <summary>
+    /// 학년·학급을 바꾸기 전에 저장하지 않은 자리를 묻는다.
+    /// 메뉴로 나갈 때는 묻는데, 같은 화면에서 학급만 바꾸면 <see cref="LoadStudentsAsync"/> 의
+    /// <c>ClearSeats()</c> 가 바꾼 자리를 말없이 걷어 냈다.
+    /// </summary>
+    /// <returns>바꿔도 되면 true. [계속 편집] 이면 콤보를 앞 항목으로 되돌리고 false.</returns>
+    private async Task<bool> ConfirmClassPickAsync(ComboBox box, SelectionChangedEventArgs e, bool changed)
+    {
+        if (!changed || !_seatsDirty) return true;
+
+        if (await UnsavedWorkGuard.ConfirmLeaveAsync(this))
+        {
+            // 버리기로 했다 — 학년을 바꾼 뒤 학급을 고를 때 한 번 더 묻지 않게 한다.
+            _seatsDirty = false;
+            return true;
+        }
+
+        _revertingClassPick = true;
+        try
+        {
+            box.SelectedItem = e.RemovedItems.Count > 0 ? e.RemovedItems[0] : null;
+        }
+        finally
+        {
+            _revertingClassPick = false;
+        }
+        return false;
     }
 
     private void NBoxJul_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)

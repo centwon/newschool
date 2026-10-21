@@ -174,6 +174,9 @@ public class StudentLogExportService
                         학기 = model.Semester,
                         과목 = model.SubjectName ?? string.Empty,
                         활동명 = model.ActivityName ?? string.Empty,
+                        // "전체" 시트·인쇄물과 같은 칸 — 예전에는 영역별 시트에만 이 칸이 없어,
+                        // 구조화 항목 없이 '기록' 에만 쓴 기록은 영역별 시트에서 내용이 통째로 빠졌다.
+                        기록 = model.Log ?? string.Empty,
                         주제 = model.Topic ?? string.Empty,
                         활동내용 = model.Description ?? string.Empty,
                         역할 = model.Role ?? string.Empty,
@@ -200,6 +203,9 @@ public class StudentLogExportService
                         // 예전에는 SubjectName 을 읽었는데 그 칸을 채우는 경로가 없어 늘 빈칸이었다.
                         동아리 = model.SubjectOrClubDisplay,
                         활동명 = model.ActivityName ?? string.Empty,
+                        // "전체" 시트·인쇄물과 같은 칸 — 예전에는 영역별 시트에만 이 칸이 없어,
+                        // 구조화 항목 없이 '기록' 에만 쓴 기록은 영역별 시트에서 내용이 통째로 빠졌다.
+                        기록 = model.Log ?? string.Empty,
                         주제 = model.Topic ?? string.Empty,
                         활동내용 = model.Description ?? string.Empty,
                         역할 = model.Role ?? string.Empty,
@@ -222,6 +228,9 @@ public class StudentLogExportService
                         날짜 = logVm.DateString,
                         학기 = model.Semester,
                         활동명 = model.ActivityName ?? string.Empty,
+                        // "전체" 시트·인쇄물과 같은 칸 — 예전에는 영역별 시트에만 이 칸이 없어,
+                        // 구조화 항목 없이 '기록' 에만 쓴 기록은 영역별 시트에서 내용이 통째로 빠졌다.
+                        기록 = model.Log ?? string.Empty,
                         주제 = model.Topic ?? string.Empty,
                         활동내용 = model.Description ?? string.Empty,
                         역할 = model.Role ?? string.Empty,
@@ -399,6 +408,7 @@ public record SubjectActivityExportDto
     public int 학기 { get; init; }
     public string 과목 { get; init; } = string.Empty; // 교과/세특 특화
     public string 활동명 { get; init; } = string.Empty;
+    public string 기록 { get; init; } = string.Empty;
     public string 주제 { get; init; } = string.Empty;
     public string 활동내용 { get; init; } = string.Empty;
     public string 역할 { get; init; } = string.Empty;
@@ -414,6 +424,7 @@ public record ClubActivityExportDto
     public int 학기 { get; init; }
     public string 동아리 { get; init; } = string.Empty;  // 동아리 특화
     public string 활동명 { get; init; } = string.Empty;
+    public string 기록 { get; init; } = string.Empty;
     public string 주제 { get; init; } = string.Empty;
     public string 활동내용 { get; init; } = string.Empty;
     public string 역할 { get; init; } = string.Empty;
@@ -426,6 +437,7 @@ public record OtherActivityExportDto
     public string 날짜 { get; init; } = string.Empty;
     public int 학기 { get; init; }
     public string 활동명 { get; init; } = string.Empty;
+    public string 기록 { get; init; } = string.Empty;
     public string 주제 { get; init; } = string.Empty;
     public string 활동내용 { get; init; } = string.Empty;
     public string 역할 { get; init; } = string.Empty;

@@ -191,23 +191,26 @@ public class StudentLogPrintService
                 bool isEven = currentRow % 2 == 0;
                 var bgColor = isEven ? Colors.Grey.Lighten5 : Colors.White;
 
-                // 번호/이름: 행 병합
-                table.Cell().RowSpan(logCount)
-                    .Border(0.5f).BorderColor(Colors.Grey.Lighten2)
-                    .Background(bgColor)
-                    .Padding(3).AlignCenter().AlignMiddle()
-                    .Text(number.ToString()).FontSize(FontSize).SemiBold();
-
-                table.Cell().RowSpan(logCount)
-                    .Border(0.5f).BorderColor(Colors.Grey.Lighten2)
-                    .Background(bgColor)
-                    .Padding(3).AlignCenter().AlignMiddle()
-                    .Text(name).FontSize(FontSize).SemiBold();
+                bool firstRowOfStudent = true;
 
                 // 각 로그 행
                 foreach (var logVm in logs)
                 {
                     var model = logVm.StudentLog;
+
+                    // 번호·이름은 줄마다 찍고 이어지는 줄은 흐리게 — 학생부 일괄 출력
+                    // (StudentSpecPrintService)과 같은 규칙. 예전에는 RowSpan 으로 묶어,
+                    // 한 학생의 기록이 쪽 경계에 걸리면 다음 쪽 줄들이 이름 없이 떴다.
+                    void Label(IContainer c, string text) =>
+                        c.Border(0.5f).BorderColor(Colors.Grey.Lighten2)
+                         .Background(bgColor)
+                         .Padding(3).AlignCenter().AlignMiddle()
+                         .Text(text).FontSize(FontSize).SemiBold()
+                         .FontColor(firstRowOfStudent ? Colors.Black : Colors.Grey.Medium);
+
+                    Label(table.Cell(), number.ToString());
+                    Label(table.Cell(), name);
+                    firstRowOfStudent = false;
 
                     void DataCell(IContainer c, string text) =>
                         c.Border(0.5f).BorderColor(Colors.Grey.Lighten2)
