@@ -565,7 +565,15 @@ public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Contr
     {
         // 목록을 다시 읽으면 StudentCard 가 Clear() 되어 미저장 편집이 사라진다.
         // 학년/반·학기 전환 등 어느 경로로 들어오든 먼저 내려쓴다.
-        await FlushPendingCardEditsAsync();
+        // 저장이 실패했으면(안내는 Flush 가 띄웠다) 버릴지 묻는다 — 예전에는 실패를 알린 뒤 그대로
+        // 다시 읽어, 저장하지 못한 입력이 사라졌다. 남기면 목록은 다시 읽지 않는다.
+        if (!await FlushPendingCardEditsAsync()
+            && !await MessageBox.ShowConfirmAsync(
+                "저장하지 못한 학생 정보 변경을 버리고 목록을 다시 읽을까요?\n" +
+                "[그대로 두기] 를 고르면 입력한 내용이 남고 목록은 바뀌지 않습니다.",
+                "저장하지 못한 변경", "버리고 다시 읽기", "그대로 두기"))
+            return;
+
         await CheckUnSavedLogsAsync();
 
         using var enrollmentService = new EnrollmentService();

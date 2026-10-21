@@ -70,8 +70,12 @@ public sealed partial class AddStudentsPage : Page, NewSchool.Controls.IUnsavedW
     // 학적에 넣을 학기 값과 저장·중복 판정은 StudentCreationService 로 옮겼다.
     // 학생 편집 다이얼로그의 "학생 추가" 와 같은 경로를 써야 하기 때문이다.
 
-    private void OnBackClick(object sender, RoutedEventArgs e)
+    private async void OnBackClick(object sender, RoutedEventArgs e)
     {
+        // 왼쪽 메뉴로 나갈 때와 같은 물음 — 예전에는 이 단추만 묻지 않고 적어 둔 학생을 버렸다.
+        if (!await NewSchool.Controls.UnsavedWorkGuard.ConfirmLeaveAsync(this))
+            return;
+
         if (this.Frame != null && this.Frame.CanGoBack)
             this.Frame.GoBack();
     }

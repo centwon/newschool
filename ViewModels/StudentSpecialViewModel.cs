@@ -17,6 +17,7 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
     private string _byteInfo = string.Empty;
     private bool _isOverByteLimit;
     private string _originalContent = string.Empty;
+    private string _originalTitle = string.Empty;
     private double _contentFontSize = DefaultContentFontSize;
 
     // 학생 정보 (외부에서 설정)
@@ -29,6 +30,7 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
     {
         _special = special;
         _originalContent = special.Content ?? string.Empty;
+        _originalTitle = special.Title ?? string.Empty;
         UpdateByteInfo();
     }
 
@@ -36,6 +38,7 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
     {
         _special = special;
         _originalContent = special.Content ?? string.Empty;
+        _originalTitle = special.Title ?? string.Empty;
         _grade = grade;
         _classNum = classNum;
         _number = number;
@@ -180,7 +183,7 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
             if (_special.Content != value)
             {
                 _special.Content = value;
-                IsModified = (value ?? string.Empty) != _originalContent;
+                IsModified = DiffersFromOriginal();
                 if (IsModified) IsSelected = true;
                 OnPropertyChanged();
                 UpdateByteInfo();
@@ -215,8 +218,8 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
         {
             if ((_special.Title ?? string.Empty) == (value ?? string.Empty)) return;
             _special.Title = value ?? string.Empty;
-            IsModified = true;
-            IsSelected = true;
+            IsModified = DiffersFromOriginal();
+            if (IsModified) IsSelected = true;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SubjectDisplay));
             UpdateByteInfo();
@@ -306,9 +309,18 @@ public class StudentSpecialViewModel : NotifyPropertyChangedBase
     public void MarkAsSaved()
     {
         _originalContent = _special.Content ?? string.Empty;
+        _originalTitle = _special.Title ?? string.Empty;
         IsModified = false;
         IsSelected = false;
     }
+
+    /// <summary>
+    /// 본문 <b>또는</b> 희망분야가 불러온 값과 다른가. 예전에는 본문만 비교해, 희망분야를 고친 뒤
+    /// 본문을 건드렸다 되돌리면 수정 표시가 꺼졌고 — 화면을 떠날 때 묻지 않아 희망분야가 사라졌다.
+    /// </summary>
+    private bool DiffersFromOriginal() =>
+        (_special.Content ?? string.Empty) != _originalContent
+        || (_special.Title ?? string.Empty) != _originalTitle;
 
     /// <summary>
     /// 바이트 정보 업데이트

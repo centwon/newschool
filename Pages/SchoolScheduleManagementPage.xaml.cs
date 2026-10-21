@@ -152,6 +152,12 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable, IU
     /// </summary>
     private async void OnSearchClick(object sender, RoutedEventArgs e)
     {
+        // 다시 읽으면 수동으로 넣거나 고친 행이 사라진다 — 메뉴로 나갈 때처럼 먼저 묻는다.
+        if (HasUnsavedWork && !await MessageBox.ShowConfirmAsync(
+                $"{UnsavedWorkMessage}\n그래도 다시 조회할까요?",
+                "저장하지 않은 변경", "다시 조회", "취소"))
+            return;
+
         await LoadSchedulesAsync();
     }
 
