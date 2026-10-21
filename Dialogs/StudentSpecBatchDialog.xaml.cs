@@ -290,6 +290,19 @@ public sealed partial class StudentSpecBatchDialog : Window
         TxtStudentName.Text = student.Name;
         TxtStudentNum.Text = $"{student.Number}번";
 
+        await ShowCurrentSpecAsync();
+    }
+
+    /// <summary>
+    /// 지금 학생의 특기사항을 편집칸·희망분야·마감 단추·참고 패널에 펼친다.
+    /// 학생을 고를 때와 영역·과목을 바꿀 때가 같은 길을 지난다 — 예전에는 영역·과목을 바꾸면
+    /// 본문만 다시 읽어, 진로활동에서 다른 영역으로 옮겨도 희망분야 칸이 진로 값을 단 채 떠 있었고
+    /// (그대로 저장하면 그 값이 다른 영역 기록의 Title 로 들어갔다) 마감 단추·참고 패널은 앞 영역 것이었다.
+    /// </summary>
+    private async Task ShowCurrentSpecAsync()
+    {
+        if (_currentStudent is not { } student) return;
+
         // 특기사항 로드
         var spec = await LoadOrGetSpecAsync(student.StudentID);
 
@@ -303,13 +316,14 @@ public sealed partial class StudentSpecBatchDialog : Window
         var titleVis = showTitleInput ? Visibility.Visible : Visibility.Collapsed;
         TxtTitleInputLabel.Visibility = titleVis;
         TxtTitleInput.Visibility = titleVis;
+        // 원본을 먼저 — 아래 Text 대입이 일으키는 TextChanged 가 새 원본과 비교하게.
+        _currentOriginalTitle = spec.Title ?? string.Empty;
         if (showTitleInput)
         {
             TxtTitleInputLabel.Text = NeisHelper.GetTitleLabel(_selectedType) ?? "구분";
             TxtTitleInput.Text = spec.Title ?? string.Empty;
             TxtTitleInput.IsEnabled = !spec.IsFinalized;
         }
-        _currentOriginalTitle = spec.Title ?? string.Empty;
 
         // 수정 아이콘
         IconModified.Visibility = _modifiedIds.Contains(student.StudentID)
@@ -493,19 +507,7 @@ public sealed partial class StudentSpecBatchDialog : Window
         _currentOriginalContent = string.Empty;
     }
 
-    private async Task ReloadCurrentStudentAsync()
-    {
-        if (_currentStudent == null) return;
-
-        var spec = await LoadOrGetSpecAsync(_currentStudent.StudentID);
-        _currentOriginalContent = spec.Content ?? string.Empty;
-        TxtContent.Text = spec.Content ?? string.Empty;
-        TxtContent.IsEnabled = !spec.IsFinalized;
-
-        IconModified.Visibility = Visibility.Collapsed;
-        UpdateByteInfo();
-        UpdateProgress();
-    }
+    private Task ReloadCurrentStudentAsync() => ShowCurrentSpecAsync();
 
     #endregion
 
@@ -598,6 +600,8 @@ public sealed partial class StudentSpecBatchDialog : Window
             if (_currentStudent != null && _specCache.TryGetValue(_currentStudent.StudentID, out var current))
             {
                 _currentOriginalContent = current.Content ?? string.Empty;
+                // 희망분야도 — 안 하면 저장한 희망분야가 계속 "원본과 다름" 으로 남아 다시 수정 표시가 섰다.
+                _currentOriginalTitle = current.Title ?? string.Empty;
             }
 
             // 아직 저장되지 않은(실패) 항목이 남아 있으면 수정 표시 유지

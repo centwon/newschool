@@ -789,7 +789,9 @@ public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Contro
             case LogCategory.종합의견:
             case LogCategory.개인별세특:
                 LoadSpecAsync();
-                SpecBox.Visibility = Visibility.Visible;
+                // 상자는 [학생부 기록 보기] 를 켰을 때만 — 기본은 꺼짐(숨김). 예전에는 체크가
+                // 꺼진 채로 상자가 떠서, 첫 클릭(켜기)은 아무 변화가 없고 두 번째에야 숨었다.
+                SpecBox.Visibility = ChkShowSpec.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
                 ChkShowSpec.Visibility = Visibility.Visible;
                 break;
             default:
