@@ -652,6 +652,15 @@ public sealed partial class SchoolScheduleManagementPage : Page, IDisposable, IU
     }
 
     /// <summary>
+    /// 행 체크박스 — 예전에는 [전체 선택] 만 개수를 갱신해, 하나씩 누르면 "선택: N개" 가 그대로였다.
+    /// 바인딩이 IsSelected 를 넣은 뒤에 세도록 한 박자 미룬다.
+    /// </summary>
+    private void RowCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(UpdateSelectedCount);
+    }
+
+    /// <summary>
     /// UI 상태 업데이트
     /// </summary>
     private void UpdateUI()

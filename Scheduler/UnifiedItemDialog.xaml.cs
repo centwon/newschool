@@ -466,7 +466,12 @@ public sealed partial class UnifiedItemDialog : ContentDialog
         _event.Start = DateTime.SpecifyKind(newDate + _event.Start.TimeOfDay, DateTimeKind.Unspecified);
         // 종료일이 시작일보다 이르면 맞춤
         if (_event.End.Date < newDate)
+        {
             _event.End = DateTime.SpecifyKind(newDate + _event.End.TimeOfDay, DateTimeKind.Unspecified);
+            // 선택기에도 보여 준다 — 예전에는 값만 맞추고 종료일 칸에는 옛 날짜가 남아 있었다.
+            // (아래 EventEndDatePicker_DateChanged 가 같은 값을 한 번 더 넣을 뿐이다.)
+            EventEndDatePicker.Date = new DateTimeOffset(newDate);
+        }
 
     }
 

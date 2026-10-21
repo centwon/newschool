@@ -39,6 +39,7 @@ public sealed partial class StudentSpecPage : Page, IDisposable, IUnsavedWork
     #region Fields
 
     private LogCategory _selectedCategory = LogCategory.전체;
+    private bool _revertingCategory;   // 영역 물음에서 [취소] 로 콤보를 되돌리는 중
 
     private readonly StudentSpecialService _specialService = new();
     private readonly EnrollmentService _enrollservice = new();
@@ -103,15 +104,29 @@ public sealed partial class StudentSpecPage : Page, IDisposable, IUnsavedWork
         await ClassFilter.LoadAsync(e.Year, e.Semester);
     }
 
-    private void OnCategoryChanged(object sender, SelectionChangedEventArgs e)
+    private async void OnCategoryChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (CBoxCategory.SelectedItem is LogCategory category)
+        if (_revertingCategory || CBoxCategory.SelectedItem is not LogCategory category) return;
+
+        // 학급까지 골라져 있으면 그 영역으로 다시 읽는다. 예전에는 칸 구성만 바뀌고 행은
+        // [조회] 를 누를 때까지 앞 영역 것이 남아, 진로활동 칸 아래 자율활동 기록이 떠 있었다.
+        bool reload = category != _selectedCategory
+            && YearSemPicker.Year != 0 && ClassFilter.Grade != 0 && ClassFilter.ClassNum != 0;
+
+        if (reload && !await SpecListViewer.ConfirmDiscardModifiedAsync())
         {
-            _selectedCategory = category;
-            SpecListViewer.Category = category;
-            // 예전에는 여기서 UpdateUIByCategory() 를 불렀는데 그 메서드는 몸통이 비어 있었다
-            // — 영역별 화면 조정은 SpecListViewer.Category 가 전부 한다. 함께 지웠다(44차).
+            _revertingCategory = true;
+            CBoxCategory.SelectedItem = _selectedCategory;
+            _revertingCategory = false;
+            return;
         }
+
+        _selectedCategory = category;
+        SpecListViewer.Category = category;
+        // 예전에는 여기서 UpdateUIByCategory() 를 불렀는데 그 메서드는 몸통이 비어 있었다
+        // — 영역별 화면 조정은 SpecListViewer.Category 가 전부 한다. 함께 지웠다(44차).
+
+        if (reload) await LoadSpecsAsync();
     }
 
     #endregion

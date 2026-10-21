@@ -157,10 +157,17 @@ public sealed partial class LessonActivityPage : Page, NewSchool.Controls.IAsksB
     /// </summary>
     private async void OnStudentSelected(object? sender, Enrollment student)
     {
+        // 아래 [계속 편집] 이 목록 선택을 지금 학생으로 되돌릴 때 다시 들어온다 — 그냥 돌아간다.
+        if (student.StudentID == _selectedStudent?.StudentID) return;
+
         // 고친 기록을 먼저 묻고, 미저장 학생부 편집을 저장/폐기 확인 — 저장 실패(false) 시 학생 전환 중단
         await CheckUnSavedAsync();
         if (SpecBox != null && !await SpecBox.ConfirmLeaveAsync())
+        {
+            // 목록 선택은 이미 새 학생으로 옮겨 갔다 — 화면이 보여 주는 학생으로 되돌린다.
+            if (_selectedStudent != null) StudentList.SelectStudent(_selectedStudent.StudentID);
             return;
+        }
 
         _selectedStudent = student;
         await LoadLogsAsync();
