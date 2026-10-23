@@ -20,7 +20,7 @@ namespace NewSchool.Board.ViewModels;
 /// <summary>
 /// Post 상세 ViewModel
 /// </summary>
-public class PostDetailViewModel : NotifyPropertyChangedBase
+public sealed class PostDetailViewModel : NotifyPropertyChangedBase, IDisposable
 {
     private readonly BoardService _service;
     private Post? _post;
@@ -175,6 +175,12 @@ public class PostDetailViewModel : NotifyPropertyChangedBase
         _comments = new OptimizedObservableCollection<Comment>();
         _files = new OptimizedObservableCollection<PostFile>();
     }
+
+    /// <summary>
+    /// 서비스가 쥔 DB 연결을 놓는다. 상세 화면은 캐시하지 않아 글을 열 때마다 새로 만들어지는데,
+    /// 예전에는 닫지 않아 연 글 수만큼 연결이 GC 때까지 남았다. (목록 화면은 캐시되는 페이지라 그대로 둔다.)
+    /// </summary>
+    public void Dispose() => _service.Dispose();
 
     #region Methods
 

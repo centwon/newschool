@@ -232,6 +232,9 @@ public class GoogleCalendarApiClient
         request.Dispose();
 
         int retryCount = 0;
+        // 토큰 갱신은 일시 오류 재시도와 따로 센다 — 같은 수를 쓰면 네트워크 오류로 한 번 다시 보낸
+        // 뒤에 온 401 은 갱신하지 않고 실패했다(만료 직전 토큰이 흔들리는 망에서 잘 겹친다).
+        bool tokenRefreshed = false;
         while (true)
         {
             var attempt = await CreateAuthRequestAsync(method, url);
@@ -268,13 +271,13 @@ public class GoogleCalendarApiClient
             }
 
             // 401 Unauthorized → 토큰 갱신 후 재시도 (딱 1회)
-            if (response.StatusCode == HttpStatusCode.Unauthorized && retryCount < 1)
+            if (response.StatusCode == HttpStatusCode.Unauthorized && !tokenRefreshed)
             {
                 Debug.WriteLine("[GoogleCalAPI] 401 — 토큰 갱신 시도");
+                tokenRefreshed = true;
                 if (await _authService.RefreshTokenAsync())
                 {
                     response.Dispose();
-                    retryCount++;
                     continue;
                 }
                 // 갱신 실패 → 아래 공통 오류 처리(EnsureSuccessStatusCode)로 떨어져 그대로 throw

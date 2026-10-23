@@ -1279,7 +1279,7 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
     /// <summary>
     /// 카드를 Room 안의 임의 위치로 옮긴다.
     /// 초기화 이후 창을 줄이면 Room 이 카드보다 작아질 수 있는데
-    /// (GridBody_SizeChanged 가 카드 크기를 재계산하지 않음),
+    /// (창 크기가 바뀌어도 카드 크기를 다시 재지 않는다),
     /// 그대로 Random.Next 에 넘기면 상한이 음수가 되어 예외가 난다 → 0 으로 하한 처리.
     /// </summary>
     private void ScatterCard(Random r, PhotoCard card)
@@ -1397,10 +1397,6 @@ public sealed partial class PageSeats : Page, IDisposable, NewSchool.Controls.IU
         }
     }
 
-    private void GridBody_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        // 크기 변경 시 재배치 필요 시 구현
-    }
 
     private async void BtnPrint_Click(object sender, RoutedEventArgs e)
     {

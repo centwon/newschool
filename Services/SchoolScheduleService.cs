@@ -450,7 +450,7 @@ public sealed class SchoolScheduleService : IDisposable
         DateTime? endDate)
     {
         var sb = new StringBuilder(256);
-        sb.Append("http://open.neis.go.kr/hub/SchoolSchedule?KEY=");
+        sb.Append("https://open.neis.go.kr/hub/SchoolSchedule?KEY=");   // 급식·학교 검색과 같이 https — 키가 평문으로 나가지 않게
         sb.Append(Settings.NeisApiKey.Value);
         sb.Append("&Type=xml&pSize=1000&ATPT_OFCDC_SC_CODE=");
         sb.Append(provinceCode);

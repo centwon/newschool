@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -26,10 +24,8 @@ namespace NewSchool.Pages;
 /// 상단 날짜 헤더(오늘 날짜·요일·오늘 행사·현재 교시) + 내 수업/우리 반 오늘 시간표.
 /// (Avalonia SaemDesk TodayPage 설계 이식)
 /// </summary>
-public sealed partial class TodayPage : Page, INotifyPropertyChanged, ILessonSlotMenuHost
+public sealed partial class TodayPage : Page, ILessonSlotMenuHost
 {
-    private TodayPageViewModel? _viewModel;
-
     private DispatcherQueueTimer? _periodTimer;   // 현재 교시 배지 1분 주기 갱신
     private bool _headerInitialized;
 
@@ -55,52 +51,21 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged, ILessonSlo
     /// <summary>시간표 카드의 줄들 (현재 교시 강조를 1분 주기로 다시 매긴다)</summary>
     private List<TodayPeriodRow> _rows = [];
 
-    /// <summary>
-    /// ViewModel - x:Bind를 위한 public 속성
-    /// </summary>
-    public TodayPageViewModel? ViewModel
-    {
-        get => _viewModel;
-        set
-        {
-            if (_viewModel != value)
-            {
-                _viewModel = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
     public TodayPage()
     {
         InitializeComponent();
         _menu = new LessonSlotMenu(_book, this);
     }
 
-    protected override void OnNavigatedTo(NavigationEventArgs e)
-    {
-        base.OnNavigatedTo(e);
-
-        // ViewModel 의 PropertyChanged 를 구독하던 줄은 지웠다(2026-08-30) —
-        // 핸들러 본문이 비어 있어, 구독·해제만 하고 아무 일도 하지 않았다.
-        // 화면은 x:Bind 로 ViewModel 을 직접 읽는다.
-        ViewModel = new TodayPageViewModel(DispatcherQueue);
-    }
+    // TodayPageViewModel 은 지웠다(2026-10-23). 화면에 들어올 때마다 만들고 떠날 때 비우기만 했을 뿐
+    // XAML 어디에도 묶이지 않았다 — 화면은 Page_Loaded 의 LoadTodayDataAsync 가 직접 채운다.
+    // 그것만 알리던 이 페이지의 INotifyPropertyChanged 도 함께 지웠다.
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
 
         _periodTimer?.Stop();
-
-        if (ViewModel != null)
-        {
-            ViewModel.SchoolEvents.Clear();
-            ViewModel.Tasks.Clear();
-            ViewModel.Meals = null;
-        }
-
-        ViewModel = null;
     }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
@@ -529,15 +494,6 @@ public sealed partial class TodayPage : Page, INotifyPropertyChanged, ILessonSlo
         SlotInfoBar.Message = message;
         SlotInfoBar.IsOpen = true;
     }
-
-    #endregion
-
-    #region INotifyPropertyChanged
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     #endregion
 }

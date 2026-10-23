@@ -175,11 +175,8 @@
                                         <Grid Padding="12,10"
                                               Background="Transparent">
 
-                                            <!-- 호버 효과 -->
-                                            <Grid.Resources>
-                                                <SolidColorBrush x:Key="HoverBrush" Color="{ThemeResource SubtleFillColorSecondary}" Opacity="0.5"/>
-                                            </Grid.Resources>
-
+                                            <!-- 호버 효과를 맡던 VisualState 는 지웠다 — Grid 는 상태를 바꾸지 않고
+                                                 대상 이름(RootGrid)도 없어서 한 번도 걸린 적이 없다. -->
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="36"/>
                                                 <ColumnDefinition Width="140"/>
@@ -247,17 +244,6 @@
                                                    ToolTipService.ToolTip="삭제"
                                                    Click="BtnRemoveStudent_Click"
                                                    Tag="{x:Bind StudentID}"/>
-
-                                            <VisualStateManager.VisualStateGroups>
-                                                <VisualStateGroup x:Name="CommonStates">
-                                                    <VisualState x:Name="Normal"/>
-                                                    <VisualState x:Name="PointerOver">
-                                                        <VisualState.Setters>
-                                                            <Setter Target="RootGrid.Background" Value="{StaticResource HoverBrush}"/>
-                                                        </VisualState.Setters>
-                                                    </VisualState>
-                                                </VisualStateGroup>
-                                            </VisualStateManager.VisualStateGroups>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

@@ -157,7 +157,6 @@
 | `CoursePicker.xaml` | 과목/강의실 선택기 (확정 시 수강생 목록 이벤트 전달) |
 | `SchoolMealBox.xaml` | 급식 정보 박스 (날짜는 홈 화면의 날짜 이동을 따른다 — 자체 선택기 없음) |
 | `SchoolScheduleListControl.xaml` | 학사일정 목록 |
-| `RichTextEditor.xaml` | 리치 텍스트 에디터 (WinUIRichEditor/Win2D 어댑터) |
 | `RichTextEditorWin.xaml` | 에디터 윈도우 (전체화면 편집) |
 
 ### 수업 관리 탭 컨트롤
@@ -193,7 +192,6 @@
 | `BulkStudentInfoPreviewDialog.xaml` | 학생 정보 일괄 입력 미리보기 |
 | `RosterTableDialog.xaml` | 명렬표 |
 | `SeatOptionsDialog.xaml` | 자리 배정 옵션 |
-| `SeatExclusionDialog.xaml` | 자리 배정 제외 |
 | `SeatPrintOptionsDialog.xaml` | 자리 배치 출력 옵션 |
 | `CourseEditDialog.xaml` | 수업(교과) 편집 |
 | `CourseEnrollmentDialog.xaml` | 수강 등록 |
@@ -355,7 +353,6 @@
 | `Converters/CommonConverters.cs` | 공통 컨버터 |
 | `Converters/SchoolScheduleConverters.cs` | 학사일정 표시 컨버터 |
 | `Logging/FileLogger.cs` | 파일 로깅 |
-| `Tools.cs` | 공통 도구 |
 | `Functions.cs` | 공통 함수 (교시 판정 `GetPeriodAt` 등) |
 | `Settings.cs` | 설정 키-값 접근 |
 | `SchoolDatabase.cs` | 메인 DB 경로·연결 |

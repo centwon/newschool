@@ -7,6 +7,7 @@
 >   방학 주차 자르기, 방학식은 수업일, 토요휴업일 같은 변형까지 못박아 두었다.
 > — 1.0 정리로 사라진 기능(연간계획·자동배치·Undo)의 테스트는 함께 걷어냈고,
 >   되살린 시수·진도와 새 시간표 변경의 테스트(`WeeklyHoursCalculatorTests`·`TimetableChangeMergerTests`)가 들어왔다.
+>   (`TimetableChangeMergerTests` 는 2026-09-28 병합기를 지울 때 함께 빠졌다 — 오늘 화면이 장부로 옮겨 갔다.)
 > — 줄 수가 8.5만에서 줄어든 것은 2026-08 검사에서 **한 번도 쓰지 않은 코드**를 걷어냈기 때문이다.
 >   지운 코드만 검증하던 테스트도 함께 빠졌고(예: `TimetableServiceTests`), 그 자리를 회귀 테스트가 채웠다.
 > 착수 시점: 테스트 25개(헬퍼 2파일: CsvEscape, NeisHelper) -> 4단계 완료 시 211개

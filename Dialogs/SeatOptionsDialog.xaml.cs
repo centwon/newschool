@@ -18,7 +18,6 @@ public sealed partial class SeatOptionsDialog : ContentDialog
 
     private readonly List<StudentCardData> _students;
     private readonly Dictionary<string, string> _nameLookup;
-    private readonly Dictionary<string, string> _sexLookup;
 
     // 현재 편집 중인 값
     private readonly List<SeatOptions.PairRule> _exclusionPairs = new();
@@ -34,7 +33,6 @@ public sealed partial class SeatOptionsDialog : ContentDialog
 
         _students = students.OrderBy(s => s.Number).ToList();
         _nameLookup = _students.ToDictionary(s => s.StudentID, s => $"{s.Name}({s.Number})");
-        _sexLookup = _students.ToDictionary(s => s.StudentID, s => s.Sex ?? string.Empty);
 
         Result = CloneOptions(initial);
 
@@ -266,10 +264,15 @@ public sealed partial class SeatOptionsDialog : ContentDialog
 
     private void OnConfirm(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
-        Result.RecentPairAvoidRounds = ChkRecentPair.IsChecked == true ? (int)NbxRecentPair.Value : 0;
-        Result.RecentPositionAvoidRounds = ChkRecentPos.IsChecked == true ? (int)NbxRecentPos.Value : 0;
+        // 숫자 칸을 비우면 Value 가 NaN 이고 (int)NaN 은 int.MinValue 다 — 비운 칸은 열 때의 값으로 둔다.
+        static int IntOr(NumberBox box, int fallback) => double.IsNaN(box.Value) ? fallback : (int)box.Value;
+
+        Result.RecentPairAvoidRounds = ChkRecentPair.IsChecked == true
+            ? IntOr(NbxRecentPair, System.Math.Max(Result.RecentPairAvoidRounds, 1)) : 0;
+        Result.RecentPositionAvoidRounds = ChkRecentPos.IsChecked == true
+            ? IntOr(NbxRecentPos, System.Math.Max(Result.RecentPositionAvoidRounds, 1)) : 0;
         Result.PreferMixedGenderPair = ChkMixedGender.IsChecked == true;
-        Result.FrontPriorityMaxRow = (int)NbxFrontMaxRow.Value;
+        Result.FrontPriorityMaxRow = IntOr(NbxFrontMaxRow, Result.FrontPriorityMaxRow);
         Result.FrontPriorityStudentIds = new List<string>(_frontIds);
         Result.ExclusionPairs = new List<SeatOptions.PairRule>(_exclusionPairs);
         Result.FixedPairs = new List<SeatOptions.PairRule>(_fixedPairs);

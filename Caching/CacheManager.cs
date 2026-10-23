@@ -96,37 +96,8 @@ public sealed class CacheManager : IDisposable
         }
     }
 
-    /// <summary>
-    /// 캐시에서 데이터 조회
-    /// LRU: 조회 시 LastAccessTime 업데이트
-    /// </summary>
-    public T? Get<T>(string key)
-    {
-        lock (_lockObject)
-        {
-            if (_cache.TryGetValue(key, out var entry))
-            {
-                if (entry.ExpiresAt > DateTime.Now)
-                {
-                    entry.LastAccessTime = DateTime.Now; // LRU 갱신
-                    Debug.WriteLine($"[Cache] 히트: {key}");
-                    return (T?)entry.Value;
-                }
-                else
-                {
-                    _currentCacheSize -= entry.Size;
-                    _cache.Remove(key);
-                    Debug.WriteLine($"[Cache] 만료: {key}");
-                }
-            }
-            else
-            {
-                Debug.WriteLine($"[Cache] 미스: {key}");
-            }
-
-            return default;
-        }
-    }
+    // Get<T> 는 지웠다(2026-10-23) — 부르는 곳이 없었다. 값 타입의 default 나 캐시된 null 을
+    // 미스와 구분하지 못해 모든 경로가 아래 TryGet<T> 로 옮겨 간 뒤 남은 것이다.
 
     /// <summary>
     /// 캐시에서 데이터 조회 시도 (히트/미스를 명확히 구분)

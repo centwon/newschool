@@ -620,10 +620,7 @@ public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Contr
             await SCard.LoadStudentAsync(studentId);
             System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] StudentCard 로드 완료");
 
-            // 2. 학생 정보 헤더 업데이트
-            UpdateStudentInfoHeader();
-
-            // 3. 누가기록 로드
+            // 2. 누가기록 로드
             System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] 누가기록 로드 시작");
             await LoadStudentLogsAsync(studentId);
             System.Diagnostics.Debug.WriteLine($"[PageStudentInfo] 누가기록 로드 완료");
@@ -1389,14 +1386,6 @@ public sealed partial class PageStudentInfo : Page, IDisposable, NewSchool.Contr
     #endregion
 
     #region Helper Methods
-
-    /// <summary>
-    /// 학생 정보 헤더 업데이트
-    /// </summary>
-    private void UpdateStudentInfoHeader()
-    {
-        // 헤더 TextBlock 제거됨 — 학생 정보는 StudentCard에서 직접 표시
-    }
 
     /// <summary>
     /// 버튼 활성화/비활성화

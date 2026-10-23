@@ -27,7 +27,11 @@ public sealed partial class PostDetailPage : Page
         this.InitializeComponent();
         ViewModel = new PostDetailViewModel();
         this.DataContext = ViewModel;
-        Unloaded += (_, _) => ContentViewer.Clear();   // 페이지 이탈 시 에디터 해제
+        Unloaded += (_, _) =>
+        {
+            ContentViewer.Clear();   // 페이지 이탈 시 에디터 해제
+            ViewModel.Dispose();     // 서비스의 DB 연결도 놓는다
+        };
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -62,11 +66,11 @@ public sealed partial class PostDetailPage : Page
             }
             else ContentViewer.Clear();
 
-            using var service = Board.CreateService();
-            var files = await service.GetPostFilesByPostAsync(_postNo);
-            bool hasFiles = files != null && files.Count > 0;
+            // 첨부는 LoadPostAsync 가 이미 읽어 두었다 — 예전에는 여기서 같은 목록을 한 번 더 읽었다.
+            var files = new System.Collections.Generic.List<PostFile>(ViewModel.Files);
+            bool hasFiles = files.Count > 0;
             if (hasFiles)
-                DetailFileListBox.LoadFiles(files!, ViewModel.Post.Category, readOnly: true);
+                DetailFileListBox.LoadFiles(files, ViewModel.Post.Category, readOnly: true);
             DetailFileListBox.Visibility = hasFiles ? Visibility.Visible : Visibility.Collapsed;
         }
     }

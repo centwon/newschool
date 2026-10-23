@@ -54,9 +54,21 @@ public static class TextBoxDropHelper
         }
     }
 
+    /// <summary>
+    /// 글을 받아도 되는 칸인가. 전역 스타일로 모든 TextBox 에 붙어 있어서, 예전에는 읽기 전용·
+    /// 비활성 칸(미리보기·표시용)에도 끌어 놓으면 글이 들어갔다.
+    /// </summary>
+    private static bool CanAccept(object sender) => sender is TextBox { IsReadOnly: false, IsEnabled: true };
+
     private static void TextBox_DragEnter(object sender, DragEventArgs e)
     {
         System.Diagnostics.Debug.WriteLine("[TextBoxDrop] DragEnter 이벤트 발생");
+
+        if (!CanAccept(sender))
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
 
         // 드래그 시작 시 드롭 가능 여부 표시
         e.AcceptedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
@@ -74,6 +86,12 @@ public static class TextBoxDropHelper
     {
         System.Diagnostics.Debug.WriteLine("[TextBoxDrop] DragOver 이벤트 발생");
 
+        if (!CanAccept(sender))
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
+
         // 텍스트 데이터를 포함하는 경우 드롭 허용
         e.AcceptedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
 
@@ -87,7 +105,7 @@ public static class TextBoxDropHelper
     {
         System.Diagnostics.Debug.WriteLine("[TextBoxDrop] Drop 이벤트 발생");
 
-        if (sender is TextBox textBox)
+        if (CanAccept(sender) && sender is TextBox textBox)
         {
             // 텍스트 데이터 가져오기
             if (e.DataView.Contains(StandardDataFormats.Text))

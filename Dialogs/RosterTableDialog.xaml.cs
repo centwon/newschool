@@ -536,23 +536,6 @@ public sealed partial class RosterTableDialog : ContentDialog
             .ToList();
     }
 
-    private async Task<List<(int Number, string Name)>> LoadClubStudentsAsync(int clubNo)
-    {
-        using var clubRepo = new Repositories.ClubEnrollmentRepository(SchoolDatabase.DbPath);
-        var enrollments = await clubRepo.GetByClubAsync(clubNo);
-
-        var studentIds = enrollments.Select(e => e.StudentID).ToHashSet();
-        using var enrollService = new EnrollmentService();
-        var allEnrollments = await enrollService.GetEnrollmentsAsync(
-            Settings.SchoolCode, Settings.WorkYear.Value);
-
-        return allEnrollments
-            .Where(e => studentIds.Contains(e.StudentID))
-            .OrderBy(e => e.Grade).ThenBy(e => e.Class).ThenBy(e => e.Number)
-            .Select(e => (e.Number, e.Name))
-            .ToList();
-    }
-
     #endregion
 
     #region HTML 테이블 빌드

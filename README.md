@@ -1,6 +1,6 @@
 ﻿# NewSchool
 
-WinUI 3 (Windows App SDK 2.4) · .NET 10 · SQLite 기반 교사용 학급 관리 프로그램.
+WinUI 3 (Windows App SDK 2.5) · .NET 10 · SQLite 기반 교사용 학급 관리 프로그램.
 
 리치 텍스트 편집은 네이티브 Win2D 에디터(WinUIRichEditor)를 사용하며, WebView2 의존이 없습니다.
 
@@ -62,7 +62,7 @@ cp secrets.template.json secrets.json
 dotnet build -c Debug -p:Platform=x64
 ```
 
-또는 Visual Studio 에서 `NewSchool.sln` 열고 빌드.
+또는 Visual Studio 에서 `NewSchool.csproj` 를 열고 빌드(플랫폼은 x64).
 
 **3. 테스트**
 
