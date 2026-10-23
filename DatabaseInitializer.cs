@@ -970,7 +970,7 @@ public sealed class DatabaseInitializer : IDisposable
                 -- CASCADE 로 함께 지워 주기를 기대하지 않는다 — 이 연결에 foreign_keys 가
                 -- 켜져 있는지에 결과가 달라지면 안 된다.
                 -- ⚠ 여기서 사라지는 것은 DB 행뿐이다. 폴더에 남은 실물은
-                --   StudentLogAttachments.CleanupOrphanFilesAsync 가 치운다.
+                --   설정의 [남은 첨부 정리](StudentLogAttachments.FindOrphanFilesAsync)가 치운다.
                 DELETE FROM StudentLogFile WHERE LogNo NOT IN (SELECT No FROM StudentLog);
                 DELETE FROM StudentSpecial WHERE StudentID NOT IN (SELECT StudentID FROM Student);
                 DELETE FROM Club WHERE TeacherID NOT IN (SELECT TeacherID FROM Teacher);

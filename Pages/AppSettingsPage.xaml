@@ -116,6 +116,18 @@
                                     Click="OnOpenBackupFolderClick"
                                     HorizontalAlignment="Stretch"/>
                             </Grid>
+
+                            <!-- 지운 누가기록의 첨부 실물 정리. 되돌릴 수 없어 저절로 돌리지 않는다
+                                 (StudentLogAttachments.FindOrphanFilesAsync 주석). -->
+                            <StackPanel Spacing="4" Margin="0,8,0,0">
+                                <TextBlock Text="남은 첨부 정리" FontWeight="SemiBold"/>
+                                <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Text="누가기록이나 학생을 지운 뒤 폴더에 남은 첨부파일을 찾아 지웁니다. 지우기 전에 몇 개·얼마인지 보여 줍니다."/>
+                                <Button x:Name="BtnCleanupAttachments"
+                                        Content="남은 첨부 찾기..."
+                                        Click="OnCleanupAttachmentsClick"
+                                        Margin="0,4,0,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </Expander.Content>
                 </Expander>

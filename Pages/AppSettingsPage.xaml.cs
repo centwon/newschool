@@ -137,6 +137,8 @@ public sealed partial class AppSettingsPage : Page
     {
         BtnBackup.IsEnabled = !busy;
         BtnRestore.IsEnabled = !busy;
+        // 첨부 정리도 — 복원이 DB 를 갈아 끼우는 중에 옛 DB 로 "남은 것" 을 고르면 멀쩡한 첨부를 지운다.
+        BtnCleanupAttachments.IsEnabled = !busy;
     }
 
     private async void OnBackupClick(object sender, RoutedEventArgs e)
@@ -237,6 +239,51 @@ public sealed partial class AppSettingsPage : Page
         if (!System.IO.Directory.Exists(backupDir))
             System.IO.Directory.CreateDirectory(backupDir);
         Process.Start(new ProcessStartInfo { FileName = backupDir, UseShellExecute = true });
+    }
+
+    /// <summary>
+    /// [남은 첨부 찾기] — 지운 누가기록·학생의 첨부 실물을 찾아 몇 개·얼마인지 보이고, 고르면 지운다.
+    /// 되돌릴 수 없어 시작할 때 저절로 돌리지 않는다(StudentLogAttachments.FindOrphanFilesAsync 주석).
+    /// </summary>
+    private async void OnCleanupAttachmentsClick(object sender, RoutedEventArgs e)
+    {
+        SetBackupBusy(true);
+        try
+        {
+            var scan = await Task.Run(() => Services.StudentLogAttachments.FindOrphanFilesAsync());
+            if (scan.Paths.Count == 0)
+            {
+                await MessageBox.ShowAsync("정리할 첨부파일이 없습니다.", "남은 첨부 정리");
+                return;
+            }
+
+            string size = scan.Bytes >= 1024 * 1024
+                ? $"{scan.Bytes / (1024.0 * 1024):F1} MB"
+                : $"{System.Math.Max(1, scan.Bytes / 1024)} KB";
+
+            // 백업에는 첨부가 담기지 않는다(위 안내) — 지키려면 폴더를 복사하라고 일러 둔다.
+            if (!await MessageBox.ShowConfirmAsync(
+                    $"누가기록에서 쓰이지 않는 첨부파일 {scan.Paths.Count}개({size})를 찾았습니다.\n" +
+                    "지우면 되돌릴 수 없습니다. 남겨 두려면 먼저 [데이터 폴더 열기] 로 StudentLogFiles 폴더를 복사해 두세요.",
+                    "남은 첨부 정리", "지우기", "취소"))
+                return;
+
+            int removed = await Task.Run(() => Services.StudentLogAttachments.DeleteOrphanFiles(scan.Paths));
+            if (removed == scan.Paths.Count)
+                await MessageBox.ShowAsync($"첨부파일 {removed}개를 지웠습니다.", "남은 첨부 정리");
+            else
+                await MessageBox.ShowAsync(
+                    $"{scan.Paths.Count}개 중 {removed}개를 지웠습니다. 나머지는 다른 프로그램이 열고 있을 수 있습니다.",
+                    "남은 첨부 정리");
+        }
+        catch (Exception ex)
+        {
+            await UserErrorReporter.ReportAsync("남은 첨부 정리", ex);
+        }
+        finally
+        {
+            SetBackupBusy(false);
+        }
     }
 
     private void UpdateLastBackupTimeText()

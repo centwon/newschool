@@ -150,7 +150,7 @@ public static class StudentLogAttachments
     /// 첨부 한 건을 DB 와 실물에서 함께 지운다.
     ///
     /// <para><b>DB 를 먼저 지운다.</b> 실물만 남으면 "아무도 가리키지 않는 파일"이고
-    /// <see cref="CleanupOrphanFilesAsync"/> 가 치울 수 있지만, 반대 순서로 하다 실패하면
+    /// 설정의 [남은 첨부 정리](<see cref="FindOrphanFilesAsync"/>)가 치울 수 있지만, 반대 순서로 하다 실패하면
     /// DB 는 있는데 실물이 없는 첨부가 되어 열 때마다 "파일이 없다"가 된다.</para>
     /// </summary>
     public static async Task<bool> DeleteAsync(StudentLogFileRepository repo, StudentLogFile file)
@@ -177,70 +177,108 @@ public static class StudentLogAttachments
         }
         catch (Exception ex)
         {
-            // 목록을 못 읽어도 기록 삭제 자체를 막지는 않는다 — 남은 파일은 고아 정리가 치운다.
-            NewSchool.Logging.Log.Warning("StudentLogAttachments", $"첨부 목록을 읽지 못해 파일이 남는다(고아 정리가 치운다): {ex.Message}");
+            // 목록을 못 읽어도 기록 삭제 자체를 막지는 않는다 — 남은 파일은 설정의 [남은 첨부 정리] 가 치운다.
+            NewSchool.Logging.Log.Warning("StudentLogAttachments", $"첨부 목록을 읽지 못해 파일이 남는다(설정의 [남은 첨부 정리] 로 치운다): {ex.Message}");
             return new List<string>();
         }
     }
 
-    /// <summary>모아 둔 경로를 지운다. 실패는 삼킨다 — 남아도 고아 정리가 치운다.</summary>
+    /// <summary>모아 둔 경로를 지운다. 실패는 삼킨다 — 남아도 설정의 [남은 첨부 정리] 가 치운다.</summary>
     public static void DeleteFiles(IEnumerable<string> paths)
     {
         foreach (var path in paths) TryDeleteFile(path);
     }
 
-    private static void TryDeleteFile(string path)
+    private static bool TryDeleteFile(string path)
     {
         try
         {
             if (File.Exists(path)) File.Delete(path);
+            return true;
         }
         catch (Exception ex)
         {
             NewSchool.Logging.Log.Warning("StudentLogAttachments", $"첨부 파일을 지우지 못했다({path}): {ex.Message}");
+            return false;
         }
     }
 
+    /// <summary>남은 첨부를 찾은 결과 — 지울 파일 경로와 그 크기의 합.</summary>
+    public sealed record OrphanScan(IReadOnlyList<string> Paths, long Bytes);
+
     /// <summary>
-    /// 폴더에 남았지만 DB 가 가리키지 않는 파일을 치운다.
+    /// 이만큼 안에 쓴 파일은 남은 것으로 보지 않는다. 첨부는 <b>파일을 먼저 복사하고 DB 행을
+    /// 나중에 넣으므로</b>(<see cref="ApplyAsync"/>), 다른 창에서 저장하던 첨부가 그 사이에 걸리면
+    /// 막 붙인 파일을 지우게 된다.
+    /// </summary>
+    private static readonly TimeSpan RecentWriteGrace = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// 폴더에 남았지만 DB 가 가리키지 않는 파일을 찾는다(지우지는 않는다).
     ///
     /// <para>학생을 지우면 기록이 CASCADE 로 사라지고 첨부 행도 함께 사라지지만, 그 어느
-    /// 단계도 <b>파일은 건드리지 않는다</b>. 여기가 마지막 그물이다.</para>
+    /// 단계도 <b>파일은 건드리지 않는다</b>. 설정의 [남은 첨부 정리] 가 마지막 그물이다 —
+    /// 되돌릴 수 없는 일이라 저절로 돌리지 않고, 몇 개·얼마인지 보여 준 뒤 사용자가 고른다.</para>
     ///
-    /// <para>DB 가 아는 이름을 전부 모아 놓고, 폴더를 훑어 그 안에 없는 것만 지운다.
-    /// 반대로(파일 하나마다 DB 를 물어보는 식으로) 하면 파일 수만큼 쿼리가 나간다.</para>
+    /// <para>DB 가 아는 이름을 전부 모아 놓고, 폴더를 훑어 그 안에 없는 것만 고른다.
+    /// 반대로(파일 하나마다 DB 를 물어보는 식으로) 하면 파일 수만큼 쿼리가 나간다.
+    /// DB 를 못 읽으면 <b>던진다</b> — 빈 목록으로 삼키면 폴더의 모든 파일이 "남은 것" 이 된다.</para>
     /// </summary>
-    /// <returns>지운 파일 수</returns>
-    public static async Task<int> CleanupOrphanFilesAsync(string? dbPath = null)
+    public static async Task<OrphanScan> FindOrphanFilesAsync(string? dbPath = null)
     {
-        if (!Directory.Exists(RootDir)) return 0;
+        if (!Directory.Exists(RootDir)) return new OrphanScan([], 0);
 
+        using var repo = new StudentLogFileRepository(dbPath ?? SchoolDatabase.DbPath);
+
+        var known = new HashSet<string>(
+            (await repo.GetAllAsync()).Select(GetFilePath),
+            StringComparer.OrdinalIgnoreCase);
+
+        var cutoff = DateTime.Now - RecentWriteGrace;
+        var paths = new List<string>();
+        long bytes = 0;
+        foreach (var path in Directory.EnumerateFiles(RootDir, "*", SearchOption.AllDirectories))
+        {
+            if (known.Contains(path)) continue;
+
+            var info = new FileInfo(path);
+            if (info.LastWriteTime > cutoff) continue;
+
+            paths.Add(path);
+            bytes += info.Length;
+        }
+
+        return new OrphanScan(paths, bytes);
+    }
+
+    /// <summary>
+    /// <see cref="FindOrphanFilesAsync"/> 가 찾은 파일을 지우고, 그래서 빈 학생·학년도 폴더도 걷는다.
+    /// </summary>
+    /// <returns>실제로 지운 파일 수(지우지 못한 것은 로그에 남는다)</returns>
+    public static int DeleteOrphanFiles(IEnumerable<string> paths)
+    {
+        int removed = 0;
+        foreach (var path in paths)
+            if (TryDeleteFile(path)) removed++;
+
+        // 안쪽(학생) 폴더부터 — 학생 폴더가 빠져야 학년도 폴더가 빈다. 뿌리 폴더는 남긴다.
         try
         {
-            using var repo = new StudentLogFileRepository(dbPath ?? SchoolDatabase.DbPath);
-
-            var known = new HashSet<string>(
-                (await repo.GetAllAsync()).Select(GetFilePath),
-                StringComparer.OrdinalIgnoreCase);
-
-            int removed = 0;
-            foreach (var path in Directory.EnumerateFiles(RootDir, "*", SearchOption.AllDirectories))
+            foreach (var dir in Directory.EnumerateDirectories(RootDir, "*", SearchOption.AllDirectories)
+                         .OrderByDescending(d => d.Length))
             {
-                if (known.Contains(path)) continue;
-                TryDeleteFile(path);
-                removed++;
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                    Directory.Delete(dir);
             }
-
-            if (removed > 0)
-                Debug.WriteLine($"[StudentLogAttachments] 고아 첨부 {removed}건 정리");
-
-            return removed;
         }
         catch (Exception ex)
         {
-            // 정리는 거들 뿐이다 — 실패해도 앱이 하려던 일을 막지 않는다.
-            NewSchool.Logging.Log.Warning("StudentLogAttachments", $"고아 첨부 정리에 실패했다: {ex.Message}");
-            return 0;
+            NewSchool.Logging.Log.Warning("StudentLogAttachments", $"빈 첨부 폴더를 걷지 못했다: {ex.Message}");
         }
+
+        if (removed > 0)
+            Debug.WriteLine($"[StudentLogAttachments] 남은 첨부 {removed}건 정리");
+
+        return removed;
     }
 }
