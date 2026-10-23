@@ -509,17 +509,11 @@ public sealed partial class PageStudentLog : Page, IDisposable, NewSchool.Contro
             }
 
             // 하나의 문서로 출력
-            string filePath;
-            if (isPdf)
-            {
-                var printService = new StudentLogPrintService();
-                filePath = printService.GenerateClassLogPdf(year, grade, classNo, studentLogsList);
-            }
-            else
-            {
-                var exportService = new StudentLogExportService();
-                filePath = exportService.ExportClassLogsToExcel(year, grade, classNo, studentLogsList);
-            }
+            // 파일 만들기는 UI 스레드 밖에서 — 학급 전체는 몇 초가 걸려 그동안 창이 멈췄다
+            // (UnifiedExportService.ExportClassLogsAsync 와 같은 방식).
+            string filePath = await Task.Run(() => isPdf
+                ? new StudentLogPrintService().GenerateClassLogPdf(year, grade, classNo, studentLogsList)
+                : new StudentLogExportService().ExportClassLogsToExcel(year, grade, classNo, studentLogsList));
 
             // 파일 열기 — 못 열어도 아래 안내가 저장 위치를 알려 주므로 결과는 보지 않는다.
             // (Process.Start 를 직접 부르면 던진 예외가 이 안내를 건너뛰고 "오류" 로 끝났다.)

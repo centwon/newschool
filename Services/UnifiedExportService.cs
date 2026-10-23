@@ -231,7 +231,9 @@ public class UnifiedExportService
         var data = await LoadClassLogsAsync(year, grade, classNo);
         if (data.Count == 0) return null;
 
-        return format switch
+        // 파일 만들기는 UI 스레드 밖에서 — 학급 전체 PDF·엑셀은 몇 초가 걸려 그동안 창이 멈췄다.
+        // (읽은 자료와 Settings 의 메모리 값만 쓰고 화면은 건드리지 않는다.)
+        return await Task.Run(() => format switch
         {
             ExportFormat.Excel => new StudentLogExportService()
                 .ExportClassLogsToExcel(year, grade, classNo, data),
@@ -241,8 +243,8 @@ public class UnifiedExportService
                 .ExportClassLogsToHtml(year, grade, classNo, data),
             ExportFormat.Csv => new CsvExportService()
                 .ExportClassLogsToCsv(year, grade, classNo, data),
-            _ => null
-        };
+            _ => (string?)null
+        });
     }
 
     /// <summary>누가기록을 CSV 문자열로 빌드 (클립보드 복사용).</summary>
@@ -308,7 +310,8 @@ public class UnifiedExportService
         var data = await LoadClassSpecsAsync(year, grade, classNo);
         if (data.Count == 0) return null;
 
-        return format switch
+        // 누가기록과 같은 이유로 파일 만들기는 UI 스레드 밖에서(ExportClassLogsAsync 주석).
+        return await Task.Run(() => format switch
         {
             ExportFormat.Excel => new StudentSpecExportService()
                 .ExportClassSpecsToExcel(year, grade, classNo, data),
@@ -318,8 +321,8 @@ public class UnifiedExportService
                 .ExportClassSpecsToHtml(year, grade, classNo, data),
             ExportFormat.Csv => new CsvExportService()
                 .ExportClassSpecsToCsv(year, grade, classNo, data),
-            _ => null
-        };
+            _ => (string?)null
+        });
     }
 
     private static async Task<List<(int Number, string Name, List<StudentSpecial> Specs)>>
