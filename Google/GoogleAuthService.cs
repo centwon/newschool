@@ -123,6 +123,9 @@ public sealed class GoogleAuthService : IDisposable
             // 1. PKCE 생성
             string codeVerifier = GenerateCodeVerifier();
             string codeChallenge = GenerateCodeChallenge(codeVerifier);
+            // 콜백이 이 요청의 응답인지 확인한다(RFC 6749 §10.12). PKCE 만으로도 남의 code 는
+            // 교환되지 않지만, 대기 중인 포트로 아무나 보낸 요청이 로그인 시도를 끝내 버리는 것은 막는다.
+            string state = GenerateCodeVerifier();
 
             // 2. 사용 가능한 포트 찾기
             int port = FindAvailablePort();
@@ -142,6 +145,7 @@ public sealed class GoogleAuthService : IDisposable
                 $"&scope={Uri.EscapeDataString(Scope)}" +
                 $"&code_challenge={Uri.EscapeDataString(codeChallenge)}" +
                 $"&code_challenge_method=S256" +
+                $"&state={Uri.EscapeDataString(state)}" +
                 $"&access_type=offline" +
                 $"&prompt=consent";
 
@@ -152,14 +156,24 @@ public sealed class GoogleAuthService : IDisposable
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromMinutes(5));
 
-            var context = await listener.GetContextAsync().WaitAsync(timeoutCts.Token);
+            // state 가 맞는 요청이 올 때까지 받는다 — 브라우저의 favicon 요청이나 다른 프로그램이
+            // 보낸 요청은 400 으로 돌려보내고 계속 기다린다(5분 제한은 그대로).
+            HttpListenerContext context;
+            while (true)
+            {
+                context = await listener.GetContextAsync().WaitAsync(timeoutCts.Token);
+                if (context.Request.QueryString["state"] == state) break;
+
+                context.Response.StatusCode = 400;
+                context.Response.Close();
+            }
             string? code = context.Request.QueryString["code"];
             string? error = context.Request.QueryString["error"];
 
             // 6. 브라우저에 응답 보내기
             string responseHtml = error == null
                 ? "<html><body><h2>인증 완료!</h2><p>이 창을 닫아도 됩니다.</p></body></html>"
-                : $"<html><body><h2>인증 실패</h2><p>{error}</p></body></html>";
+                : $"<html><body><h2>인증 실패</h2><p>{WebUtility.HtmlEncode(error)}</p></body></html>";
             byte[] responseBytes = Encoding.UTF8.GetBytes(responseHtml);
             context.Response.ContentType = "text/html; charset=utf-8";
             context.Response.ContentLength64 = responseBytes.Length;

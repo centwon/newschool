@@ -190,7 +190,19 @@ public class GoogleCalendarApiClient
         string url = $"{BaseUrl}/calendars/{Uri.EscapeDataString(calendarId)}/events/{Uri.EscapeDataString(eventId)}";
         var request = await CreateAuthRequestAsync(HttpMethod.Delete, url);
 
-        var response = await SendWithRetryAsync(request);
+        HttpResponseMessage response;
+        try
+        {
+            response = await SendWithRetryAsync(request);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            // 구글에 이미 없다 — 지우려던 결과와 같다. 410 과 같이 성공으로 본다.
+            // 예전에는 오류로 떨어져 로컬 삭제 표시(cancelled 행)가 영영 치워지지 않고
+            // 동기화할 때마다 "오류 1건" 이 남았다.
+            Debug.WriteLine($"[GoogleCalAPI] 이벤트 삭제: {eventId} → 이미 없음(404)");
+            return true;
+        }
         bool ok = response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.Gone;
         Debug.WriteLine($"[GoogleCalAPI] 이벤트 삭제: {eventId} → {(ok ? "성공" : "실패")}");
         return ok;

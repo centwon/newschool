@@ -922,11 +922,13 @@ public static class Settings
                     {
                         // 설정 DB 는 덮어쓴 뒤 다시 읽어야 하므로 전용 경로를 쓴다.
                         // 결과를 버리면 설정만 옛 상태로 남은 반쪽 복원을 "복원 완료" 로 알리게 된다.
+                        //
+                        // 실패하면 던져서 아래 finally 의 되돌리기로 보낸다. 예전에는 allRestored 만
+                        // 내리고 계속 갔는데, Settings.db 가 목록 맨 앞이라 설정은 SettingsDb.Restore 가
+                        // 스스로 되돌린 현재 시점, 나머지 DB 셋은 백업 시점으로 덮인 채 "committed" 로
+                        // 끝났다 — 데이터 DB 를 롤백하는 이 함수의 약속이 설정 실패에만 빠져 있었다.
                         if (!SettingsDb.Restore(dbFile))
-                        {
-                            allRestored = false;
-                            System.Diagnostics.Debug.WriteLine("[Settings] Settings.db 복원 실패");
-                        }
+                            throw new IOException("Settings.db 복원 실패 — 데이터 DB 를 덮기 전에 멈춘다");
                     }
                     else
                     {

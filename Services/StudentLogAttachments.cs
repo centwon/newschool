@@ -242,7 +242,10 @@ public static class StudentLogAttachments
             if (known.Contains(path)) continue;
 
             var info = new FileInfo(path);
-            if (info.LastWriteTime > cutoff) continue;
+            // 생성 시각도 본다 — 첨부는 StorageFile.CopyAsync 로 복사하는데, Windows 복사는
+            // 원본의 수정 시각을 그대로 옮긴다. 작년 사진을 방금 붙이면 LastWriteTime 은 작년이라
+            // 수정 시각만으로는 유예가 걸리지 않는다. 복사본의 생성 시각은 복사한 때로 새로 찍힌다.
+            if (info.LastWriteTime > cutoff || info.CreationTime > cutoff) continue;
 
             paths.Add(path);
             bytes += info.Length;
